@@ -1,0 +1,270 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPERADMIN
+  STAFF
+  SUPERVISOR
+}
+
+enum Status {
+  ACTIVE
+  BROKEN
+  MAINTENANCE
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+model User {
+  id              String    @id @default(uuid())
+  name            String
+  email           String    @unique
+  password        String
+  role            Role      @default(STAFF)
+  branchId        String?
+  unitId          String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
+  unit            Unit?     @relation(fields: [unitId], references: [id])
+  tickets         Ticket[]  @relation("TicketCreator")
+  assignedTickets Ticket[]  @relation("TicketAssignee")
+  events          Event[]   @relation("EventCreator")
+  assignedEvents  Event[]   @relation("EventAssignee")
+  notices         Notice[]
+  modules         String[]  @default([])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Branch {
+  id        String   @id @default(uuid())
+  name      String
+  location  String?
+  units     Unit[]
+  users     User[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Unit {
+  id        String   @id @default(uuid())
+  name      String
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  users     User[]
+  tickets   Ticket[]
+  assets    Asset[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Asset {
+  id            String   @id @default(uuid())
+  category      String
+  brand         String
+  model         String
+  serialNumber  String?
+  barcode       String?
+  location      String?
+  status        Status   @default(ACTIVE)
+  assigneeName  String?
+  unitId        String?
+  unit          Unit?    @relation(fields: [unitId], references: [id])
+  tickets       Ticket[]
+  logs          AssetLog[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model AssetLog {
+  id          String   @id @default(uuid())
+  assetId     String
+  asset       Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  action      String
+  description String
+  performedBy String?  
+  date        DateTime @default(now())
+}
+
+model Ticket {
+  id            String       @id @default(uuid())
+  ticketNumber  Int          @unique @default(autoincrement())
+  title         String
+  description   String
+  status        TicketStatus @default(OPEN)
+  priority      String       @default("Low") // Low, Medium, High, Urgent
+  
+  // Submitter details
+  requesterName String?
+  phone         String?
+  
+  // Asset details (if not linked to DB asset)
+  assetType     String?
+  assetNumber   String?
+  
+  // IT Resolution Workspace
+  rootCause     String?
+  resolution    String?
+  internalNotes String?
+  type          String?      // Infra, Support, System, M365, Event, Application, Others
+  typeOthers    String?
+  assigneeId    String?
+  assignee      User?        @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  
+  // Relations
+  createdById   String
+  createdBy     User         @relation("TicketCreator", fields: [createdById], references: [id])
+  unitId        String?
+  unit          Unit?        @relation(fields: [unitId], references: [id])
+  linkedAssetId String?
+  linkedAsset   Asset?       @relation(fields: [linkedAssetId], references: [id])
+  
+  // SLA Tracking
+  slaDeadline   DateTime?
+  slaBreached   Boolean      @default(false)
+
+  // Cost Tracking
+  costs         TicketCost[]
+  
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model Event {
+  id            String   @id @default(uuid())
+  title         String
+  description   String?
+  startDateTime DateTime
+  endDateTime   DateTime
+  assigneeId    String?
+  assignee      User?    @relation("EventAssignee", fields: [assigneeId], references: [id])
+  createdById   String
+  createdBy     User     @relation("EventCreator", fields: [createdById], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model TransferIn {
+  id           String             @id @default(uuid())
+  receiveDate  DateTime           @db.Date
+  receiveTime  String
+  doNumber     String
+  receiverName String
+  items        TransferInItem[]
+  createdAt    DateTime           @default(now())
+}
+
+model TransferInItem {
+  id           String     @id @default(uuid())
+  transferInId String
+  transferIn   TransferIn @relation(fields: [transferInId], references: [id], onDelete: Cascade)
+  category     String
+  batchNo      String
+  bags         Int
+  mult         Int
+}
+
+model DailyReport {
+  id           String   @id @default(uuid())
+  date         DateTime @db.Date
+  time         String?
+  shift        String
+  line         String
+  preparedBy   String
+  preparedSignature String?
+  verifiedBy   String
+  verifiedSignature String?
+  remarks      String?
+  status       String   @default("PENDING")
+  
+  productions  ProductionOutput[]
+  rejects      RejectLog[]
+  inventory    InventoryLog[]
+
+  createdAt    DateTime @default(now())
+}
+
+model ProductionOutput {
+  id            String            @id @default(uuid())
+  reportId      String
+  report        DailyReport       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  productType   String      
+  totalBox      Int
+  batches       ProductionBatch[]
+}
+
+model ProductionBatch {
+  id                 String           @id @default(uuid())
+  productionOutputId String
+  productionOutput   ProductionOutput @relation(fields: [productionOutputId], references: [id], onDelete: Cascade)
+  batchNo            String
+  qty                Int
+  type               String           
+  otherType          String?
+}
+
+model RejectLog {
+  id        String      @id @default(uuid())
+  reportId  String
+  report    DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  item      String      
+  before    Int
+  after     Int
+}
+
+model InventoryLog {
+  id          String      @id @default(uuid())
+  reportId    String
+  report      DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  sectionKey  String      
+  type        String      // "Storeroom" or "Usage"
+  period      String?     // "Before" or "After"
+  batchNo     String
+  bags        Float       
+  mult        Int
+  labelType   String?
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model CostCatalog {
+  id          String   @id @default(uuid())
+  itemName    String
+  description String?
+  defaultCost Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model TicketCost {
+  id          String   @id @default(uuid())
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  itemName    String
+  amount      Float
+  createdAt   DateTime @default(now())
+}
+
+model Notice {
+  id             String   @id @default(uuid())
+  message        String
+  type           String   @default("NORMAL") // NORMAL, AWARE, URGENT
+  targetAudience String   @default("ALL") // "ALL" or Unit ID
+  isActive       Boolean  @default(true)
+  createdById    String
+  createdBy      User     @relation(fields: [createdById], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}

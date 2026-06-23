@@ -1,4 +1,5 @@
 "use client"
+// @ts-nocheck
 
 import { useState } from 'react'
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar'

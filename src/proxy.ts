@@ -42,7 +42,7 @@ export default auth((req) => {
   )?.[1]
 
   if (requiredModule && req.auth?.user.role !== "SUPERADMIN") {
-    const userModules = (req.auth.user as any).modules || []
+    const userModules = (req.auth?.user as any).modules || []
     if (!userModules.includes(requiredModule)) {
       return NextResponse.redirect(new URL("/dashboard", nextUrl))
     }

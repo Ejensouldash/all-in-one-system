@@ -29,7 +29,7 @@ export function FloatingTicketModal() {
         setIsLoadingData(false)
         if (res?.user?.unit?.branchId) {
           setSelectedBranchId(res.user.unit.branchId)
-          setSelectedUnitId(res.user.unitId)
+          setSelectedUnitId(res.user.unitId || "")
         }
       })
     }

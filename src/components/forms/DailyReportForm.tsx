@@ -257,7 +257,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             </thead>
             <tbody>
               {['CAP', 'BOTTLE', 'LABEL', 'BOX'].map((item) => {
-                const lowerItem = item.toLowerCase() as keyof typeof watchRejects
+                const lowerItem = item.toLowerCase() as "cap" | "bottle" | "label" | "box"
                 const bef = Number(watchRejects?.[lowerItem]?.before) || 0
                 const aft = Number(watchRejects?.[lowerItem]?.after) || 0
                 return (
@@ -609,7 +609,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                     <div className="w-full sm:w-56">
                       <select 
                         {...register(`inventory.${sectionKey}.sources.${index}.batchNo`, {
-                          onChange: (e) => handleBatchSelect(index, e)
+                          onChange: (e: any) => handleBatchSelect(index, e)
                         })} 
                         className="w-full p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-black uppercase"
                       >

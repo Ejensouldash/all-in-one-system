@@ -33,7 +33,7 @@ export default async function DashboardPage() {
   }
 
   const isSuperAdmin = session.user.role === "SUPERADMIN"
-  const userUnitId = session.user.unitId
+  const userUnitId = session.user.unitId || null
 
   // Use cached aggregation queries (revalidates every 60s)
   const stats = await getDashboardStats(userUnitId, isSuperAdmin)

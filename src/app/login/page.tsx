@@ -74,7 +74,7 @@ export default function LoginPage() {
           </p>
         </div>
         
-        <form className="mt-8 space-y-6" action={loginWithCredentials} onSubmit={clientSubmit}>
+        <form className="mt-8 space-y-6" onSubmit={clientSubmit}>
           <div className="space-y-4 rounded-md shadow-sm">
             <div>
               <label htmlFor="email-address" className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">

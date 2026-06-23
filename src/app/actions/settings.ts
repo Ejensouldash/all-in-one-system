@@ -63,20 +63,17 @@ export async function generateBackup() {
   if (session?.user.role !== "SUPERADMIN") return { success: false, error: "Unauthorized" }
 
   try {
-    const [settings, branches, units, users, rooms, assets, tickets, bookings, forms] = await Promise.all([
+    const [settings, branches, units, users, assets, tickets] = await Promise.all([
       prisma.setting.findMany(),
       prisma.branch.findMany(),
       prisma.unit.findMany(),
       prisma.user.findMany(),
-      prisma.room.findMany(),
       prisma.asset.findMany(),
-      prisma.ticket.findMany(),
-      prisma.booking.findMany(),
-      prisma.form.findMany()
+      prisma.ticket.findMany()
     ])
 
     const backupData = {
-      settings, branches, units, users, rooms, assets, tickets, bookings, forms
+      settings, branches, units, users, assets, tickets
     }
 
     return { success: true, data: JSON.stringify(backupData, null, 2) }
@@ -95,26 +92,20 @@ export async function restoreBackup(jsonString: string) {
     // Execute in an interactive transaction to ensure complete rollback on failure
     await prisma.$transaction(async (tx) => {
       // 1. DELETE ALL EXISTING DATA IN CORRECT RELATIONAL ORDER
-      await tx.booking.deleteMany()
       await tx.ticket.deleteMany()
       await tx.asset.deleteMany()
       await tx.user.deleteMany()
       await tx.unit.deleteMany()
       await tx.branch.deleteMany()
-      await tx.room.deleteMany()
-      await tx.form.deleteMany()
       await tx.setting.deleteMany()
 
       // 2. INSERT NEW DATA IN CORRECT RELATIONAL ORDER
       if (data.settings?.length) await tx.setting.createMany({ data: data.settings })
-      if (data.forms?.length) await tx.form.createMany({ data: data.forms })
-      if (data.rooms?.length) await tx.room.createMany({ data: data.rooms })
       if (data.branches?.length) await tx.branch.createMany({ data: data.branches })
       if (data.units?.length) await tx.unit.createMany({ data: data.units })
       if (data.users?.length) await tx.user.createMany({ data: data.users })
       if (data.assets?.length) await tx.asset.createMany({ data: data.assets })
       if (data.tickets?.length) await tx.ticket.createMany({ data: data.tickets })
-      if (data.bookings?.length) await tx.booking.createMany({ data: data.bookings })
     }, {
       timeout: 20000 // Increase timeout for large data restores
     })

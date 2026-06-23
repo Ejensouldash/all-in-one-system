@@ -25,6 +25,14 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(`/login?callbackUrl=${encodedCallbackUrl}`, nextUrl))
   }
 
+  // Block non-GET requests for viewonly account
+  if (req.method !== "GET" && req.auth?.user?.email === "viewonly@bubbleso2.com" && !nextUrl.pathname.startsWith("/api/auth")) {
+    return new NextResponse(
+      JSON.stringify({ success: false, error: "View Only account cannot modify data" }),
+      { status: 403, headers: { "content-type": "application/json" } }
+    )
+  }
+
   // Map routes to required modules
   const routeModules: Record<string, string> = {
     "/tickets": "TICKETS",

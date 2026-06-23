@@ -17,20 +17,30 @@ export async function MainLayout({ children }: { children: React.ReactNode }) {
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { unitId: true }})
   const activeNotices = await getActiveNotices(user?.unitId)
+  
+  const isViewOnly = session.user.email === "viewonly@bubbleso2.com"
 
   return (
-    <MobileLayoutWrapper
-      role={session.user.role}
-      user={session.user}
-      notices={activeNotices.length > 0 ? <NoticeBanner notices={activeNotices} /> : null}
-      modals={
-        <>
-          <Chatbot />
-          <FloatingTicketModal />
-        </>
-      }
-    >
-      {children}
-    </MobileLayoutWrapper>
+    <>
+      {isViewOnly && (
+        <div className="bg-red-600 text-white p-2 text-center text-sm font-bold uppercase tracking-widest z-50 relative">
+          VIEW ONLY MODE: Anda tidak boleh mengubah atau menghantar sebarang data.
+        </div>
+      )}
+      <MobileLayoutWrapper
+        role={session.user.role}
+        user={session.user}
+        notices={activeNotices.length > 0 ? <NoticeBanner notices={activeNotices} /> : null}
+        modals={
+          <>
+            <Chatbot />
+            <FloatingTicketModal />
+          </>
+        }
+      >
+        {children}
+      </MobileLayoutWrapper>
+    </>
   )
 }
+

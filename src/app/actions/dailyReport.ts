@@ -19,6 +19,7 @@ export async function createDailyReport(data: any) {
         preparedSignature: data.preparedSignature || null,
         verifiedBy: data.verifiedBy,
         remarks: data.remarks,
+        createdById: session.user.id,
         
         // Productions
         productions: {
@@ -184,7 +185,8 @@ export async function approveDailyReport(id: string, signatureBase64: string) {
       data: { 
         status: "APPROVED",
         verifiedBy: user.name || "SUPERVISOR",
-        verifiedSignature: signatureBase64
+        verifiedSignature: signatureBase64,
+        approvedAt: new Date()
       }
     })
     revalidatePath("/forms")
@@ -200,10 +202,10 @@ export async function updateDailyReport(id: string, data: any) {
   if (!session) return { success: false, error: "Unauthorized" }
 
   try {
-    // Verify report is PENDING
+    // Verify report is PENDING or REJECTED
     const existing = await prisma.dailyReport.findUnique({ where: { id } })
     if (!existing) return { success: false, error: "Report not found" }
-    if (existing.status !== "PENDING") return { success: false, error: "Cannot edit an approved report." }
+    if (existing.status !== "PENDING" && existing.status !== "REJECTED") return { success: false, error: "Cannot edit an approved report." }
 
     // Update requires deleting existing nested data and recreating
     await prisma.$transaction([
@@ -213,6 +215,7 @@ export async function updateDailyReport(id: string, data: any) {
       prisma.dailyReport.update({
         where: { id },
         data: {
+          status: "PENDING",
           time: data.time,
           shift: data.shift,
           line: data.line,
@@ -276,6 +279,98 @@ export async function updateDailyReport(id: string, data: any) {
     return { success: true }
   } catch (error: any) {
     console.error("Failed to update Daily Report:", error)
+    return { success: false, error: error.message }
+  }
+}
+
+export async function rejectDailyReport(id: string) {
+  const session = await auth()
+  if (!session) return { success: false, error: "Unauthorized" }
+
+  const user = session.user as any
+  if (user.trueRole !== "SUPERADMIN" && user.trueRole !== "SUPERVISOR") {
+    return { success: false, error: "Only Supervisors or Superadmins can reject reports." }
+  }
+
+  try {
+    const report = await prisma.dailyReport.update({
+      where: { id },
+      data: { status: "REJECTED" }
+    })
+    revalidatePath("/forms")
+    revalidatePath(`/forms/daily-report/${id}`)
+    return { success: true, data: report }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}
+
+export async function getDailyReportsByUser(page: number = 1, pageSize: number = 10) {
+  const session = await auth()
+  if (!session) return { success: false, data: [], totalPages: 0 }
+
+  try {
+    const skip = (page - 1) * pageSize
+    
+    const [reports, totalCount] = await Promise.all([
+      prisma.dailyReport.findMany({
+        where: { createdById: session.user.id },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize
+      }),
+      prisma.dailyReport.count({
+        where: { createdById: session.user.id }
+      })
+    ])
+
+    return { 
+      success: true, 
+      data: reports,
+      totalPages: Math.ceil(totalCount / pageSize),
+      totalCount
+    }
+  } catch (error: any) {
+    console.error("Failed to fetch user daily reports:", error)
+    return { success: false, data: [], totalPages: 0 }
+  }
+}
+
+export async function getApprovedDailyReportsByDateRange(startDate: string, endDate: string) {
+  const session = await auth()
+  if (!session) return { success: false, error: "Unauthorized" }
+
+  const user = session.user as any
+  if (user.trueRole !== "SUPERADMIN" && user.trueRole !== "SUPERVISOR") {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  try {
+    const start = new Date(startDate)
+    start.setHours(0, 0, 0, 0)
+    
+    const end = new Date(endDate)
+    end.setHours(23, 59, 59, 999)
+
+    const reports = await prisma.dailyReport.findMany({
+      where: {
+        status: "APPROVED",
+        date: {
+          gte: start,
+          lte: end
+        }
+      },
+      include: {
+        productions: { include: { batches: true } },
+        rejects: true,
+        inventory: true
+      },
+      orderBy: { date: 'asc' }
+    })
+    
+    return { success: true, data: reports }
+  } catch (error: any) {
+    console.error("Failed to fetch approved reports:", error)
     return { success: false, error: error.message }
   }
 }

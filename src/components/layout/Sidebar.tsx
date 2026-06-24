@@ -74,7 +74,7 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
         <h1 className="text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
           BubbleO2
         </h1>
-        <p className="text-[10px] font-bold tracking-widest text-gray-400 uppercase mt-0.5">IT Smart Ticketing</p>
+        <p className="text-[10px] font-bold tracking-widest text-gray-400 uppercase mt-0.5">AIO System</p>
         
         {/* Mobile Close Button */}
         {onMobileClose && (

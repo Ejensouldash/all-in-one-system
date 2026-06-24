@@ -67,7 +67,7 @@ export default function LoginPage() {
             BubbleO2
           </h1>
           <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
-            IT Smart Ticketing
+            AIO System
           </h2>
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 font-medium">
             Enter your credentials to continue

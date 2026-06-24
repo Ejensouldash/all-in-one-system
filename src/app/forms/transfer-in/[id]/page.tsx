@@ -12,7 +12,11 @@ export default async function TransferInDetailPage({ params }: { params: Promise
         <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md w-full">
           <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h2 className="text-2xl font-black text-gray-900 mb-2">DO Not Found</h2>
-          <p className="text-gray-500 mb-6">The Delivery Order you are looking for does not exist or could not be loaded.</p>
+          <p className="text-gray-500 mb-2">The Delivery Order you are looking for does not exist or could not be loaded.</p>
+          <div className="bg-red-50 text-red-600 text-xs p-3 rounded-md mb-6 text-left break-all font-mono">
+            Debug ID: {resolvedParams?.id}<br/>
+            Error: {result?.error || "Null Data"}
+          </div>
           <Link href="/forms/transfer-in/history" className="inline-flex items-center justify-center w-full bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold transition-colors">
             <ArrowLeft className="w-5 h-5 mr-2" /> Back to History
           </Link>

@@ -6,7 +6,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 
 
 export const metadata: Metadata = {
-  title: "BubbleO2 - IT Smart Ticketing System",
+  title: "BubbleO2 - AIO System",
   description: "Internal IT Ticketing and Management System",
 };
 

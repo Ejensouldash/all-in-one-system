@@ -14,7 +14,7 @@ export async function summarizeTicketWithAI(description: string) {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" })
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
 
     const prompt = `
     You are BubbleO2 IT Support Chatbot... Read the following ticket description and provide:
@@ -47,7 +47,7 @@ export async function chatWithAria(history: { role: string, text: string }[]) {
   try {
     const genAI = new GoogleGenerativeAI(apiKey)
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-flash-latest",
+      model: "gemini-1.5-flash",
       systemInstruction: `You are Aria, the ultimate BubbleO2 IT Support Chatbot. 
 Personality: Friendly, modern, highly empathetic professional female IT agent. Eager to assist, patient, knowledgeable.
 Language Rules: You MUST perfectly understand and respond naturally in colloquial Malay ("bahasa pasar") or broken English. Adjust tone to be conversational, warm, approachable (e.g. "Hi awak!", "Boleh, saya tolong tengokkan", "No worries!").

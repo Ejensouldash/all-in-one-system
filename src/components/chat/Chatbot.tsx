@@ -42,19 +42,25 @@ export function Chatbot() {
     setIsPending(true)
 
     // Call backend API
-    const response = await chatWithAria(newHistory.map(m => ({ role: m.role, text: m.text })))
-    
-    setIsPending(false)
-    
-    if (response.success) {
-      setMessages(prev => [...prev, { role: "bot", text: response.text! }])
-      setAvatarState("excited")
-      // Revert to idle after 4 seconds of being excited/talking
-      setTimeout(() => {
+    try {
+      const response = await chatWithAria(newHistory.map(m => ({ role: m.role, text: m.text })))
+      
+      setIsPending(false)
+      
+      if (response.success) {
+        setMessages(prev => [...prev, { role: "bot", text: response.text! }])
+        setAvatarState("excited")
+        // Revert to idle after 4 seconds of being excited/talking
+        setTimeout(() => {
+          setAvatarState("idle")
+        }, 4000)
+      } else {
+        setMessages(prev => [...prev, { role: "bot", text: "Oops, " + response.error }])
         setAvatarState("idle")
-      }, 4000)
-    } else {
-      setMessages(prev => [...prev, { role: "bot", text: "Oops, " + response.error }])
+      }
+    } catch (error: any) {
+      setIsPending(false)
+      setMessages(prev => [...prev, { role: "bot", text: "Maaf, connection Aria terputus. Boleh cuba sekali lagi? 😅" }])
       setAvatarState("idle")
     }
   }

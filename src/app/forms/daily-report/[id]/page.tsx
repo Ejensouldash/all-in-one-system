@@ -5,6 +5,7 @@ import Link from "next/link"
 import { ArrowLeft, CheckCircle2, ClipboardList, Package, AlertTriangle } from "lucide-react"
 import { PrintButton } from "@/components/ui/PrintButton"
 import { ApprovalSignatureModal } from "@/components/forms/ApprovalSignatureModal"
+import { ExportDailyReportButton } from "@/components/forms/ExportDailyReportButton"
 import { prisma } from "@/lib/prisma"
 
 export default async function ViewDailyReportPage({ params }: { params: Promise<{ id: string }> }) {
@@ -98,7 +99,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
               </Link>
             </>
           )}
-
+          <ExportDailyReportButton report={report} />
           <PrintButton />
         </div>
       </div>

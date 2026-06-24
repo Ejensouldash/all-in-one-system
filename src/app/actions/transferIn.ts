@@ -58,3 +58,41 @@ export async function getTodayTransferIn() {
     return { success: false, data: [] }
   }
 }
+
+export async function getTransferInHistory(page: number = 1, pageSize: number = 20) {
+  try {
+    const skip = (page - 1) * pageSize
+    
+    const [transfers, totalCount] = await Promise.all([
+      prisma.transferIn.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize
+      }),
+      prisma.transferIn.count()
+    ])
+
+    return { 
+      success: true, 
+      data: transfers,
+      totalPages: Math.ceil(totalCount / pageSize),
+      totalCount
+    }
+  } catch (error: any) {
+    console.error("Failed to fetch Transfer In history:", error)
+    return { success: false, data: [], totalPages: 0 }
+  }
+}
+
+export async function getTransferInById(id: string) {
+  try {
+    const transfer = await prisma.transferIn.findUnique({
+      where: { id },
+      include: { items: true }
+    })
+    return { success: true, data: transfer }
+  } catch (error: any) {
+    console.error("Failed to fetch Transfer In details:", error)
+    return { success: false, data: null, error: error.message }
+  }
+}

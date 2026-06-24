@@ -67,3 +67,74 @@ export function exportSageX3Data(reports: any[]) {
   link.click();
   document.body.removeChild(link);
 }
+
+export function exportDailyReportDetailed(report: any) {
+  const aoaData: any[][] = [];
+
+  // Title
+  aoaData.push([`DAILY PRODUCTION REPORT (${report.line})`]);
+  aoaData.push([]);
+  
+  // 1. Shift Information
+  aoaData.push(["1. SHIFT INFORMATION"]);
+  aoaData.push(["Date:", new Date(report.date).toLocaleDateString('en-GB'), "Time:", report.time || "N/A"]);
+  aoaData.push(["Shift:", report.shift, "Prepared By:", report.preparedBy]);
+  aoaData.push(["Status:", report.status, "Approved By:", report.verifiedBy || "N/A"]);
+  aoaData.push([]);
+
+  // 2. Production Output
+  aoaData.push(["2. PRODUCTION OUTPUT"]);
+  aoaData.push(["Product Type", "Total Box", "Batch No", "Type", "Qty"]);
+  report.productions.forEach((prod: any) => {
+    prod.batches.forEach((batch: any, index: number) => {
+      if (index === 0) {
+        aoaData.push([prod.productType, prod.totalBox, batch.batchNo, batch.type === 'OTHER' ? batch.otherType : batch.type, batch.qty]);
+      } else {
+        aoaData.push(["", "", batch.batchNo, batch.type === 'OTHER' ? batch.otherType : batch.type, batch.qty]);
+      }
+    });
+  });
+  if (report.productions.length === 0) aoaData.push(["No production output logged."]);
+  aoaData.push([]);
+
+  // 3. Reject Logs
+  aoaData.push(["3. REJECT LOGS"]);
+  aoaData.push(["Item", "Before", "After", "Total (After)"]);
+  report.rejects.forEach((rej: any) => {
+    aoaData.push([rej.item, rej.before, rej.after, rej.after]);
+  });
+  if (report.rejects.length === 0) aoaData.push(["No reject logs."]);
+  aoaData.push([]);
+
+  // 4. Inventory Summary
+  aoaData.push(["4. INVENTORY SUMMARY"]);
+  aoaData.push(["Category", "Type", "Period", "Batch No", "Bags/Boxes", "Multiplier"]);
+  report.inventory.forEach((inv: any) => {
+    aoaData.push([inv.sectionKey, inv.type, inv.period || "N/A", inv.batchNo, inv.bags, inv.mult]);
+  });
+  if (report.inventory.length === 0) aoaData.push(["No inventory logs."]);
+  aoaData.push([]);
+
+  // 5. Remarks
+  aoaData.push(["5. REMARKS / DOWNTIME"]);
+  aoaData.push([report.remarks || "No remarks."]);
+
+  // Create workbook and sheet
+  const worksheet = XLSX.utils.aoa_to_sheet(aoaData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Daily_Report_Detailed");
+
+  // Generate Excel file
+  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  
+  // Create Blob and trigger download
+  const dataBlob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = window.URL.createObjectURL(dataBlob);
+  const link = document.createElement('a');
+  link.href = url;
+  const fileNameDate = new Date(report.date).toISOString().split('T')[0];
+  link.setAttribute('download', `DailyReport_${report.line}_${fileNameDate}.xlsx`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}

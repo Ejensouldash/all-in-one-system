@@ -5,9 +5,10 @@ import { ClipboardList, Eye, PackagePlus, History } from "lucide-react"
 export default async function TransferInHistoryPage({
   searchParams,
 }: {
-  searchParams: { page?: string }
+  searchParams: Promise<{ page?: string }>
 }) {
-  const page = searchParams.page ? parseInt(searchParams.page) : 1
+  const resolvedParams = await searchParams
+  const page = resolvedParams.page ? parseInt(resolvedParams.page) : 1
   const pageSize = 20
   
   const result = await getTransferInHistory(page, pageSize)

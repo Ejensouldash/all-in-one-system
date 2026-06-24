@@ -2,8 +2,9 @@ import { getTransferInById } from "@/app/actions/transferIn"
 import Link from "next/link"
 import { Package, Calendar, Clock, User, ArrowLeft } from "lucide-react"
 
-export default async function TransferInDetailPage({ params }: { params: { id: string } }) {
-  const result = await getTransferInById(params.id)
+export default async function TransferInDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params
+  const result = await getTransferInById(resolvedParams.id)
   
   if (!result.success || !result.data) {
     return (

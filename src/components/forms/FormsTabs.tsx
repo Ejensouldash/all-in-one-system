@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ClipboardList, LayoutDashboard, Database } from "lucide-react"
+import { ClipboardList, LayoutDashboard, Database, History, FileSpreadsheet } from "lucide-react"
 
 export function FormsTabs({ role }: { role: string }) {
   const pathname = usePathname()
@@ -11,7 +11,8 @@ export function FormsTabs({ role }: { role: string }) {
   const isHome = pathname === "/forms" || 
                  (pathname.startsWith("/forms/") && 
                   !pathname.startsWith("/forms/dashboard") && 
-                  !pathname.startsWith("/forms/database"))
+                  !pathname.startsWith("/forms/database") &&
+                  !pathname.startsWith("/forms/history"))
 
   return (
     <div className="mb-8 border-b border-gray-200 overflow-x-auto">
@@ -27,6 +28,18 @@ export function FormsTabs({ role }: { role: string }) {
           <ClipboardList className="w-5 h-5 mr-2" />
           Forms Home
         </Link>
+
+        <Link 
+          href="/forms/history"
+          className={`flex items-center pb-4 text-sm font-black uppercase tracking-wider border-b-4 transition-colors ${
+            pathname.startsWith("/forms/history")
+              ? "border-amber-500 text-amber-700" 
+              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+          }`}
+        >
+          <History className="w-5 h-5 mr-2" />
+          My History
+        </Link>
         
         <Link 
           href="/forms/dashboard"
@@ -39,6 +52,20 @@ export function FormsTabs({ role }: { role: string }) {
           <LayoutDashboard className="w-5 h-5 mr-2" />
           Analytics
         </Link>
+
+        {(role === "SUPERADMIN" || role === "SUPERVISOR") && (
+          <Link 
+            href="/dashboard/export"
+            className={`flex items-center pb-4 text-sm font-black uppercase tracking-wider border-b-4 transition-colors ${
+              pathname.startsWith("/dashboard/export")
+                ? "border-emerald-500 text-emerald-700" 
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            <FileSpreadsheet className="w-5 h-5 mr-2" />
+            Sage X3 Export
+          </Link>
+        )}
 
         {role === "SUPERADMIN" && (
           <Link 

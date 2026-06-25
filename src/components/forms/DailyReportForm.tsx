@@ -393,7 +393,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             title={`LABEL INVENTORY (${watchLine.includes("800") ? "800ml" : "425ml"})`} 
             control={control} register={register} watch={watch} setValue={setValue}
             availableCarryForward={availableCarryForward}
-            multipliers={[1]}
+            multipliers={watchLine.includes("800") ? [6451] : [8547]}
             isLabel={true}
             syncedDOs={syncedDOs.filter(d => d.category.includes("LABEL"))}
           />
@@ -557,6 +557,18 @@ function ProductionBatchDistribution({ prodId, label, isChecked, totalQty, contr
                   <select {...register(`production.${prodId}.batches.${index}.type`)} className="w-full sm:w-32 border-y border-r border-gray-300 p-2 font-bold outline-none bg-white text-sm focus:border-black">
                     <option value="Standard">Standard</option>
                     <option value="Omega">Omega</option>
+                    <option value="Brunei">Brunei</option>
+                    <option value="Prolintas">Prolintas</option>
+                    <option value="JHEAINS">JHEAINS</option>
+                    <option value="Casuarina">Casuarina</option>
+                    <option value="MFL">MFL</option>
+                    <option value="YNS">YNS</option>
+                    <option value="KOWARIS">KOWARIS</option>
+                    <option value="Richiamo">Richiamo</option>
+                    <option value="Al Falah">Al Falah</option>
+                    <option value="Mihas">Mihas</option>
+                    <option value="LTDI">LTDI</option>
+                    <option value="Yayasan Pahang">Yayasan Pahang</option>
                     <option value="Others">Others...</option>
                   </select>
                   {watchBatches[index]?.type === "Others" && (
@@ -715,8 +727,19 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                     {isLabel && (
                       <select {...register(`inventory.${sectionKey}.sources.${index}.labelType`)} className="w-full sm:w-32 p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-black uppercase">
                         <option value="Standard">Standard</option>
-                        <option value="Brunei">Brunei</option>
                         <option value="Omega">Omega</option>
+                        <option value="Brunei">Brunei</option>
+                        <option value="Prolintas">Prolintas</option>
+                        <option value="JHEAINS">JHEAINS</option>
+                        <option value="Casuarina">Casuarina</option>
+                        <option value="MFL">MFL</option>
+                        <option value="YNS">YNS</option>
+                        <option value="KOWARIS">KOWARIS</option>
+                        <option value="Richiamo">Richiamo</option>
+                        <option value="Al Falah">Al Falah</option>
+                        <option value="Mihas">Mihas</option>
+                        <option value="LTDI">LTDI</option>
+                        <option value="Yayasan Pahang">Yayasan Pahang</option>
                         <option value="Others">Others</option>
                       </select>
                     )}

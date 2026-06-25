@@ -86,7 +86,7 @@ export function TransferInForm({ userName }: { userName: string }) {
   
   const totalPcs = watchItems.reduce((sum: number, item: any) => {
     const cat = item.category || ""
-    if (cat.includes("CAP")) return sum // exclude cap from pcs
+    if (cat.includes("CAP") || cat.includes("LABEL")) return sum // exclude cap and label from pcs
     return sum + ((Number(item.bags) || 0) * (Number(item.mult) || 1))
   }, 0)
 
@@ -168,8 +168,8 @@ export function TransferInForm({ userName }: { userName: string }) {
                 if (cat.includes("BOX")) availableMultipliers = MULTIPLIERS.BOX
                 if (cat.includes("LABEL")) availableMultipliers = MULTIPLIERS.LABEL
                 
-                const isCap = cat.includes("CAP")
-                if (isCap) availableMultipliers = []
+                const isNoMult = cat.includes("CAP") || cat.includes("LABEL")
+                if (isNoMult) availableMultipliers = []
 
                 return (
                   <div key={field.id} className="flex flex-col md:flex-row md:items-center border-b-[3px] md:border-b-2 border-gray-200 p-5 md:p-2 gap-4 md:gap-2 relative">
@@ -200,12 +200,12 @@ export function TransferInForm({ userName }: { userName: string }) {
 
                     <div className="flex w-full md:w-[30%] gap-3 md:gap-2">
                       <div className="w-1/2" id={`item-${index}-bags`}>
-                        <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">Qty (Bags/Box)</label>
+                        <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">Qty (Bags/Box/Roll)</label>
                         <input type="number" step="1" min="0" placeholder="0" {...register(`items.${index}.bags`)} className="w-full text-center p-3 md:p-2 border-2 border-gray-300 font-bold outline-none focus:border-black text-sm" />
                       </div>
                       <div className="w-1/2">
                         <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">Multiplier</label>
-                        {isCap ? (
+                        {isNoMult ? (
                           <div className="w-full p-3 md:p-2 border-2 border-gray-100 bg-gray-50 text-gray-400 font-bold text-sm text-center">
                             -
                           </div>
@@ -220,7 +220,7 @@ export function TransferInForm({ userName }: { userName: string }) {
                     <div className="w-full md:w-[15%]">
                       <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">Total PCs</label>
                       <div className="w-full p-3 md:p-2 text-center font-black text-2xl md:text-lg text-emerald-700 bg-emerald-50/50 border-2 border-emerald-100 md:border-transparent">
-                        {isCap ? "-" : totalPcs}
+                        {isNoMult ? "-" : totalPcs}
                       </div>
                     </div>
 

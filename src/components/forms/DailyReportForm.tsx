@@ -579,6 +579,8 @@ function ProductionBatchDistribution({ prodId, label, isChecked, totalQty, contr
 // --- SUB COMPONENT FOR ADVANCED INVENTORY SECTION V4.0 (Bags Logic) ---
 const AdvancedInventorySection = ({ title, sectionKey, control, register, setValue, watch, availableCarryForward = [], multipliers = [1], isLabel = false, syncedDOs = [] }: any) => {
   const isCap = sectionKey === "CAP";
+  const isBox = sectionKey.startsWith("BOX");
+  const unit = isLabel ? 'Rolls' : (isCap || isBox) ? 'Boxes' : 'Bags';
     const { fields: sourceFields, append: appendSource, remove: removeSource } = useFieldArray({ control, name: `inventory.${sectionKey}.sources` })
     const { fields: usageFields, append: appendUsage, remove: removeUsage } = useFieldArray({ control, name: `inventory.${sectionKey}.usages` })
     
@@ -687,7 +689,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                       <span className="text-xs font-black uppercase">{doItem.batchNo}</span>
                     </div>
                     <div className="flex items-center text-xs font-bold">
-                      <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 mr-3">{doItem.bags} {isLabel ? 'Rolls' : 'Bags'}</span>
+                      <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 mr-3">{doItem.bags} {unit}</span>
                       <span className="text-gray-500">x {doItem.mult} = {doItem.bags * doItem.mult} Pcs</span>
                     </div>
                   </div>
@@ -729,7 +731,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                         <option value="">-- SELECT CARRY FORWARD --</option>
                         {sectionAvailableBatches.map((b: any) => (
                           <option key={b.batchNo} value={b.batchNo}>
-                            {b.batchNo} ({b.bags} {isLabel ? 'Rolls' : 'Bags'})
+                            {b.batchNo} ({b.bags} {unit})
                           </option>
                         ))}
                       </select>
@@ -737,7 +739,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                     
                     <div className="flex-1 flex justify-end">
                       <div className="flex items-center space-x-1">
-                        <input type="number" placeholder={isLabel ? "Rolls" : "Bags"} min="0" {...register(`inventory.${sectionKey}.sources.${index}.bags`)} className="w-16 p-2 border border-gray-300 text-center text-xs font-bold outline-none focus:border-black" />
+                        <input type="number" placeholder={unit} min="0" {...register(`inventory.${sectionKey}.sources.${index}.bags`)} className="w-16 p-2 border border-gray-300 text-center text-xs font-bold outline-none focus:border-black" />
                         <span className="text-xs font-bold text-gray-500">×</span>
                         {isCap ? (
       <div className="p-2 border border-gray-100 bg-gray-50 text-gray-400 text-xs font-bold text-center">-</div>
@@ -762,7 +764,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
           {/* STEP 3: USAGE LOG (IN BAGS) */}
           <div className="p-4 bg-blue-50/30 flex-1">
             <h3 className="font-black uppercase tracking-wider text-sm mb-4 flex items-center text-blue-900">
-              <span className="bg-blue-900 text-white px-2 py-0.5 mr-2">3</span> Usage Log (By Bag)
+              <span className="bg-blue-900 text-white px-2 py-0.5 mr-2">3</span> Usage Log (By {unit.slice(0, -1)})
             </h3>
             
             <div className="space-y-3">
@@ -787,13 +789,13 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                       <option value="">-- Select Batch --</option>
                       {availableBatches.map(b => {
                         const currentAvail = batchSummaries[b].carryFwdBags + (b === selectedBatch ? usageBags : 0)
-                        return <option key={b} value={b}>{b} (Avail: {currentAvail} Bags)</option>
+                        return <option key={b} value={b}>{b} (Avail: {currentAvail} {unit})</option>
                       })}
                     </select>
 
                     
   <div className="flex items-center">
-    <input type="number" placeholder={isCap ? "Weight (Grams)" : isLabel ? "Used (Rolls)" : "Used (Bags)"} min="0" {...register(`inventory.${sectionKey}.usages.${index}.bags`)} className="w-28 p-2 border border-blue-300 text-center text-xs font-bold outline-none focus:border-blue-600 bg-blue-50" />
+    <input type="number" placeholder={isCap ? "Weight (Grams)" : `Used (${unit})`} min="0" {...register(`inventory.${sectionKey}.usages.${index}.bags`)} className="w-28 p-2 border border-blue-300 text-center text-xs font-bold outline-none focus:border-blue-600 bg-blue-50" />
     {isCap && <span className="text-xs font-black text-indigo-700 ml-2">={Math.round((Number(watchUsages[index]?.bags)||0)/2.1)} Pcs</span>}
   </div>
   
@@ -836,7 +838,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                     <td className="p-2 text-center border-r border-gray-300 text-gray-600">{data.totalBags} <span className="text-[10px]">B</span></td>
                     <td className="p-2 text-center border-r border-gray-300 text-blue-600">{data.usedBags} <span className="text-[10px]">B</span></td>
                     <td className={`p-2 border-l-[3px] border-black flex flex-col items-center justify-center font-black ${data.carryFwdBags < 0 ? 'bg-red-100 text-red-700' : 'bg-yellow-50 text-yellow-900'}`}>
-                      <span className="text-lg">{data.carryFwdBags} {isLabel ? 'Rolls' : 'Bags'}</span>
+                      <span className="text-lg">{data.carryFwdBags} {unit}</span>
                       <span className="text-xs text-gray-500 font-bold">= {data.carryFwdBags * data.mult} Pcs</span>
                     </td>
                   </tr>

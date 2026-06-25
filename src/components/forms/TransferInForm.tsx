@@ -82,11 +82,7 @@ export function TransferInForm({ userName }: { userName: string }) {
   }
 
   // Calculate totals
-  const totalBags = watchItems.reduce((sum: number, item: any) => {
-    const cat = item.category || ""
-    if (cat.includes("CAP")) return sum // exclude cap weight from bags/boxes sum
-    return sum + (Number(item.bags) || 0)
-  }, 0)
+  const totalBags = watchItems.reduce((sum: number, item: any) => sum + (Number(item.bags) || 0), 0)
   
   const totalPcs = watchItems.reduce((sum: number, item: any) => {
     const cat = item.category || ""
@@ -153,7 +149,7 @@ export function TransferInForm({ userName }: { userName: string }) {
             <div className="hidden md:flex border-b-[3px] border-black bg-white">
               <div className="w-[20%] p-4 font-black uppercase text-xs text-gray-500">Category</div>
               <div className="w-[25%] p-4 font-black uppercase text-xs text-gray-500">Batch No</div>
-              <div className="w-[15%] p-4 font-black uppercase text-xs text-gray-500 text-center">Qty / Weight</div>
+              <div className="w-[15%] p-4 font-black uppercase text-xs text-gray-500 text-center">Qty (Bags/Box)</div>
               <div className="w-[15%] p-4 font-black uppercase text-xs text-gray-500 text-center">Multiplier</div>
               <div className="w-[15%] p-4 font-black uppercase text-xs text-gray-800 bg-yellow-50/50 text-center">Total PCs</div>
               <div className="w-[10%] font-black uppercase text-xs text-gray-600 text-center flex items-center justify-center">Act</div>
@@ -204,8 +200,8 @@ export function TransferInForm({ userName }: { userName: string }) {
 
                     <div className="flex w-full md:w-[30%] gap-3 md:gap-2">
                       <div className="w-1/2" id={`item-${index}-bags`}>
-                        <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">{isCap ? "Weight (Kg)" : "Qty (Bags/Box)"}</label>
-                        <input type="number" step="0.01" min="0" placeholder="0" {...register(`items.${index}.bags`)} className="w-full text-center p-3 md:p-2 border-2 border-gray-300 font-bold outline-none focus:border-black text-sm" />
+                        <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">Qty (Bags/Box)</label>
+                        <input type="number" step="1" min="0" placeholder="0" {...register(`items.${index}.bags`)} className="w-full text-center p-3 md:p-2 border-2 border-gray-300 font-bold outline-none focus:border-black text-sm" />
                       </div>
                       <div className="w-1/2">
                         <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">Multiplier</label>

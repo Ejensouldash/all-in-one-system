@@ -628,10 +628,9 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
 
   const batchSummaries: Record<string, { totalBags: number, usedBags: number, carryFwdBags: number, mult: number }> = {}
 
-  // 1. Add Synced DO Data to summaries
   syncedDOs.forEach((mock: any) => {
     if (!batchSummaries[mock.batchNo]) {
-      batchSummaries[mock.batchNo] = { totalBags: 0, usedBags: 0, carryFwdBags: 0, mult: Number(mock.mult) || 1 }
+      batchSummaries[mock.batchNo] = { totalBags: 0, usedBags: 0, carryFwdBags: 0, mult: isCap ? 4000 : (Number(mock.mult) || 1) }
     }
     batchSummaries[mock.batchNo].totalBags += Number(mock.bags) || 0
   })
@@ -640,7 +639,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
   watchSources.forEach((src: any) => {
     if (!src.batchNo) return;
     const bags = Number(src.bags) || 0
-    const mult = Number(src.mult) || 1
+    const mult = isCap ? 4000 : (Number(src.mult) || 1)
     
     if (!batchSummaries[src.batchNo]) {
       batchSummaries[src.batchNo] = { totalBags: 0, usedBags: 0, carryFwdBags: 0, mult: mult }

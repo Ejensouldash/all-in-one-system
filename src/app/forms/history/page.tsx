@@ -1,6 +1,8 @@
 import { getDailyReportsByUser } from "@/app/actions/dailyReport"
 import Link from "next/link"
 import { ClipboardList, Eye, Edit, Clock, History, AlertCircle, CheckCircle } from "lucide-react"
+import { FormsTabs } from "@/components/forms/FormsTabs"
+import { auth } from "@/auth"
 
 export default async function HistoryPage({
   searchParams,
@@ -10,12 +12,14 @@ export default async function HistoryPage({
   const page = searchParams.page ? parseInt(searchParams.page) : 1
   const pageSize = 10
   
+  const session = await auth();
   const result = await getDailyReportsByUser(page, pageSize)
   const reports = result.data || []
   const totalPages = result.totalPages || 0
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
+      <FormsTabs role={(session?.user as any)?.trueRole || session?.user?.role} />
       
       <div className="bg-indigo-900 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-800 rounded-full blur-3xl opacity-50 -mr-20 -mt-20"></div>

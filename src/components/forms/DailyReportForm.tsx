@@ -578,6 +578,7 @@ function ProductionBatchDistribution({ prodId, label, isChecked, totalQty, contr
 
 // --- SUB COMPONENT FOR ADVANCED INVENTORY SECTION V4.0 (Bags Logic) ---
 const AdvancedInventorySection = ({ title, sectionKey, control, register, setValue, watch, availableCarryForward = [], multipliers = [1], isLabel = false, syncedDOs = [] }: any) => {
+  const isCap = sectionKey === "CAP";
     const { fields: sourceFields, append: appendSource, remove: removeSource } = useFieldArray({ control, name: `inventory.${sectionKey}.sources` })
     const { fields: usageFields, append: appendUsage, remove: removeUsage } = useFieldArray({ control, name: `inventory.${sectionKey}.usages` })
     
@@ -620,7 +621,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
       if (batchData) {
         setValue(`inventory.${sectionKey}.sources.${index}.batchNo`, batchData.batchNo)
         setValue(`inventory.${sectionKey}.sources.${index}.bags`, batchData.bags)
-        setValue(`inventory.${sectionKey}.sources.${index}.mult`, batchData.mult)
+        setValue(`inventory.${sectionKey}.sources.${index}.mult`, sectionKey === "CAP" ? 4000 : batchData.mult)
         if (isLabel) setValue(`inventory.${sectionKey}.sources.${index}.labelType`, batchData.labelType || "Standard")
       }
     }
@@ -650,7 +651,9 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
   // 3. Sum up used bags per batch from Usages
   watchUsages.forEach((usage: any) => {
     if (!usage.batchNo || !batchSummaries[usage.batchNo]) return;
-    batchSummaries[usage.batchNo].usedBags += (Number(usage.bags) || 0)
+    const rawUsage = Number(usage.bags) || 0;
+    const isUsageCap = sectionKey === "CAP";
+    batchSummaries[usage.batchNo].usedBags += isUsageCap ? (Math.round(rawUsage / 2.1) / 4000) : rawUsage;
   })
 
   // 4. Compute Carry Forward
@@ -737,9 +740,13 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                       <div className="flex items-center space-x-1">
                         <input type="number" placeholder={isLabel ? "Rolls" : "Bags"} min="0" {...register(`inventory.${sectionKey}.sources.${index}.bags`)} className="w-16 p-2 border border-gray-300 text-center text-xs font-bold outline-none focus:border-black" />
                         <span className="text-xs font-bold text-gray-500">×</span>
-                        <select {...register(`inventory.${sectionKey}.sources.${index}.mult`)} className="p-2 border border-gray-300 text-xs font-bold outline-none bg-white">
+                        {isCap ? (
+      <div className="p-2 border border-gray-100 bg-gray-50 text-gray-400 text-xs font-bold text-center">-</div>
+   ) : (
+      <select {...register(`inventory.${sectionKey}.sources.${index}.mult`)} className="p-2 border border-gray-300 text-xs font-bold outline-none bg-white">
                           {multipliers.map((m: number) => <option key={m} value={m}>{m}</option>)}
                         </select>
+   )}
                         <span className="text-xs font-black text-indigo-700 ml-2 w-16 text-right">{calculatedPcs} Pcs</span>
                       </div>
                     </div>
@@ -748,7 +755,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                 )
               })}
             </div>
-            <button type="button" onClick={() => appendSource({ batchNo: "", bags: 0, mult: multipliers[0], ...(isLabel && {labelType: "Standard"}) })} className="mt-4 text-xs font-black uppercase tracking-wider flex items-center border-2 border-black px-3 py-1.5 hover:bg-gray-100">
+            <button type="button" onClick={() => appendSource({ batchNo: "", bags: 0, mult: sectionKey === "CAP" ? 4000 : multipliers[0], ...(isLabel && {labelType: "Standard"}) })} className="mt-4 text-xs font-black uppercase tracking-wider flex items-center border-2 border-black px-3 py-1.5 hover:bg-gray-100">
               <Plus className="h-3 w-3 mr-1" /> Add Storeroom Batch
             </button>
           </div>
@@ -785,7 +792,12 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                       })}
                     </select>
 
-                    <input type="number" placeholder={isLabel ? "Used (Rolls)" : "Used (Bags)"} min="0" {...register(`inventory.${sectionKey}.usages.${index}.bags`)} className="w-28 p-2 border border-blue-300 text-center text-xs font-bold outline-none focus:border-blue-600 bg-blue-50" />
+                    
+  <div className="flex items-center">
+    <input type="number" placeholder={isCap ? "Weight (Grams)" : isLabel ? "Used (Rolls)" : "Used (Bags)"} min="0" {...register(`inventory.${sectionKey}.usages.${index}.bags`)} className="w-28 p-2 border border-blue-300 text-center text-xs font-bold outline-none focus:border-blue-600 bg-blue-50" />
+    {isCap && <span className="text-xs font-black text-indigo-700 ml-2">={Math.round((Number(watchUsages[index]?.bags)||0)/2.1)} Pcs</span>}
+  </div>
+  
                     
                     <button type="button" onClick={() => removeUsage(index)} className="text-red-500 p-2 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
                   </div>

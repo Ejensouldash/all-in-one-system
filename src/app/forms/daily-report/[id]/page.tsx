@@ -239,7 +239,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
               {/* Section 3: Rejects */}
               <section className="print:break-inside-avoid">
                 <h2 className="text-lg print:text-[12pt] font-black uppercase tracking-tight border-b-2 border-black print:border-black pb-1 mb-3 print:mb-1 print:break-after-avoid">3. Reject Logs</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-6">
                   {/* Table 1: Scrap */}
                   <div>
                     <h3 className="font-bold text-xs uppercase mb-1">Scrap / Disposal (Reject Terus)</h3>

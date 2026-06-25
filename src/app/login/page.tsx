@@ -64,7 +64,7 @@ export default function LoginPage() {
         
         <div className="text-center">
           <h1 className="text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-emerald-400 mb-2">
-            BubbleO2
+            BubblesO2
           </h1>
           <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
             AIO System

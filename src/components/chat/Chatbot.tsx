@@ -13,7 +13,7 @@ export function Chatbot() {
   const [input, setInput] = useState("")
   const [isPending, setIsPending] = useState(false)
   const [messages, setMessages] = useState<{role: "user" | "bot", text: string}[]>([
-    { role: "bot", text: "Hi! I'm Aria, your BubbleO2 IT Support Assistant. Ada apa-apa masalah IT yang saya boleh bantu hari ini? 👩‍💻✨" }
+    { role: "bot", text: "Hi! I'm Aria, your BubblesO2 IT Support Assistant. Ada apa-apa masalah IT yang saya boleh bantu hari ini? 👩‍💻✨" }
   ])
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -113,7 +113,7 @@ export function Chatbot() {
               </div>
               <div className="text-center">
                 <h3 className="font-bold text-lg leading-tight">Aria</h3>
-                <p className="text-xs text-indigo-200 font-medium tracking-wide uppercase">BubbleO2 IT Support</p>
+                <p className="text-xs text-indigo-200 font-medium tracking-wide uppercase">BubblesO2 IT Support</p>
               </div>
             </div>
           </div>

@@ -72,7 +72,7 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
     <div className="flex h-screen w-64 flex-col bg-gray-900 text-white shadow-xl">
       <div className="flex flex-col h-20 items-center justify-center border-b border-gray-800 px-4 text-center">
         <h1 className="text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
-          BubbleO2
+          BubblesO2
         </h1>
         <p className="text-[10px] font-bold tracking-widest text-gray-400 uppercase mt-0.5">AIO System</p>
         
@@ -125,7 +125,7 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
           </div>
         </div>
         <div className="text-[9px] text-gray-500 text-center leading-relaxed font-medium uppercase tracking-wider">
-          All right reserve by Information Technology Department BubbleO2 2026
+          All right reserve by Information Technology Department BubblesO2 2026
         </div>
       </div>
     </div>

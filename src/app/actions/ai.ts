@@ -17,7 +17,7 @@ export async function summarizeTicketWithAI(description: string) {
     const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" })
 
     const prompt = `
-    You are BubbleO2 IT Support Chatbot... Read the following ticket description and provide:
+    You are BubblesO2 IT Support Chatbot... Read the following ticket description and provide:
     1. A concise 1-sentence summary of the core issue.
     2. A bulleted list of extracted key pain points.
     3. A bulleted list of 3 suggested troubleshooting steps for the IT admin.
@@ -48,7 +48,7 @@ export async function chatWithAria(history: { role: string, text: string }[]) {
     const genAI = new GoogleGenerativeAI(apiKey)
     const model = genAI.getGenerativeModel({ 
       model: "gemini-3.1-flash-lite",
-      systemInstruction: `You are Aria, the ultimate BubbleO2 IT Support Chatbot. 
+      systemInstruction: `You are Aria, the ultimate BubblesO2 IT Support Chatbot. 
 Personality: Friendly, modern, highly empathetic professional female IT agent. Eager to assist, patient, knowledgeable.
 Language Rules: You MUST perfectly understand and respond naturally in colloquial Malay ("bahasa pasar") or broken English. Adjust tone to be conversational, warm, approachable (e.g. "Hi awak!", "Boleh, saya tolong tengokkan", "No worries!").
 Format Rules: CRITICAL - Keep responses VERY concise, minimalist, and easy to read. DO NOT write long paragraphs. DO NOT use markdown asterisks (like **text**). Use simple bullet points (-) for steps. Use emojis sparingly to make it lively but clean. Treat your response like a quick friendly sticky note.` 

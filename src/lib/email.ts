@@ -24,7 +24,7 @@ export async function sendEmailNotification({ to, subject, html }: EmailPayload)
 
   try {
     const data = await resend.emails.send({
-      from: 'BubbleO2 IT Support <it-noreply@bubbleo2.com>',
+      from: 'BubblesO2 IT Support <it-noreply@bubbleso2.com>',
       to,
       subject,
       html,
@@ -46,7 +46,7 @@ export function generateTicketCreatedEmail(userName: string, logNumber: string, 
       <blockquote style="border-left: 4px solid #e5e7eb; padding-left: 10px; color: #6b7280; font-style: italic;">
         ${title}
       </blockquote>
-      <p>Our team will review this shortly. You can track your ticket status in the BubbleO2 IT portal.</p>
+      <p>Our team will review this shortly. You can track your ticket status in the BubblesO2 IT portal.</p>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
       <p style="font-size: 12px; color: #9ca3af;">This is an automated message. Please do not reply.</p>
     </div>
@@ -65,7 +65,7 @@ export function generateTicketStatusUpdateEmail(userName: string, logNumber: str
           ${resolution}
         </blockquote>
       ` : ""}
-      <p>Thank you for using the BubbleO2 IT Support Portal.</p>
+      <p>Thank you for using the BubblesO2 IT Support Portal.</p>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
       <p style="font-size: 12px; color: #9ca3af;">This is an automated message. Please do not reply.</p>
     </div>

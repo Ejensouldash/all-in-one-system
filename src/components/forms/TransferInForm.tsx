@@ -7,9 +7,11 @@ import { createTransferIn } from "@/app/actions/transferIn"
 import { useState } from "react"
 
 const MULTIPLIERS = {
-  BOTTLE: [225, 181, 162],
-  BOX: [24, 20, 12, 6],
-  CAP: [4000]
+  BOTTLE_800: [225],
+  BOTTLE_425: [181, 162],
+  BOX: [1],
+  CAP: [4000],
+  LABEL: [1]
 }
 
 export function TransferInForm({ userName }: { userName: string }) {
@@ -156,9 +158,11 @@ export function TransferInForm({ userName }: { userName: string }) {
                 const totalPcs = bags * mult
                 const cat = watchItems[index]?.category || ""
                 
-                let availableMultipliers = MULTIPLIERS.BOTTLE
+                let availableMultipliers = MULTIPLIERS.BOTTLE_800
+                if (cat === "BOTTLE 425ml") availableMultipliers = MULTIPLIERS.BOTTLE_425
                 if (cat.includes("BOX")) availableMultipliers = MULTIPLIERS.BOX
                 if (cat.includes("CAP")) availableMultipliers = MULTIPLIERS.CAP
+                if (cat.includes("LABEL")) availableMultipliers = MULTIPLIERS.LABEL
 
                 return (
                   <div key={field.id} className="flex flex-col md:flex-row md:items-center border-b-[3px] md:border-b-2 border-gray-200 p-5 md:p-2 gap-4 md:gap-2 relative">
@@ -196,7 +200,6 @@ export function TransferInForm({ userName }: { userName: string }) {
                         <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">Multiplier</label>
                         <select {...register(`items.${index}.mult`)} className="w-full p-3 md:p-2 border-2 border-gray-300 font-bold outline-none bg-white text-sm">
                           {availableMultipliers.map(m => <option key={m} value={m}>x {m}</option>)}
-                          {cat === "LABEL" && <option value={1}>x 1</option>}
                         </select>
                       </div>
                     </div>

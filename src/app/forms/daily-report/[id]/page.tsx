@@ -168,7 +168,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
             {/* Section 1: Meta */}
             <section className="print:break-inside-avoid mb-6 print:mb-2">
               <h2 className="text-lg print:text-[12pt] font-black uppercase tracking-tight border-b-2 border-black print:border-black pb-1 mb-3 print:mb-1 print:break-after-avoid">1. Shift Information</h2>
-              <div className="grid grid-cols-2 md:grid-cols-5 print:grid-cols-5 gap-3 print:gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-6 print:grid-cols-6 gap-3 print:gap-2">
                 <div className="bg-gray-50 print:bg-transparent border border-gray-300 print:border-black p-3 print:py-1 print:px-2">
                   <p className="text-[10px] print:text-[8pt] font-black uppercase text-gray-500 print:text-black mb-0.5 print:mb-0">Date</p>
                   <p className="font-bold text-sm print:text-[10pt]">{new Date(report.date).toLocaleDateString('en-GB')}</p>
@@ -184,6 +184,10 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                 <div className="bg-gray-50 print:bg-transparent border border-gray-300 print:border-black p-3 print:py-1 print:px-2">
                   <p className="text-[10px] print:text-[8pt] font-black uppercase text-gray-500 print:text-black mb-0.5 print:mb-0">Line</p>
                   <p className="font-bold text-sm print:text-[10pt]">{report.line}</p>
+                </div>
+                <div className="bg-gray-50 print:bg-transparent border border-gray-300 print:border-black p-3 print:py-1 print:px-2">
+                  <p className="text-[10px] print:text-[8pt] font-black uppercase text-gray-500 print:text-black mb-0.5 print:mb-0">Total Manpower</p>
+                  <p className="font-bold text-sm print:text-[10pt]">{report.totalManpower ? `${report.totalManpower} / 10` : "-"}</p>
                 </div>
                 <div className="bg-gray-50 print:bg-transparent border border-gray-300 print:border-black p-3 print:py-1 print:px-2">
                   <p className="text-[10px] print:text-[8pt] font-black uppercase text-gray-500 print:text-black mb-0.5 print:mb-0">Prepared By</p>
@@ -235,26 +239,57 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
               {/* Section 3: Rejects */}
               <section className="print:break-inside-avoid">
                 <h2 className="text-lg print:text-[12pt] font-black uppercase tracking-tight border-b-2 border-black print:border-black pb-1 mb-3 print:mb-1 print:break-after-avoid">3. Reject Logs</h2>
-                <table className="w-full border-2 print:border border-black print:border-black text-xs print:text-[10pt]">
-                  <thead className="bg-gray-100 print:bg-gray-100 print:text-black border-b-2 print:border-b border-black print:border-black">
-                    <tr>
-                      <th className="p-2 print:py-0.5 print:px-2 text-left border-r-2 print:border-r border-black print:border-black uppercase font-black">Item</th>
-                      <th className="p-2 print:py-0.5 print:px-2 text-center border-r-2 print:border-r border-black print:border-black uppercase font-black">Before</th>
-                      <th className="p-2 print:py-0.5 print:px-2 text-center border-r-2 print:border-r border-black print:border-black uppercase font-black">After</th>
-                      <th className="p-2 print:py-0.5 print:px-2 text-center bg-gray-200 print:bg-transparent uppercase font-black">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.rejects.map((rej: any) => (
-                      <tr key={rej.id} className="border-b-2 print:border-b border-black print:border-black font-bold last:border-0 last:print:border-0">
-                        <td className="p-2 print:py-0.5 print:px-2 border-r-2 print:border-r border-black print:border-black uppercase">{rej.item}</td>
-                        <td className="p-2 print:py-0.5 print:px-2 text-center border-r-2 print:border-r border-black print:border-black text-gray-600 print:text-black">{rej.before}</td>
-                        <td className="p-2 print:py-0.5 print:px-2 text-center border-r-2 print:border-r border-black print:border-black text-gray-600 print:text-black">{rej.after}</td>
-                        <td className="p-2 print:py-0.5 print:px-2 text-center bg-gray-100 print:bg-transparent text-red-600 print:text-black font-black">{rej.before + rej.after}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Table 1: Scrap */}
+                  <div>
+                    <h3 className="font-bold text-xs uppercase mb-1">Scrap / Disposal (Reject Terus)</h3>
+                    <table className="w-full border-2 print:border border-black print:border-black text-xs print:text-[10pt]">
+                      <thead className="bg-gray-100 print:bg-gray-100 print:text-black border-b-2 print:border-b border-black print:border-black">
+                        <tr>
+                          <th className="p-2 print:py-0.5 print:px-2 text-left border-r-2 print:border-r border-black print:border-black uppercase font-black">Item</th>
+                          <th className="p-2 print:py-0.5 print:px-2 text-center border-r-2 print:border-r border-black print:border-black uppercase font-black">Before</th>
+                          <th className="p-2 print:py-0.5 print:px-2 text-center border-r-2 print:border-r border-black print:border-black uppercase font-black">After</th>
+                          <th className="p-2 print:py-0.5 print:px-2 text-center bg-gray-200 print:bg-transparent uppercase font-black">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {report.rejects.filter((r: any) => r.type === "SCRAP" || !r.type).map((rej: any) => (
+                          <tr key={rej.id} className="border-b-2 print:border-b border-black print:border-black font-bold last:border-0 last:print:border-0">
+                            <td className="p-2 print:py-0.5 print:px-2 border-r-2 print:border-r border-black print:border-black uppercase">{rej.item}</td>
+                            <td className="p-2 print:py-0.5 print:px-2 text-center border-r-2 print:border-r border-black print:border-black text-gray-600 print:text-black">{rej.before}</td>
+                            <td className="p-2 print:py-0.5 print:px-2 text-center border-r-2 print:border-r border-black print:border-black text-gray-600 print:text-black">{rej.after}</td>
+                            <td className="p-2 print:py-0.5 print:px-2 text-center bg-gray-100 print:bg-transparent text-red-600 print:text-black font-black">{rej.before + rej.after}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Table 2: Return */}
+                  <div>
+                    <h3 className="font-bold text-xs uppercase mb-1">Return to Supplier</h3>
+                    <table className="w-full border-2 print:border border-black print:border-black text-xs print:text-[10pt]">
+                      <thead className="bg-gray-100 print:bg-gray-100 print:text-black border-b-2 print:border-b border-black print:border-black">
+                        <tr>
+                          <th className="p-2 print:py-0.5 print:px-2 text-left border-r-2 print:border-r border-black print:border-black uppercase font-black">Item</th>
+                          <th className="p-2 print:py-0.5 print:px-2 text-center border-r-2 print:border-r border-black print:border-black uppercase font-black">Before</th>
+                          <th className="p-2 print:py-0.5 print:px-2 text-center border-r-2 print:border-r border-black print:border-black uppercase font-black">After</th>
+                          <th className="p-2 print:py-0.5 print:px-2 text-center bg-gray-200 print:bg-transparent uppercase font-black">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {report.rejects.filter((r: any) => r.type === "RETURN").map((rej: any) => (
+                          <tr key={rej.id} className="border-b-2 print:border-b border-black print:border-black font-bold last:border-0 last:print:border-0">
+                            <td className="p-2 print:py-0.5 print:px-2 border-r-2 print:border-r border-black print:border-black uppercase">{rej.item}</td>
+                            <td className="p-2 print:py-0.5 print:px-2 text-center border-r-2 print:border-r border-black print:border-black text-gray-600 print:text-black">{rej.before}</td>
+                            <td className="p-2 print:py-0.5 print:px-2 text-center border-r-2 print:border-r border-black print:border-black text-gray-600 print:text-black">{rej.after}</td>
+                            <td className="p-2 print:py-0.5 print:px-2 text-center bg-gray-100 print:bg-transparent text-red-600 print:text-black font-black">{rej.before + rej.after}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </section>
             </div> {/* END TWO COLUMN WRAPPER */}
             {/* Section 4: Inventory */}

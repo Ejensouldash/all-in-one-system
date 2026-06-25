@@ -13,6 +13,7 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
     include: {
       productions: { include: { batches: true } },
       rejects: true,
+      breakdowns: true,
       inventory: true
     }
   })
@@ -31,6 +32,7 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
     preparedBy: report.preparedBy,
     verifiedBy: report.verifiedBy || "",
     remarks: report.remarks || "",
+    totalManpower: report.totalManpower ? report.totalManpower.toString() : "",
     
     production: {
       p800_12: { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard", otherType: "" }] },
@@ -39,12 +41,19 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
       p425_6:  { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard", otherType: "" }] },
     },
 
-    rejects: {
+    rejectsScrap: {
       cap: { before: 0, after: 0 },
       bottle: { before: 0, after: 0 },
       label: { before: 0, after: 0 },
       box: { before: 0, after: 0 },
     },
+    rejectsReturn: {
+      cap: { before: 0, after: 0 },
+      bottle: { before: 0, after: 0 },
+      label: { before: 0, after: 0 },
+      box: { before: 0, after: 0 },
+    },
+    breakdowns: report.breakdowns || [],
 
     inventory: {
       BOTTLE: { sources: [], usages: [] },
@@ -75,8 +84,10 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
 
   // Populate Rejects
   report.rejects.forEach(r => {
-    if (initialData.rejects[r.item]) {
-      initialData.rejects[r.item] = { before: r.before, after: r.after }
+    if (r.type === "RETURN" && initialData.rejectsReturn[r.item]) {
+      initialData.rejectsReturn[r.item] = { before: r.before, after: r.after }
+    } else if (initialData.rejectsScrap[r.item]) {
+      initialData.rejectsScrap[r.item] = { before: r.before, after: r.after }
     }
   })
 

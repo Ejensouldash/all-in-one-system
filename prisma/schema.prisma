@@ -25,24 +25,24 @@ enum TicketStatus {
 }
 
 model User {
-  id              String    @id @default(uuid())
+  id              String        @id @default(uuid())
   name            String
-  email           String    @unique
+  email           String        @unique
   password        String
-  role            Role      @default(STAFF)
+  role            Role          @default(STAFF)
   branchId        String?
   unitId          String?
-  branch          Branch?   @relation(fields: [branchId], references: [id])
-  unit            Unit?     @relation(fields: [unitId], references: [id])
-  tickets         Ticket[]  @relation("TicketCreator")
-  assignedTickets Ticket[]  @relation("TicketAssignee")
-  events          Event[]   @relation("EventCreator")
-  assignedEvents  Event[]   @relation("EventAssignee")
+  branch          Branch?       @relation(fields: [branchId], references: [id])
+  unit            Unit?         @relation(fields: [unitId], references: [id])
+  tickets         Ticket[]      @relation("TicketCreator")
+  assignedTickets Ticket[]      @relation("TicketAssignee")
+  events          Event[]       @relation("EventCreator")
+  assignedEvents  Event[]       @relation("EventAssignee")
   notices         Notice[]
   dailyReports    DailyReport[] @relation("DailyReportCreator")
-  modules         String[]  @default([])
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  modules         String[]      @default([])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 }
 
 model Branch {
@@ -68,21 +68,21 @@ model Unit {
 }
 
 model Asset {
-  id            String   @id @default(uuid())
-  category      String
-  brand         String
-  model         String
-  serialNumber  String?
-  barcode       String?
-  location      String?
-  status        Status   @default(ACTIVE)
-  assigneeName  String?
-  unitId        String?
-  unit          Unit?    @relation(fields: [unitId], references: [id])
-  tickets       Ticket[]
-  logs          AssetLog[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String     @id @default(uuid())
+  category     String
+  brand        String
+  model        String
+  serialNumber String?
+  barcode      String?
+  location     String?
+  status       Status     @default(ACTIVE)
+  assigneeName String?
+  unitId       String?
+  unit         Unit?      @relation(fields: [unitId], references: [id])
+  tickets      Ticket[]
+  logs         AssetLog[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }
 
 model AssetLog {
@@ -91,52 +91,52 @@ model AssetLog {
   asset       Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
   action      String
   description String
-  performedBy String?  
+  performedBy String?
   date        DateTime @default(now())
 }
 
 model Ticket {
-  id            String       @id @default(uuid())
-  ticketNumber  Int          @unique @default(autoincrement())
-  title         String
-  description   String
-  status        TicketStatus @default(OPEN)
-  priority      String       @default("Low") // Low, Medium, High, Urgent
-  
+  id           String       @id @default(uuid())
+  ticketNumber Int          @unique @default(autoincrement())
+  title        String
+  description  String
+  status       TicketStatus @default(OPEN)
+  priority     String       @default("Low") // Low, Medium, High, Urgent
+
   // Submitter details
   requesterName String?
   phone         String?
-  
+
   // Asset details (if not linked to DB asset)
-  assetType     String?
-  assetNumber   String?
-  
+  assetType   String?
+  assetNumber String?
+
   // IT Resolution Workspace
   rootCause     String?
   resolution    String?
   internalNotes String?
-  type          String?      // Infra, Support, System, M365, Event, Application, Others
+  type          String? // Infra, Support, System, M365, Event, Application, Others
   typeOthers    String?
   assigneeId    String?
-  assignee      User?        @relation("TicketAssignee", fields: [assigneeId], references: [id])
-  
+  assignee      User?   @relation("TicketAssignee", fields: [assigneeId], references: [id])
+
   // Relations
   createdById   String
-  createdBy     User         @relation("TicketCreator", fields: [createdById], references: [id])
+  createdBy     User    @relation("TicketCreator", fields: [createdById], references: [id])
   unitId        String?
-  unit          Unit?        @relation(fields: [unitId], references: [id])
+  unit          Unit?   @relation(fields: [unitId], references: [id])
   linkedAssetId String?
-  linkedAsset   Asset?       @relation(fields: [linkedAssetId], references: [id])
-  
+  linkedAsset   Asset?  @relation(fields: [linkedAssetId], references: [id])
+
   // SLA Tracking
-  slaDeadline   DateTime?
-  slaBreached   Boolean      @default(false)
+  slaDeadline DateTime?
+  slaBreached Boolean   @default(false)
 
   // Cost Tracking
-  costs         TicketCost[]
-  
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  costs TicketCost[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Event {
@@ -154,13 +154,13 @@ model Event {
 }
 
 model TransferIn {
-  id           String             @id @default(uuid())
-  receiveDate  DateTime           @db.Date
+  id           String           @id @default(uuid())
+  receiveDate  DateTime         @db.Date
   receiveTime  String
   doNumber     String
   receiverName String
   items        TransferInItem[]
-  createdAt    DateTime           @default(now())
+  createdAt    DateTime         @default(now())
 }
 
 model TransferInItem {
@@ -174,36 +174,38 @@ model TransferInItem {
 }
 
 model DailyReport {
-  id           String   @id @default(uuid())
-  date         DateTime @db.Date
-  time         String?
-  shift        String
-  line         String
-  preparedBy   String
+  id                String    @id @default(uuid())
+  date              DateTime  @db.Date
+  time              String?
+  shift             String
+  line              String
+  totalManpower     Int? // e.g. 10
+  preparedBy        String
   preparedSignature String?
-  verifiedBy   String
+  verifiedBy        String
   verifiedSignature String?
-  remarks      String?
-  status       String   @default("PENDING")
-  approvedAt   DateTime?
-  
-  createdById  String?
-  createdBy    User?    @relation("DailyReportCreator", fields: [createdById], references: [id])
-  
-  productions  ProductionOutput[]
-  rejects      RejectLog[]
-  inventory    InventoryLog[]
+  remarks           String?
+  status            String    @default("PENDING")
+  approvedAt        DateTime?
 
-  createdAt    DateTime @default(now())
+  createdById String?
+  createdBy   User?   @relation("DailyReportCreator", fields: [createdById], references: [id])
+
+  productions ProductionOutput[]
+  rejects     RejectLog[]
+  inventory   InventoryLog[]
+  breakdowns  BreakdownLog[]
+
+  createdAt DateTime @default(now())
 }
 
 model ProductionOutput {
-  id            String            @id @default(uuid())
-  reportId      String
-  report        DailyReport       @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  productType   String      
-  totalBox      Int
-  batches       ProductionBatch[]
+  id          String            @id @default(uuid())
+  reportId    String
+  report      DailyReport       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  productType String
+  totalBox    Int
+  batches     ProductionBatch[]
 }
 
 model ProductionBatch {
@@ -212,30 +214,40 @@ model ProductionBatch {
   productionOutput   ProductionOutput @relation(fields: [productionOutputId], references: [id], onDelete: Cascade)
   batchNo            String
   qty                Int
-  type               String           
+  type               String
   otherType          String?
 }
 
 model RejectLog {
-  id        String      @id @default(uuid())
-  reportId  String
-  report    DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  item      String      
-  before    Int
-  after     Int
+  id       String      @id @default(uuid())
+  reportId String
+  report   DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  item     String
+  before   Int
+  after    Int
+  type     String      @default("SCRAP") // "SCRAP" or "RETURN"
+}
+
+model BreakdownLog {
+  id       String      @id @default(uuid())
+  reportId String
+  report   DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  section  String
+  downtime Int // in minutes
+  reason   String
 }
 
 model InventoryLog {
-  id          String      @id @default(uuid())
-  reportId    String
-  report      DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  sectionKey  String      
-  type        String      // "Storeroom" or "Usage"
-  period      String?     // "Before" or "After"
-  batchNo     String
-  bags        Float       
-  mult        Int
-  labelType   String?
+  id         String      @id @default(uuid())
+  reportId   String
+  report     DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  sectionKey String
+  type       String // "Storeroom" or "Usage"
+  period     String? // "Before" or "After"
+  batchNo    String
+  bags       Float
+  mult       Int
+  labelType  String?
 }
 
 model Setting {
@@ -254,12 +266,12 @@ model CostCatalog {
 }
 
 model TicketCost {
-  id          String   @id @default(uuid())
-  ticketId    String
-  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  itemName    String
-  amount      Float
-  createdAt   DateTime @default(now())
+  id        String   @id @default(uuid())
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  itemName  String
+  amount    Float
+  createdAt DateTime @default(now())
 }
 
 model Notice {

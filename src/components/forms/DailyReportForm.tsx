@@ -42,12 +42,10 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
         p425_6:  { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard", otherType: "" }] },
       },
 
-      rejects: {
-        cap: { before: 0, after: 0 },
-        bottle: { before: 0, after: 0 },
-        label: { before: 0, after: 0 },
-        box: { before: 0, after: 0 },
-      },
+      totalManpower: "",
+      rejectsScrap: { cap: {before:0,after:0}, bottle: {before:0,after:0}, label: {before:0,after:0}, box: {before:0,after:0} },
+      rejectsReturn: { cap: {before:0,after:0}, bottle: {before:0,after:0}, label: {before:0,after:0}, box: {before:0,after:0} },
+      breakdowns: [{ section: "Section Filling", downtime: "", reason: "" }],
       noRejects: false,
 
       // INVENTORY STATE STRUCTURE - V4.0 (Everything tracked in Bags)
@@ -76,7 +74,9 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
 
   const watchLine = watch("line")
   const productionCheckboxes = watch("production")
-  const watchRejects = useWatch({ control, name: "rejects" })
+  const watchRejectsScrap = useWatch({ control, name: "rejectsScrap" });
+  const watchRejectsReturn = useWatch({ control, name: "rejectsReturn" });
+  const { fields: breakdownFields, append: appendBreakdown, remove: removeBreakdown } = useFieldArray({ control, name: "breakdowns" });
   const watchNoRejects = watch("noRejects")
 
   const [syncedDOs, setSyncedDOs] = useState<any[]>([])
@@ -130,7 +130,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
     }
 
     // Validate Reject Tracking
-    const totalRejects = Object.values(data.rejects).reduce((sum: number, curr: any) => sum + Number(curr.before) + Number(curr.after), 0)
+    const totalRejects = Object.values(data.rejectsScrap).reduce((sum: number, curr: any) => sum + Number(curr.before) + Number(curr.after), 0) + Object.values(data.rejectsReturn).reduce((sum: number, curr: any) => sum + Number(curr.before) + Number(curr.after), 0)
     if (!data.noRejects && totalRejects === 0) {
       return showErrorAndScroll('section-rejects', "Please fill in the box for reject product (Wajib isi). Jika tiada barang reject, sila tick checkbox 'Tiada Barang Reject'.")
     }
@@ -140,7 +140,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
     }
 
     if (data.noRejects) {
-      data.rejects = { cap: {before:0,after:0}, bottle: {before:0,after:0}, label: {before:0,after:0}, box: {before:0,after:0} }
+      data.rejectsScrap = { cap: {before:0,after:0}, bottle: {before:0,after:0}, label: {before:0,after:0}, box: {before:0,after:0} }; data.rejectsReturn = { cap: {before:0,after:0}, bottle: {before:0,after:0}, label: {before:0,after:0}, box: {before:0,after:0} }
     }
 
     setIsSubmitting(true)
@@ -215,6 +215,15 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
               <label className="block text-xs font-black uppercase tracking-wider mb-2">Verified By</label>
               <input type="text" {...register("verifiedBy")} className="w-full border-2 border-black p-3 font-bold focus:outline-none focus:ring-2 focus:ring-black bg-white uppercase" />
             </div>
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider mb-2">Total Manpower</label>
+              <div className="flex border-2 border-black focus-within:ring-2 focus-within:ring-black">
+                <input type="number" {...register("totalManpower")} className="w-full p-3 font-bold focus:outline-none bg-white text-center" placeholder="___" />
+                <div className="px-4 py-3 bg-gray-100 border-l-2 border-black font-black flex items-center text-gray-800">
+                  / 10
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -246,35 +255,75 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             </label>
           </div>
 
-          <table className={`w-full max-w-2xl border-[3px] border-black text-base transition-opacity ${watchNoRejects ? 'opacity-50 pointer-events-none' : ''}`}>
-            <thead className="bg-gray-100 border-b-[3px] border-black">
-              <tr>
-                <th className="p-4 text-left border-r-[3px] border-black uppercase tracking-wider font-black">Item</th>
-                <th className="p-4 text-center border-r-[3px] border-black uppercase tracking-wider font-black">Before</th>
-                <th className="p-4 text-center border-r-[3px] border-black uppercase tracking-wider font-black">After</th>
-                <th className="p-4 text-center bg-gray-200 uppercase tracking-wider font-black">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {['CAP', 'BOTTLE', 'LABEL', 'BOX'].map((item) => {
-                const lowerItem = item.toLowerCase() as "cap" | "bottle" | "label" | "box"
-                const bef = Number(watchRejects?.[lowerItem]?.before) || 0
-                const aft = Number(watchRejects?.[lowerItem]?.after) || 0
-                return (
-                  <tr key={item} className="border-b-[3px] border-black last:border-0 font-medium">
-                    <td className="p-4 border-r-[3px] border-black font-black uppercase tracking-widest">{item}</td>
-                    <td className="p-0 border-r-[3px] border-black bg-white">
-                      <input type="number" {...register(`rejects.${lowerItem}.before`)} min="0" disabled={watchNoRejects} className="w-full h-full text-center p-4 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600" />
-                    </td>
-                    <td className="p-0 border-r-[3px] border-black bg-white">
-                      <input type="number" {...register(`rejects.${lowerItem}.after`)} min="0" disabled={watchNoRejects} className="w-full h-full text-center p-4 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600" />
-                    </td>
-                    <td className="p-4 text-center bg-gray-100 font-black text-xl text-red-700">{bef + aft}</td>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            {/* Table 1: Scrap / Disposal */}
+            <div>
+              <h3 className="font-black uppercase tracking-widest mb-3 bg-red-600 text-white px-4 py-2 inline-block">Scrap / Disposal (Reject Terus)</h3>
+              <table className={`w-full border-[3px] border-black text-base transition-opacity ${watchNoRejects ? 'opacity-50 pointer-events-none' : ''}`}>
+                <thead className="bg-gray-100 border-b-[3px] border-black">
+                  <tr>
+                    <th className="p-2 text-left border-r-[3px] border-black uppercase tracking-wider font-black text-xs">Item</th>
+                    <th className="p-2 text-center border-r-[3px] border-black uppercase tracking-wider font-black text-xs">Before</th>
+                    <th className="p-2 text-center border-r-[3px] border-black uppercase tracking-wider font-black text-xs">After</th>
+                    <th className="p-2 text-center bg-gray-200 uppercase tracking-wider font-black text-xs">Total</th>
                   </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                </thead>
+                <tbody>
+                  {['CAP', 'BOTTLE', 'LABEL', 'BOX'].map((item) => {
+                    const lowerItem = item.toLowerCase() as "cap" | "bottle" | "label" | "box"
+                    const bef = Number(watchRejectsScrap?.[lowerItem]?.before) || 0
+                    const aft = Number(watchRejectsScrap?.[lowerItem]?.after) || 0
+                    return (
+                      <tr key={item} className="border-b-[3px] border-black last:border-0 font-medium">
+                        <td className="p-2 border-r-[3px] border-black font-black uppercase tracking-widest text-xs">{item}</td>
+                        <td className="p-0 border-r-[3px] border-black bg-white">
+                          <input type="number" {...register(`rejectsScrap.${lowerItem}.before`)} min="0" disabled={watchNoRejects} className="w-full h-full text-center p-3 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600 text-sm" />
+                        </td>
+                        <td className="p-0 border-r-[3px] border-black bg-white">
+                          <input type="number" {...register(`rejectsScrap.${lowerItem}.after`)} min="0" disabled={watchNoRejects} className="w-full h-full text-center p-3 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600 text-sm" />
+                        </td>
+                        <td className="p-2 text-center bg-gray-100 font-black text-lg text-red-700">{bef + aft}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Table 2: Return to Supplier */}
+            <div>
+              <h3 className="font-black uppercase tracking-widest mb-3 bg-red-600 text-white px-4 py-2 inline-block">Return to Supplier</h3>
+              <table className={`w-full border-[3px] border-black text-base transition-opacity ${watchNoRejects ? 'opacity-50 pointer-events-none' : ''}`}>
+                <thead className="bg-gray-100 border-b-[3px] border-black">
+                  <tr>
+                    <th className="p-2 text-left border-r-[3px] border-black uppercase tracking-wider font-black text-xs">Item</th>
+                    <th className="p-2 text-center border-r-[3px] border-black uppercase tracking-wider font-black text-xs">Before</th>
+                    <th className="p-2 text-center border-r-[3px] border-black uppercase tracking-wider font-black text-xs">After</th>
+                    <th className="p-2 text-center bg-gray-200 uppercase tracking-wider font-black text-xs">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {['CAP', 'BOTTLE', 'LABEL', 'BOX'].map((item) => {
+                    const lowerItem = item.toLowerCase() as "cap" | "bottle" | "label" | "box"
+                    const bef = Number(watchRejectsReturn?.[lowerItem]?.before) || 0
+                    const aft = Number(watchRejectsReturn?.[lowerItem]?.after) || 0
+                    return (
+                      <tr key={item} className="border-b-[3px] border-black last:border-0 font-medium">
+                        <td className="p-2 border-r-[3px] border-black font-black uppercase tracking-widest text-xs">{item}</td>
+                        <td className="p-0 border-r-[3px] border-black bg-white">
+                          <input type="number" {...register(`rejectsReturn.${lowerItem}.before`)} min="0" disabled={watchNoRejects} className="w-full h-full text-center p-3 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600 text-sm" />
+                        </td>
+                        <td className="p-0 border-r-[3px] border-black bg-white">
+                          <input type="number" {...register(`rejectsReturn.${lowerItem}.after`)} min="0" disabled={watchNoRejects} className="w-full h-full text-center p-3 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600 text-sm" />
+                        </td>
+                        <td className="p-2 text-center bg-gray-100 font-black text-lg text-red-700">{bef + aft}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </section>
 
         {/* SECTION 4: INVENTORY TRACKING V4.0 */}
@@ -359,12 +408,52 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             <span className="bg-black text-white px-3 py-1 font-black text-lg mr-3">5</span>
             <h2 className="text-2xl font-black uppercase tracking-tight">Down Time / Technical Issues / Remarks</h2>
           </div>
-          <textarea 
-            {...register("remarks")} 
-            rows={5} 
-            placeholder="E.g., Botol sangkut jam 10:00AM, Mesin label breakdown..."
-            className="w-full border-[3px] border-black p-5 font-bold focus:outline-none focus:ring-4 focus:ring-black focus:ring-offset-2 bg-white resize-y text-lg"
-          ></textarea>
+          <div className="space-y-4 mb-6">
+            <label className="block text-sm font-black uppercase tracking-wider mb-2">Downtime by Section</label>
+            {breakdownFields.map((field, index) => (
+              <div key={field.id} className="flex flex-col md:flex-row gap-4 border-2 border-black p-4 bg-gray-50 relative">
+                <button type="button" onClick={() => removeBreakdown(index)} className="md:hidden absolute top-2 right-2 text-red-500 hover:bg-red-50 p-2 border-2 border-red-100 rounded bg-red-50/50">
+                  <Trash2 className="w-5 h-5" />
+                </button>
+                <div className="w-full md:w-[5%] flex items-center justify-center font-black text-xl">
+                  {index + 1}.
+                </div>
+                <div className="w-full md:w-[25%]">
+                  <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1">Section</label>
+                  <select {...register(`breakdowns.${index}.section`)} className="w-full p-2 border-2 border-black bg-white font-bold outline-none focus:ring-2 focus:ring-black">
+                    <option value="Section Sorting">Section Sorting</option>
+                    <option value="Section Filling">Section Filling</option>
+                  </select>
+                </div>
+                <div className="w-full md:w-[20%]">
+                  <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1">Downtime (Minutes)</label>
+                  <input type="number" {...register(`breakdowns.${index}.downtime`)} placeholder="Min" className="w-full p-2 border-2 border-black bg-white font-bold outline-none focus:ring-2 focus:ring-black" />
+                </div>
+                <div className="w-full md:w-[45%]">
+                  <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1">Reason</label>
+                  <input type="text" {...register(`breakdowns.${index}.reason`)} placeholder="Reason for downtime" className="w-full p-2 border-2 border-black bg-white font-bold outline-none focus:ring-2 focus:ring-black" />
+                </div>
+                <div className="hidden md:flex w-[5%] items-center justify-center">
+                  <button type="button" onClick={() => removeBreakdown(index)} className="text-red-500 hover:text-red-700 transition-colors">
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            <button type="button" onClick={() => appendBreakdown({ section: "Section Filling", downtime: "", reason: "" })} className="text-xs font-black uppercase tracking-wider flex items-center text-black border-2 border-black px-4 py-2 bg-white hover:bg-black hover:text-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px]">
+              <Plus className="h-4 w-4 mr-2" /> Add Downtime Record
+            </button>
+          </div>
+
+          <div>
+            <label className="block text-sm font-black uppercase tracking-wider mb-2">General Remarks</label>
+            <textarea 
+              {...register("remarks")} 
+              rows={3} 
+              placeholder="Additional remarks..."
+              className="w-full border-[3px] border-black p-5 font-bold focus:outline-none focus:ring-4 focus:ring-black focus:ring-offset-2 bg-white resize-y text-lg"
+            ></textarea>
+          </div>
         </section>
 
         <section id="section-signature" className="mb-8">

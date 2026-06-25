@@ -19,6 +19,7 @@ export async function createDailyReport(data: any) {
         preparedSignature: data.preparedSignature || null,
         verifiedBy: data.verifiedBy,
         remarks: data.remarks,
+        totalManpower: Number(data.totalManpower) || null,
         createdById: session.user.id,
         
         // Productions
@@ -39,10 +40,28 @@ export async function createDailyReport(data: any) {
 
         // Rejects
         rejects: {
-          create: Object.keys(data.rejects || {}).map(k => ({
-            item: k,
-            before: Number(data.rejects[k].before) || 0,
-            after: Number(data.rejects[k].after) || 0
+          create: [
+            ...Object.keys(data.rejectsScrap || {}).map(k => ({
+              item: k,
+              before: Number(data.rejectsScrap[k].before) || 0,
+              after: Number(data.rejectsScrap[k].after) || 0,
+              type: "SCRAP"
+            })),
+            ...Object.keys(data.rejectsReturn || {}).map(k => ({
+              item: k,
+              before: Number(data.rejectsReturn[k].before) || 0,
+              after: Number(data.rejectsReturn[k].after) || 0,
+              type: "RETURN"
+            }))
+          ]
+        },
+
+        // Breakdowns
+        breakdowns: {
+          create: (data.breakdowns || []).map((b: any) => ({
+            section: b.section,
+            downtime: Number(b.downtime) || 0,
+            reason: b.reason || ""
           }))
         },
 
@@ -159,6 +178,7 @@ export async function getDailyReportById(id: string) {
       include: {
         productions: { include: { batches: true } },
         rejects: true,
+        breakdowns: true,
         inventory: true
       }
     })
@@ -223,6 +243,7 @@ export async function updateDailyReport(id: string, data: any) {
           preparedSignature: data.preparedSignature || null,
           verifiedBy: data.verifiedBy,
           remarks: data.remarks,
+          totalManpower: Number(data.totalManpower) || null,
           
           productions: {
             create: Object.keys(data.production || {}).filter(k => data.production[k].checked).map(k => ({
@@ -240,10 +261,27 @@ export async function updateDailyReport(id: string, data: any) {
           },
 
           rejects: {
-            create: Object.keys(data.rejects || {}).map(k => ({
-              item: k,
-              before: Number(data.rejects[k].before) || 0,
-              after: Number(data.rejects[k].after) || 0
+            create: [
+              ...Object.keys(data.rejectsScrap || {}).map(k => ({
+                item: k,
+                before: Number(data.rejectsScrap[k].before) || 0,
+                after: Number(data.rejectsScrap[k].after) || 0,
+                type: "SCRAP"
+              })),
+              ...Object.keys(data.rejectsReturn || {}).map(k => ({
+                item: k,
+                before: Number(data.rejectsReturn[k].before) || 0,
+                after: Number(data.rejectsReturn[k].after) || 0,
+                type: "RETURN"
+              }))
+            ]
+          },
+
+          breakdowns: {
+            create: (data.breakdowns || []).map((b: any) => ({
+              section: b.section,
+              downtime: Number(b.downtime) || 0,
+              reason: b.reason || ""
             }))
           },
 
@@ -363,6 +401,7 @@ export async function getApprovedDailyReportsByDateRange(startDate: string, endD
       include: {
         productions: { include: { batches: true } },
         rejects: true,
+        breakdowns: true,
         inventory: true
       },
       orderBy: { date: 'asc' }

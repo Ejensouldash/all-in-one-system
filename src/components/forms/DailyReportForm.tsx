@@ -36,10 +36,10 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       verifiedBy: "",
       
       production: {
-        p800_12: { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard", otherType: "" }] },
-        p800_20: { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard", otherType: "" }] },
-        p425_24: { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard", otherType: "" }] },
-        p425_6:  { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard", otherType: "" }] },
+        p800_12: { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard Front", otherType: "" }] },
+        p800_20: { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard Front", otherType: "" }] },
+        p425_24: { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard Front", otherType: "" }] },
+        p425_6:  { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard Front", otherType: "" }] },
       },
 
       totalManpower: "",
@@ -55,7 +55,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
           usages: [{ period: "Before", batchNo: "", bags: 0 }]
         },
         LABEL: {
-          sources: [{ batchNo: "", bags: 0, mult: 1, labelType: "Standard" }],
+          sources: [{ batchNo: "", bags: 0, mult: 1, labelType: "Standard Front" }],
           usages: [{ period: "Before", batchNo: "", bags: 0 }]
         },
         CAP: {
@@ -555,11 +555,13 @@ function ProductionBatchDistribution({ prodId, label, isChecked, totalQty, contr
                 <div className="flex items-center w-full sm:w-auto relative">
                   <input type="number" placeholder="Qty" min="0" {...register(`production.${prodId}.batches.${index}.qty`)} className="w-full sm:w-28 border border-gray-300 p-2 font-bold outline-none text-center text-sm focus:border-black" />
                   <select {...register(`production.${prodId}.batches.${index}.type`)} className="w-full sm:w-32 border-y border-r border-gray-300 p-2 font-bold outline-none bg-white text-sm focus:border-black">
-                    <option value="Standard">Standard</option>
+                    <option value="Standard Front">Standard Front</option>
+                    <option value="Standard Back">Standard Back</option>
                     <option value="Omega">Omega</option>
                     {(!prodId.includes('800')) && <option value="Felcra">Felcra</option>}
                     {(!prodId.includes('800')) && <option value="Ets">Ets</option>}
-                    <option value="Brunei">Brunei</option>
+                    <option value="Brunei Front">Brunei Front</option>
+                    <option value="Brunei Back">Brunei Back</option>
                     {(!prodId.includes('800')) && <option value="Prolintas">Prolintas</option>}
                     <option value="JHEAINS">JHEAINS</option>
                     {(!prodId.includes('800')) && <option value="Casuarina">Casuarina</option>}
@@ -581,7 +583,7 @@ function ProductionBatchDistribution({ prodId, label, isChecked, totalQty, contr
               </div>
             ))}
           </div>
-          <button type="button" onClick={() => append({ batchNo: "", qty: 0, type: "Standard", otherType: "" })} className="mt-4 text-xs font-black uppercase tracking-wider flex items-center text-indigo-700 border-2 border-indigo-200 px-3 py-1.5 bg-white hover:bg-indigo-50">
+          <button type="button" onClick={() => append({ batchNo: "", qty: 0, type: "Standard Front", otherType: "" })} className="mt-4 text-xs font-black uppercase tracking-wider flex items-center text-indigo-700 border-2 border-indigo-200 px-3 py-1.5 bg-white hover:bg-indigo-50">
             <Plus className="h-3 w-3 mr-1" /> Add Batch Row
           </button>
         </div>
@@ -638,7 +640,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
         setValue(`inventory.${sectionKey}.sources.${index}.batchNo`, batchData.batchNo)
         setValue(`inventory.${sectionKey}.sources.${index}.bags`, batchData.bags)
         setValue(`inventory.${sectionKey}.sources.${index}.mult`, sectionKey === "CAP" ? 4000 : batchData.mult)
-        if (isLabel) setValue(`inventory.${sectionKey}.sources.${index}.labelType`, batchData.labelType || "Standard")
+        if (isLabel) setValue(`inventory.${sectionKey}.sources.${index}.labelType`, batchData.labelType || "Standard Front")
       }
     }
 
@@ -728,11 +730,13 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                   <div key={field.id} className="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-gray-50 p-2 border border-gray-300">
                     {isLabel && (
                       <select {...register(`inventory.${sectionKey}.sources.${index}.labelType`)} className="w-full sm:w-32 p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-black uppercase">
-                        <option value="Standard">Standard</option>
+                        <option value="Standard Front">Standard Front</option>
+                        <option value="Standard Back">Standard Back</option>
                         <option value="Omega">Omega</option>
                         {(!title?.includes('800')) && <option value="Felcra">Felcra</option>}
                         {(!title?.includes('800')) && <option value="Ets">Ets</option>}
-                        <option value="Brunei">Brunei</option>
+                        <option value="Brunei Front">Brunei Front</option>
+                        <option value="Brunei Back">Brunei Back</option>
                         {(!title?.includes('800')) && <option value="Prolintas">Prolintas</option>}
                         <option value="JHEAINS">JHEAINS</option>
                         {(!title?.includes('800')) && <option value="Casuarina">Casuarina</option>}
@@ -783,7 +787,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                 )
               })}
             </div>
-            <button type="button" onClick={() => appendSource({ batchNo: "", bags: 0, mult: sectionKey === "CAP" ? 4000 : multipliers[0], ...(isLabel && {labelType: "Standard"}) })} className="mt-4 text-xs font-black uppercase tracking-wider flex items-center border-2 border-black px-3 py-1.5 hover:bg-gray-100">
+            <button type="button" onClick={() => appendSource({ batchNo: "", bags: 0, mult: sectionKey === "CAP" ? 4000 : multipliers[0], ...(isLabel && {labelType: "Standard Front"}) })} className="mt-4 text-xs font-black uppercase tracking-wider flex items-center border-2 border-black px-3 py-1.5 hover:bg-gray-100">
               <Plus className="h-3 w-3 mr-1" /> Add Storeroom Batch
             </button>
           </div>

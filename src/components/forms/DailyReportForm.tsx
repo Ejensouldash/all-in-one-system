@@ -255,6 +255,28 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             </label>
           </div>
 
+          <div className="mb-6 bg-blue-50 border-2 border-blue-200 p-4">
+            <h3 className="font-black uppercase tracking-widest mb-2 text-blue-800 text-sm">🧮 Cap Calculator (Auto-Convert Grams to Pcs)</h3>
+            <p className="text-xs font-bold text-blue-600 mb-3">Formula: 1 Cap = 2.1g. Enter total weight in grams to calculate pieces.</p>
+            <div className="flex flex-col sm:flex-row gap-3 items-center">
+              <input 
+                type="number" 
+                placeholder="Weight (Grams)" 
+                className="p-2 border-2 border-black font-bold outline-none focus:ring-2 focus:ring-black w-full sm:w-48"
+                onChange={(e) => {
+                  const weight = Number(e.target.value) || 0
+                  const pcs = Math.round(weight / 2.1)
+                  const el = document.getElementById('cap-calc-result')
+                  if (el) el.innerText = pcs.toString() + ' Pcs'
+                }}
+              />
+              <span className="font-black text-xl text-blue-800 mx-2">=</span>
+              <div id="cap-calc-result" className="p-2 bg-white border-2 border-black font-black text-lg text-emerald-700 min-w-[100px] text-center">
+                0 Pcs
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
             {/* Table 1: Scrap / Disposal */}
             <div>

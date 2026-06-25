@@ -557,18 +557,20 @@ function ProductionBatchDistribution({ prodId, label, isChecked, totalQty, contr
                   <select {...register(`production.${prodId}.batches.${index}.type`)} className="w-full sm:w-32 border-y border-r border-gray-300 p-2 font-bold outline-none bg-white text-sm focus:border-black">
                     <option value="Standard">Standard</option>
                     <option value="Omega">Omega</option>
+                    {(!prodId.includes('800')) && <option value="Felcra">Felcra</option>}
+                    {(!prodId.includes('800')) && <option value="Ets">Ets</option>}
                     <option value="Brunei">Brunei</option>
-                    <option value="Prolintas">Prolintas</option>
+                    {(!prodId.includes('800')) && <option value="Prolintas">Prolintas</option>}
                     <option value="JHEAINS">JHEAINS</option>
-                    <option value="Casuarina">Casuarina</option>
+                    {(!prodId.includes('800')) && <option value="Casuarina">Casuarina</option>}
                     <option value="MFL">MFL</option>
                     <option value="YNS">YNS</option>
                     <option value="KOWARIS">KOWARIS</option>
-                    <option value="Richiamo">Richiamo</option>
-                    <option value="Al Falah">Al Falah</option>
-                    <option value="Mihas">Mihas</option>
-                    <option value="LTDI">LTDI</option>
-                    <option value="Yayasan Pahang">Yayasan Pahang</option>
+                    {(!prodId.includes('800')) && <option value="Richiamo">Richiamo</option>}
+                    {(!prodId.includes('800')) && <option value="Al Falah">Al Falah</option>}
+                    {(!prodId.includes('800')) && <option value="Mihas">Mihas</option>}
+                    {(!prodId.includes('800')) && <option value="LTDI">LTDI</option>}
+                    {(!prodId.includes('800')) && <option value="Yayasan Pahang">Yayasan Pahang</option>}
                     <option value="Others">Others...</option>
                   </select>
                   {watchBatches[index]?.type === "Others" && (
@@ -728,18 +730,20 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                       <select {...register(`inventory.${sectionKey}.sources.${index}.labelType`)} className="w-full sm:w-32 p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-black uppercase">
                         <option value="Standard">Standard</option>
                         <option value="Omega">Omega</option>
+                        {(!title?.includes('800')) && <option value="Felcra">Felcra</option>}
+                        {(!title?.includes('800')) && <option value="Ets">Ets</option>}
                         <option value="Brunei">Brunei</option>
-                        <option value="Prolintas">Prolintas</option>
+                        {(!title?.includes('800')) && <option value="Prolintas">Prolintas</option>}
                         <option value="JHEAINS">JHEAINS</option>
-                        <option value="Casuarina">Casuarina</option>
+                        {(!title?.includes('800')) && <option value="Casuarina">Casuarina</option>}
                         <option value="MFL">MFL</option>
                         <option value="YNS">YNS</option>
                         <option value="KOWARIS">KOWARIS</option>
-                        <option value="Richiamo">Richiamo</option>
-                        <option value="Al Falah">Al Falah</option>
-                        <option value="Mihas">Mihas</option>
-                        <option value="LTDI">LTDI</option>
-                        <option value="Yayasan Pahang">Yayasan Pahang</option>
+                        {(!title?.includes('800')) && <option value="Richiamo">Richiamo</option>}
+                        {(!title?.includes('800')) && <option value="Al Falah">Al Falah</option>}
+                        {(!title?.includes('800')) && <option value="Mihas">Mihas</option>}
+                        {(!title?.includes('800')) && <option value="LTDI">LTDI</option>}
+                        {(!title?.includes('800')) && <option value="Yayasan Pahang">Yayasan Pahang</option>}
                         <option value="Others">Others</option>
                       </select>
                     )}

@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { MonitorSmartphone, Search, Filter, Eye, ChevronLeft, ChevronRight, Edit3 } from "lucide-react"
+import { MonitorSmartphone, Search, Filter, Eye, ChevronLeft, ChevronRight, Edit3, QrCode } from "lucide-react"
 import Link from "next/link"
 import { AssetEditModal } from "./AssetEditModal"
+import { QRCodeModal } from "./QRCodeModal"
 
 export function AssetTableClient({ assets, units }: { assets: any[], units: any[] }) {
   const [search, setSearch] = useState("")
@@ -11,6 +12,7 @@ export function AssetTableClient({ assets, units }: { assets: any[], units: any[
   const itemsPerPage = 5
 
   const [editingAsset, setEditingAsset] = useState<any>(null)
+  const [qrAsset, setQrAsset] = useState<any>(null)
 
   // Filter
   const filteredAssets = assets.filter(a => 
@@ -95,9 +97,16 @@ export function AssetTableClient({ assets, units }: { assets: any[], units: any[
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex justify-end items-center gap-2">
                     <button 
+                      onClick={() => setQrAsset(asset)}
+                      className="text-purple-600 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 p-2 rounded-lg transition-colors group relative inline-flex" 
+                      title="Generate QR Code Sticker"
+                    >
+                      <QrCode className="h-4 w-4" />
+                    </button>
+                    <button 
                       onClick={() => setEditingAsset(asset)}
                       className="text-amber-600 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 p-2 rounded-lg transition-colors group relative inline-flex" 
-                      title="Edit Asset & View QR"
+                      title="Edit Asset"
                     >
                       <Edit3 className="h-4 w-4" />
                     </button>
@@ -139,6 +148,10 @@ export function AssetTableClient({ assets, units }: { assets: any[], units: any[
 
       {editingAsset && (
         <AssetEditModal asset={editingAsset} units={units} onClose={() => setEditingAsset(null)} />
+      )}
+
+      {qrAsset && (
+        <QRCodeModal asset={qrAsset} onClose={() => setQrAsset(null)} />
       )}
     </div>
   )

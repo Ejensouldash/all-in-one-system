@@ -11,7 +11,13 @@ const MULTIPLIERS = {
   BOTTLE_425: [181, 162],
   BOX: [1],
   CAP: [4000],
-  LABEL: [1]
+  LABEL: [1],
+  CARTON_CAP: [15],
+  WRAPPING_HAND: [6],
+  WRAPPING_MACHINE: [1],
+  TAPE_OPP: [96],
+  TAPE_MACHINE: [6],
+  MACHINE_STRETCH_FILM: [1]
 }
 
 export function TransferInForm({ userName }: { userName: string }) {
@@ -165,10 +171,16 @@ export function TransferInForm({ userName }: { userName: string }) {
                 
                 let availableMultipliers: number[] = MULTIPLIERS.BOTTLE_800
                 if (cat === "BOTTLE 425ml") availableMultipliers = MULTIPLIERS.BOTTLE_425
-                if (cat.includes("BOX")) availableMultipliers = MULTIPLIERS.BOX
+                if (cat.includes("BOX") && !cat.includes("CARTON/BOX")) availableMultipliers = MULTIPLIERS.BOX
+                if (cat === "CARTON/BOX - CAP") availableMultipliers = MULTIPLIERS.CARTON_CAP
+                if (cat === "WRAPPING - HAND") availableMultipliers = MULTIPLIERS.WRAPPING_HAND
+                if (cat === "WRAPPING - MACHINE") availableMultipliers = MULTIPLIERS.WRAPPING_MACHINE
+                if (cat === "TAPE - OPP") availableMultipliers = MULTIPLIERS.TAPE_OPP
+                if (cat === "TAPE - MACHINE") availableMultipliers = MULTIPLIERS.TAPE_MACHINE
+                if (cat === "MACHINE STRETCH FILM") availableMultipliers = MULTIPLIERS.MACHINE_STRETCH_FILM
                 if (cat.includes("LABEL")) availableMultipliers = MULTIPLIERS.LABEL
                 
-                const isNoMult = cat.includes("CAP") || cat.includes("LABEL")
+                const isNoMult = cat === "CAP 1881" || cat.includes("LABEL")
                 if (isNoMult) availableMultipliers = []
 
                 return (
@@ -190,6 +202,12 @@ export function TransferInForm({ userName }: { userName: string }) {
                         <option value="BOX 425x6">BOX 425ml x 6</option>
                         <option value="CAP 1881">CAP 1881</option>
                         <option value="LABEL">LABEL (Rolls)</option>
+                        <option value="CARTON/BOX - CAP">CARTON/BOX - CAP</option>
+                        <option value="WRAPPING - HAND">WRAPPING - HAND</option>
+                        <option value="WRAPPING - MACHINE">WRAPPING - MACHINE</option>
+                        <option value="TAPE - OPP">TAPE - OPP</option>
+                        <option value="TAPE - MACHINE">TAPE - MACHINE</option>
+                        <option value="MACHINE STRETCH FILM">MACHINE STRETCH FILM</option>
                       </select>
                     </div>
 

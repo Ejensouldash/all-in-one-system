@@ -65,7 +65,13 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
         BOX_p800_12: { sources: [{ batchNo: "", bags: 0, mult: 1 }], usages: [{ period: "Before", batchNo: "", bags: 0 }] },
         BOX_p800_20: { sources: [{ batchNo: "", bags: 0, mult: 1 }], usages: [{ period: "Before", batchNo: "", bags: 0 }] },
         BOX_p425_24: { sources: [{ batchNo: "", bags: 0, mult: 1 }], usages: [{ period: "Before", batchNo: "", bags: 0 }] },
-        BOX_p425_6: { sources: [{ batchNo: "", bags: 0, mult: 1 }], usages: [{ period: "Before", batchNo: "", bags: 0 }] }
+        BOX_p425_6: { sources: [{ batchNo: "", bags: 0, mult: 1 }], usages: [{ period: "Before", batchNo: "", bags: 0 }] },
+        CARTON_CAP: { sources: [{ batchNo: "", bags: 0, mult: 15 }], usages: [{ period: "Before", batchNo: "", bags: 0 }] },
+        WRAPPING_HAND: { sources: [{ batchNo: "", bags: 0, mult: 6 }], usages: [{ period: "Before", batchNo: "", bags: 0 }] },
+        WRAPPING_MACHINE: { sources: [{ batchNo: "", bags: 0, mult: 1 }], usages: [{ period: "Before", batchNo: "", bags: 0 }] },
+        TAPE_OPP: { sources: [{ batchNo: "", bags: 0, mult: 96 }], usages: [{ period: "Before", batchNo: "", bags: 0 }] },
+        TAPE_MACHINE: { sources: [{ batchNo: "", bags: 0, mult: 6 }], usages: [{ period: "Before", batchNo: "", bags: 0 }] },
+        MACHINE_STRETCH_FILM: { sources: [{ batchNo: "", bags: 0, mult: 1 }], usages: [{ period: "Before", batchNo: "", bags: 0 }] }
       },
 
       remarks: ""
@@ -422,6 +428,55 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
               />
             )
           })}
+
+          <AdvancedInventorySection 
+            sectionKey="CARTON_CAP" 
+            title="CARTON/BOX - CAP INVENTORY" 
+            control={control} register={register} watch={watch} setValue={setValue}
+            availableCarryForward={availableCarryForward}
+            multipliers={[15]}
+            syncedDOs={syncedDOs.filter(d => d.category === "CARTON/BOX - CAP")}
+          />
+          <AdvancedInventorySection 
+            sectionKey="WRAPPING_HAND" 
+            title="WRAPPING - HAND INVENTORY" 
+            control={control} register={register} watch={watch} setValue={setValue}
+            availableCarryForward={availableCarryForward}
+            multipliers={[6]}
+            syncedDOs={syncedDOs.filter(d => d.category === "WRAPPING - HAND")}
+          />
+          <AdvancedInventorySection 
+            sectionKey="WRAPPING_MACHINE" 
+            title="WRAPPING - MACHINE INVENTORY" 
+            control={control} register={register} watch={watch} setValue={setValue}
+            availableCarryForward={availableCarryForward}
+            multipliers={[1]}
+            syncedDOs={syncedDOs.filter(d => d.category === "WRAPPING - MACHINE")}
+          />
+          <AdvancedInventorySection 
+            sectionKey="TAPE_OPP" 
+            title="TAPE - OPP INVENTORY" 
+            control={control} register={register} watch={watch} setValue={setValue}
+            availableCarryForward={availableCarryForward}
+            multipliers={[96]}
+            syncedDOs={syncedDOs.filter(d => d.category === "TAPE - OPP")}
+          />
+          <AdvancedInventorySection 
+            sectionKey="TAPE_MACHINE" 
+            title="TAPE - MACHINE INVENTORY" 
+            control={control} register={register} watch={watch} setValue={setValue}
+            availableCarryForward={availableCarryForward}
+            multipliers={[6]}
+            syncedDOs={syncedDOs.filter(d => d.category === "TAPE - MACHINE")}
+          />
+          <AdvancedInventorySection 
+            sectionKey="MACHINE_STRETCH_FILM" 
+            title="MACHINE STRETCH FILM INVENTORY" 
+            control={control} register={register} watch={watch} setValue={setValue}
+            availableCarryForward={availableCarryForward}
+            multipliers={[1]}
+            syncedDOs={syncedDOs.filter(d => d.category === "MACHINE STRETCH FILM")}
+          />
 
         </section>
 

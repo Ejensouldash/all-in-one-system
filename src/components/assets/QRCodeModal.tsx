@@ -60,7 +60,7 @@ export function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
         <div className="p-8 flex flex-col items-center justify-center bg-gray-100">
           <div 
             id="qr-print-area" 
-            className="relative flex items-center justify-between p-2 rounded-lg bg-[#0b111a] border border-cyan-400 overflow-hidden"
+            className="relative flex items-center justify-between p-2 rounded-lg bg-[#0a0f16] border-[2px] border-[#12b5b0] overflow-hidden"
             style={{ width: '70mm', height: '30mm', boxSizing: 'border-box' }}
           >
             {/* Left Content */}
@@ -69,17 +69,11 @@ export function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
               {/* Header / Logo */}
               <div className="flex flex-col">
                 <span className="text-white text-[6px] font-bold tracking-wider mb-0.5">PROPERTY OF</span>
-                <div className="flex items-end leading-none">
-                  <span className="text-cyan-400 text-sm font-black tracking-tighter">Bubbles</span>
-                  <span className="text-white text-sm font-light">O2</span>
-                  <div className="relative ml-0.5 mb-1 flex items-center justify-center">
-                     {/* CSS imitation of the bubbles logo mark */}
-                     <div className="w-1.5 h-1.5 border border-cyan-400 rounded-full"></div>
-                     <div className="w-1 h-1 border border-cyan-400 rounded-full absolute -top-1 -right-0.5"></div>
-                     <div className="w-0.5 h-0.5 border border-cyan-400 rounded-full absolute -top-0.5 -left-0.5"></div>
-                  </div>
+                <div className="flex items-center h-4 mb-1">
+                  {/* Using the official logo image */}
+                  <img src="/assets/BubblesO2_Logo.png" alt="BubblesO2" className="h-full w-auto object-contain" />
                 </div>
-                <div className="w-full h-px bg-cyan-400/50 mt-1 mb-1"></div>
+                <div className="w-full h-px bg-[#12b5b0]/50 mt-1 mb-1"></div>
               </div>
 
               {/* Asset ID Badge */}
@@ -90,14 +84,14 @@ export function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
               </div>
 
               {/* Contact Info */}
-              <div className="flex flex-col space-y-0.5 mt-auto">
-                <div className="flex items-center text-cyan-400">
-                  <Phone className="w-2 h-2 mr-1" fill="currentColor" />
-                  <span className="text-white text-[5px] font-medium">+60 19-608 9858 (HR)</span>
+              <div className="flex flex-col space-y-0.5 mt-auto ml-1">
+                <div className="flex items-center text-[#12b5b0]">
+                  <Phone className="w-2.5 h-2.5 mr-1.5" fill="currentColor" strokeWidth={0} />
+                  <span className="text-white text-[5px] font-medium tracking-wide">+60 19-608 9858 (HR)</span>
                 </div>
-                <div className="flex items-center text-cyan-400">
-                  <Mail className="w-2 h-2 mr-1" fill="currentColor" />
-                  <span className="text-white text-[5px] font-medium">HR@bubbleso2.com</span>
+                <div className="flex items-center text-[#12b5b0]">
+                  <Mail className="w-2.5 h-2.5 mr-1.5" fill="currentColor" strokeWidth={0} />
+                  <span className="text-white text-[5px] font-medium tracking-wide">HR@bubbleso2.com</span>
                 </div>
               </div>
 

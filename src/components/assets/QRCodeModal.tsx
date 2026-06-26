@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { X, Printer, MonitorSmartphone } from "lucide-react"
+import { X, Printer, MonitorSmartphone, Phone, Mail } from "lucide-react"
 import { QRCodeSVG } from "qrcode.react"
 
 interface QRCodeModalProps {
@@ -42,28 +42,67 @@ export function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
           </button>
         </div>
 
-        {/* Printable Area */}
-        <div id="qr-print-area" className="p-8 flex flex-col items-center justify-center bg-white text-center">
-          {/* Company Branding for Sticker */}
-          <h3 className="font-black tracking-widest text-lg uppercase mb-1 print:text-black">BUBBLE O2</h3>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-6 border-b-2 border-gray-100 pb-2 print:border-black">Property Of</p>
+        {/* Printable Area - Designed for 70mm x 30mm */}
+        <div className="p-8 flex flex-col items-center justify-center bg-gray-100">
+          <div 
+            id="qr-print-area" 
+            className="relative flex items-center justify-between p-2 rounded-lg bg-[#0b111a] border border-cyan-400 overflow-hidden"
+            style={{ width: '70mm', height: '30mm', boxSizing: 'border-box' }}
+          >
+            {/* Left Content */}
+            <div className="flex flex-col h-full justify-between flex-1 pr-2">
+              
+              {/* Header / Logo */}
+              <div className="flex flex-col">
+                <span className="text-white text-[6px] font-bold tracking-wider mb-0.5">PROPERTY OF</span>
+                <div className="flex items-end leading-none">
+                  <span className="text-cyan-400 text-sm font-black tracking-tighter">Bubbles</span>
+                  <span className="text-white text-sm font-light">O2</span>
+                  <div className="relative ml-0.5 mb-1 flex items-center justify-center">
+                     {/* CSS imitation of the bubbles logo mark */}
+                     <div className="w-1.5 h-1.5 border border-cyan-400 rounded-full"></div>
+                     <div className="w-1 h-1 border border-cyan-400 rounded-full absolute -top-1 -right-0.5"></div>
+                     <div className="w-0.5 h-0.5 border border-cyan-400 rounded-full absolute -top-0.5 -left-0.5"></div>
+                  </div>
+                </div>
+                <div className="w-full h-px bg-cyan-400/50 mt-1 mb-1"></div>
+              </div>
 
-          <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 print:shadow-none print:border-none print:p-0">
-            <QRCodeSVG 
-              value={qrUrl} 
-              size={200}
-              level={"H"}
-              includeMargin={false}
-              fgColor={"#000000"}
-              bgColor={"#ffffff"}
-            />
-          </div>
+              {/* Asset ID Badge */}
+              <div className="bg-white rounded py-0.5 px-2 flex items-center justify-center mb-1">
+                <span className="text-black font-black text-xs tracking-wide">
+                  {asset.id.length > 15 ? asset.id.substring(0, 15) : asset.id}
+                </span>
+              </div>
 
-          <div className="mt-6 w-full text-center">
-            <p className="text-sm font-bold text-gray-900">{asset.brand} {asset.model}</p>
-            <p className="text-xs text-gray-500 font-mono mt-1">SN: {asset.serialNumber || 'N/A'}</p>
-            <p className="text-[10px] text-gray-400 font-medium uppercase mt-2 bg-gray-50 rounded-lg py-1 border border-gray-100 print:border-none print:bg-transparent">Scan to View Asset Details</p>
+              {/* Contact Info */}
+              <div className="flex flex-col space-y-0.5 mt-auto">
+                <div className="flex items-center text-cyan-400">
+                  <Phone className="w-2 h-2 mr-1" fill="currentColor" />
+                  <span className="text-white text-[5px] font-medium">+60 19-608 9858 (HR)</span>
+                </div>
+                <div className="flex items-center text-cyan-400">
+                  <Mail className="w-2 h-2 mr-1" fill="currentColor" />
+                  <span className="text-white text-[5px] font-medium">HR@bubbleso2.com</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Right Content - QR Code */}
+            <div className="bg-white p-1 rounded-md h-full aspect-square flex items-center justify-center shrink-0">
+              <QRCodeSVG 
+                value={qrUrl} 
+                size={90}
+                level={"M"}
+                includeMargin={false}
+                fgColor={"#000000"}
+                bgColor={"#ffffff"}
+                style={{ width: '100%', height: '100%' }}
+              />
+            </div>
           </div>
+          <p className="text-xs text-gray-400 mt-4 font-mono">Actual Print Size: 70mm x 30mm</p>
         </div>
 
         {/* Actions */}

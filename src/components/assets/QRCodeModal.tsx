@@ -19,10 +19,24 @@ export function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
     if (!printContent) return
 
     const originalContents = document.body.innerHTML
-    document.body.innerHTML = printContent.innerHTML
+    
+    document.body.innerHTML = `
+      <style>
+        @media print {
+          @page { margin: 0; }
+          body { 
+            margin: 1cm; 
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important; 
+          }
+        }
+      </style>
+      ${printContent.outerHTML}
+    `
+    
     window.print()
     document.body.innerHTML = originalContents
-    window.location.reload() // Reload to restore React state bindings after brutal DOM replacement
+    window.location.reload()
   }
 
   return (

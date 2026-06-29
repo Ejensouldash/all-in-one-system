@@ -30,7 +30,7 @@ export default async function TransferInHistoryPage({
               View historical logs of Delivery Orders (Transfer In).
             </p>
           </div>
-          <Link href="/forms/transfer-in" className="flex items-center bg-white text-emerald-900 px-6 py-3 rounded-xl font-bold hover:bg-emerald-50 transition-colors shadow-lg">
+          <Link href="/forms/production/transfer-in" className="flex items-center bg-white text-emerald-900 px-6 py-3 rounded-xl font-bold hover:bg-emerald-50 transition-colors shadow-lg">
             <PackagePlus className="w-5 h-5 mr-2" /> Log New DO
           </Link>
         </div>
@@ -78,7 +78,7 @@ export default async function TransferInHistoryPage({
                       {t.receiverName}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-end space-x-2">
-                      <Link href={`/forms/transfer-in/${t.id}`} className="text-emerald-600 hover:text-emerald-900 font-black flex items-center bg-emerald-50 px-3 py-2 rounded-lg hover:bg-emerald-100 transition-colors">
+                      <Link href={`/forms/production/transfer-in/${t.id}`} className="text-emerald-600 hover:text-emerald-900 font-black flex items-center bg-emerald-50 px-3 py-2 rounded-lg hover:bg-emerald-100 transition-colors">
                         <Eye className="w-4 h-4 mr-1" /> View
                       </Link>
                     </td>
@@ -94,13 +94,13 @@ export default async function TransferInHistoryPage({
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
             <div className="flex-1 flex justify-between sm:hidden">
               <Link
-                href={`/forms/transfer-in/history?page=${Math.max(1, page - 1)}`}
+                href={`/forms/production/transfer-in/history?page=${Math.max(1, page - 1)}`}
                 className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 ${page === 1 ? 'pointer-events-none opacity-50' : ''}`}
               >
                 Previous
               </Link>
               <Link
-                href={`/forms/transfer-in/history?page=${Math.min(totalPages, page + 1)}`}
+                href={`/forms/production/transfer-in/history?page=${Math.min(totalPages, page + 1)}`}
                 className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 ${page === totalPages ? 'pointer-events-none opacity-50' : ''}`}
               >
                 Next
@@ -115,14 +115,14 @@ export default async function TransferInHistoryPage({
               <div>
                 <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                   <Link
-                    href={`/forms/transfer-in/history?page=${Math.max(1, page - 1)}`}
+                    href={`/forms/production/transfer-in/history?page=${Math.max(1, page - 1)}`}
                     className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${page === 1 ? 'pointer-events-none opacity-50' : ''}`}
                   >
                     <span className="sr-only">Previous</span>
                     Previous
                   </Link>
                   <Link
-                    href={`/forms/transfer-in/history?page=${Math.min(totalPages, page + 1)}`}
+                    href={`/forms/production/transfer-in/history?page=${Math.min(totalPages, page + 1)}`}
                     className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${page === totalPages ? 'pointer-events-none opacity-50' : ''}`}
                   >
                     <span className="sr-only">Next</span>

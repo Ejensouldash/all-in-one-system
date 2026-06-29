@@ -17,7 +17,7 @@ export default async function TransferInDetailPage({ params }: { params: Promise
             Debug ID: {resolvedParams?.id}<br/>
             Error: {result?.error || "Null Data"}
           </div>
-          <Link href="/forms/transfer-in/history" className="inline-flex items-center justify-center w-full bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold transition-colors">
+          <Link href="/forms/production/transfer-in/history" className="inline-flex items-center justify-center w-full bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold transition-colors">
             <ArrowLeft className="w-5 h-5 mr-2" /> Back to History
           </Link>
         </div>
@@ -31,7 +31,7 @@ export default async function TransferInDetailPage({ params }: { params: Promise
     <div className="max-w-4xl mx-auto space-y-6 px-4 sm:px-6 lg:px-8 mt-8 pb-12">
       
       <div className="flex items-center justify-between mb-8">
-        <Link href="/forms/transfer-in/history" className="inline-flex items-center text-emerald-600 hover:text-emerald-800 font-bold bg-emerald-50 px-4 py-2 rounded-lg transition-colors">
+        <Link href="/forms/production/transfer-in/history" className="inline-flex items-center text-emerald-600 hover:text-emerald-800 font-bold bg-emerald-50 px-4 py-2 rounded-lg transition-colors">
           <ArrowLeft className="w-4 h-4 mr-2" /> Back to History
         </Link>
       </div>

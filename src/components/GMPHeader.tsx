@@ -7,7 +7,7 @@ export function GMPHeader() {
         <tbody>
           <tr>
             <td className="border-2 border-black p-4 text-center w-[20%]">
-              <div className="text-3xl font-black tracking-tighter">Bubbles<span className="font-light text-2xl align-super">O2</span></div>
+              <img src="/assets/BubblesO2_Logo.png" alt="BubblesO2 Logo" className="h-12 mx-auto object-contain" />
             </td>
             <td className="border-2 border-black p-2 text-center font-bold w-[30%]">
               Document Type: Level 4<br />SUPPORTING DOCUMENTATION

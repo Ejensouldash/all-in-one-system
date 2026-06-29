@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { createDistributionOrder } from "@/app/actions/warehouse"
 import { Loader2, Plus, Trash2, Save, FileText, Truck, MapPin } from "lucide-react"
+import { GMPHeader } from "@/components/GMPHeader"
 
 const DISTRIBUTION_METHODS = [
   "Logistic",
@@ -88,7 +89,9 @@ export function CreateDOForm({ availableInventory, userId }: { availableInventor
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+    <div className="w-full">
+      <GMPHeader />
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
       
       {/* SECTION A: DELIVERY INFO */}
       <div className="bg-white p-6 border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
@@ -171,6 +174,7 @@ export function CreateDOForm({ availableInventory, userId }: { availableInventor
         {loading ? "Processing..." : "Generate Distribution Order (DO)"}
       </button>
     </form>
+    </div>
   )
 }
 

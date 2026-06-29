@@ -1,113 +1,116 @@
-import { auth } from "@/auth"
-import { prisma } from "@/lib/prisma"
-import { redirect } from "next/navigation"
-import Link from "next/link"
-import { ArrowLeft, Printer, CheckSquare } from "lucide-react"
-import { PrintButton } from "./PrintButton"
+"use client"
+import { useEffect, useState } from "react"
+import { notFound } from "next/navigation"
+import { GMPHeader } from "@/components/GMPHeader"
 
-export default async function PODView({ params }: { params: { id: string } }) {
-  const session = await auth()
-  if (!session) redirect("/login")
+export default function PrintPODPage({ params }: { params: Promise<{ id: string }> }) {
+  const [doOrder, setDoOrder] = useState<any>(null)
+  
+  useEffect(() => {
+    params.then(({ id }) => {
+      fetch(`/api/warehouse/distribution/${id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (!data || data.error) setDoOrder('not_found')
+          else setDoOrder(data)
+        })
+    })
+  }, [params])
 
-  const doOrder = await prisma.distributionOrder.findUnique({
-    where: { id: params.id },
-    include: {
-      items: true,
-      createdBy: true
+  if (doOrder === 'not_found') return <div>DO Not Found</div>
+  if (!doOrder) return <div className="p-10 font-bold">Loading...</div>
+
+  // Aggregate items by SKU (Blind Batching logic)
+  const aggregatedItems: Record<string, number> = {}
+  doOrder.items.forEach((item: any) => {
+    if (!aggregatedItems[item.sku]) {
+      aggregatedItems[item.sku] = 0
     }
+    aggregatedItems[item.sku] += item.qtySent
   })
 
-  if (!doOrder) {
-    return <div>DO Not Found</div>
+  const labels: Record<string, string> = {
+    "p425_24": "BUBBLES O2 425 ML x 24",
+    "p425_6": "BUBBLES O2 425 ML x 6",
+    "p800_12": "BUBBLES O2 800 ML x 12",
+    "p800_20": "BUBBLES O2 800 ML x 20",
   }
 
-  // GROUP ITEMS BY SKU (Crucial Requirement: Hide batch numbers from external logistics)
-  const groupedItems = doOrder.items.reduce((acc: any, item) => {
-    if (!acc[item.sku]) {
-      acc[item.sku] = { sku: item.sku, totalQty: 0 }
-    }
-    acc[item.sku].totalQty += item.qtySent
-    return acc
-  }, {})
-
-  const displayItems = Object.values(groupedItems)
-
   return (
-    <div className="max-w-4xl mx-auto pb-20">
-      <div className="mb-6 flex justify-between items-center print:hidden">
-        <Link href="/warehouse/distribution" className="inline-flex items-center text-sm font-black uppercase tracking-wider border-2 border-black px-4 py-2 hover:bg-black hover:text-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px]">
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to DO List
-        </Link>
-        <PrintButton />
+    <div className="bg-white min-h-screen text-black p-4 sm:p-8 font-sans max-w-5xl mx-auto print:p-0 print:m-0 print:max-w-none print:shadow-none shadow-xl">
+      <div className="print:hidden mb-6 flex justify-end">
+        <button 
+          onClick={() => window.print()} 
+          className="bg-black text-white px-6 py-2 font-bold uppercase hover:bg-gray-800 transition-colors cursor-pointer"
+        >
+          Print POD
+        </button>
       </div>
 
-      <div id="print-area" className="bg-white border-2 border-black p-8 sm:p-12 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] print:shadow-none print:border-none print:p-0">
-        
-        {/* HEADER */}
-        <div className="flex justify-between items-start border-b-4 border-black pb-6 mb-8">
-          <div>
-            <h1 className="text-3xl font-black uppercase tracking-tighter">BubblesO2</h1>
-            <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mt-1">Proof of Delivery</p>
+      <GMPHeader />
+
+      <div className="mt-8 mb-6 grid grid-cols-2 gap-4 border-2 border-black p-4 font-bold text-sm">
+        <div>
+          <p>DO NUMBER: <span className="font-normal">{doOrder.doNumber}</span></p>
+          <p>DATE: <span className="font-normal">{new Date(doOrder.distributionDate).toLocaleDateString('en-GB')}</span></p>
+          <p>METHOD: <span className="font-normal">{doOrder.distributionMethod}</span></p>
+          {doOrder.distributionMethod === 'Sponsorship' && (
+            <p>SPONSOR TO: <span className="font-normal">{doOrder.sponsorshipDetails}</span></p>
+          )}
+        </div>
+        <div>
+          <p>DESTINATION: <span className="font-normal">{doOrder.destination}</span></p>
+          <p>VEHICLE NO: <span className="font-normal">{doOrder.vehicleNo || 'N/A'}</span></p>
+          <p>DRIVER NAME: <span className="font-normal">{doOrder.driverName || 'N/A'}</span></p>
+        </div>
+      </div>
+
+      <table className="w-full border-collapse border-2 border-black mb-12">
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="border-2 border-black p-3 text-left font-black uppercase w-16 text-center">No</th>
+            <th className="border-2 border-black p-3 text-left font-black uppercase">Item Description</th>
+            <th className="border-2 border-black p-3 text-center font-black uppercase w-32">Total Qty (Box)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Object.entries(aggregatedItems).map(([sku, qty], idx) => (
+            <tr key={sku}>
+              <td className="border-2 border-black p-3 text-center font-bold">{idx + 1}</td>
+              <td className="border-2 border-black p-3 font-bold">{labels[sku] || sku}</td>
+              <td className="border-2 border-black p-3 text-center font-bold">{qty as React.ReactNode}</td>
+            </tr>
+          ))}
+          {Object.entries(aggregatedItems).length === 0 && (
+            <tr>
+              <td colSpan={3} className="border-2 border-black p-6 text-center italic">No items found</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+
+      <div className="grid grid-cols-2 gap-8 text-sm font-bold mt-20">
+        <div className="border-2 border-black p-4 h-48 relative">
+          <p className="absolute top-[-12px] left-4 bg-white px-2 uppercase tracking-tighter">Sender Information</p>
+          <div className="absolute bottom-4 left-4">
+            <p className="border-t border-black pt-1 mb-1">Name & Signature</p>
+            <p className="font-normal text-xs">{doOrder.createdBy?.name}</p>
           </div>
-          <div className="text-right">
-            <h2 className="text-2xl font-black">{doOrder.doNumber}</h2>
-            <p className="text-sm font-bold text-gray-600 mt-1">Date: {new Date(doOrder.distributionDate).toLocaleDateString('en-GB')}</p>
+          {/* Circular Stamp Placeholder */}
+          <div className="absolute top-6 right-6 w-24 h-24 border-2 border-black rounded-full flex items-center justify-center text-center p-2 opacity-30">
+            <span className="text-[10px]">BUBBLES O2 SDN BHD<br/>STAMP</span>
           </div>
         </div>
 
-        {/* DETAILS */}
-        <div className="grid grid-cols-2 gap-8 mb-10">
-          <div>
-            <h3 className="text-[10px] font-black uppercase text-gray-500 mb-1 tracking-wider">Deliver To</h3>
-            <p className="text-lg font-bold">{doOrder.destination}</p>
+        <div className="border-2 border-black p-4 h-48 relative">
+          <p className="absolute top-[-12px] left-4 bg-white px-2 uppercase tracking-tighter">Recipient Information</p>
+          <div className="absolute bottom-4 left-4 w-[80%]">
+            <p className="border-t border-black pt-1 mb-1 w-full">Name & Signature / Cop</p>
           </div>
-          <div>
-            <h3 className="text-[10px] font-black uppercase text-gray-500 mb-1 tracking-wider">Logistics Details</h3>
-            <p className="font-bold">Method: {doOrder.distributionMethod}</p>
-            {doOrder.driverName && <p className="font-bold">Driver: {doOrder.driverName}</p>}
-            {doOrder.vehicleNo && <p className="font-bold">Vehicle: {doOrder.vehicleNo}</p>}
+          <div className="absolute top-6 right-6 w-24 h-24 border-2 border-black rounded-full flex items-center justify-center text-center p-2 opacity-30">
+            <span className="text-[10px]">RECIPIENT<br/>STAMP</span>
           </div>
         </div>
-
-        {/* ITEMS TABLE */}
-        <div className="mb-12">
-          <table className="w-full text-left border-collapse border-2 border-black table-fixed">
-            <thead className="bg-gray-100 border-b-2 border-black">
-              <tr>
-                <th className="p-3 border-r-2 border-black font-black uppercase tracking-wider text-xs w-16 text-center">No</th>
-                <th className="p-3 border-r-2 border-black font-black uppercase tracking-wider text-xs">Item / SKU</th>
-                <th className="p-3 font-black uppercase tracking-wider text-xs w-32 text-center">Total Qty</th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayItems.map((item: any, idx: number) => (
-                <tr key={idx} className="border-b-2 border-gray-300">
-                  <td className="p-3 border-r-2 border-black text-center font-bold">{idx + 1}</td>
-                  <td className="p-3 border-r-2 border-black font-bold text-lg">{item.sku}</td>
-                  <td className="p-3 text-center font-black text-xl">{item.totalQty}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* SIGNATURES */}
-        <div className="grid grid-cols-2 gap-16 mt-16 pt-8 border-t-2 border-dashed border-gray-300">
-          <div>
-            <h3 className="text-[10px] font-black uppercase text-gray-500 mb-8 tracking-wider">Issued By (Warehouse)</h3>
-            <div className="border-b-2 border-black w-full mb-2"></div>
-            <p className="font-bold text-sm">Name: {doOrder.createdBy.name}</p>
-            <p className="font-bold text-sm">Date: ________________________</p>
-          </div>
-          <div>
-            <h3 className="text-[10px] font-black uppercase text-gray-500 mb-8 tracking-wider">Received By (Driver/Customer)</h3>
-            <div className="border-b-2 border-black w-full mb-2"></div>
-            <p className="font-bold text-sm">Name: ________________________</p>
-            <p className="font-bold text-sm">IC/No: ________________________</p>
-            <p className="font-bold text-sm">Date: ________________________</p>
-          </div>
-        </div>
-
       </div>
     </div>
   )

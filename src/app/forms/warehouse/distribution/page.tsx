@@ -72,12 +72,12 @@ export default async function DistributionIndex() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end space-x-3">
-                      <Link href={`/warehouse/distribution/${doOrder.id}/pod`} className="text-gray-500 hover:text-indigo-600 font-bold flex items-center bg-gray-100 hover:bg-indigo-50 px-3 py-1 rounded">
+                      <Link href={`/forms/warehouse/distribution/${doOrder.id}/pod`} className="text-gray-500 hover:text-indigo-600 font-bold flex items-center bg-gray-100 hover:bg-indigo-50 px-3 py-1 rounded">
                         <Printer className="w-4 h-4 mr-2" /> Print POD
                       </Link>
                       
                       {/* Simple button linking to return form, to be implemented */}
-                      <Link href={`/warehouse/quarantine/new?doId=${doOrder.id}`} className="text-gray-500 hover:text-red-600 font-bold flex items-center bg-gray-100 hover:bg-red-50 px-3 py-1 rounded" title="Log Return / Damage">
+                      <Link href={`/forms/warehouse/quarantine/new?doId=${doOrder.id}`} className="text-gray-500 hover:text-red-600 font-bold flex items-center bg-gray-100 hover:bg-red-50 px-3 py-1 rounded" title="Log Return / Damage">
                         <AlertTriangle className="w-4 h-4" />
                       </Link>
                     </div>

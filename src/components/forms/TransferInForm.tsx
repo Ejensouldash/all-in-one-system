@@ -65,7 +65,7 @@ export function TransferInForm({ userName }: { userName: string }) {
           return showErrorAndScroll(`item-${i}-batchNo`, `Please fill in the Batch No for item #${i + 1}.`)
        }
        
-       if (cat === "CAP 1881") {
+       if (cat === "CAP") {
          if (!data.items[i].weight || Number(data.items[i].weight) <= 0) {
            return showErrorAndScroll(`item-${i}-weight`, `Please fill in the Gross Weight for CAP item #${i + 1}.`)
          }
@@ -84,7 +84,7 @@ export function TransferInForm({ userName }: { userName: string }) {
       doNumber: rawDo ? `DO - ${rawDo}` : "",
       items: data.items.map((item: any) => {
         const cat = item.category || "";
-        if (cat === "CAP 1881") {
+        if (cat === "CAP") {
           const w = Number(item.weight) || 0;
           const b = Number(item.bags) || 0;
           const netWeight = w > 0 ? w - (b * 0.88) : 0;
@@ -114,7 +114,7 @@ export function TransferInForm({ userName }: { userName: string }) {
     const cat = item.category || ""
     if (cat.includes("LABEL")) return sum // exclude label from pcs
     
-    if (cat === "CAP 1881") {
+    if (cat === "CAP") {
       const w = Number(item.weight) || 0;
       const b = Number(item.bags) || 0;
       const netWeight = w > 0 ? w - (b * 0.88) : 0;
@@ -199,7 +199,7 @@ export function TransferInForm({ userName }: { userName: string }) {
                 
                 let totalPcs = bags * mult;
                 let capNetWeight = 0;
-                if (cat === "CAP 1881") {
+                if (cat === "CAP") {
                   const w = Number(watchItems[index]?.weight) || 0;
                   capNetWeight = w > 0 ? w - (bags * 0.88) : 0;
                   totalPcs = capNetWeight > 0 ? Math.round(capNetWeight / 0.002125) : 0;
@@ -217,7 +217,7 @@ export function TransferInForm({ userName }: { userName: string }) {
                 if (cat === "MACHINE STRETCH FILM") availableMultipliers = MULTIPLIERS.MACHINE_STRETCH_FILM
                 if (cat.includes("LABEL")) availableMultipliers = MULTIPLIERS.LABEL
                 
-                const isNoMult = cat === "CAP 1881" || cat.includes("LABEL")
+                const isNoMult = cat === "CAP" || cat.includes("LABEL")
                 if (isNoMult) availableMultipliers = []
 
                 return (
@@ -237,7 +237,7 @@ export function TransferInForm({ userName }: { userName: string }) {
                         <option value="BOX 800x12">BOX 800ml x 12</option>
                         <option value="BOX 425x24">BOX 425ml x 24</option>
                         <option value="BOX 425x6">BOX 425ml x 6</option>
-                        <option value="CAP 1881">CAP 1881</option>
+                        <option value="CAP">CAP</option>
                         <option value="LABEL">LABEL (Rolls)</option>
                         <option value="CARTON/BOX - CAP">CARTON/BOX - CAP</option>
                         <option value="WRAPPING - HAND">WRAPPING - HAND</option>
@@ -255,12 +255,12 @@ export function TransferInForm({ userName }: { userName: string }) {
 
                     <div className="flex w-full md:w-[30%] gap-3 md:gap-2">
                       <div className="w-1/2" id={`item-${index}-bags`}>
-                        <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">{cat === "CAP 1881" ? "Total Boxes" : "Qty (Bags/Box/Roll)"}</label>
+                        <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">{cat === "CAP" ? "Total Boxes" : "Qty (Bags/Box/Roll)"}</label>
                         <input type="number" step="1" min="0" placeholder="0" {...register(`items.${index}.bags`)} className="w-full text-center p-3 md:p-2 border-2 border-gray-300 font-bold outline-none focus:border-black text-sm" />
                       </div>
                       <div className="w-1/2" id={`item-${index}-weight`}>
-                        <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">{cat === "CAP 1881" ? "Gross Wt (kg)" : "Multiplier"}</label>
-                        {cat === "CAP 1881" ? (
+                        <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">{cat === "CAP" ? "Gross Wt (kg)" : "Multiplier"}</label>
+                        {cat === "CAP" ? (
                           <input type="number" step="0.01" min="0" placeholder="kg" {...register(`items.${index}.weight`)} className="w-full text-center p-3 md:p-2 border-2 border-blue-400 bg-blue-50 font-bold outline-none focus:border-blue-600 text-sm text-blue-800" />
                         ) : isNoMult ? (
                           <div className="w-full p-3 md:p-2 border-2 border-gray-100 bg-gray-50 text-gray-400 font-bold text-sm text-center">
@@ -277,8 +277,8 @@ export function TransferInForm({ userName }: { userName: string }) {
                     <div className="w-full md:w-[15%]">
                       <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">Total PCs</label>
                       <div className="w-full p-3 md:p-2 text-center font-black text-2xl md:text-lg text-emerald-700 bg-emerald-50/50 border-2 border-emerald-100 md:border-transparent flex flex-col justify-center items-center">
-                        <span>{(isNoMult && cat !== "CAP 1881") ? "-" : totalPcs}</span>
-                        {cat === "CAP 1881" && (
+                        <span>{(isNoMult && cat !== "CAP") ? "-" : totalPcs}</span>
+                        {cat === "CAP" && (
                           <span className="text-[10px] text-blue-600 leading-tight hidden md:block">Net: {capNetWeight.toFixed(2)}kg</span>
                         )}
                       </div>
@@ -288,7 +288,7 @@ export function TransferInForm({ userName }: { userName: string }) {
                       <button type="button" onClick={() => remove(index)} className="text-red-500 hover:bg-red-50 p-2 rounded transition-colors"><Trash2 className="w-5 h-5" /></button>
                     </div>
 
-                    {cat === "CAP 1881" && (
+                    {cat === "CAP" && (
                       <div className="w-full bg-blue-50 text-blue-800 text-[10px] font-bold p-2 mt-2 md:mt-0 border border-blue-200">
                         *Formula Cap: Net Weight = Gross Weight - (Total Boxes × 0.88kg). 1 Cap ≈ 2.125g. <br/>
                         Net: {capNetWeight.toFixed(2)}kg ÷ 0.002125 = {totalPcs} Pcs

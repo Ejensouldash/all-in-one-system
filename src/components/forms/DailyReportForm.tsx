@@ -428,7 +428,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
 
           <AdvancedInventorySection 
             sectionKey="CAP" 
-            title="CAP INVENTORY (1881)" 
+            title="CAP INVENTORY" 
             control={control} register={register} watch={watch} setValue={setValue}
             availableCarryForward={availableCarryForward}
             multipliers={MULTIPLIERS.CAP}

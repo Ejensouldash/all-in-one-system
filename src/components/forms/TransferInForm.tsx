@@ -66,8 +66,10 @@ export function TransferInForm({ userName }: { userName: string }) {
        }
        
        if (cat === "CAP") {
-         if (!data.items[i].weight || Number(data.items[i].weight) <= 0) {
-           return showErrorAndScroll(`item-${i}-weight`, `Please fill in the Gross Weight for CAP item #${i + 1}.`)
+         const w = Number(data.items[i].weight) || 0;
+         const b = Number(data.items[i].bags) || 0;
+         if (w <= 0 && b <= 0) {
+           return showErrorAndScroll(`item-${i}-bags`, `Please fill in either Total Boxes or Gross Weight for CAP item #${i + 1}.`)
          }
        } else {
          if (!data.items[i].bags || Number(data.items[i].bags) <= 0) {
@@ -87,10 +89,20 @@ export function TransferInForm({ userName }: { userName: string }) {
         if (cat === "CAP") {
           const w = Number(item.weight) || 0;
           const b = Number(item.bags) || 0;
-          const netWeight = w > 0 ? w - (b * 0.88) : 0;
-          const pcs = netWeight > 0 ? Math.round(netWeight / 0.002125) : 0;
-          const mult = b > 0 ? Math.round(pcs / b) : 0;
-          return { ...item, bags: b, mult: mult };
+          let pcs = 0;
+          
+          if (w > 0 && b > 0) {
+            const netWeight = w - (b * 0.88);
+            pcs = netWeight > 0 ? Math.round(netWeight / 0.002125) : 0;
+          } else if (w > 0 && b === 0) {
+            pcs = Math.round(w / 0.002125);
+          } else if (b > 0 && w === 0) {
+            pcs = b * 4000;
+          }
+          
+          const saveBags = b > 0 ? b : 1;
+          const mult = Math.round(pcs / saveBags);
+          return { ...item, bags: saveBags, mult: mult };
         }
         return item;
       })
@@ -117,8 +129,15 @@ export function TransferInForm({ userName }: { userName: string }) {
     if (cat === "CAP") {
       const w = Number(item.weight) || 0;
       const b = Number(item.bags) || 0;
-      const netWeight = w > 0 ? w - (b * 0.88) : 0;
-      const pcs = netWeight > 0 ? Math.round(netWeight / 0.002125) : 0;
+      let pcs = 0;
+      if (w > 0 && b > 0) {
+        const netWeight = w - (b * 0.88);
+        pcs = netWeight > 0 ? Math.round(netWeight / 0.002125) : 0;
+      } else if (w > 0 && b === 0) {
+        pcs = Math.round(w / 0.002125);
+      } else if (b > 0 && w === 0) {
+        pcs = b * 4000;
+      }
       return sum + pcs;
     }
     
@@ -198,11 +217,24 @@ export function TransferInForm({ userName }: { userName: string }) {
                 const mult = Number(watchItems[index]?.mult) || 1
                 
                 let totalPcs = bags * mult;
-                let capNetWeight = 0;
+                let capFormulaText = "";
                 if (cat === "CAP") {
                   const w = Number(watchItems[index]?.weight) || 0;
-                  capNetWeight = w > 0 ? w - (bags * 0.88) : 0;
-                  totalPcs = capNetWeight > 0 ? Math.round(capNetWeight / 0.002125) : 0;
+                  const b = Number(watchItems[index]?.bags) || 0;
+                  if (w > 0 && b > 0) {
+                    const capNetWeight = w - (b * 0.88);
+                    totalPcs = capNetWeight > 0 ? Math.round(capNetWeight / 0.002125) : 0;
+                    capFormulaText = `Net: ${capNetWeight.toFixed(2)}kg ÷ 0.002125 = ${totalPcs} Pcs`;
+                  } else if (w > 0 && b === 0) {
+                    totalPcs = Math.round(w / 0.002125);
+                    capFormulaText = `Net: ${w.toFixed(2)}kg ÷ 0.002125 = ${totalPcs} Pcs`;
+                  } else if (b > 0 && w === 0) {
+                    totalPcs = b * 4000;
+                    capFormulaText = `${b} Boxes × 4000 = ${totalPcs} Pcs`;
+                  } else {
+                    totalPcs = 0;
+                    capFormulaText = `Please enter Boxes or Gross Wt`;
+                  }
                 }
                 
                 
@@ -278,9 +310,6 @@ export function TransferInForm({ userName }: { userName: string }) {
                       <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">Total PCs</label>
                       <div className="w-full p-3 md:p-2 text-center font-black text-2xl md:text-lg text-emerald-700 bg-emerald-50/50 border-2 border-emerald-100 md:border-transparent flex flex-col justify-center items-center">
                         <span>{(isNoMult && cat !== "CAP") ? "-" : totalPcs}</span>
-                        {cat === "CAP" && (
-                          <span className="text-[10px] text-blue-600 leading-tight hidden md:block">Net: {capNetWeight.toFixed(2)}kg</span>
-                        )}
                       </div>
                     </div>
 
@@ -291,7 +320,7 @@ export function TransferInForm({ userName }: { userName: string }) {
                     {cat === "CAP" && (
                       <div className="w-full bg-blue-50 text-blue-800 text-[10px] font-bold p-2 mt-2 md:mt-0 border border-blue-200">
                         *Formula Cap: Net Weight = Gross Weight - (Total Boxes × 0.88kg). 1 Cap ≈ 2.125g. <br/>
-                        Net: {capNetWeight.toFixed(2)}kg ÷ 0.002125 = {totalPcs} Pcs
+                        {capFormulaText}
                       </div>
                     )}
                   </div>

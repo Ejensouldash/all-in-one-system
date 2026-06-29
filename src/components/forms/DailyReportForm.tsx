@@ -157,8 +157,16 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       formattedData.inventory.CAP.usages = formattedData.inventory.CAP.usages.map((u: any) => {
         const w = Number(u.weight) || 0;
         const b = Number(u.boxes) || 0;
-        const net = w > 0 ? w - (b * 0.88) : 0;
-        const pcs = net > 0 ? Math.round(net / 0.002125) : 0;
+        
+        let pcs = 0;
+        if (w > 0 && b > 0) {
+          const net = w - (b * 0.88);
+          pcs = net > 0 ? Math.round(net / 0.002125) : 0;
+        } else if (w > 0 && b === 0) {
+          pcs = Math.round(w / 0.002125);
+        } else if (b > 0 && w === 0) {
+          pcs = b * 4000;
+        }
         
         let mult = 4000;
         const doMatch = syncedDOs.find((d: any) => d.batchNo === u.batchNo);
@@ -750,8 +758,17 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
     if (isUsageCap) {
        const w = Number(usage.weight) || 0;
        const b = Number(usage.boxes) || 0;
-       const net = w > 0 ? w - (b * 0.88) : 0;
-       const pcs = net > 0 ? Math.round(net / 0.002125) : 0;
+       
+       let pcs = 0;
+       if (w > 0 && b > 0) {
+         const net = w - (b * 0.88);
+         pcs = net > 0 ? Math.round(net / 0.002125) : 0;
+       } else if (w > 0 && b === 0) {
+         pcs = Math.round(w / 0.002125);
+       } else if (b > 0 && w === 0) {
+         pcs = b * 4000;
+       }
+       
        const mult = batchSummaries[usage.batchNo].mult || 4000;
        // Convert pcs to equivalent 'bags' (boxes) to subtract from inventory
        batchSummaries[usage.batchNo].usedBags += pcs > 0 ? (pcs / mult) : 0;
@@ -921,8 +938,15 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                             {(()=>{
                                const w = Number(watchUsages[index]?.weight)||0;
                                const b = Number(watchUsages[index]?.boxes)||0;
-                               const net = w > 0 ? w - (b*0.88) : 0;
-                               const pcs = net > 0 ? Math.round(net/0.002125) : 0;
+                               let pcs = 0;
+                               if (w > 0 && b > 0) {
+                                 const net = w - (b*0.88);
+                                 pcs = net > 0 ? Math.round(net/0.002125) : 0;
+                               } else if (w > 0 && b === 0) {
+                                 pcs = Math.round(w/0.002125);
+                               } else if (b > 0 && w === 0) {
+                                 pcs = b * 4000;
+                               }
                                return `= ${pcs} Pcs`;
                             })()}
                           </span>

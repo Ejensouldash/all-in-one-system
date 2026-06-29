@@ -47,7 +47,7 @@ export function CreateDOForm({ availableInventory, userId }: { availableInventor
     const result = await createDistributionOrder(payload as any)
     if (result.success) {
       alert("Distribution Order created and stock deducted!")
-      window.location.href = "/warehouse/distribution"
+      window.location.href = "/forms/warehouse/distribution"
     } else {
       alert("Error: " + result.error)
       setLoading(false)

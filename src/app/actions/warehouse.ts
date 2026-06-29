@@ -45,7 +45,7 @@ export async function receiveProductionTransfer(transferId: string, receivedById
       })
     })
 
-    revalidatePath("/warehouse/dashboard")
+    revalidatePath("/forms/warehouse/dashboard")
     return { success: true }
   } catch (error: any) {
     console.error("Failed to receive transfer:", error)
@@ -124,7 +124,7 @@ export async function createDistributionOrder(data: DOData) {
       }
     })
 
-    revalidatePath("/warehouse/distribution")
+    revalidatePath("/forms/warehouse/distribution")
     return { success: true }
   } catch (error: any) {
     console.error("Failed to create DO:", error)
@@ -156,7 +156,7 @@ export async function processGoodsReturn(distributionOrderId: string, sku: strin
       })
     })
 
-    revalidatePath("/warehouse/quarantine")
+    revalidatePath("/forms/warehouse/quarantine")
     return { success: true }
   } catch (error: any) {
     console.error("Failed to process goods return:", error)

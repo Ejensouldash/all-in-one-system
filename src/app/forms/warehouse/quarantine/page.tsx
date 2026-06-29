@@ -28,7 +28,7 @@ export default async function QuarantinePage() {
       </div>
 
       <div className="bg-white rounded-xl shadow-[4px_4px_0px_0px_rgba(220,38,38,1)] border-2 border-red-600 overflow-hidden">
-        <table className="min-w-full divide-y divide-red-200">
+        <table className="min-w-full divide-y divide-red-200 table-fixed">
           <thead className="bg-red-50">
             <tr>
               <th scope="col" className="px-6 py-4 text-left text-xs font-black text-red-800 uppercase tracking-wider">DO Reference</th>

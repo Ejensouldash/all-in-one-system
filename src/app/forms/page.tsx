@@ -33,7 +33,7 @@ export default async function FormsPage() {
                 Manage incoming transfers, stock batches, DO, and reverse logistics.
               </p>
             </div>
-            <Link href="/warehouse/dashboard" className="group flex items-center justify-center w-full bg-white text-emerald-900 px-8 py-4 rounded-xl font-bold hover:bg-emerald-50 transition-colors shadow-lg">
+            <Link href="/forms/warehouse/dashboard" className="group flex items-center justify-center w-full bg-white text-emerald-900 px-8 py-4 rounded-xl font-bold hover:bg-emerald-50 transition-colors shadow-lg">
               <PackagePlus className="h-5 w-5 mr-2" /> Enter Warehouse System
             </Link>
           </div>
@@ -49,7 +49,7 @@ export default async function FormsPage() {
                 End-of-shift production logs, auto-syncing carry forward inventory.
               </p>
             </div>
-            <Link href="/forms/daily-report" className="group flex items-center justify-center w-full bg-white text-indigo-900 px-8 py-4 rounded-xl font-bold hover:bg-indigo-50 transition-colors shadow-lg">
+            <Link href="/forms/production/daily-report" className="group flex items-center justify-center w-full bg-white text-indigo-900 px-8 py-4 rounded-xl font-bold hover:bg-indigo-50 transition-colors shadow-lg">
               <ClipboardList className="h-5 w-5 mr-2" /> Start Shift Report
             </Link>
           </div>

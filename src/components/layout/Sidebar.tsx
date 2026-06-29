@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useState, useEffect } from "react"
 import { 
   LayoutDashboard, 
   Ticket, 
@@ -11,9 +12,8 @@ import {
   Settings,
   Users,
   Building2,
-  MonitorSmartphone,
-  CalendarDays,
-  LogOut,
+  ChevronDown,
+  ChevronRight,
   X
 } from "lucide-react"
 import { clsx, type ClassValue } from "clsx"
@@ -23,16 +23,51 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-const staffLinks = [
+type SubLink = {
+  name: string
+  href: string
+}
+
+type NavLink = {
+  name: string
+  href?: string
+  icon: any
+  module: string
+  subLinks?: SubLink[]
+}
+
+const staffLinks: NavLink[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, module: "DASHBOARD" },
   { name: "Tickets", href: "/tickets", icon: Ticket, module: "TICKETS" },
-  { name: 'Forms', href: '/forms', icon: FileText, module: "FORMS" },
+  { 
+    name: 'Forms', 
+    icon: FileText, 
+    module: "FORMS",
+    subLinks: [
+      { name: "KAR Daily Report", href: "/forms/production/daily-report" },
+      { name: "My Submissions", href: "/forms/history" },
+      { name: "Warehouse Dashboard", href: "/forms/warehouse/dashboard" },
+      { name: "Distribution & DO", href: "/forms/warehouse/distribution" },
+      { name: "Quarantine & Returns", href: "/forms/warehouse/quarantine" },
+    ]
+  },
 ]
 
-const adminLinks = [
+const adminLinks: NavLink[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, module: "DASHBOARD" },
   { name: "Tickets", href: "/tickets", icon: Ticket, module: "TICKETS" },
-  { name: 'Forms', href: '/forms', icon: FileText, module: "FORMS" },
+  { 
+    name: 'Forms', 
+    icon: FileText, 
+    module: "FORMS",
+    subLinks: [
+      { name: "KAR Daily Report", href: "/forms/production/daily-report" },
+      { name: "My Submissions", href: "/forms/history" },
+      { name: "Warehouse Dashboard", href: "/forms/warehouse/dashboard" },
+      { name: "Distribution & DO", href: "/forms/warehouse/distribution" },
+      { name: "Quarantine & Returns", href: "/forms/warehouse/quarantine" },
+    ]
+  },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
   { name: "Assets", href: "/assets", icon: Package, module: "WAREHOUSE" }, // Warehouse/Assets
   { name: "Users", href: "/users", icon: Users, module: "USERS" },
@@ -42,6 +77,23 @@ const adminLinks = [
 
 export function Sidebar({ role, user, onMobileClose }: { role: string, user?: any, onMobileClose?: () => void }) {
   const pathname = usePathname() || ""
+  
+  // State for accordion menus
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    // Auto-open Forms menu if we are in a forms sub-route
+    if (pathname.startsWith("/forms")) {
+      setOpenMenus(prev => ({ ...prev, "Forms": true }))
+    }
+  }, [pathname])
+
+  const toggleMenu = (name: string) => {
+    setOpenMenus(prev => ({
+      ...prev,
+      [name]: !prev[name]
+    }))
+  }
   
   // Base links list (Superadmin gets all, others get staff)
   let allLinks = role === "SUPERADMIN" ? adminLinks : staffLinks
@@ -69,8 +121,8 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
   }
 
   return (
-    <div className="flex h-screen w-64 flex-col bg-gray-900 text-white shadow-xl">
-      <div className="flex flex-col h-20 items-center justify-center border-b border-gray-800 px-4 text-center">
+    <div className="flex h-screen w-64 flex-col bg-gray-900 text-white shadow-xl overflow-y-auto">
+      <div className="flex flex-col h-20 items-center justify-center border-b border-gray-800 px-4 text-center shrink-0">
         <h1 className="text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
           BubblesO2
         </h1>
@@ -86,15 +138,90 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
           </button>
         )}
       </div>
+      
       <nav className="flex-1 space-y-1 px-2 py-4">
         {links.map((link) => {
           const Icon = link.icon
-          const isActive = pathname.startsWith(link.href)
           
+          if (link.subLinks) {
+            const isOpen = openMenus[link.name]
+            const isChildActive = link.subLinks.some(sub => pathname.startsWith(sub.href))
+            
+            return (
+              <div key={link.name} className="space-y-1">
+                <button
+                  onClick={() => toggleMenu(link.name)}
+                  className={cn(
+                    "w-full group flex items-center justify-between rounded-md px-2 py-2 text-sm font-medium transition-colors",
+                    isChildActive && !isOpen ? "text-white" : "text-gray-300 hover:bg-gray-700 hover:text-white"
+                  )}
+                >
+                  <div className="flex items-center">
+                    <Icon
+                      className={cn(
+                        "mr-3 h-5 w-5 flex-shrink-0",
+                        isChildActive ? "text-blue-400" : "text-gray-400 group-hover:text-gray-300"
+                      )}
+                      aria-hidden="true"
+                    />
+                    {link.name}
+                  </div>
+                  {isOpen ? (
+                    <ChevronDown className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-gray-400" />
+                  )}
+                </button>
+                
+                {isOpen && (
+                  <div className="pl-10 space-y-1">
+                    {/* Categories for Forms */}
+                    {link.name === "Forms" && (
+                      <div className="pt-2 pb-1">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 mb-1">Production</p>
+                        {link.subLinks.slice(0, 2).map((subLink) => (
+                          <Link
+                            key={subLink.name}
+                            href={subLink.href}
+                            className={cn(
+                              "block rounded-md px-2 py-1.5 text-sm font-medium transition-colors",
+                              pathname.startsWith(subLink.href)
+                                ? "bg-gray-800 text-white"
+                                : "text-gray-400 hover:text-white hover:bg-gray-800"
+                            )}
+                          >
+                            {subLink.name}
+                          </Link>
+                        ))}
+                        
+                        <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 mt-4 mb-1">Warehouse</p>
+                        {link.subLinks.slice(2).map((subLink) => (
+                          <Link
+                            key={subLink.name}
+                            href={subLink.href}
+                            className={cn(
+                              "block rounded-md px-2 py-1.5 text-sm font-medium transition-colors",
+                              pathname.startsWith(subLink.href)
+                                ? "bg-gray-800 text-white"
+                                : "text-gray-400 hover:text-white hover:bg-gray-800"
+                            )}
+                          >
+                            {subLink.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          }
+
+          const isActive = pathname.startsWith(link.href!)
           return (
             <Link
               key={link.name}
-              href={link.href}
+              href={link.href!}
               className={cn(
                 "group flex items-center rounded-md px-2 py-2 text-sm font-medium transition-colors",
                 isActive
@@ -114,7 +241,8 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
           )
         })}
       </nav>
-      <div className="p-4 border-t border-gray-800 flex flex-col mt-auto">
+      
+      <div className="p-4 border-t border-gray-800 flex flex-col mt-auto shrink-0">
         <div className="flex items-center mb-4">
           <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0">
             {user?.name ? user.name.charAt(0).toUpperCase() : role.charAt(0)}

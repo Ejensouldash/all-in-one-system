@@ -71,7 +71,7 @@ export default async function PODView({ params }: { params: { id: string } }) {
 
         {/* ITEMS TABLE */}
         <div className="mb-12">
-          <table className="w-full text-left border-collapse border-2 border-black">
+          <table className="w-full text-left border-collapse border-2 border-black table-fixed">
             <thead className="bg-gray-100 border-b-2 border-black">
               <tr>
                 <th className="p-3 border-r-2 border-black font-black uppercase tracking-wider text-xs w-16 text-center">No</th>

@@ -16,7 +16,12 @@ const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
 let prisma: PrismaClient
 
 if (process.env.NODE_ENV === 'production') {
-  const pool = new Pool({ connectionString, max: 10 })
+  const pool = new Pool({ 
+    connectionString, 
+    max: 2, // Vercel functions scale horizontally, so keep per-instance pool very small
+    idleTimeoutMillis: 3000, // Aggressively close idle connections in serverless
+    connectionTimeoutMillis: 5000 
+  })
   const adapter = new PrismaPg(pool)
   prisma = new PrismaClient({ adapter })
 } else {

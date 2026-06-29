@@ -77,7 +77,10 @@ export default function MonthlyReportPage() {
       `}</style>
 
       <div className="print-wrapper">
-        <GMPHeader />
+        <GMPHeader 
+          documentTitle="MONTHLY FINISHED GOOD REPORT"
+          documentNumber="BOMSB-LNW-850-001-QR02"
+        />
 
         <div className="text-center mb-6">
           <h1 className="font-black text-xl uppercase underline">Monthly Finished Good Report</h1>

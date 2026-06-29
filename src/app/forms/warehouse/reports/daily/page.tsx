@@ -81,7 +81,10 @@ export default function DailyReportPage() {
       `}</style>
 
       <div className="print-wrapper">
-        <GMPHeader />
+        <GMPHeader 
+          documentTitle="DAILY FINISHED GOODS DISTRIBUTION RECORDS"
+          documentNumber="BOMSB-LNW-850-001-QR01"
+        />
 
         <div className="text-center mb-6">
           <h1 className="font-black text-xl uppercase underline">Daily Finished Goods Distribution Records</h1>

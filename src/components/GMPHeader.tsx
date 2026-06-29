@@ -1,6 +1,12 @@
 import React from "react"
 
-export function GMPHeader() {
+export function GMPHeader({
+  documentTitle = "STOCK TRANSFER FORM",
+  documentNumber = "BOMSB-LNW-850-002-QR01"
+}: {
+  documentTitle?: string
+  documentNumber?: string
+} = {}) {
   return (
     <div className="w-full bg-white mb-8">
       <table className="w-full border-collapse border-2 border-black text-xs md:text-sm text-black font-sans bg-white">
@@ -13,10 +19,10 @@ export function GMPHeader() {
               Document Type: Level 4<br />SUPPORTING DOCUMENTATION
             </td>
             <td className="border-2 border-black p-2 text-center font-bold w-[25%] uppercase">
-              Document Title:<br />STOCK TRANSFER FORM
+              Document Title:<br />{documentTitle}
             </td>
             <td className="border-2 border-black p-2 text-center font-bold w-[25%]">
-              Document Number:<br />BOMSB-LNW-850-002-QR01
+              Document Number:<br />{documentNumber}
             </td>
           </tr>
           <tr>

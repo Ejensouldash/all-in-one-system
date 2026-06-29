@@ -290,7 +290,7 @@ export function TransferInForm({ userName }: { userName: string }) {
 
                     {cat === "CAP 1881" && (
                       <div className="w-full bg-blue-50 text-blue-800 text-[10px] font-bold p-2 mt-2 md:mt-0 border border-blue-200">
-                        *Formula Cap: Net Weight = Gross Weight - (Total Boxes × 0.88kg). 1 Cap ≈ 0.002125kg. <br/>
+                        *Formula Cap: Net Weight = Gross Weight - (Total Boxes × 0.88kg). 1 Cap ≈ 2.125g. <br/>
                         Net: {capNetWeight.toFixed(2)}kg ÷ 0.002125 = {totalPcs} Pcs
                       </div>
                     )}

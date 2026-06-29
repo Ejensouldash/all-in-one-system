@@ -944,7 +944,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
             </button>
             {isCap && (
               <div className="mt-4 text-[10px] font-bold text-blue-800 bg-blue-100 p-2 border border-blue-200">
-                *Formula Cap: Net Weight = Gross Weight - (Boxes × 0.88kg). 1 Cap ≈ 0.002125kg.
+                *Formula Cap: Net Weight = Gross Weight - (Boxes × 0.88kg). 1 Cap ≈ 2.125g.
               </div>
             )}
           </div>

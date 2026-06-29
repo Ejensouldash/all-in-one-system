@@ -48,7 +48,7 @@ export default async function WarehouseDashboard() {
                   <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">
                     {new Date(t.createdAt).toLocaleDateString('en-GB')} {new Date(t.createdAt).toLocaleTimeString()}
                   </p>
-                  <h3 className="text-lg font-black text-gray-900">{t.sku}</h3>
+                  <h3 className="text-lg font-black text-gray-900">{formatSKU(t.sku)}</h3>
                   <p className="text-sm font-bold text-gray-600 mt-1">Batch: <span className="text-indigo-600">{t.batchNumber}</span></p>
                   <p className="text-2xl font-black text-emerald-700 mt-2">{t.qtyProduced} <span className="text-xs text-gray-500">Qty</span></p>
                 </div>
@@ -88,7 +88,7 @@ export default async function WarehouseDashboard() {
               ) : (
                 inventoryBatches.map((batch) => (
                   <tr key={batch.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{batch.sku}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{formatSKU(batch.sku)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600">{batch.batchNumber}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-500 text-center">{batch.totalQtyIn}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-amber-600 text-center">{batch.totalQtyOut}</td>
@@ -103,6 +103,11 @@ export default async function WarehouseDashboard() {
       
     </div>
   )
+}
+
+function formatSKU(sku: string) {
+  if (!sku) return sku;
+  return sku.replace('p800_', '800ml x ').replace('p425_', '425ml x ').toUpperCase();
 }
 
 function DatabaseIcon(props: any) {

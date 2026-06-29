@@ -113,7 +113,7 @@ export function TransferInForm({ userName }: { userName: string }) {
 
     if (result.success) {
       alert("DO Received & Synced to Database successfully!")
-      window.location.href = "/forms"
+      window.location.href = "/forms/production"
     } else {
       alert("Error: " + result.error)
     }

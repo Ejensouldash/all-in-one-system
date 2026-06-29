@@ -44,12 +44,8 @@ const staffLinks: NavLink[] = [
     icon: FileText, 
     module: "FORMS",
     subLinks: [
-      { name: "KAR Daily Report", href: "/forms/production/daily-report" },
-      { name: "My Submissions", href: "/forms/history" },
-      { name: "Raw Material (Transfer In)", href: "/forms/transfer-in" },
-      { name: "Warehouse Dashboard", href: "/forms/warehouse/dashboard" },
-      { name: "Distribution & DO", href: "/forms/warehouse/distribution" },
-      { name: "Quarantine & Returns", href: "/forms/warehouse/quarantine" },
+      { name: "Production", href: "/forms/production" },
+      { name: "Warehouse", href: "/forms/warehouse/dashboard" },
     ]
   },
 ]
@@ -62,12 +58,8 @@ const adminLinks: NavLink[] = [
     icon: FileText, 
     module: "FORMS",
     subLinks: [
-      { name: "KAR Daily Report", href: "/forms/production/daily-report" },
-      { name: "My Submissions", href: "/forms/history" },
-      { name: "Raw Material (Transfer In)", href: "/forms/transfer-in" },
-      { name: "Warehouse Dashboard", href: "/forms/warehouse/dashboard" },
-      { name: "Distribution & DO", href: "/forms/warehouse/distribution" },
-      { name: "Quarantine & Returns", href: "/forms/warehouse/quarantine" },
+      { name: "Production", href: "/forms/production" },
+      { name: "Warehouse", href: "/forms/warehouse/dashboard" },
     ]
   },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
@@ -177,42 +169,20 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
                 
                 {isOpen && (
                   <div className="pl-10 space-y-1">
-                    {/* Categories for Forms */}
-                    {link.name === "Forms" && (
-                      <div className="pt-2 pb-1">
-                        <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 mb-1">Production</p>
-                        {link.subLinks.slice(0, 2).map((subLink) => (
-                          <Link
-                            key={subLink.name}
-                            href={subLink.href}
-                            className={cn(
-                              "block rounded-md px-2 py-1.5 text-sm font-medium transition-colors",
-                              pathname.startsWith(subLink.href)
-                                ? "bg-gray-800 text-white"
-                                : "text-gray-400 hover:text-white hover:bg-gray-800"
-                            )}
-                          >
-                            {subLink.name}
-                          </Link>
-                        ))}
-                        
-                        <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 mt-4 mb-1">Warehouse</p>
-                        {link.subLinks.slice(2).map((subLink) => (
-                          <Link
-                            key={subLink.name}
-                            href={subLink.href}
-                            className={cn(
-                              "block rounded-md px-2 py-1.5 text-sm font-medium transition-colors",
-                              pathname.startsWith(subLink.href)
-                                ? "bg-gray-800 text-white"
-                                : "text-gray-400 hover:text-white hover:bg-gray-800"
-                            )}
-                          >
-                            {subLink.name}
-                          </Link>
-                        ))}
-                      </div>
-                    )}
+                    {link.subLinks.map((subLink) => (
+                      <Link
+                        key={subLink.name}
+                        href={subLink.href}
+                        className={cn(
+                          "block rounded-md px-2 py-1.5 text-sm font-medium transition-colors",
+                          pathname.startsWith(subLink.href)
+                            ? "bg-gray-800 text-white"
+                            : "text-gray-400 hover:text-white hover:bg-gray-800"
+                        )}
+                      >
+                        {subLink.name}
+                      </Link>
+                    ))}
                   </div>
                 )}
               </div>

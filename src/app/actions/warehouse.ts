@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { DOStatus, ReturnReason, ReturnStatus, TransferStatus, DistributionMethod } from "@prisma/client"
+import { DOStatus, ReturnReason, ReturnStatus, TransferStatus } from "@prisma/client"
 
 export async function receiveProductionTransfer(transferId: string, receivedById: string) {
   try {
@@ -62,9 +62,10 @@ export type DOLineItemData = {
 export type DOData = {
   distributionDate: string
   destination: string
-  distributionMethod: DistributionMethod
-  vehicleNo?: string
-  driverName?: string
+  distributionMethod: string
+  sponsorshipDetails?: string | null
+  vehicleNo?: string | null
+  driverName?: string | null
   createdById: string
   items: DOLineItemData[]
 }
@@ -86,6 +87,7 @@ export async function createDistributionOrder(data: DOData) {
           distributionDate: new Date(data.distributionDate),
           destination: data.destination,
           distributionMethod: data.distributionMethod,
+          sponsorshipDetails: data.sponsorshipDetails || null,
           vehicleNo: data.vehicleNo || null,
           driverName: data.driverName || null,
           createdById: data.createdById,

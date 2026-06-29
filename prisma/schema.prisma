@@ -298,12 +298,6 @@ enum TransferStatus {
   RECEIVED
 }
 
-enum DistributionMethod {
-  DIRECT_DC
-  LOGISTIC
-  PICKUP
-  COURIER
-}
 
 enum DOStatus {
   PREPARING
@@ -358,7 +352,8 @@ model DistributionOrder {
   doNumber           String             @unique
   distributionDate   DateTime
   destination        String
-  distributionMethod DistributionMethod
+  distributionMethod String
+  sponsorshipDetails String?
   vehicleNo          String?
   driverName         String?
   status             DOStatus           @default(PREPARING)

@@ -20,7 +20,7 @@ export default async function FormsPage() {
         <FormsTabs role={(session.user as any).trueRole || session.user.role} />
         
         {/* Module CTAs */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
           
           <div className="bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 rounded-2xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden flex flex-col justify-between border border-emerald-700/50">
             <div className="relative z-10 mb-6">
@@ -35,6 +35,22 @@ export default async function FormsPage() {
             </div>
             <Link href="/forms/warehouse/dashboard" className="group flex items-center justify-center w-full bg-white text-emerald-900 px-8 py-4 rounded-xl font-bold hover:bg-emerald-50 transition-colors shadow-lg">
               <PackagePlus className="h-5 w-5 mr-2" /> Enter Warehouse System
+            </Link>
+          </div>
+
+          <div className="bg-gradient-to-br from-amber-900 via-amber-800 to-orange-900 rounded-2xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden flex flex-col justify-between border border-amber-700/50">
+            <div className="relative z-10 mb-6">
+              <div className="inline-flex items-center px-3 py-1 rounded-full bg-amber-500/30 border border-amber-400/30 text-amber-100 text-xs font-bold uppercase tracking-widest mb-4">
+                <span className="w-2 h-2 rounded-full bg-yellow-400 mr-2 animate-pulse"></span>
+                Raw Materials
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-2">DO Receiving (Transfer In)</h2>
+              <p className="text-amber-200 text-sm font-medium">
+                Log real-time Delivery Orders (DO) as they arrive.
+              </p>
+            </div>
+            <Link href="/forms/transfer-in" className="group flex items-center justify-center w-full bg-white text-amber-900 px-8 py-4 rounded-xl font-bold hover:bg-amber-50 transition-colors shadow-lg">
+              <PackagePlus className="h-5 w-5 mr-2" /> Log Incoming Stock
             </Link>
           </div>
 

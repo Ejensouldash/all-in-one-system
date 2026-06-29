@@ -46,6 +46,7 @@ const staffLinks: NavLink[] = [
     subLinks: [
       { name: "KAR Daily Report", href: "/forms/production/daily-report" },
       { name: "My Submissions", href: "/forms/history" },
+      { name: "Raw Material (Transfer In)", href: "/forms/transfer-in" },
       { name: "Warehouse Dashboard", href: "/forms/warehouse/dashboard" },
       { name: "Distribution & DO", href: "/forms/warehouse/distribution" },
       { name: "Quarantine & Returns", href: "/forms/warehouse/quarantine" },
@@ -63,6 +64,7 @@ const adminLinks: NavLink[] = [
     subLinks: [
       { name: "KAR Daily Report", href: "/forms/production/daily-report" },
       { name: "My Submissions", href: "/forms/history" },
+      { name: "Raw Material (Transfer In)", href: "/forms/transfer-in" },
       { name: "Warehouse Dashboard", href: "/forms/warehouse/dashboard" },
       { name: "Distribution & DO", href: "/forms/warehouse/distribution" },
       { name: "Quarantine & Returns", href: "/forms/warehouse/quarantine" },

@@ -23,6 +23,13 @@ export default function MonthlyReportPage() {
     setLoading(false)
   }
 
+  const skuLabels: Record<string, string> = {
+    "p425_24": "425ml x 24",
+    "p425_6": "425ml x 6",
+    "p800_12": "800ml x 12",
+    "p800_20": "800ml x 20",
+  }
+
   const monthNames = ["January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
   ]
@@ -84,7 +91,7 @@ export default function MonthlyReportPage() {
             <thead>
               <tr className="bg-gray-100">
                 <th className="border border-black p-2 font-bold w-12">NO</th>
-                <th className="border border-black p-2 font-bold">SKU</th>
+                <th className="border border-black p-2 font-bold">TYPE OF FINISHED GOODS</th>
                 <th className="border border-black p-2 font-bold">BATCH NO</th>
                 <th className="border border-black p-2 font-bold bg-blue-50">BALANCE OPENING</th>
                 <th className="border border-black p-2 font-bold bg-green-50">TRANSFER IN (Production)</th>
@@ -96,7 +103,7 @@ export default function MonthlyReportPage() {
               {reportData.map((r, i) => (
                 <tr key={i}>
                   <td className="border border-black p-2 text-center">{i + 1}</td>
-                  <td className="border border-black p-2 text-center">{r.sku}</td>
+                  <td className="border border-black p-2 text-center font-bold uppercase">{skuLabels[r.sku] || r.sku}</td>
                   <td className="border border-black p-2 text-center font-bold">{r.batchNumber}</td>
                   <td className="border border-black p-2 text-center font-bold bg-blue-50/50">{r.balanceOpening}</td>
                   <td className="border border-black p-2 text-center font-bold text-green-700 bg-green-50/50">+{r.transferIn}</td>

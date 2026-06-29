@@ -22,6 +22,13 @@ export default function DailyReportPage() {
     setLoading(false)
   }
 
+  const skuLabels: Record<string, string> = {
+    "p425_24": "425ml x 24",
+    "p425_6": "425ml x 6",
+    "p800_12": "800ml x 12",
+    "p800_20": "800ml x 20",
+  }
+
   // Aggregate by Batch per Destination/Method for the table
   const rows: any[] = []
   reportData.forEach((doOrder: any) => {
@@ -33,7 +40,7 @@ export default function DailyReportPage() {
         vehicleNo: doOrder.vehicleNo,
         batchNumber: item.batchNumber,
         qty: item.qtySent,
-        sku: item.sku,
+        sku: skuLabels[item.sku] || item.sku,
         preparedBy: doOrder.createdBy?.name || 'Unknown'
       })
     })
@@ -88,7 +95,7 @@ export default function DailyReportPage() {
             <thead>
               <tr className="bg-gray-100">
                 <th rowSpan={2} className="border border-black p-2 font-bold w-12">NO</th>
-                <th rowSpan={2} className="border border-black p-2 font-bold">SKU</th>
+                <th rowSpan={2} className="border border-black p-2 font-bold">TYPE OF FINISHED GOODS</th>
                 <th rowSpan={2} className="border border-black p-2 font-bold">QTY (BOX)</th>
                 <th rowSpan={2} className="border border-black p-2 font-bold">BATCH NUMBER</th>
                 <th rowSpan={2} className="border border-black p-2 font-bold">DESTINATION</th>
@@ -104,8 +111,8 @@ export default function DailyReportPage() {
               {rows.map((r, i) => (
                 <tr key={i}>
                   <td className="border border-black p-2 text-center">{i + 1}</td>
-                  <td className="border border-black p-2 text-center">{r.sku}</td>
-                  <td className="border border-black p-2 text-center font-bold">{r.qty}</td>
+                  <td className="border border-black p-2 text-center uppercase font-bold">{r.sku}</td>
+                  <td className="border border-black p-2 text-center font-bold text-lg">{r.qty}</td>
                   <td className="border border-black p-2 text-center">{r.batchNumber}</td>
                   <td className="border border-black p-2 text-center uppercase">{r.destination}</td>
                   <td className="border border-black p-2 text-center uppercase">{r.method}</td>

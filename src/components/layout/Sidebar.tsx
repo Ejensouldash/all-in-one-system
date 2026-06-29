@@ -26,13 +26,15 @@ function cn(...inputs: ClassValue[]) {
 type SubLink = {
   name: string
   href: string
+  module?: string
+  restrictToWarehouseUnit?: boolean
 }
 
 type NavLink = {
   name: string
   href?: string
   icon: any
-  module: string
+  module?: string
   subLinks?: SubLink[]
 }
 
@@ -42,10 +44,9 @@ const staffLinks: NavLink[] = [
   { 
     name: 'Forms', 
     icon: FileText, 
-    module: "FORMS",
     subLinks: [
-      { name: "Production", href: "/forms/production" },
-      { name: "Warehouse", href: "/forms/warehouse/dashboard" },
+      { name: "Production", href: "/forms/production", module: "FORMS" },
+      { name: "Warehouse", href: "/forms/warehouse/dashboard", module: "WAREHOUSE", restrictToWarehouseUnit: true },
     ]
   },
 ]
@@ -56,10 +57,9 @@ const adminLinks: NavLink[] = [
   { 
     name: 'Forms', 
     icon: FileText, 
-    module: "FORMS",
     subLinks: [
-      { name: "Production", href: "/forms/production" },
-      { name: "Warehouse", href: "/forms/warehouse/dashboard" },
+      { name: "Production", href: "/forms/production", module: "FORMS" },
+      { name: "Warehouse", href: "/forms/warehouse/dashboard", module: "WAREHOUSE", restrictToWarehouseUnit: true },
     ]
   },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
@@ -96,12 +96,38 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
   const userModules = user?.modules || []
 
   // Filter links based on modules
-  let links = allLinks.filter(link => {
+  let links = allLinks.map(link => {
+    let newLink = { ...link }
+    if (newLink.subLinks) {
+      newLink.subLinks = newLink.subLinks.filter(sub => {
+        if (user?.trueRole === "SUPERADMIN") return true;
+        
+        if (sub.restrictToWarehouseUnit) {
+          if (user?.unitName !== "Warehouse" || user?.branchName !== "BubblesO2 Rantau") {
+            return false;
+          }
+        }
+        
+        if (sub.module && !userModules.includes(sub.module)) {
+          return false;
+        }
+        
+        return true;
+      })
+    }
+    return newLink;
+  }).filter(link => {
     // Superadmin bypasses module checks entirely
     if (user?.trueRole === "SUPERADMIN") return true;
 
     // Everyone with access to anything sees Dashboard, unless BubblesO2 Rantau
     if (link.name === "Dashboard") return true
+    
+    // If it has sublinks, only show parent if there's at least one visible sublink
+    if (link.subLinks) {
+      return link.subLinks.length > 0;
+    }
+
     // If the link has a module requirement, check if it's in the user's array
     if (link.module) {
       return userModules.includes(link.module)

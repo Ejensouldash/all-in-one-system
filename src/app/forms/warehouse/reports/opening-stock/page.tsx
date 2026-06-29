@@ -3,8 +3,17 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { getOpeningStocks, setOpeningStock } from "@/app/actions/warehouse-reports"
+import { SessionProvider } from "next-auth/react"
 
-export default function OpeningStockPage() {
+export default function Page() {
+  return (
+    <SessionProvider>
+      <OpeningStockPage />
+    </SessionProvider>
+  )
+}
+
+function OpeningStockPage() {
   const { data: session } = useSession()
   const [stocks, setStocks] = useState<any[]>([])
   const [loading, setLoading] = useState(false)

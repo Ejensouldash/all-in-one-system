@@ -41,8 +41,9 @@ model User {
   notices         Notice[]
   dailyReports    DailyReport[] @relation("DailyReportCreator")
   modules         String[]             @default([])
-  receivedTransfers ProductionTransfer[] @relation("TransferReceiver")
-  createdDOs        DistributionOrder[]  @relation("DOCreator")
+  receivedTransfers ProductionTransfer[]    @relation("TransferReceiver")
+  createdDOs        DistributionOrder[]     @relation("DOCreator")
+  openingStocks     WarehouseOpeningStock[] @relation("OpeningStockSetter")
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
 }
@@ -388,4 +389,21 @@ model GoodsReturnNote {
   reason              ReturnReason
   status              ReturnStatus      @default(QUARANTINE)
   loggedAt            DateTime          @default(now())
+}
+
+// 6. WarehouseOpeningStock (System Initialisation - Superadmin Only)
+// Set once per batch for the very first month of system deployment.
+// After that, Balance Carry Forward auto-calculates each month.
+model WarehouseOpeningStock {
+  id          String   @id @default(uuid())
+  batchNumber String
+  sku         String
+  openingQty  Int
+  month       Int      // 1-12
+  year        Int
+  setById     String
+  setBy       User     @relation("OpeningStockSetter", fields: [setById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@unique([batchNumber, month, year])
 }

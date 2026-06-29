@@ -26,15 +26,15 @@ export default async function FormsPage() {
             <div className="relative z-10 mb-6">
               <div className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-500/30 border border-emerald-400/30 text-emerald-100 text-xs font-bold uppercase tracking-widest mb-4">
                 <span className="w-2 h-2 rounded-full bg-green-400 mr-2 animate-pulse"></span>
-                Warehouse Module
+                Warehouse Module V3
               </div>
-              <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-2">DO Receiving (Transfer In)</h2>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-2">Warehouse & Distribution</h2>
               <p className="text-emerald-200 text-sm font-medium">
-                Log real-time Delivery Orders (DO) as they arrive.
+                Manage incoming transfers, stock batches, DO, and reverse logistics.
               </p>
             </div>
-            <Link href="/forms/transfer-in" className="group flex items-center justify-center w-full bg-white text-emerald-900 px-8 py-4 rounded-xl font-bold hover:bg-emerald-50 transition-colors shadow-lg">
-              <PackagePlus className="h-5 w-5 mr-2" /> Log Incoming Stock
+            <Link href="/warehouse/dashboard" className="group flex items-center justify-center w-full bg-white text-emerald-900 px-8 py-4 rounded-xl font-bold hover:bg-emerald-50 transition-colors shadow-lg">
+              <PackagePlus className="h-5 w-5 mr-2" /> Enter Warehouse System
             </Link>
           </div>
 

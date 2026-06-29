@@ -40,9 +40,11 @@ model User {
   assignedEvents  Event[]       @relation("EventAssignee")
   notices         Notice[]
   dailyReports    DailyReport[] @relation("DailyReportCreator")
-  modules         String[]      @default([])
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  modules         String[]             @default([])
+  receivedTransfers ProductionTransfer[] @relation("TransferReceiver")
+  createdDOs        DistributionOrder[]  @relation("DOCreator")
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 }
 
 model Branch {
@@ -195,6 +197,7 @@ model DailyReport {
   rejects     RejectLog[]
   inventory   InventoryLog[]
   breakdowns  BreakdownLog[]
+  productionTransfers ProductionTransfer[]
 
   createdAt DateTime @default(now())
 }
@@ -284,4 +287,110 @@ model Notice {
   createdBy      User     @relation(fields: [createdById], references: [id])
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+// -----------------------------------------
+// WAREHOUSE & DISTRIBUTION MODULE (VERSION 3)
+// -----------------------------------------
+
+enum TransferStatus {
+  PENDING
+  RECEIVED
+}
+
+enum DistributionMethod {
+  DIRECT_DC
+  LOGISTIC
+  PICKUP
+  COURIER
+}
+
+enum DOStatus {
+  PREPARING
+  SHIPPED
+  DELIVERED
+  RETURNED
+}
+
+enum ReturnReason {
+  DAMAGE
+  WRONG_PO
+  DELIVERY_FAIL
+}
+
+enum ReturnStatus {
+  QUARANTINE
+  SCRAP
+  REPACKED
+}
+
+// 1. ProductionTransfer (Digital Handshake)
+model ProductionTransfer {
+  id             String         @id @default(uuid())
+  dailyReportId  String?
+  dailyReport    DailyReport?   @relation(fields: [dailyReportId], references: [id])
+  sku            String
+  batchNumber    String
+  qtyProduced    Int
+  status         TransferStatus @default(PENDING)
+  receivedById   String?
+  receivedBy     User?          @relation("TransferReceiver", fields: [receivedById], references: [id])
+  receivedAt     DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+// 2. InventoryBatch (Master Stock)
+model InventoryBatch {
+  id               String   @id @default(uuid())
+  batchNumber      String   @unique
+  sku              String
+  totalQtyIn       Int      @default(0)
+  totalQtyOut      Int      @default(0)
+  availableBalance Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// 3. DistributionOrder (DO / Transfer Out)
+model DistributionOrder {
+  id                 String             @id @default(uuid())
+  doNumber           String             @unique
+  distributionDate   DateTime
+  destination        String
+  distributionMethod DistributionMethod
+  vehicleNo          String?
+  driverName         String?
+  status             DOStatus           @default(PREPARING)
+  createdById        String
+  createdBy          User               @relation("DOCreator", fields: [createdById], references: [id])
+  
+  items              DOLineItem[]
+  returns            GoodsReturnNote[]
+  
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+}
+
+// 4. DOLineItem (Internal Batch Tracking)
+model DOLineItem {
+  id                  String            @id @default(uuid())
+  distributionOrderId String
+  distributionOrder   DistributionOrder @relation(fields: [distributionOrderId], references: [id], onDelete: Cascade)
+  sku                 String
+  batchNumber         String
+  qtySent             Int
+}
+
+// 5. GoodsReturnNote (Reverse Logistics)
+model GoodsReturnNote {
+  id                  String            @id @default(uuid())
+  distributionOrderId String
+  distributionOrder   DistributionOrder @relation(fields: [distributionOrderId], references: [id], onDelete: Cascade)
+  sku                 String
+  batchNumber         String
+  qtyReturned         Int
+  reason              ReturnReason
+  status              ReturnStatus      @default(QUARANTINE)
+  loggedAt            DateTime          @default(now())
 }

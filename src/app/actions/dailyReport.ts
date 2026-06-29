@@ -207,8 +207,36 @@ export async function approveDailyReport(id: string, signatureBase64: string) {
         verifiedBy: user.name || "SUPERVISOR",
         verifiedSignature: signatureBase64,
         approvedAt: new Date()
+      },
+      include: {
+        productions: {
+          include: { batches: true }
+        }
       }
     })
+
+    // Auto-generate ProductionTransfers for the Warehouse
+    if (report.status === "APPROVED" && report.productions) {
+      const transferPromises = []
+      for (const prod of report.productions) {
+        for (const batch of prod.batches) {
+          transferPromises.push(
+            prisma.productionTransfer.create({
+              data: {
+                dailyReportId: report.id,
+                sku: prod.productType,
+                batchNumber: batch.batchNo,
+                qtyProduced: batch.qty,
+                status: "PENDING"
+              }
+            })
+          )
+        }
+      }
+      if (transferPromises.length > 0) {
+        await Promise.all(transferPromises)
+      }
+    }
     revalidatePath("/forms")
     revalidatePath(`/forms/daily-report/${id}`)
     return { success: true, data: report }

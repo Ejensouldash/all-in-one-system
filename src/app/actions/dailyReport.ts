@@ -217,21 +217,32 @@ export async function approveDailyReport(id: string, signatureBase64: string) {
 
     // Auto-generate ProductionTransfers for the Warehouse
     if (report.status === "APPROVED" && report.productions) {
-      const transferPromises = []
+      const aggregatedBatches: Record<string, number> = {}
+      
       for (const prod of report.productions) {
         for (const batch of prod.batches) {
-          transferPromises.push(
-            prisma.productionTransfer.create({
-              data: {
-                dailyReportId: report.id,
-                sku: prod.productType,
-                batchNumber: batch.batchNo,
-                qtyProduced: batch.qty,
-                status: "PENDING"
-              }
-            })
-          )
+          const key = `${prod.productType}|${batch.batchNo}`
+          if (!aggregatedBatches[key]) {
+            aggregatedBatches[key] = 0
+          }
+          aggregatedBatches[key] += batch.qty
         }
+      }
+
+      const transferPromises = []
+      for (const [key, qty] of Object.entries(aggregatedBatches)) {
+        const [sku, batchNo] = key.split('|')
+        transferPromises.push(
+          prisma.productionTransfer.create({
+            data: {
+              dailyReportId: report.id,
+              sku: sku,
+              batchNumber: batchNo,
+              qtyProduced: qty,
+              status: "PENDING"
+            }
+          })
+        )
       }
       if (transferPromises.length > 0) {
         await Promise.all(transferPromises)

@@ -973,11 +973,11 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                 Object.entries(batchSummaries).map(([batch, data]) => (
                   <tr key={batch} className="border-b border-gray-200 font-bold">
                     <td className="p-2 border-r border-gray-300 uppercase truncate max-w-[120px]" title={batch}>{batch}</td>
-                    <td className="p-2 text-center border-r border-gray-300 text-gray-600">{data.totalBags} <span className="text-[10px]">B</span></td>
-                    <td className="p-2 text-center border-r border-gray-300 text-blue-600">{data.usedBags} <span className="text-[10px]">B</span></td>
+                    <td className="p-2 text-center border-r border-gray-300 text-gray-600">{Math.round(data.totalBags)} <span className="text-[10px]">B</span></td>
+                    <td className="p-2 text-center border-r border-gray-300 text-blue-600">{Math.round(data.usedBags)} <span className="text-[10px]">B</span></td>
                     <td className={`p-2 border-l-[3px] border-black flex flex-col items-center justify-center font-black ${data.carryFwdBags < 0 ? 'bg-red-100 text-red-700' : 'bg-yellow-50 text-yellow-900'}`}>
-                      <span className="text-lg">{data.carryFwdBags} {unit}</span>
-                      <span className="text-xs text-gray-500 font-bold">= {data.carryFwdBags * data.mult} Pcs</span>
+                      <span className="text-lg">{Math.round(data.carryFwdBags)} {unit}</span>
+                      <span className="text-xs text-gray-500 font-bold">= {Math.round(data.carryFwdBags * data.mult)} Pcs</span>
                     </td>
                   </tr>
                 ))

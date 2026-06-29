@@ -23,7 +23,7 @@ export async function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       {isViewOnly && (
-        <div className="bg-red-600 text-white p-2 text-center text-sm font-bold uppercase tracking-widest z-50 relative">
+        <div className="bg-red-600 text-white p-2 text-center text-sm font-bold uppercase tracking-widest z-50 relative print:hidden">
           VIEW ONLY MODE: Anda tidak boleh mengubah atau menghantar sebarang data.
         </div>
       )}

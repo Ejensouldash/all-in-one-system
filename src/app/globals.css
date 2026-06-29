@@ -17,3 +17,31 @@ body {
   color: #171717 !important;
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ===== PRINT STYLES ===== */
+@page {
+  size: A4 portrait;
+  margin: 8mm 10mm;
+}
+
+@media print {
+  html, body {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Prevent page breaks inside important elements */
+  tr, .sig-box, .sig-section, .info-card {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Keep signature section with the table */
+  table {
+    break-inside: avoid !important;
+  }
+}

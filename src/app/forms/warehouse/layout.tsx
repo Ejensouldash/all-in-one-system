@@ -9,8 +9,8 @@ export default async function WarehouseLayout({ children }: { children: React.Re
   if (!session) redirect("/login")
 
   return (
-    <div className="animate-in fade-in duration-500 pb-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-      <div className="flex items-center mb-6">
+    <div className="animate-in fade-in duration-500 pb-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 print:p-0 print:m-0 print:max-w-none print:mt-0 print:pb-0">
+      <div className="flex items-center mb-6 print:hidden">
         <Package className="h-10 w-10 mr-4 text-emerald-700" />
         <div>
           <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tighter">Warehouse & Distribution</h1>
@@ -18,7 +18,9 @@ export default async function WarehouseLayout({ children }: { children: React.Re
         </div>
       </div>
       
-      <WarehouseTabs />
+      <div className="print:hidden">
+        <WarehouseTabs />
+      </div>
       
       {children}
     </div>

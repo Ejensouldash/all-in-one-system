@@ -897,7 +897,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                 })
 
                 return (
-                  <div key={field.id} className="flex gap-2 items-center bg-white p-2 border border-blue-200 shadow-sm">
+                  <div key={field.id} className="flex flex-wrap 2xl:flex-nowrap gap-2 items-center bg-white p-2 border border-blue-200 shadow-sm">
                     <select {...register(`inventory.${sectionKey}.usages.${index}.period`)} className="w-28 p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-blue-500">
                       <option value="Before">Before</option>
                       <option value="After">After</option>
@@ -912,9 +912,9 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                     </select>
 
                     
-                    <div className="flex items-center flex-1">
+                    <div className="flex items-center w-full sm:w-auto sm:flex-1 mt-2 sm:mt-0">
                       {isCap ? (
-                        <div className="flex gap-2 items-center flex-1">
+                        <div className="flex gap-2 items-center flex-1 justify-between sm:justify-start">
                           <input type="number" placeholder="Boxes" min="0" {...register(`inventory.${sectionKey}.usages.${index}.boxes`)} className="w-16 p-2 border border-blue-300 text-center text-xs font-bold outline-none focus:border-blue-600 bg-blue-50" />
                           <input type="number" step="0.01" placeholder="Gross Wt (kg)" min="0" {...register(`inventory.${sectionKey}.usages.${index}.weight`)} className="w-24 p-2 border border-blue-300 text-center text-xs font-bold outline-none focus:border-blue-600 bg-blue-50" />
                           <span className="text-[10px] font-black text-indigo-700 whitespace-nowrap ml-1">

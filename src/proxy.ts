@@ -34,24 +34,27 @@ export default auth((req) => {
   }
 
   // Map routes to required modules
-  const routeModules: Record<string, string> = {
-    "/tickets": "TICKETS",
-    "/calendar": "EVENTS",
-    "/forms": "FORMS",
-    "/assets": "WAREHOUSE",
-    "/users": "USERS",
-    "/organization": "USERS",
-    "/settings": "SETTINGS",
+  let requiredModules: string[] = []
+  if (nextUrl.pathname.startsWith("/forms/warehouse")) {
+    requiredModules = ["WAREHOUSE"]
+  } else if (nextUrl.pathname.startsWith("/forms")) {
+    requiredModules = ["FORMS"]
+  } else if (nextUrl.pathname.startsWith("/tickets")) {
+    requiredModules = ["TICKETS"]
+  } else if (nextUrl.pathname.startsWith("/calendar")) {
+    requiredModules = ["EVENTS"]
+  } else if (nextUrl.pathname.startsWith("/assets")) {
+    requiredModules = ["WAREHOUSE"]
+  } else if (nextUrl.pathname.startsWith("/users") || nextUrl.pathname.startsWith("/organization")) {
+    requiredModules = ["USERS"]
+  } else if (nextUrl.pathname.startsWith("/settings")) {
+    requiredModules = ["SETTINGS"]
   }
 
-  // Check if the current route requires a specific module
-  const requiredModule = Object.entries(routeModules).find(([route]) => 
-    nextUrl.pathname.startsWith(route)
-  )?.[1]
-
-  if (requiredModule && req.auth?.user.role !== "SUPERADMIN") {
+  if (requiredModules.length > 0 && req.auth?.user.role !== "SUPERADMIN") {
     const userModules = (req.auth?.user as any).modules || []
-    if (!userModules.includes(requiredModule)) {
+    const hasAccess = requiredModules.some(m => userModules.includes(m))
+    if (!hasAccess) {
       return NextResponse.redirect(new URL("/dashboard", nextUrl))
     }
   }

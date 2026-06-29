@@ -11,11 +11,26 @@ if (!connectionString.includes("pgbouncer=true") && connectionString.includes("p
   connectionString += connectionString.includes("?") ? "&pgbouncer=true" : "?pgbouncer=true"
 }
 
-const pool = new Pool({ connectionString })
-const adapter = new PrismaPg(pool)
-
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
 
-export const prisma = globalForPrisma.prisma || new PrismaClient({ adapter })
+let prisma: PrismaClient
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
+if (process.env.NODE_ENV === 'production') {
+  const pool = new Pool({ connectionString, max: 10 })
+  const adapter = new PrismaPg(pool)
+  prisma = new PrismaClient({ adapter })
+} else {
+  if (!globalForPrisma.prisma) {
+    const pool = new Pool({ 
+      connectionString, 
+      max: 5, // Limit connections in dev
+      idleTimeoutMillis: 10000, 
+      connectionTimeoutMillis: 5000 
+    })
+    const adapter = new PrismaPg(pool)
+    globalForPrisma.prisma = new PrismaClient({ adapter })
+  }
+  prisma = globalForPrisma.prisma
+}
+
+export { prisma }

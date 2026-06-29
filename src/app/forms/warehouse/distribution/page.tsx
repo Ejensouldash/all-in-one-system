@@ -24,7 +24,7 @@ export default async function DistributionIndex() {
           Distribution Orders
         </h2>
         <Link 
-          href="/warehouse/distribution/new"
+          href="/forms/warehouse/distribution/new"
           className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px] transition-all text-sm uppercase tracking-wider"
         >
           <Plus className="w-4 h-4 mr-2" />

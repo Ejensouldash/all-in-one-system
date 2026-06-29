@@ -150,7 +150,29 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
     }
 
     setIsSubmitting(true)
-    const result = reportId ? await updateDailyReport(reportId, data) : await createDailyReport(data)
+    
+    // Format CAP usages correctly based on weight
+    const formattedData = { ...data };
+    if (formattedData.inventory?.CAP?.usages) {
+      formattedData.inventory.CAP.usages = formattedData.inventory.CAP.usages.map((u: any) => {
+        const w = Number(u.weight) || 0;
+        const b = Number(u.boxes) || 0;
+        const net = w > 0 ? w - (b * 0.88) : 0;
+        const pcs = net > 0 ? Math.round(net / 0.002125) : 0;
+        
+        let mult = 4000;
+        const doMatch = syncedDOs.find((d: any) => d.batchNo === u.batchNo);
+        if (doMatch) mult = Number(doMatch.mult) || 4000;
+        else {
+          const cfMatch = availableCarryForward.find((c: any) => c.batchNo === u.batchNo);
+          if (cfMatch) mult = Number(cfMatch.mult) || 4000;
+        }
+        
+        return { ...u, bags: pcs > 0 ? (pcs / mult) : 0 };
+      });
+    }
+
+    const result = reportId ? await updateDailyReport(reportId, formattedData) : await createDailyReport(formattedData)
     setIsSubmitting(false)
 
     if (result.success) {
@@ -725,7 +747,17 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
     if (!usage.batchNo || !batchSummaries[usage.batchNo]) return;
     const rawUsage = Number(usage.bags) || 0;
     const isUsageCap = sectionKey === "CAP";
-    batchSummaries[usage.batchNo].usedBags += isUsageCap ? (Math.round(rawUsage / 2.1) / 4000) : rawUsage;
+    if (isUsageCap) {
+       const w = Number(usage.weight) || 0;
+       const b = Number(usage.boxes) || 0;
+       const net = w > 0 ? w - (b * 0.88) : 0;
+       const pcs = net > 0 ? Math.round(net / 0.002125) : 0;
+       const mult = batchSummaries[usage.batchNo].mult || 4000;
+       // Convert pcs to equivalent 'bags' (boxes) to subtract from inventory
+       batchSummaries[usage.batchNo].usedBags += pcs > 0 ? (pcs / mult) : 0;
+    } else {
+       batchSummaries[usage.batchNo].usedBags += rawUsage;
+    }
   })
 
   // 4. Compute Carry Forward
@@ -880,11 +912,26 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                     </select>
 
                     
-  <div className="flex items-center">
-    <input type="number" placeholder={isCap ? "Weight (Grams)" : `Used (${unit})`} min="0" {...register(`inventory.${sectionKey}.usages.${index}.bags`)} className="w-28 p-2 border border-blue-300 text-center text-xs font-bold outline-none focus:border-blue-600 bg-blue-50" />
-    {isCap && <span className="text-xs font-black text-indigo-700 ml-2">={Math.round((Number(watchUsages[index]?.bags)||0)/2.1)} Pcs</span>}
-  </div>
-  
+                    <div className="flex items-center flex-1">
+                      {isCap ? (
+                        <div className="flex gap-2 items-center flex-1">
+                          <input type="number" placeholder="Boxes" min="0" {...register(`inventory.${sectionKey}.usages.${index}.boxes`)} className="w-16 p-2 border border-blue-300 text-center text-xs font-bold outline-none focus:border-blue-600 bg-blue-50" />
+                          <input type="number" step="0.01" placeholder="Gross Wt (kg)" min="0" {...register(`inventory.${sectionKey}.usages.${index}.weight`)} className="w-24 p-2 border border-blue-300 text-center text-xs font-bold outline-none focus:border-blue-600 bg-blue-50" />
+                          <span className="text-[10px] font-black text-indigo-700 whitespace-nowrap ml-1">
+                            {(()=>{
+                               const w = Number(watchUsages[index]?.weight)||0;
+                               const b = Number(watchUsages[index]?.boxes)||0;
+                               const net = w > 0 ? w - (b*0.88) : 0;
+                               const pcs = net > 0 ? Math.round(net/0.002125) : 0;
+                               return `= ${pcs} Pcs`;
+                            })()}
+                          </span>
+                        </div>
+                      ) : (
+                        <input type="number" placeholder={`Used (${unit})`} min="0" {...register(`inventory.${sectionKey}.usages.${index}.bags`)} className="w-28 p-2 border border-blue-300 text-center text-xs font-bold outline-none focus:border-blue-600 bg-blue-50" />
+                      )}
+                    </div>
+                    
                     
                     <button type="button" onClick={() => removeUsage(index)} className="text-red-500 p-2 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
                   </div>
@@ -892,9 +939,14 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
               })}
             </div>
             
-            <button type="button" onClick={() => appendUsage({ period: "Before", batchNo: "", bags: 0 })} className="mt-4 text-xs font-black uppercase tracking-wider flex items-center text-blue-700 border-2 border-blue-300 px-3 py-1.5 bg-white hover:bg-blue-100">
+            <button type="button" onClick={() => appendUsage({ period: "Before", batchNo: "", bags: 0, boxes: 0, weight: 0 })} className="mt-4 text-xs font-black uppercase tracking-wider flex items-center text-blue-700 border-2 border-blue-300 px-3 py-1.5 bg-white hover:bg-blue-100">
               <Plus className="h-3 w-3 mr-1" /> Log Usage
             </button>
+            {isCap && (
+              <div className="mt-4 text-[10px] font-bold text-blue-800 bg-blue-100 p-2 border border-blue-200">
+                *Formula Cap: Net Weight = Gross Weight - (Boxes × 0.88kg). 1 Cap ≈ 0.002125kg.
+              </div>
+            )}
           </div>
 
         </div>

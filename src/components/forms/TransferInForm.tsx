@@ -29,7 +29,7 @@ export function TransferInForm({ userName }: { userName: string }) {
       doNumber: "",
       
       items: [
-        { category: "BOTTLE 800ml", batchNo: "", bags: 0, mult: 225 }
+        { category: "BOTTLE 800ml", batchNo: "", bags: 0, mult: 225, weight: 0 }
       ]
     }
   })
@@ -60,11 +60,19 @@ export function TransferInForm({ userName }: { userName: string }) {
     }
     
     for (let i = 0; i < data.items.length; i++) {
+       const cat = data.items[i].category || "";
        if (!data.items[i].batchNo) {
           return showErrorAndScroll(`item-${i}-batchNo`, `Please fill in the Batch No for item #${i + 1}.`)
        }
-       if (!data.items[i].bags || Number(data.items[i].bags) <= 0) {
-          return showErrorAndScroll(`item-${i}-bags`, `Please fill in the Quantity (Bags/Box) for item #${i + 1}.`)
+       
+       if (cat === "CAP 1881") {
+         if (!data.items[i].weight || Number(data.items[i].weight) <= 0) {
+           return showErrorAndScroll(`item-${i}-weight`, `Please fill in the Gross Weight for CAP item #${i + 1}.`)
+         }
+       } else {
+         if (!data.items[i].bags || Number(data.items[i].bags) <= 0) {
+            return showErrorAndScroll(`item-${i}-bags`, `Please fill in the Quantity (Bags/Box) for item #${i + 1}.`)
+         }
        }
     }
 
@@ -73,7 +81,19 @@ export function TransferInForm({ userName }: { userName: string }) {
     const rawDo = data.doNumber.replace(/[^0-9]/g, '')
     const formattedData = {
       ...data,
-      doNumber: rawDo ? `DO - ${rawDo}` : ""
+      doNumber: rawDo ? `DO - ${rawDo}` : "",
+      items: data.items.map((item: any) => {
+        const cat = item.category || "";
+        if (cat === "CAP 1881") {
+          const w = Number(item.weight) || 0;
+          const b = Number(item.bags) || 0;
+          const netWeight = w > 0 ? w - (b * 0.88) : 0;
+          const pcs = netWeight > 0 ? Math.round(netWeight / 0.002125) : 0;
+          const mult = b > 0 ? Math.round(pcs / b) : 0;
+          return { ...item, bags: b, mult: mult };
+        }
+        return item;
+      })
     }
 
     const result = await createTransferIn(formattedData)
@@ -92,7 +112,16 @@ export function TransferInForm({ userName }: { userName: string }) {
   
   const totalPcs = watchItems.reduce((sum: number, item: any) => {
     const cat = item.category || ""
-    if (cat.includes("CAP") || cat.includes("LABEL")) return sum // exclude cap and label from pcs
+    if (cat.includes("LABEL")) return sum // exclude label from pcs
+    
+    if (cat === "CAP 1881") {
+      const w = Number(item.weight) || 0;
+      const b = Number(item.bags) || 0;
+      const netWeight = w > 0 ? w - (b * 0.88) : 0;
+      const pcs = netWeight > 0 ? Math.round(netWeight / 0.002125) : 0;
+      return sum + pcs;
+    }
+    
     return sum + ((Number(item.bags) || 0) * (Number(item.mult) || 1))
   }, 0)
 
@@ -164,10 +193,18 @@ export function TransferInForm({ userName }: { userName: string }) {
             {/* Items List */}
             <div className="flex flex-col bg-white">
               {fields.map((field, index) => {
+                const cat = watchItems[index]?.category || ""
                 const bags = Number(watchItems[index]?.bags) || 0
                 const mult = Number(watchItems[index]?.mult) || 1
-                const totalPcs = bags * mult
-                const cat = watchItems[index]?.category || ""
+                
+                let totalPcs = bags * mult;
+                let capNetWeight = 0;
+                if (cat === "CAP 1881") {
+                  const w = Number(watchItems[index]?.weight) || 0;
+                  capNetWeight = w > 0 ? w - (bags * 0.88) : 0;
+                  totalPcs = capNetWeight > 0 ? Math.round(capNetWeight / 0.002125) : 0;
+                }
+                
                 
                 let availableMultipliers: number[] = MULTIPLIERS.BOTTLE_800
                 if (cat === "BOTTLE 425ml") availableMultipliers = MULTIPLIERS.BOTTLE_425
@@ -218,12 +255,14 @@ export function TransferInForm({ userName }: { userName: string }) {
 
                     <div className="flex w-full md:w-[30%] gap-3 md:gap-2">
                       <div className="w-1/2" id={`item-${index}-bags`}>
-                        <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">Qty (Bags/Box/Roll)</label>
+                        <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">{cat === "CAP 1881" ? "Total Boxes" : "Qty (Bags/Box/Roll)"}</label>
                         <input type="number" step="1" min="0" placeholder="0" {...register(`items.${index}.bags`)} className="w-full text-center p-3 md:p-2 border-2 border-gray-300 font-bold outline-none focus:border-black text-sm" />
                       </div>
-                      <div className="w-1/2">
-                        <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">Multiplier</label>
-                        {isNoMult ? (
+                      <div className="w-1/2" id={`item-${index}-weight`}>
+                        <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">{cat === "CAP 1881" ? "Gross Wt (kg)" : "Multiplier"}</label>
+                        {cat === "CAP 1881" ? (
+                          <input type="number" step="0.01" min="0" placeholder="kg" {...register(`items.${index}.weight`)} className="w-full text-center p-3 md:p-2 border-2 border-blue-400 bg-blue-50 font-bold outline-none focus:border-blue-600 text-sm text-blue-800" />
+                        ) : isNoMult ? (
                           <div className="w-full p-3 md:p-2 border-2 border-gray-100 bg-gray-50 text-gray-400 font-bold text-sm text-center">
                             -
                           </div>
@@ -237,15 +276,24 @@ export function TransferInForm({ userName }: { userName: string }) {
 
                     <div className="w-full md:w-[15%]">
                       <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">Total PCs</label>
-                      <div className="w-full p-3 md:p-2 text-center font-black text-2xl md:text-lg text-emerald-700 bg-emerald-50/50 border-2 border-emerald-100 md:border-transparent">
-                        {isNoMult ? "-" : totalPcs}
+                      <div className="w-full p-3 md:p-2 text-center font-black text-2xl md:text-lg text-emerald-700 bg-emerald-50/50 border-2 border-emerald-100 md:border-transparent flex flex-col justify-center items-center">
+                        <span>{(isNoMult && cat !== "CAP 1881") ? "-" : totalPcs}</span>
+                        {cat === "CAP 1881" && (
+                          <span className="text-[10px] text-blue-600 leading-tight hidden md:block">Net: {capNetWeight.toFixed(2)}kg</span>
+                        )}
                       </div>
                     </div>
 
-                    <div className="hidden md:flex w-[10%] justify-center">
+                    <div className="hidden md:flex w-[10%] justify-center items-center">
                       <button type="button" onClick={() => remove(index)} className="text-red-500 hover:bg-red-50 p-2 rounded transition-colors"><Trash2 className="w-5 h-5" /></button>
                     </div>
 
+                    {cat === "CAP 1881" && (
+                      <div className="w-full bg-blue-50 text-blue-800 text-[10px] font-bold p-2 mt-2 md:mt-0 border border-blue-200">
+                        *Formula Cap: Net Weight = Gross Weight - (Total Boxes × 0.88kg). 1 Cap ≈ 0.002125kg. <br/>
+                        Net: {capNetWeight.toFixed(2)}kg ÷ 0.002125 = {totalPcs} Pcs
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -266,7 +314,7 @@ export function TransferInForm({ userName }: { userName: string }) {
           </div>
           
           <div className="bg-gray-50 p-3 border-t border-gray-300">
-            <button type="button" onClick={() => append({ category: "BOTTLE 800ml", batchNo: "", bags: 0, mult: 225 })} className="text-xs font-black uppercase tracking-wider flex items-center text-black border-2 border-black px-4 py-2 bg-white hover:bg-black hover:text-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px]">
+            <button type="button" onClick={() => append({ category: "BOTTLE 800ml", batchNo: "", bags: 0, mult: 225, weight: 0 })} className="text-xs font-black uppercase tracking-wider flex items-center text-black border-2 border-black px-4 py-2 bg-white hover:bg-black hover:text-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px]">
               <Plus className="h-4 w-4 mr-2" /> Add Item Row
             </button>
           </div>

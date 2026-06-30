@@ -75,7 +75,8 @@ export default function MonthlyReportPage() {
       "BALANCE IN WAREHOUSE": r.balanceOpening,
       "TRANSFER IN": r.transferIn,
       "TRANSFER OUT": r.transferOut,
-      "BALANCE CARRY FORWARD": r.balanceCarryForward
+      "BALANCE CARRY FORWARD": r.balanceCarryForward,
+      "PREPARED BY": r.preparedBy
     })))
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "Monthly Report")
@@ -156,6 +157,7 @@ export default function MonthlyReportPage() {
                 <th className="border border-black p-2 font-bold">TRANSFER IN</th>
                 <th className="border border-black p-2 font-bold">TRANSFER OUT</th>
                 <th className="border border-black p-2 font-bold">BALANCE CARRY FORWARD</th>
+                <th className="border border-black p-2 font-bold">PREPARED BY</th>
               </tr>
             </thead>
             <tbody>
@@ -170,11 +172,12 @@ export default function MonthlyReportPage() {
                   <td className="border border-black p-2 text-center font-bold text-emerald-600">+{row.transferIn}</td>
                   <td className="border border-black p-2 text-center font-bold text-red-600">-{row.transferOut}</td>
                   <td className="border border-black p-2 text-center font-bold text-lg">{row.balanceCarryForward}</td>
+                  <td className="border border-black p-2 text-center">{row.preparedBy}</td>
                 </tr>
               ))}
               {reportData.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="border border-black p-6 text-center italic text-gray-500">
+                  <td colSpan={10} className="border border-black p-6 text-center italic text-gray-500">
                     No data for this month. Set opening stock if this is the first month.
                   </td>
                 </tr>

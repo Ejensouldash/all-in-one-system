@@ -62,7 +62,11 @@ export async function getMonthlyDistributionReport(month: number, year: number) 
         }
       },
       include: {
-        distributionOrder: true
+        distributionOrder: {
+          include: {
+            createdBy: true
+          }
+        }
       }
     })
     allDOItems.forEach(item => batches.add(item.batchNumber))
@@ -162,6 +166,12 @@ export async function getMonthlyDistributionReport(month: number, year: number) 
 
       const formattedDate = `${dateValue.getDate().toString().padStart(2, '0')}/${(dateValue.getMonth() + 1).toString().padStart(2, '0')}/${dateValue.getFullYear()}`;
 
+      // g) Prepared By
+      // Find the first DO item for this batch in this month to get the creator
+      const preparedBy = doItemsDuringMonth.length > 0 && doItemsDuringMonth[0].distributionOrder.createdBy 
+        ? doItemsDuringMonth[0].distributionOrder.createdBy.name 
+        : "-";
+
       // Only include if there's any activity or balance for this batch in this month
       if (balanceOpening > 0 || transferIn > 0 || transferOut > 0 || balanceCarryForward > 0) {
         reportData.push({
@@ -172,7 +182,8 @@ export async function getMonthlyDistributionReport(month: number, year: number) 
           balanceOpening,
           transferIn,
           transferOut,
-          balanceCarryForward
+          balanceCarryForward,
+          preparedBy
         })
       }
     }

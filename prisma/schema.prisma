@@ -6,140 +6,114 @@ datasource db {
   provider = "postgresql"
 }
 
-enum Role {
-  SUPERADMIN
-  STAFF
-  SUPERVISOR
-}
-
-enum Status {
-  ACTIVE
-  BROKEN
-  MAINTENANCE
-}
-
-enum TicketStatus {
-  OPEN
-  IN_PROGRESS
-  RESOLVED
-}
-
 model User {
-  id              String        @id @default(uuid())
-  name            String
-  email           String        @unique
-  password        String
-  role            Role          @default(STAFF)
-  branchId        String?
-  unitId          String?
-  branch          Branch?       @relation(fields: [branchId], references: [id])
-  unit            Unit?         @relation(fields: [unitId], references: [id])
-  tickets         Ticket[]      @relation("TicketCreator")
-  assignedTickets Ticket[]      @relation("TicketAssignee")
-  events          Event[]       @relation("EventCreator")
-  assignedEvents  Event[]       @relation("EventAssignee")
-  notices         Notice[]
-  dailyReports    DailyReport[] @relation("DailyReportCreator")
-  modules         String[]             @default([])
-  receivedTransfers ProductionTransfer[]    @relation("TransferReceiver")
+  id                String                  @id @default(uuid())
+  name              String
+  email             String                  @unique
+  password          String
+  role              Role                    @default(STAFF)
+  branchId          String?
+  unitId            String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  modules           String[]                @default([])
+  dailyReports      DailyReport[]           @relation("DailyReportCreator")
   createdDOs        DistributionOrder[]     @relation("DOCreator")
+  assignedEvents    Event[]                 @relation("EventAssignee")
+  events            Event[]                 @relation("EventCreator")
+  notices           Notice[]
+  receivedTransfers ProductionTransfer[]    @relation("TransferReceiver")
+  
+  // Handover Relations
+  createdHandovers  ProductionHandover[]    @relation("HandoverCreator")
+  receivedHandovers ProductionHandover[]    @relation("HandoverReceiver")
+  
+  assignedTickets   Ticket[]                @relation("TicketAssignee")
+  tickets           Ticket[]                @relation("TicketCreator")
+  branch            Branch?                 @relation(fields: [branchId], references: [id])
+  unit              Unit?                   @relation(fields: [unitId], references: [id])
   openingStocks     WarehouseOpeningStock[] @relation("OpeningStockSetter")
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
 }
 
 model Branch {
   id        String   @id @default(uuid())
   name      String
   location  String?
-  units     Unit[]
-  users     User[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  units     Unit[]
+  users     User[]
 }
 
 model Unit {
   id        String   @id @default(uuid())
   name      String
   branchId  String
-  branch    Branch   @relation(fields: [branchId], references: [id])
-  users     User[]
-  tickets   Ticket[]
-  assets    Asset[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  assets    Asset[]
+  tickets   Ticket[]
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  users     User[]
 }
 
 model Asset {
   id           String     @id @default(uuid())
-  category     String
-  brand        String
-  model        String
   serialNumber String?
-  barcode      String?
-  location     String?
   status       Status     @default(ACTIVE)
-  assigneeName String?
-  unitId       String?
-  unit         Unit?      @relation(fields: [unitId], references: [id])
-  tickets      Ticket[]
-  logs         AssetLog[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+  barcode      String?
+  brand        String
+  category     String
+  location     String?
+  model        String
+  unitId       String?
+  assigneeName String?
+  unit         Unit?      @relation(fields: [unitId], references: [id])
+  logs         AssetLog[]
+  tickets      Ticket[]
 }
 
 model AssetLog {
   id          String   @id @default(uuid())
   assetId     String
-  asset       Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
   action      String
   description String
   performedBy String?
   date        DateTime @default(now())
+  asset       Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
 }
 
 model Ticket {
-  id           String       @id @default(uuid())
-  ticketNumber Int          @unique @default(autoincrement())
-  title        String
-  description  String
-  status       TicketStatus @default(OPEN)
-  priority     String       @default("Low") // Low, Medium, High, Urgent
-
-  // Submitter details
-  requesterName String?
-  phone         String?
-
-  // Asset details (if not linked to DB asset)
-  assetType   String?
-  assetNumber String?
-
-  // IT Resolution Workspace
-  rootCause     String?
-  resolution    String?
-  internalNotes String?
-  type          String? // Infra, Support, System, M365, Event, Application, Others
-  typeOthers    String?
-  assigneeId    String?
-  assignee      User?   @relation("TicketAssignee", fields: [assigneeId], references: [id])
-
-  // Relations
+  id            String       @id @default(uuid())
+  title         String
+  description   String
+  status        TicketStatus @default(OPEN)
+  priority      String       @default("Low")
   createdById   String
-  createdBy     User    @relation("TicketCreator", fields: [createdById], references: [id])
   unitId        String?
-  unit          Unit?   @relation(fields: [unitId], references: [id])
   linkedAssetId String?
-  linkedAsset   Asset?  @relation(fields: [linkedAssetId], references: [id])
-
-  // SLA Tracking
-  slaDeadline DateTime?
-  slaBreached Boolean   @default(false)
-
-  // Cost Tracking
-  costs TicketCost[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  assetNumber   String?
+  assetType     String?
+  assigneeId    String?
+  internalNotes String?
+  phone         String?
+  resolution    String?
+  rootCause     String?
+  requesterName String?
+  ticketNumber  Int          @unique @default(autoincrement())
+  slaBreached   Boolean      @default(false)
+  slaDeadline   DateTime?
+  type          String?
+  typeOthers    String?
+  assignee      User?        @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  createdBy     User         @relation("TicketCreator", fields: [createdById], references: [id])
+  linkedAsset   Asset?       @relation(fields: [linkedAssetId], references: [id])
+  unit          Unit?        @relation(fields: [unitId], references: [id])
+  costs         TicketCost[]
 }
 
 model Event {
@@ -149,11 +123,11 @@ model Event {
   startDateTime DateTime
   endDateTime   DateTime
   assigneeId    String?
-  assignee      User?    @relation("EventAssignee", fields: [assigneeId], references: [id])
   createdById   String
-  createdBy     User     @relation("EventCreator", fields: [createdById], references: [id])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  assignee      User?    @relation("EventAssignee", fields: [assigneeId], references: [id])
+  createdBy     User     @relation("EventCreator", fields: [createdById], references: [id])
 }
 
 model TransferIn {
@@ -162,96 +136,94 @@ model TransferIn {
   receiveTime  String
   doNumber     String
   receiverName String
-  items        TransferInItem[]
   createdAt    DateTime         @default(now())
+  items        TransferInItem[]
 }
 
 model TransferInItem {
   id           String     @id @default(uuid())
   transferInId String
-  transferIn   TransferIn @relation(fields: [transferInId], references: [id], onDelete: Cascade)
   category     String
   batchNo      String
   bags         Int
   mult         Int
+  transferIn   TransferIn @relation(fields: [transferInId], references: [id], onDelete: Cascade)
 }
 
 model DailyReport {
-  id                String    @id @default(uuid())
-  date              DateTime  @db.Date
-  time              String?
-  shift             String
-  line              String
-  totalManpower     Int? // e.g. 10
-  preparedBy        String
-  preparedSignature String?
-  verifiedBy        String
-  verifiedSignature String?
-  remarks           String?
-  status            String    @default("PENDING")
-  approvedAt        DateTime?
-
-  createdById String?
-  createdBy   User?   @relation("DailyReportCreator", fields: [createdById], references: [id])
-
-  productions ProductionOutput[]
-  rejects     RejectLog[]
-  inventory   InventoryLog[]
-  breakdowns  BreakdownLog[]
+  id                  String               @id @default(uuid())
+  date                DateTime             @db.Date
+  shift               String
+  line                String
+  preparedBy          String
+  verifiedBy          String
+  remarks             String?
+  createdAt           DateTime             @default(now())
+  status              String               @default("PENDING")
+  preparedSignature   String?
+  verifiedSignature   String?
+  time                String?
+  approvedAt          DateTime?
+  createdById         String?
+  totalManpower       Int?
+  breakdowns          BreakdownLog[]
+  createdBy           User?                @relation("DailyReportCreator", fields: [createdById], references: [id])
+  inventory           InventoryLog[]
+  productions         ProductionOutput[]
   productionTransfers ProductionTransfer[]
-
-  createdAt DateTime @default(now())
+  productionHandovers ProductionHandover[]
+  rejects             RejectLog[]
 }
 
 model ProductionOutput {
   id          String            @id @default(uuid())
   reportId    String
-  report      DailyReport       @relation(fields: [reportId], references: [id], onDelete: Cascade)
   productType String
   totalBox    Int
   batches     ProductionBatch[]
+  report      DailyReport       @relation(fields: [reportId], references: [id], onDelete: Cascade)
 }
 
 model ProductionBatch {
   id                 String           @id @default(uuid())
   productionOutputId String
-  productionOutput   ProductionOutput @relation(fields: [productionOutputId], references: [id], onDelete: Cascade)
   batchNo            String
   qty                Int
   type               String
   otherType          String?
+  productionOutput   ProductionOutput @relation(fields: [productionOutputId], references: [id], onDelete: Cascade)
 }
 
 model RejectLog {
   id       String      @id @default(uuid())
   reportId String
-  report   DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
   item     String
   before   Int
   after    Int
-  type     String      @default("SCRAP") // "SCRAP" or "RETURN"
+  type     String      @default("SCRAP")
+  report   DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 }
 
 model BreakdownLog {
   id       String      @id @default(uuid())
   reportId String
-  report   DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
   section  String
-  downtime Int // in minutes
+  downtime Int
   reason   String
+  report   DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 }
 
 model InventoryLog {
   id         String      @id @default(uuid())
   reportId   String
-  report     DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
   sectionKey String
-  type       String // "Storeroom" or "Usage"
-  period     String? // "Before" or "After"
+  type       String
+  period     String?
   batchNo    String
   bags       Float
   mult       Int
   labelType  String?
+  report     DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 }
 
 model Setting {
@@ -272,33 +244,174 @@ model CostCatalog {
 model TicketCost {
   id        String   @id @default(uuid())
   ticketId  String
-  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   itemName  String
   amount    Float
   createdAt DateTime @default(now())
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 }
 
 model Notice {
   id             String   @id @default(uuid())
   message        String
-  type           String   @default("NORMAL") // NORMAL, AWARE, URGENT
-  targetAudience String   @default("ALL") // "ALL" or Unit ID
+  type           String   @default("NORMAL")
+  targetAudience String   @default("ALL")
   isActive       Boolean  @default(true)
   createdById    String
-  createdBy      User     @relation(fields: [createdById], references: [id])
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  createdBy      User     @relation(fields: [createdById], references: [id])
 }
 
-// -----------------------------------------
-// WAREHOUSE & DISTRIBUTION MODULE (VERSION 3)
-// -----------------------------------------
+model ProductionTransfer {
+  id            String         @id @default(uuid())
+  dailyReportId String?
+  sku           String
+  batchNumber   String
+  qtyProduced   Int
+  status        TransferStatus @default(PENDING)
+  receivedById  String?
+  receivedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  dailyReport   DailyReport?   @relation(fields: [dailyReportId], references: [id])
+  receivedBy    User?          @relation("TransferReceiver", fields: [receivedById], references: [id])
+}
+
+model ProductionHandover {
+  id                 String   @id @default(uuid())
+  handoverNumber     String   @unique
+  date               DateTime
+  
+  dailyReportId      String
+  dailyReport        DailyReport @relation(fields: [dailyReportId], references: [id])
+  
+  productionStaffId  String
+  productionStaff    User     @relation("HandoverCreator", fields: [productionStaffId], references: [id])
+  productionSign     String?  // Digital signature of production staff
+  
+  warehouseStaffId   String?  // Nullable until signed
+  warehouseStaff     User?    @relation("HandoverReceiver", fields: [warehouseStaffId], references: [id])
+  warehouseSign      String?  // Digital signature of warehouse staff
+  
+  status             String   @default("PENDING") // PENDING, ACKNOWLEDGED
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  items              HandoverItem[]
+}
+
+model HandoverItem {
+  id                 String   @id @default(uuid())
+  handoverId         String
+  category           String
+  batchNo            String
+  totalProducedPcs   Int
+  
+  // Deductions
+  deductions         HandoverDeduction[]
+
+  // Final to warehouse
+  netToWarehousePcs  Int
+
+  handover           ProductionHandover @relation(fields: [handoverId], references: [id], onDelete: Cascade)
+}
+
+model HandoverDeduction {
+  id                 String   @id @default(uuid())
+  handoverItemId     String
+  destination        String   // e.g. "Budak Tahfiz", "Staff Purchase"
+  qtyPcs             Int
+  remarks            String?
+
+  handoverItem       HandoverItem @relation(fields: [handoverItemId], references: [id], onDelete: Cascade)
+}
+
+model InventoryBatch {
+  id               String   @id @default(uuid())
+  batchNumber      String   @unique
+  sku              String
+  totalQtyIn       Int      @default(0)
+  totalQtyOut      Int      @default(0)
+  availableBalance Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model DistributionOrder {
+  id                 String            @id @default(uuid())
+  doNumber           String            @unique
+  distributionDate   DateTime
+  destination        String
+  vehicleNo          String?
+  driverName         String?
+  status             DOStatus          @default(PREPARING)
+  createdById        String
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  sponsorshipDetails String?
+  distributionMethod String
+  items              DOLineItem[]
+  createdBy          User              @relation("DOCreator", fields: [createdById], references: [id])
+  returns            GoodsReturnNote[]
+}
+
+model DOLineItem {
+  id                  String            @id @default(uuid())
+  distributionOrderId String
+  sku                 String
+  batchNumber         String
+  qtySent             Int
+  distributionOrder   DistributionOrder @relation(fields: [distributionOrderId], references: [id], onDelete: Cascade)
+}
+
+model GoodsReturnNote {
+  id                  String            @id @default(uuid())
+  distributionOrderId String
+  sku                 String
+  batchNumber         String
+  qtyReturned         Int
+  reason              ReturnReason
+  status              ReturnStatus      @default(QUARANTINE)
+  loggedAt            DateTime          @default(now())
+  distributionOrder   DistributionOrder @relation(fields: [distributionOrderId], references: [id], onDelete: Cascade)
+}
+
+model WarehouseOpeningStock {
+  id          String   @id @default(uuid())
+  batchNumber String
+  sku         String
+  openingQty  Int
+  month       Int
+  year        Int
+  setById     String
+  createdAt   DateTime @default(now())
+  setBy       User     @relation("OpeningStockSetter", fields: [setById], references: [id])
+
+  @@unique([batchNumber, month, year])
+}
+
+enum Role {
+  SUPERADMIN
+  STAFF
+  SUPERVISOR
+}
+
+enum Status {
+  ACTIVE
+  BROKEN
+  MAINTENANCE
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
 
 enum TransferStatus {
   PENDING
   RECEIVED
 }
-
 
 enum DOStatus {
   PREPARING
@@ -317,93 +430,4 @@ enum ReturnStatus {
   QUARANTINE
   SCRAP
   REPACKED
-}
-
-// 1. ProductionTransfer (Digital Handshake)
-model ProductionTransfer {
-  id             String         @id @default(uuid())
-  dailyReportId  String?
-  dailyReport    DailyReport?   @relation(fields: [dailyReportId], references: [id])
-  sku            String
-  batchNumber    String
-  qtyProduced    Int
-  status         TransferStatus @default(PENDING)
-  receivedById   String?
-  receivedBy     User?          @relation("TransferReceiver", fields: [receivedById], references: [id])
-  receivedAt     DateTime?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-}
-
-// 2. InventoryBatch (Master Stock)
-model InventoryBatch {
-  id               String   @id @default(uuid())
-  batchNumber      String   @unique
-  sku              String
-  totalQtyIn       Int      @default(0)
-  totalQtyOut      Int      @default(0)
-  availableBalance Int      @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-}
-
-// 3. DistributionOrder (DO / Transfer Out)
-model DistributionOrder {
-  id                 String             @id @default(uuid())
-  doNumber           String             @unique
-  distributionDate   DateTime
-  destination        String
-  distributionMethod String
-  sponsorshipDetails String?
-  vehicleNo          String?
-  driverName         String?
-  status             DOStatus           @default(PREPARING)
-  createdById        String
-  createdBy          User               @relation("DOCreator", fields: [createdById], references: [id])
-  
-  items              DOLineItem[]
-  returns            GoodsReturnNote[]
-  
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-}
-
-// 4. DOLineItem (Internal Batch Tracking)
-model DOLineItem {
-  id                  String            @id @default(uuid())
-  distributionOrderId String
-  distributionOrder   DistributionOrder @relation(fields: [distributionOrderId], references: [id], onDelete: Cascade)
-  sku                 String
-  batchNumber         String
-  qtySent             Int
-}
-
-// 5. GoodsReturnNote (Reverse Logistics)
-model GoodsReturnNote {
-  id                  String            @id @default(uuid())
-  distributionOrderId String
-  distributionOrder   DistributionOrder @relation(fields: [distributionOrderId], references: [id], onDelete: Cascade)
-  sku                 String
-  batchNumber         String
-  qtyReturned         Int
-  reason              ReturnReason
-  status              ReturnStatus      @default(QUARANTINE)
-  loggedAt            DateTime          @default(now())
-}
-
-// 6. WarehouseOpeningStock (System Initialisation - Superadmin Only)
-// Set once per batch for the very first month of system deployment.
-// After that, Balance Carry Forward auto-calculates each month.
-model WarehouseOpeningStock {
-  id          String   @id @default(uuid())
-  batchNumber String
-  sku         String
-  openingQty  Int
-  month       Int      // 1-12
-  year        Int
-  setById     String
-  setBy       User     @relation("OpeningStockSetter", fields: [setById], references: [id])
-  createdAt   DateTime @default(now())
-
-  @@unique([batchNumber, month, year])
 }

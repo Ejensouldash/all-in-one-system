@@ -6,6 +6,11 @@ import Link from "next/link"
 import { receiveHandover } from "@/app/actions/handover"
 import { GenericSignatureModal } from "./GenericSignatureModal"
 
+function formatSKU(sku: string) {
+  if (!sku) return sku;
+  return sku.replace('p800_', '800ml x ').replace('p425_', '425ml x ').toUpperCase();
+}
+
 export function WarehouseHandoverReceive({ handover, userId, userName }: { handover: any, userId: string, userName: string }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSignModalOpen, setIsSignModalOpen] = useState(false)
@@ -68,7 +73,7 @@ export function WarehouseHandoverReceive({ handover, userId, userName }: { hando
                 <div className="bg-gray-50 p-4 border-b-2 border-gray-200 grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
                     <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">SKU</span>
-                    <div className="font-black text-sm">{item.category}</div>
+                    <div className="font-black text-sm">{formatSKU(item.category)}</div>
                   </div>
                   <div>
                     <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Batch No</span>

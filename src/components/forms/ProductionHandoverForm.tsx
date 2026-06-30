@@ -7,6 +7,11 @@ import Link from "next/link"
 import { createHandover } from "@/app/actions/handover"
 import { GenericSignatureModal } from "./GenericSignatureModal"
 
+function formatSKU(sku: string) {
+  if (!sku) return sku;
+  return sku.replace('p800_', '800ml x ').replace('p425_', '425ml x ').toUpperCase();
+}
+
 export function ProductionHandoverForm({ userId, userName, eligibleReports }: { userId: string, userName: string, eligibleReports: any[] }) {
   const [selectedReportId, setSelectedReportId] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -182,7 +187,7 @@ export function ProductionHandoverForm({ userId, userName, eligibleReports }: { 
                     <div className="bg-gray-50 p-4 border-b-2 border-gray-200 flex flex-col md:flex-row justify-between md:items-center gap-4">
                       <div>
                         <span className="text-xs font-black uppercase text-gray-500 tracking-wider">SKU</span>
-                        <div className="font-black text-lg">{item.category}</div>
+                        <div className="font-black text-lg">{formatSKU(item.category)}</div>
                       </div>
                       <div>
                         <span className="text-xs font-black uppercase text-gray-500 tracking-wider">Batch No</span>

@@ -55,33 +55,35 @@ export function ProductionHandoverForm({ userId, userName, eligibleReports }: { 
   }
 
   const addDeduction = (itemIndex: number) => {
-    const items = [...watchItems]
-    if (!items[itemIndex].deductions) items[itemIndex].deductions = []
-    items[itemIndex].deductions.push({ destination: "", qtyPcs: 0, remarks: "" })
-    setValue(`items`, items)
+    const currentDeductions = watchItems[itemIndex]?.deductions || []
+    setValue(`items.${itemIndex}.deductions`, [...currentDeductions, { destination: "", qtyPcs: 0, remarks: "" }])
   }
 
   const removeDeduction = (itemIndex: number, deductionIndex: number) => {
-    const items = [...watchItems]
-    items[itemIndex].deductions.splice(deductionIndex, 1)
+    const currentDeductions = [...(watchItems[itemIndex]?.deductions || [])]
+    currentDeductions.splice(deductionIndex, 1)
     
     // Recalculate net
-    const totalDed = items[itemIndex].deductions.reduce((sum: number, d: any) => sum + (Number(d.qtyPcs) || 0), 0)
-    items[itemIndex].netToWarehousePcs = Math.max(0, items[itemIndex].totalProducedPcs - totalDed)
-    
-    setValue(`items`, items)
+    const totalDed = currentDeductions.reduce((sum: number, d: any) => sum + (Number(d.qtyPcs) || 0), 0)
+    setValue(`items.${itemIndex}.netToWarehousePcs`, Math.max(0, watchItems[itemIndex].totalProducedPcs - totalDed))
+    setValue(`items.${itemIndex}.deductions`, currentDeductions)
   }
 
   const updateDeduction = (itemIndex: number, deductionIndex: number, field: string, val: any) => {
-    const items = [...watchItems]
-    items[itemIndex].deductions[deductionIndex][field] = val
+    setValue(`items.${itemIndex}.deductions.${deductionIndex}.${field}`, val)
 
     if (field === 'qtyPcs') {
-      const totalDed = items[itemIndex].deductions.reduce((sum: number, d: any) => sum + (Number(d.qtyPcs) || 0), 0)
-      items[itemIndex].netToWarehousePcs = Math.max(0, items[itemIndex].totalProducedPcs - totalDed)
+      const currentDeductions = watchItems[itemIndex]?.deductions || []
+      let totalDed = 0
+      currentDeductions.forEach((d: any, idx: number) => {
+        if (idx === deductionIndex) {
+          totalDed += (Number(val) || 0)
+        } else {
+          totalDed += (Number(d.qtyPcs) || 0)
+        }
+      })
+      setValue(`items.${itemIndex}.netToWarehousePcs`, Math.max(0, watchItems[itemIndex].totalProducedPcs - totalDed))
     }
-    
-    setValue(`items`, items)
   }
 
   const onSubmit = async (data: any) => {

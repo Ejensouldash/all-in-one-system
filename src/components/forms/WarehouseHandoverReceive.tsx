@@ -70,7 +70,7 @@ export function WarehouseHandoverReceive({ handover, userId, userName }: { hando
           <div className="space-y-4">
             {handover.items.map((item: any) => (
               <div key={item.id} className="border-2 border-gray-200 rounded-lg overflow-hidden">
-                <div className="bg-gray-50 p-4 border-b-2 border-gray-200 grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-gray-50 p-4 border-b-2 border-gray-200 grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div>
                     <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">SKU</span>
                     <div className="font-black text-sm">{formatSKU(item.category)}</div>
@@ -78,6 +78,10 @@ export function WarehouseHandoverReceive({ handover, userId, userName }: { hando
                   <div>
                     <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Batch No</span>
                     <div className="font-bold text-indigo-700 text-sm">{item.batchNo}</div>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Type</span>
+                    <div className="font-bold text-gray-700 text-sm">{item.type || 'Standard'}</div>
                   </div>
                   <div>
                     <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Total Output</span>

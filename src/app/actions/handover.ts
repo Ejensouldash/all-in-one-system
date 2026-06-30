@@ -46,6 +46,7 @@ export async function createHandover(data: any) {
           create: data.items.map((item: any) => ({
             category: item.category,
             batchNo: item.batchNo,
+            type: item.type,
             totalProducedPcs: Number(item.totalProducedPcs),
             netToWarehousePcs: Number(item.netToWarehousePcs),
             deductions: item.deductions?.length > 0 ? {

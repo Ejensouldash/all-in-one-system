@@ -45,6 +45,7 @@ export function ProductionHandoverForm({ userId, userName, eligibleReports }: { 
         prod.batches.map((batch: any) => ({
           category: prod.productType,
           batchNo: batch.batchNo,
+          type: batch.type,
           totalProducedPcs: batch.qty,
           deductions: [],
           netToWarehousePcs: batch.qty
@@ -194,6 +195,10 @@ export function ProductionHandoverForm({ userId, userName, eligibleReports }: { 
                       <div>
                         <span className="text-xs font-black uppercase text-gray-500 tracking-wider">Batch No</span>
                         <div className="font-bold text-gray-800">{item.batchNo}</div>
+                      </div>
+                      <div>
+                        <span className="text-xs font-black uppercase text-gray-500 tracking-wider">Type</span>
+                        <div className="font-bold text-gray-800">{item.type || 'Standard'}</div>
                       </div>
                       <div className="text-right">
                         <span className="text-xs font-black uppercase text-gray-500 tracking-wider">Total Produced (Pcs)</span>

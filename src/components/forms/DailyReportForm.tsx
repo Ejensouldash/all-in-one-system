@@ -36,10 +36,10 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       verifiedBy: "",
       
       production: {
-        p800_12: { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard Front", otherType: "" }] },
-        p800_20: { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard Front", otherType: "" }] },
-        p425_24: { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard Front", otherType: "" }] },
-        p425_6:  { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard Front", otherType: "" }] },
+        p800_12: { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard", otherType: "" }] },
+        p800_20: { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard", otherType: "" }] },
+        p425_24: { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard", otherType: "" }] },
+        p425_6:  { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard", otherType: "" }] },
       },
 
       totalManpower: "",
@@ -640,20 +640,13 @@ function ProductionBatchDistribution({ prodId, label, isChecked, totalQty, contr
                 <div className="flex items-center w-full sm:w-auto relative">
                   <input type="number" placeholder="Qty" min="0" {...register(`production.${prodId}.batches.${index}.qty`)} className="w-full sm:w-28 border border-gray-300 p-2 font-bold outline-none text-center text-sm focus:border-black" />
                   <select {...register(`production.${prodId}.batches.${index}.type`)} className="w-full sm:w-32 border-y border-r border-gray-300 p-2 font-bold outline-none bg-white text-sm focus:border-black">
-                    <option value="Standard Front">Standard Front</option>
-                    <option value="Standard Back">Standard Back</option>
+                    <option value="Standard">Standard</option>
                     <option value="Omega">Omega</option>
+                    <option value="MFL">MFL</option>
                     {(!prodId.includes('800')) && <option value="Felcra">Felcra</option>}
                     {(!prodId.includes('800')) && <option value="Ets">Ets</option>}
-                    <option value="Brunei Front">Brunei Front</option>
-                    <option value="Brunei Back">Brunei Back</option>
+                    <option value="Brunei">Brunei</option>
                     {(!prodId.includes('800')) && <option value="Prolintas">Prolintas</option>}
-                    <option value="JHEAINS">JHEAINS</option>
-                    {(!prodId.includes('800')) && <option value="Casuarina">Casuarina</option>}
-                    <option value="MFL">MFL</option>
-                    <option value="YNS">YNS</option>
-                    <option value="KOWARIS">KOWARIS</option>
-                    {(!prodId.includes('800')) && <option value="Richiamo">Richiamo</option>}
                     {(!prodId.includes('800')) && <option value="Al Falah">Al Falah</option>}
                     {(!prodId.includes('800')) && <option value="Mihas">Mihas</option>}
                     {(!prodId.includes('800')) && <option value="LTDI">LTDI</option>}

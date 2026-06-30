@@ -305,6 +305,7 @@ model HandoverItem {
   handoverId         String
   category           String
   batchNo            String
+  type               String   @default("Standard")
   totalProducedPcs   Int
   
   // Deductions

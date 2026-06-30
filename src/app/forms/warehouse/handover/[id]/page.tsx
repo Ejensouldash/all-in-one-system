@@ -3,14 +3,16 @@ import { redirect } from "next/navigation"
 import { getHandover } from "@/app/actions/handover"
 import { WarehouseHandoverReceive } from "@/components/forms/WarehouseHandoverReceive"
 
-export default async function HandoverReceivePage({ params }: { params: { id: string } }) {
+export default async function HandoverReceivePage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session) redirect("/login")
   const user = session.user as any
+  
+  const { id } = await params;
 
-  const response = await getHandover(params.id)
+  const response = await getHandover(id)
   if (!response.success || !response.data) {
-    return <div>Handover not found or error occurred.</div>
+    return <div>Handover not found or error occurred. Error details: {response.error}</div>
   }
 
   return (

@@ -132,7 +132,6 @@ export async function receiveHandover(id: string, signature: string, receiverId:
         receiveDate: new Date(),
         receiveTime: new Date().toLocaleTimeString(),
         receiverName: 'System (Auto Handover)',
-        createdById: receiverId,
         items: {
           create: handover.items
             .filter(item => item.netToWarehousePcs > 0)

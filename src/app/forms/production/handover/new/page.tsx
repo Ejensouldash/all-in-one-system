@@ -9,7 +9,7 @@ export default async function NewHandoverPage() {
   const user = session.user as any
 
   const response = await getEligibleDailyReports()
-  const eligibleReports = response.success ? response.data : []
+  const eligibleReports = response.success && response.data ? response.data : []
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-8">

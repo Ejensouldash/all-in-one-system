@@ -4,7 +4,7 @@ import { useState } from "react"
 import { ArrowLeft, Save, Loader2, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 import { receiveHandover } from "@/app/actions/handover"
-import { ApprovalSignatureModal } from "./ApprovalSignatureModal"
+import { GenericSignatureModal } from "./GenericSignatureModal"
 
 export function WarehouseHandoverReceive({ handover, userId, userName }: { handover: any, userId: string, userName: string }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -125,7 +125,7 @@ export function WarehouseHandoverReceive({ handover, userId, userName }: { hando
       </div>
 
       {isSignModalOpen && (
-        <ApprovalSignatureModal
+        <GenericSignatureModal
           isOpen={isSignModalOpen}
           onClose={() => setIsSignModalOpen(false)}
           onConfirm={handleSignAndReceive}

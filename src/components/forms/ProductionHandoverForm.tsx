@@ -5,7 +5,7 @@ import { useForm, useFieldArray } from "react-hook-form"
 import { ArrowLeft, Save, Loader2, FileCheck2, Plus, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { createHandover } from "@/app/actions/handover"
-import { ApprovalSignatureModal } from "./ApprovalSignatureModal"
+import { GenericSignatureModal } from "./GenericSignatureModal"
 
 export function ProductionHandoverForm({ userId, userName, eligibleReports }: { userId: string, userName: string, eligibleReports: any[] }) {
   const [selectedReportId, setSelectedReportId] = useState("")
@@ -283,7 +283,7 @@ export function ProductionHandoverForm({ userId, userName, eligibleReports }: { 
       </div>
 
       {isSignModalOpen && (
-        <ApprovalSignatureModal
+        <GenericSignatureModal
           isOpen={isSignModalOpen}
           onClose={() => setIsSignModalOpen(false)}
           onConfirm={handleSignAndSubmit}

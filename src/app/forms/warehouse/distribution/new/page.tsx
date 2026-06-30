@@ -14,7 +14,7 @@ export default async function NewDistributionOrderPage() {
 
   return (
     <div className="max-w-4xl">
-      <Link href="/warehouse/distribution" className="inline-flex items-center text-sm font-black uppercase tracking-wider border-2 border-black px-4 py-2 mb-6 hover:bg-black hover:text-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px]">
+      <Link href="/forms/warehouse/distribution" className="inline-flex items-center text-sm font-black uppercase tracking-wider border-2 border-black px-4 py-2 mb-6 hover:bg-black hover:text-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px]">
         <ArrowLeft className="h-4 w-4 mr-2" /> Back to DO List
       </Link>
       

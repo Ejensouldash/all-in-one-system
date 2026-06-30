@@ -21,7 +21,7 @@ const MULTIPLIERS = {
 }
 
 export function TransferInForm({ userName }: { userName: string }) {
-  const { register, control, handleSubmit, watch } = useForm({
+  const { register, control, handleSubmit, watch, setValue } = useForm({
     defaultValues: {
       receiveDate: new Date().toISOString().split('T')[0],
       receiveTime: new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric" }),
@@ -252,6 +252,8 @@ export function TransferInForm({ userName }: { userName: string }) {
                 const isNoMult = cat === "CAP" || cat.includes("LABEL")
                 if (isNoMult) availableMultipliers = []
 
+                const categoryReg = register(`items.${index}.category`)
+
                 return (
                   <div key={field.id} className="flex flex-col md:flex-row md:items-center border-b-[3px] md:border-b-2 border-gray-200 p-5 md:p-2 gap-4 md:gap-2 relative">
                     
@@ -262,7 +264,25 @@ export function TransferInForm({ userName }: { userName: string }) {
 
                     <div className="w-full md:w-[20%] pr-14 md:pr-0">
                       <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">Category</label>
-                      <select {...register(`items.${index}.category`)} className="w-full p-3 md:p-2 border-2 border-gray-300 bg-white font-bold outline-none focus:border-black uppercase text-sm">
+                      <select 
+                        {...categoryReg} 
+                        onChange={(e) => {
+                          categoryReg.onChange(e);
+                          const newCat = e.target.value;
+                          let newMult = MULTIPLIERS.BOTTLE_800[0];
+                          if (newCat === "BOTTLE 425ml") newMult = MULTIPLIERS.BOTTLE_425[0];
+                          if (newCat.includes("BOX") && !newCat.includes("CARTON/BOX")) newMult = MULTIPLIERS.BOX[0];
+                          if (newCat === "CARTON/BOX - CAP") newMult = MULTIPLIERS.CARTON_CAP[0];
+                          if (newCat === "WRAPPING - HAND") newMult = MULTIPLIERS.WRAPPING_HAND[0];
+                          if (newCat === "WRAPPING - MACHINE") newMult = MULTIPLIERS.WRAPPING_MACHINE[0];
+                          if (newCat === "TAPE - OPP") newMult = MULTIPLIERS.TAPE_OPP[0];
+                          if (newCat === "TAPE - MACHINE") newMult = MULTIPLIERS.TAPE_MACHINE[0];
+                          if (newCat === "MACHINE STRETCH FILM") newMult = MULTIPLIERS.MACHINE_STRETCH_FILM[0];
+                          if (newCat.includes("LABEL")) newMult = MULTIPLIERS.LABEL[0];
+                          setValue(`items.${index}.mult`, newMult);
+                        }}
+                        className="w-full p-3 md:p-2 border-2 border-gray-300 bg-white font-bold outline-none focus:border-black uppercase text-sm"
+                      >
                         <option value="BOTTLE 800ml">BOTTLE 800ml</option>
                         <option value="BOTTLE 425ml">BOTTLE 425ml</option>
                         <option value="BOX 800x20">BOX 800ml x 20</option>

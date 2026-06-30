@@ -18,12 +18,12 @@ export default async function NewDistributionOrderPage() {
         <ArrowLeft className="h-4 w-4 mr-2" /> Back to DO List
       </Link>
       
-      <div className="bg-white border-4 border-black p-6 sm:p-10 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative">
-        <div className="absolute -top-4 -right-4 bg-yellow-400 border-4 border-black px-4 py-2 rotate-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-          <span className="font-black uppercase tracking-widest text-sm">Transfer Out</span>
+      <div className="bg-white border-4 border-black p-4 sm:p-10 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] sm:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative">
+        <div className="absolute -top-4 -right-2 sm:-right-4 bg-yellow-400 border-4 border-black px-2 sm:px-4 py-1 sm:py-2 rotate-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-10">
+          <span className="font-black uppercase tracking-widest text-[10px] sm:text-sm">Transfer Out</span>
         </div>
         
-        <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight mb-8">Create Distribution Order</h2>
+        <h2 className="text-xl sm:text-3xl font-black uppercase tracking-tight mb-6 sm:mb-8 pr-16 sm:pr-0">Create Distribution Order</h2>
         
         <CreateDOForm availableInventory={availableInventory} userId={user.id} />
       </div>

@@ -8,8 +8,8 @@ export function GMPHeader({
   documentNumber?: string
 } = {}) {
   return (
-    <div className="w-full bg-white mb-8">
-      <table className="w-full border-collapse border-2 border-black text-xs md:text-sm text-black font-sans bg-white">
+    <div className="w-full bg-white mb-8 overflow-x-auto">
+      <table className="w-full min-w-[800px] border-collapse border-2 border-black text-xs md:text-sm text-black font-sans bg-white">
         <tbody>
           <tr>
             <td className="border-2 border-black p-4 text-center w-[20%]">

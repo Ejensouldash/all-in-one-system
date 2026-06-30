@@ -82,12 +82,13 @@ export default async function WarehouseDashboard() {
                 <th scope="col" className="px-6 py-4 text-center text-xs font-black text-gray-500 uppercase tracking-wider">Total In</th>
                 <th scope="col" className="px-6 py-4 text-center text-xs font-black text-gray-500 uppercase tracking-wider">Total Out</th>
                 <th scope="col" className="px-6 py-4 text-right text-xs font-black text-emerald-700 uppercase tracking-wider bg-emerald-50">Available</th>
+                <th scope="col" className="px-6 py-4 text-center text-xs font-black text-gray-500 uppercase tracking-wider">Action</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {inventoryBatches.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-sm font-medium text-gray-500">
+                  <td colSpan={6} className="px-6 py-8 text-center text-sm font-medium text-gray-500">
                     No active inventory found.
                   </td>
                 </tr>
@@ -99,6 +100,14 @@ export default async function WarehouseDashboard() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-500 text-center">{batch.totalQtyIn}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-amber-600 text-center">{batch.totalQtyOut}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-lg font-black text-emerald-700 text-right bg-emerald-50/30">{batch.availableBalance}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <Link 
+                        href={`/forms/warehouse/inventory/qr?batch=${batch.batchNumber}&sku=${batch.sku}`}
+                        className="inline-block bg-black text-white text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded hover:bg-gray-800 transition-colors border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px]"
+                      >
+                        Print QR
+                      </Link>
+                    </td>
                   </tr>
                 ))
               )}

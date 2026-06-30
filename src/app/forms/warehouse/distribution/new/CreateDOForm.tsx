@@ -3,8 +3,9 @@
 import { useState } from "react"
 import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { createDistributionOrder } from "@/app/actions/warehouse"
-import { Loader2, Plus, Trash2, Save, FileText, Truck, MapPin } from "lucide-react"
+import { Loader2, Plus, Trash2, Save, FileText, Truck, MapPin, QrCode } from "lucide-react"
 import { GMPHeader } from "@/components/GMPHeader"
+import { QRScannerModal } from "@/components/forms/QRScannerModal"
 
 const DISTRIBUTION_METHODS = [
   "Logistic",
@@ -25,7 +26,9 @@ const SKU_CONFIG = [
 
 export function CreateDOForm({ availableInventory, userId }: { availableInventory: any[], userId: string }) {
   const [loading, setLoading] = useState(false)
-  const { register, control, handleSubmit, watch, formState: { errors } } = useForm({
+  const [isScannerOpen, setIsScannerOpen] = useState(false)
+  
+  const { register, control, handleSubmit, watch, setValue, getValues, formState: { errors } } = useForm<any>({
     defaultValues: {
       distributionDate: new Date().toISOString().slice(0, 10),
       destination: "",
@@ -40,6 +43,35 @@ export function CreateDOForm({ availableInventory, userId }: { availableInventor
   // Watch top-level fields
   const watchMethod = watch("distributionMethod")
   const watchItems = watch("items")
+
+  const handleScan = (decodedText: string) => {
+    const batchNumber = decodedText.trim()
+    const batchData = availableInventory.find((b: any) => b.batchNumber === batchNumber)
+    
+    if (!batchData) {
+      alert(`Batch ${batchNumber} not found in active inventory!`)
+      return
+    }
+
+    const skuIndex = SKU_CONFIG.findIndex(s => s.id === batchData.sku)
+    if (skuIndex === -1) {
+      alert(`SKU ${batchData.sku} is not configured in this form.`)
+      return
+    }
+
+    const currentBatches = getValues(`items.${skuIndex}.batches`) || []
+    
+    if (currentBatches.some((b: any) => b.batchNumber === batchNumber)) {
+      alert(`Batch ${batchNumber} is already added to the list!`)
+      setIsScannerOpen(false)
+      return
+    }
+
+    setValue(`items.${skuIndex}.batches`, [...currentBatches, { batchNumber: batchNumber, qtySent: "" }], { shouldDirty: true, shouldValidate: true })
+    
+    alert(`Batch ${batchNumber} added successfully! Please enter quantity.`)
+    setIsScannerOpen(false)
+  }
 
   const onSubmit = async (data: any) => {
     setLoading(true)
@@ -140,9 +172,18 @@ export function CreateDOForm({ availableInventory, userId }: { availableInventor
 
       {/* SECTION B: ITEM SELECTION */}
       <div className="bg-white p-6 border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-        <h2 className="text-xl font-black uppercase tracking-tight mb-6 flex items-center border-b-2 border-black pb-3">
-          <FileText className="mr-3 w-6 h-6" /> 2. Items & Batch Selection
-        </h2>
+        <div className="flex justify-between items-end border-b-2 border-black pb-3 mb-6">
+          <h2 className="text-xl font-black uppercase tracking-tight flex items-center">
+            <FileText className="mr-3 w-6 h-6" /> 2. Items & Batch Selection
+          </h2>
+          <button 
+            type="button"
+            onClick={() => setIsScannerOpen(true)}
+            className="flex items-center bg-indigo-600 text-white px-4 py-2 font-black uppercase text-sm rounded border-2 border-indigo-900 shadow-[2px_2px_0px_0px_rgba(30,27,75,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px] transition-all"
+          >
+            <QrCode className="w-5 h-5 mr-2" /> Scan QR
+          </button>
+        </div>
         
         <div className="space-y-6">
           {SKU_CONFIG.map((skuConf, skuIndex) => (
@@ -174,6 +215,12 @@ export function CreateDOForm({ availableInventory, userId }: { availableInventor
         {loading ? "Processing..." : "Generate Distribution Order (DO)"}
       </button>
     </form>
+    
+      <QRScannerModal 
+        isOpen={isScannerOpen} 
+        onClose={() => setIsScannerOpen(false)} 
+        onScan={handleScan} 
+      />
     </div>
   )
 }

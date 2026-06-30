@@ -29,9 +29,10 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
   // Aggregate items by SKU and Batch
   const aggregatedItems: Record<string, { qty: number, sku: string, batchNo: string }> = {}
   doOrder.items.forEach((item: any) => {
-    const key = `${item.sku}_${item.batchNo}`
+    const batch = item.batchNumber || item.batchNo || 'N/A'
+    const key = `${item.sku}_${batch}`
     if (!aggregatedItems[key]) {
-      aggregatedItems[key] = { qty: 0, sku: item.sku, batchNo: item.batchNo }
+      aggregatedItems[key] = { qty: 0, sku: item.sku, batchNo: batch }
     }
     aggregatedItems[key].qty += item.qtySent
   })

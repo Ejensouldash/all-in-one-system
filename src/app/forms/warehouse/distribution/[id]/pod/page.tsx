@@ -26,10 +26,14 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
     </div>
   )
 
-  // Aggregate items by SKU (Blind Batching)
-  const aggregatedItems: Record<string, number> = {}
+  // Aggregate items by SKU and Batch
+  const aggregatedItems: Record<string, { qty: number, sku: string, batchNo: string }> = {}
   doOrder.items.forEach((item: any) => {
-    aggregatedItems[item.sku] = (aggregatedItems[item.sku] || 0) + item.qtySent
+    const key = `${item.sku}_${item.batchNo}`
+    if (!aggregatedItems[key]) {
+      aggregatedItems[key] = { qty: 0, sku: item.sku, batchNo: item.batchNo }
+    }
+    aggregatedItems[key].qty += item.qtySent
   })
 
   const labels: Record<string, string> = {
@@ -39,7 +43,7 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
     "p800_20": "BUBBLES O2 Mineral Water 800 ML x 20",
   }
 
-  const totalBoxes = Object.values(aggregatedItems).reduce((a, b) => a + b, 0)
+  const totalBoxes = Object.values(aggregatedItems).reduce((a, item) => a + item.qty, 0)
   const dateStr = new Date(doOrder.distributionDate).toLocaleDateString('en-GB', {
     day: '2-digit', month: 'long', year: 'numeric'
   })
@@ -277,9 +281,9 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
         /* SIGNATURE SECTION */
         .sig-section {
           display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-          margin-top: 28px;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 16px;
+          margin-top: 24px;
         }
         .sig-box {
           border: 1px solid #d1dbe8;
@@ -539,11 +543,11 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
                 </tr>
               </thead>
               <tbody>
-                {Object.entries(aggregatedItems).map(([sku, qty], idx) => (
-                  <tr key={sku}>
+                {Object.values(aggregatedItems).map((item, idx) => (
+                  <tr key={`${item.sku}_${item.batchNo}`}>
                     <td style={{ textAlign: 'center', color: '#4a6080', fontWeight: 600 }}>{idx + 1}</td>
-                    <td>{labels[sku] || sku}</td>
-                    <td className="qty-col">{qty as React.ReactNode}</td>
+                    <td>{labels[item.sku] || item.sku} - {item.batchNo}</td>
+                    <td className="qty-col">{item.qty as React.ReactNode}</td>
                   </tr>
                 ))}
                 {Object.entries(aggregatedItems).length === 0 && (
@@ -582,6 +586,15 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
                 <div>
                   <div className="sig-name-line">Name &amp; Signature</div>
                   <div className="sig-name-sub">{doOrder.createdBy?.name}</div>
+                </div>
+              </div>
+
+              <div className="sig-box">
+                <span className="sig-box-label">Transporter / Driver</span>
+                <div style={{ flex: 1, minHeight: 60 }} />
+                <div>
+                  <div className="sig-name-line">Name &amp; Signature / Lorry No</div>
+                  <div className="sig-name-sub">{doOrder.driverName || '\u00A0'} / {doOrder.vehicleNo || '\u00A0'}</div>
                 </div>
               </div>
 

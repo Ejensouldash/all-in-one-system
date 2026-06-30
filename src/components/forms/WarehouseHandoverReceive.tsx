@@ -23,7 +23,7 @@ export function WarehouseHandoverReceive({ handover, userId, userName }: { hando
 
     if (result.success) {
       alert("Handover received successfully! The inventory has been updated.")
-      window.location.href = "/forms/warehouse"
+      window.location.href = "/forms/warehouse/dashboard"
     } else {
       alert("Error: " + result.error)
     }
@@ -35,7 +35,7 @@ export function WarehouseHandoverReceive({ handover, userId, userName }: { hando
     <div className="bg-white border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] mb-12">
       <div className="border-b-[3px] border-black p-6 bg-emerald-50 flex flex-col md:flex-row justify-between items-start md:items-center">
         <div>
-          <Link href="/forms/warehouse" className="inline-flex items-center text-sm font-black uppercase tracking-wider border-2 border-black px-4 py-2 mb-6 hover:bg-black hover:text-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px]">
+          <Link href="/forms/warehouse/dashboard" className="inline-flex items-center text-sm font-black uppercase tracking-wider border-2 border-black px-4 py-2 mb-6 hover:bg-black hover:text-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px]">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Link>
           <div className="flex items-center">

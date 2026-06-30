@@ -3,6 +3,12 @@ import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { AlertOctagon, Plus } from "lucide-react"
 import Link from "next/link"
+import { RestockButton } from "@/components/forms/RestockButton"
+
+function formatSKU(sku: string) {
+  if (!sku) return sku;
+  return sku.replace('p800_', '800ml x ').replace('p425_', '425ml x ').toUpperCase();
+}
 
 export default async function QuarantinePage() {
   const session = await auth()
@@ -48,9 +54,9 @@ export default async function QuarantinePage() {
               </tr>
             ) : (
               returns.map((ret) => (
-                <tr key={ret.id} className="hover:bg-red-50/50">
+                <tr key={ret.id} className={`hover:bg-red-50/50 ${ret.status === "RESTOCKED" ? 'opacity-60 bg-gray-50' : ''}`}>
                   <td className="px-6 py-4 whitespace-nowrap font-black text-blue-700">
-                    <Link href={`/warehouse/distribution/${ret.distributionOrderId}/pod`} className="hover:underline">
+                    <Link href={`/forms/warehouse/distribution/${ret.distributionOrderId}/pod`} className="hover:underline">
                       {ret.distributionOrder.doNumber}
                     </Link>
                   </td>
@@ -58,7 +64,7 @@ export default async function QuarantinePage() {
                     {new Date(ret.loggedAt).toLocaleDateString('en-GB')}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <p className="text-sm font-black text-gray-900">{ret.sku}</p>
+                    <p className="text-sm font-black text-gray-900">{formatSKU(ret.sku)}</p>
                     <p className="text-[10px] font-bold text-gray-500 uppercase">{ret.batchNumber}</p>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center text-lg font-black text-red-600">
@@ -68,9 +74,19 @@ export default async function QuarantinePage() {
                     {ret.reason.replace("_", " ")}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <span className="px-3 py-1 inline-flex text-[10px] leading-5 font-black uppercase rounded border border-red-500 bg-red-100 text-red-800 animate-pulse">
-                      {ret.status}
-                    </span>
+                    <div className="flex flex-col items-center justify-center">
+                      <span className={`px-3 py-1 inline-flex text-[10px] leading-5 font-black uppercase rounded border ${ret.status === 'RESTOCKED' ? 'border-emerald-500 bg-emerald-100 text-emerald-800' : 'border-red-500 bg-red-100 text-red-800 animate-pulse'}`}>
+                        {ret.status}
+                      </span>
+                      {ret.status === "QUARANTINE" && (
+                        <RestockButton returnId={ret.id} userName={session.user?.name || "Warehouse Staff"} />
+                      )}
+                      {ret.status === "RESTOCKED" && ret.restockedAt && (
+                        <span className="text-[10px] font-bold text-emerald-600 mt-1">
+                          by {ret.restockedBy} on {new Date(ret.restockedAt).toLocaleDateString('en-GB')}
+                        </span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))

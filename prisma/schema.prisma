@@ -374,6 +374,10 @@ model GoodsReturnNote {
   reason              ReturnReason
   status              ReturnStatus      @default(QUARANTINE)
   loggedAt            DateTime          @default(now())
+  restockedAt         DateTime?
+  restockedBy         String?
+  restockedSignature  String?
+  restockedReason     String?
   distributionOrder   DistributionOrder @relation(fields: [distributionOrderId], references: [id], onDelete: Cascade)
 }
 
@@ -431,4 +435,5 @@ enum ReturnStatus {
   QUARANTINE
   SCRAP
   REPACKED
+  RESTOCKED
 }

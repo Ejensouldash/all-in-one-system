@@ -179,3 +179,50 @@ export async function getAvailableInventory() {
     orderBy: { batchNumber: 'asc' }
   })
 }
+
+export async function restockQuarantineItem(data: { id: string, signature: string, reason: string, staffName: string }) {
+  try {
+    const returnNote = await prisma.goodsReturnNote.findUnique({
+      where: { id: data.id }
+    })
+    
+    if (!returnNote) throw new Error("Item not found")
+    if (returnNote.status !== "QUARANTINE") throw new Error("Item is not in quarantine")
+
+    await prisma.$transaction(async (tx) => {
+      // Update Return Note
+      await tx.goodsReturnNote.update({
+        where: { id: data.id },
+        data: {
+          status: "RESTOCKED",
+          restockedAt: new Date(),
+          restockedBy: data.staffName,
+          restockedSignature: data.signature,
+          restockedReason: data.reason
+        }
+      })
+
+      // Add back to inventory (totalQtyIn and availableBalance)
+      await tx.inventoryBatch.upsert({
+        where: { batchNumber: returnNote.batchNumber },
+        create: {
+          batchNumber: returnNote.batchNumber,
+          sku: returnNote.sku,
+          totalQtyIn: returnNote.qtyReturned,
+          availableBalance: returnNote.qtyReturned
+        },
+        update: {
+          totalQtyIn: { increment: returnNote.qtyReturned },
+          availableBalance: { increment: returnNote.qtyReturned }
+        }
+      })
+    })
+
+    revalidatePath("/forms/warehouse/quarantine")
+    revalidatePath("/forms/warehouse/dashboard")
+    return { success: true }
+  } catch (error: any) {
+    console.error("Failed to restock quarantine item:", error)
+    return { success: false, error: error.message }
+  }
+}

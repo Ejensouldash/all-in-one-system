@@ -3,11 +3,16 @@
 import { useState, useEffect } from "react"
 import { getDailyDistributionReport } from "@/app/actions/warehouse-reports"
 import { GMPHeader } from "@/components/GMPHeader"
+import { GenericSignatureModal } from "@/components/forms/GenericSignatureModal"
+import * as XLSX from "xlsx"
 
 export default function DailyReportPage() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [reportData, setReportData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [isSignModalOpen, setIsSignModalOpen] = useState(false)
+  const [signature, setSignature] = useState<string | null>(null)
+  const [pendingAction, setPendingAction] = useState<'print' | 'excel' | null>(null)
 
   useEffect(() => {
     fetchData()
@@ -46,6 +51,49 @@ export default function DailyReportPage() {
     })
   })
 
+  const handleAction = (action: 'print' | 'excel') => {
+    if (signature) {
+      executeAction(action)
+    } else {
+      setPendingAction(action)
+      setIsSignModalOpen(true)
+    }
+  }
+
+  const handleSignatureConfirm = async (sigData: string) => {
+    setSignature(sigData)
+    setIsSignModalOpen(false)
+    if (pendingAction) {
+      executeAction(pendingAction)
+      setPendingAction(null)
+    }
+  }
+
+  const executeAction = (action: 'print' | 'excel') => {
+    if (action === 'print') {
+      setTimeout(() => window.print(), 100)
+    } else if (action === 'excel') {
+      exportToExcel()
+    }
+  }
+
+  const exportToExcel = () => {
+    const ws = XLSX.utils.json_to_sheet(rows.map((r, i) => ({
+      "NO": i + 1,
+      "DO NUMBER": r.doNumber,
+      "DESTINATION": r.destination,
+      "METHOD": r.method,
+      "VEHICLE NO": r.vehicleNo || "-",
+      "BATCH NO": r.batchNumber,
+      "QUANTITY (PCS)": r.qty,
+      "SKU": r.sku,
+      "PREPARED BY": r.preparedBy
+    })))
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Daily Report")
+    XLSX.writeFile(wb, `Daily_Distribution_Report_${date}.xlsx`)
+  }
+
   return (
     <div className="bg-white min-h-screen text-black p-4 sm:p-8 font-sans print:p-0 print:bg-white max-w-7xl mx-auto">
       <div className="print:hidden mb-6 flex items-center justify-between">
@@ -61,10 +109,16 @@ export default function DailyReportPage() {
             className="border-2 border-gray-300 p-2 font-bold focus:border-blue-500 outline-none"
           />
           <button 
-            onClick={() => window.print()}
+            onClick={() => handleAction('excel')}
+            className="bg-green-600 text-white px-6 py-2 font-bold uppercase hover:bg-green-800 transition-colors"
+          >
+            Export Excel
+          </button>
+          <button 
+            onClick={() => handleAction('print')}
             className="bg-black text-white px-6 py-2 font-bold uppercase hover:bg-gray-800 transition-colors"
           >
-            Print
+            Print PDF
           </button>
         </div>
       </div>
@@ -133,7 +187,27 @@ export default function DailyReportPage() {
             </tbody>
           </table>
         )}
+
+        {signature && (
+          <div className="hidden print:block mt-20 pt-8 border-t-2 border-black w-64 text-center">
+            <img src={signature} alt="Signature" className="h-16 mx-auto mb-2 object-contain" />
+            <div className="font-bold uppercase">Approved By</div>
+            <div className="text-xs mt-1 text-gray-600">Authorized Personnel</div>
+          </div>
+        )}
       </div>
+
+      <GenericSignatureModal
+        isOpen={isSignModalOpen}
+        onClose={() => {
+          setIsSignModalOpen(false)
+          setPendingAction(null)
+        }}
+        onConfirm={handleSignatureConfirm}
+        userName="Authorized Personnel"
+        role="Warehouse Approver"
+        title="Approve Daily Report"
+      />
     </div>
   )
 }

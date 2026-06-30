@@ -119,9 +119,54 @@ export async function getMonthlyDistributionReport(month: number, year: number) 
       // e) Balance Carry Forward
       const balanceCarryForward = balanceOpening + transferIn - transferOut
 
+      // f) Dates
+      let dateValue = new Date(year, month - 1, 1);
+      if (transfersDuringMonth.length > 0 && transfersDuringMonth[0].receivedAt) {
+        dateValue = transfersDuringMonth[0].receivedAt;
+      } else if (doItemsDuringMonth.length > 0 && doItemsDuringMonth[0].distributionOrder.distributionDate) {
+        dateValue = doItemsDuringMonth[0].distributionOrder.distributionDate;
+      } else if (openingStock && openingStock.createdAt) {
+        dateValue = openingStock.createdAt;
+      }
+
+      // Calculate Production Date from Batch No
+      let productionDate = "-";
+      const match = batchNumber.match(/^(\d{2})(\d{2})(\d{2})/);
+      if (match) {
+        const d = parseInt(match[1]);
+        const w = parseInt(match[2]);
+        const y = 2000 + parseInt(match[3]);
+        if (d >= 1 && d <= 7 && w >= 1 && w <= 53) {
+          try {
+            // First calculate Jan 1 of that year
+            const jan1 = new Date(y, 0, 1);
+            // Calculate days to add: (w - 1) * 7 + (d - 1)
+            // But ISO week 1 starts on Monday. So let's use a simpler approach:
+            // "Minggu daripada 1 Jan". If Jan 1 is in week 1.
+            const jan1Day = jan1.getDay();
+            const jan1Offset = jan1Day === 0 ? 7 : jan1Day; // 1 (Mon) - 7 (Sun)
+            
+            // Start of week 1 (Monday)
+            const startOfWeek1 = new Date(y, 0, 1 - jan1Offset + 1);
+            
+            // Add weeks and days
+            const targetDate = new Date(startOfWeek1);
+            targetDate.setDate(targetDate.getDate() + (w - 1) * 7 + (d - 1));
+            
+            productionDate = `${targetDate.getDate().toString().padStart(2, '0')}/${(targetDate.getMonth() + 1).toString().padStart(2, '0')}/${targetDate.getFullYear()}`;
+          } catch (e) {
+            productionDate = "-";
+          }
+        }
+      }
+
+      const formattedDate = `${dateValue.getDate().toString().padStart(2, '0')}/${(dateValue.getMonth() + 1).toString().padStart(2, '0')}/${dateValue.getFullYear()}`;
+
       // Only include if there's any activity or balance for this batch in this month
       if (balanceOpening > 0 || transferIn > 0 || transferOut > 0 || balanceCarryForward > 0) {
         reportData.push({
+          date: formattedDate,
+          productionDate,
           sku,
           batchNumber,
           balanceOpening,
@@ -131,6 +176,17 @@ export async function getMonthlyDistributionReport(month: number, year: number) 
         })
       }
     }
+
+    // Sort report data by date, then by batch number
+    reportData.sort((a, b) => {
+      // Compare by date first (simple string comparison works for dd/mm/yyyy if we split, better to compare the Date objects)
+      const aParts = a.date.split('/');
+      const bParts = b.date.split('/');
+      const aDate = new Date(parseInt(aParts[2]), parseInt(aParts[1]) - 1, parseInt(aParts[0])).getTime();
+      const bDate = new Date(parseInt(bParts[2]), parseInt(bParts[1]) - 1, parseInt(bParts[0])).getTime();
+      if (aDate !== bDate) return aDate - bDate;
+      return a.batchNumber.localeCompare(b.batchNumber);
+    });
 
     return { success: true, data: reportData }
   } catch (error) {

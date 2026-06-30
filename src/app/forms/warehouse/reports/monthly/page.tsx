@@ -68,11 +68,13 @@ export default function MonthlyReportPage() {
   const exportToExcel = () => {
     const ws = XLSX.utils.json_to_sheet(reportData.map((r, i) => ({
       "NO": i + 1,
-      "TYPE OF FINISHED GOODS": skuLabels[r.sku] || r.sku,
+      "DATE": r.date,
+      "PRODUCT TYPE": skuLabels[r.sku] || r.sku,
       "BATCH NO": r.batchNumber,
-      "BALANCE OPENING": r.balanceOpening,
-      "TRANSFER IN (Production)": r.transferIn,
-      "TRANSFER OUT (DO)": r.transferOut,
+      "PRODUCTION DATE": r.productionDate,
+      "BALANCE IN WAREHOUSE": r.balanceOpening,
+      "TRANSFER IN": r.transferIn,
+      "TRANSFER OUT": r.transferOut,
       "BALANCE CARRY FORWARD": r.balanceCarryForward
     })))
     const wb = XLSX.utils.book_new()
@@ -146,29 +148,33 @@ export default function MonthlyReportPage() {
             <thead>
               <tr className="bg-gray-100">
                 <th className="border border-black p-2 font-bold w-12">NO</th>
-                <th className="border border-black p-2 font-bold">TYPE OF FINISHED GOODS</th>
+                <th className="border border-black p-2 font-bold w-20">DATE</th>
+                <th className="border border-black p-2 font-bold">PRODUCT TYPE</th>
                 <th className="border border-black p-2 font-bold">BATCH NO</th>
-                <th className="border border-black p-2 font-bold bg-blue-50">BALANCE OPENING</th>
-                <th className="border border-black p-2 font-bold bg-green-50">TRANSFER IN (Production)</th>
-                <th className="border border-black p-2 font-bold bg-orange-50">TRANSFER OUT (DO)</th>
-                <th className="border border-black p-2 font-bold bg-purple-50">BALANCE CARRY FORWARD</th>
+                <th className="border border-black p-2 font-bold">PRODUCTION DATE</th>
+                <th className="border border-black p-2 font-bold">BALANCE IN WAREHOUSE</th>
+                <th className="border border-black p-2 font-bold">TRANSFER IN</th>
+                <th className="border border-black p-2 font-bold">TRANSFER OUT</th>
+                <th className="border border-black p-2 font-bold">BALANCE CARRY FORWARD</th>
               </tr>
             </thead>
             <tbody>
-              {reportData.map((r, i) => (
-                <tr key={i}>
-                  <td className="border border-black p-2 text-center">{i + 1}</td>
-                  <td className="border border-black p-2 text-center font-bold uppercase">{skuLabels[r.sku] || r.sku}</td>
-                  <td className="border border-black p-2 text-center font-bold">{r.batchNumber}</td>
-                  <td className="border border-black p-2 text-center font-bold bg-blue-50/50">{r.balanceOpening}</td>
-                  <td className="border border-black p-2 text-center font-bold text-green-700 bg-green-50/50">+{r.transferIn}</td>
-                  <td className="border border-black p-2 text-center font-bold text-orange-700 bg-orange-50/50">-{r.transferOut}</td>
-                  <td className="border border-black p-2 text-center font-black text-lg bg-purple-50/50">{r.balanceCarryForward}</td>
+              {reportData.map((row, index) => (
+                <tr key={index}>
+                  <td className="border border-black p-2 text-center">{index + 1}</td>
+                  <td className="border border-black p-2 text-center font-bold">{row.date}</td>
+                  <td className="border border-black p-2 text-center font-bold uppercase">{skuLabels[row.sku] || row.sku}</td>
+                  <td className="border border-black p-2 text-center font-bold uppercase">{row.batchNumber}</td>
+                  <td className="border border-black p-2 text-center">{row.productionDate}</td>
+                  <td className="border border-black p-2 text-center font-bold">{row.balanceOpening}</td>
+                  <td className="border border-black p-2 text-center font-bold text-emerald-600">+{row.transferIn}</td>
+                  <td className="border border-black p-2 text-center font-bold text-red-600">-{row.transferOut}</td>
+                  <td className="border border-black p-2 text-center font-bold text-lg">{row.balanceCarryForward}</td>
                 </tr>
               ))}
               {reportData.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="border border-black p-6 text-center italic text-gray-500">
+                  <td colSpan={9} className="border border-black p-6 text-center italic text-gray-500">
                     No data for this month. Set opening stock if this is the first month.
                   </td>
                 </tr>

@@ -145,7 +145,7 @@ export function ProductionHandoverForm({ userId, userName, eligibleReports }: { 
                 <option value="">-- Select Report --</option>
                 {eligibleReports.map((r: any) => (
                   <option key={r.id} value={r.id}>
-                    {new Date(r.createdAt).toLocaleDateString('en-GB')} - {r.createdBy.name}
+                    {r.time || 'N/A'} | {new Date(r.date).toLocaleDateString('en-GB')} | Line {r.line}
                   </option>
                 ))}
               </select>
@@ -181,7 +181,7 @@ export function ProductionHandoverForm({ userId, userName, eligibleReports }: { 
                     {/* Item Header */}
                     <div className="bg-gray-50 p-4 border-b-2 border-gray-200 flex flex-col md:flex-row justify-between md:items-center gap-4">
                       <div>
-                        <span className="text-xs font-black uppercase text-gray-500 tracking-wider">Category</span>
+                        <span className="text-xs font-black uppercase text-gray-500 tracking-wider">SKU</span>
                         <div className="font-black text-lg">{item.category}</div>
                       </div>
                       <div>

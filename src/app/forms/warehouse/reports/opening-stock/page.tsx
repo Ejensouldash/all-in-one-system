@@ -12,6 +12,10 @@ export default function Page() {
     </SessionProvider>
   )
 }
+function formatSKU(sku: string) {
+  if (!sku) return sku;
+  return sku.replace('p800_', '800ml x ').replace('p425_', '425ml x ').toUpperCase();
+}
 
 function OpeningStockPage() {
   const { data: session } = useSession()
@@ -91,10 +95,10 @@ function OpeningStockPage() {
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase mb-1">SKU</label>
               <select value={sku} onChange={e => setSku(e.target.value)} className="w-full border-2 border-gray-300 p-2 font-bold focus:border-emerald-500 outline-none">
-                <option value="p425_24">425ml x 24</option>
-                <option value="p425_6">425ml x 6</option>
-                <option value="p800_12">800ml x 12</option>
-                <option value="p800_20">800ml x 20</option>
+                <option value="p425_24">425ML X 24</option>
+                <option value="p425_6">425ML X 6</option>
+                <option value="p800_12">800ML X 12</option>
+                <option value="p800_20">800ML X 20</option>
               </select>
             </div>
 
@@ -141,13 +145,13 @@ function OpeningStockPage() {
                 </tr>
               </thead>
               <tbody>
-                {stocks.map(s => (
-                  <tr key={s.id} className="hover:bg-gray-50">
-                    <td className="border border-gray-300 p-2 font-bold">{s.month}/{s.year}</td>
-                    <td className="border border-gray-300 p-2 font-bold">{s.batchNumber}</td>
-                    <td className="border border-gray-300 p-2">{s.sku}</td>
-                    <td className="border border-gray-300 p-2 text-right font-bold text-emerald-700">{s.openingQty}</td>
-                    <td className="border border-gray-300 p-2">{s.setBy?.name}</td>
+                {stocks.map(stock => (
+                  <tr key={stock.id} className="hover:bg-gray-50">
+                    <td className="border border-gray-300 p-2">{stock.month}/{stock.year}</td>
+                    <td className="border border-gray-300 p-2 font-bold uppercase">{stock.batchNumber}</td>
+                    <td className="border border-gray-300 p-2">{formatSKU(stock.sku)}</td>
+                    <td className="border border-gray-300 p-2 text-right font-bold text-emerald-700">{stock.openingQty}</td>
+                    <td className="border border-gray-300 p-2">{stock.setBy?.name || 'Unknown'}</td>
                   </tr>
                 ))}
                 {stocks.length === 0 && (

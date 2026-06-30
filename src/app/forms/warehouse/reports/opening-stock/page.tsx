@@ -65,7 +65,7 @@ function OpeningStockPage() {
     setSubmitting(false)
   }
 
-  const isSuperadmin = session?.user?.role === "SUPERADMIN" || session?.user?.role === "ADMIN"
+  const isSuperadmin = session?.user?.role === "SUPERADMIN" || session?.user?.role === "ADMIN" || session?.user?.email === "dina@bubbleso2.com"
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -76,7 +76,7 @@ function OpeningStockPage() {
 
       {!isSuperadmin ? (
         <div className="bg-red-50 text-red-700 p-4 rounded-md font-bold border border-red-200">
-          Only Superadmin or Admin can set opening stocks.
+          Only Superadmin, Admin, or authorized personnel can set opening stocks.
         </div>
       ) : (
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">

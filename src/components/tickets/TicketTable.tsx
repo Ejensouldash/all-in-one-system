@@ -5,23 +5,7 @@ import Link from "next/link"
 import { Clock, CheckCircle2, AlertCircle, Eye, Edit3, Timer } from "lucide-react"
 import { TicketViewModal } from "./TicketViewModal"
 
-function getSLAStatus(ticket: any) {
-  if (ticket.status === 'RESOLVED') return { text: "Met", color: "text-emerald-600 bg-emerald-50", breached: false }
-  if (!ticket.slaDeadline) return { text: "No SLA", color: "text-gray-500 bg-gray-50", breached: false }
 
-  const now = new Date()
-  const deadline = new Date(ticket.slaDeadline)
-  const isBreached = now > deadline
-
-  if (isBreached) {
-    return { text: "BREACHED", color: "text-red-700 bg-red-100 border border-red-300 font-bold animate-pulse", breached: true }
-  } else {
-    const diff = deadline.getTime() - now.getTime()
-    const hours = Math.floor(diff / (1000 * 60 * 60))
-    if (hours < 1) return { text: "< 1h left", color: "text-orange-700 bg-orange-100 font-bold", breached: false }
-    return { text: `${hours}h left`, color: "text-blue-600 bg-blue-50", breached: false }
-  }
-}
 
 export function TicketTable({ tickets, isSuperAdmin }: { tickets: any[], isSuperAdmin: boolean }) {
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null)
@@ -37,10 +21,7 @@ export function TicketTable({ tickets, isSuperAdmin }: { tickets: any[], isSuper
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 {isSuperAdmin && (
-                  <>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SLA Status</th>
-                  </>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
                 )}
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requester</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
@@ -53,9 +34,8 @@ export function TicketTable({ tickets, isSuperAdmin }: { tickets: any[], isSuper
                   <td colSpan={8} className="px-6 py-12 text-center text-gray-500 bg-gray-50/30">No tickets found.</td>
                 </tr>
               ) : tickets.map((ticket) => {
-                const sla = getSLAStatus(ticket)
                 return (
-                <tr key={ticket.id} className={`transition-colors ${sla.breached ? 'bg-red-50/30 hover:bg-red-50' : 'hover:bg-gray-50'}`}>
+                <tr key={ticket.id} className="transition-colors hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="text-gray-900 font-bold tracking-wide text-sm bg-gray-100 px-2.5 py-1.5 rounded-lg border border-gray-200">
                       BO2-IT-{ticket.ticketNumber.toString().padStart(4, '0')}
@@ -81,15 +61,7 @@ export function TicketTable({ tickets, isSuperAdmin }: { tickets: any[], isSuper
                     </span>
                   </td>
                   {isSuperAdmin && (
-                    <>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">{ticket.priority}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs tracking-wide ${sla.color}`}>
-                          {sla.breached && <Timer className="mr-1 h-3 w-3" />}
-                          {sla.text}
-                        </span>
-                      </td>
-                    </>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">{ticket.priority}</td>
                   )}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{ticket.requesterName || ticket.createdBy?.name || "Unknown"}</div>

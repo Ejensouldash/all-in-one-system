@@ -151,26 +151,61 @@ export async function setOpeningStock(data: { batchNumber: string, sku: string, 
     })
 
     if (existing) {
-      // Update
-      await prisma.warehouseOpeningStock.update({
-        where: { id: existing.id },
-        data: {
-          openingQty: data.openingQty,
-          sku: data.sku,
-          setById: data.userId
-        }
+      const diff = data.openingQty - existing.openingQty;
+      await prisma.$transaction(async (tx) => {
+        // Update
+        await tx.warehouseOpeningStock.update({
+          where: { id: existing.id },
+          data: {
+            openingQty: data.openingQty,
+            sku: data.sku,
+            setById: data.userId
+          }
+        })
+        
+        // Update live inventory
+        await tx.inventoryBatch.upsert({
+          where: { batchNumber: data.batchNumber },
+          create: {
+            batchNumber: data.batchNumber,
+            sku: data.sku,
+            totalQtyIn: data.openingQty,
+            availableBalance: data.openingQty
+          },
+          update: {
+            totalQtyIn: { increment: diff },
+            availableBalance: { increment: diff }
+          }
+        })
       })
     } else {
-      // Create
-      await prisma.warehouseOpeningStock.create({
-        data: {
-          batchNumber: data.batchNumber,
-          sku: data.sku,
-          openingQty: data.openingQty,
-          month: data.month,
-          year: data.year,
-          setById: data.userId
-        }
+      await prisma.$transaction(async (tx) => {
+        // Create
+        await tx.warehouseOpeningStock.create({
+          data: {
+            batchNumber: data.batchNumber,
+            sku: data.sku,
+            openingQty: data.openingQty,
+            month: data.month,
+            year: data.year,
+            setById: data.userId
+          }
+        })
+        
+        // Add to live inventory
+        await tx.inventoryBatch.upsert({
+          where: { batchNumber: data.batchNumber },
+          create: {
+            batchNumber: data.batchNumber,
+            sku: data.sku,
+            totalQtyIn: data.openingQty,
+            availableBalance: data.openingQty
+          },
+          update: {
+            totalQtyIn: { increment: data.openingQty },
+            availableBalance: { increment: data.openingQty }
+          }
+        })
       })
     }
     

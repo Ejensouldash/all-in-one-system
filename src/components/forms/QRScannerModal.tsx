@@ -16,16 +16,15 @@ export function QRScannerModal({
   const [error, setError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
   const scannerRef = useRef<Html5Qrcode | null>(null)
+  const isScanned = useRef(false)
   
   useEffect(() => {
     if (!isOpen) {
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(console.error)
-        scannerRef.current.clear()
-        scannerRef.current = null
-      }
       return
     }
+
+    isScanned.current = false
+    let isMounted = true
 
     const initScanner = async () => {
       setIsStarting(true)
@@ -37,30 +36,42 @@ export function QRScannerModal({
           { facingMode: "environment" },
           { fps: 10, qrbox: { width: 250, height: 250 } },
           (decodedText) => {
-            if (scannerRef.current) {
-              scannerRef.current.stop().catch(console.error)
+            if (!isScanned.current) {
+              isScanned.current = true
+              // Just call onScan, the parent will close the modal and trigger cleanup
+              onScan(decodedText)
             }
-            onScan(decodedText)
           },
           (errorMessage) => {
             // ignore continuous scanning errors
           }
         )
       } catch (err: any) {
-        console.error("Camera start error", err)
-        setError("Camera permission denied or camera not found. Please allow camera access in your browser settings.")
+        if (isMounted) {
+          console.error("Camera start error", err)
+          setError("Camera permission denied or camera not found. Please allow camera access in your browser settings.")
+        }
       } finally {
-        setIsStarting(false)
+        if (isMounted) setIsStarting(false)
       }
     }
 
     setTimeout(initScanner, 100)
 
     return () => {
+      isMounted = false
       if (scannerRef.current) {
-        scannerRef.current.stop().catch(console.error)
-        scannerRef.current.clear()
+        const scanner = scannerRef.current
         scannerRef.current = null
+        try {
+          scanner.stop().then(() => {
+            scanner.clear()
+          }).catch(() => {
+            try { scanner.clear() } catch (e) {}
+          })
+        } catch (e) {
+          try { scanner.clear() } catch (e2) {}
+        }
       }
     }
   }, [isOpen, onScan])

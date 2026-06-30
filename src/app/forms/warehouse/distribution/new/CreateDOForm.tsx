@@ -40,6 +40,12 @@ export function CreateDOForm({ availableInventory, userId }: { availableInventor
     }
   })
 
+  const batches0 = useFieldArray({ control, name: 'items.0.batches' })
+  const batches1 = useFieldArray({ control, name: 'items.1.batches' })
+  const batches2 = useFieldArray({ control, name: 'items.2.batches' })
+  const batches3 = useFieldArray({ control, name: 'items.3.batches' })
+  const fieldArrays = [batches0, batches1, batches2, batches3]
+
   // Watch top-level fields
   const watchMethod = watch("distributionMethod")
   const watchItems = watch("items")
@@ -67,7 +73,7 @@ export function CreateDOForm({ availableInventory, userId }: { availableInventor
       return
     }
 
-    setValue(`items.${skuIndex}.batches`, [...currentBatches, { batchNumber: batchNumber, qtySent: "" }], { shouldDirty: true, shouldValidate: true })
+    fieldArrays[skuIndex].append({ batchNumber: batchNumber, qtySent: "" })
     
     alert(`Batch ${batchNumber} added successfully! Please enter quantity.`)
     setIsScannerOpen(false)
@@ -199,6 +205,7 @@ export function CreateDOForm({ availableInventory, userId }: { availableInventor
                   register={register}
                   watchItems={watchItems}
                   availableInventory={availableInventory}
+                  fieldArray={fieldArrays[skuIndex]}
                 />
               </div>
             </div>
@@ -225,11 +232,8 @@ export function CreateDOForm({ availableInventory, userId }: { availableInventor
   )
 }
 
-function BatchRows({ skuId, skuIndex, control, register, watchItems, availableInventory }: any) {
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: `items.${skuIndex}.batches`
-  });
+function BatchRows({ skuId, skuIndex, control, register, watchItems, availableInventory, fieldArray }: any) {
+  const { fields, remove, append } = fieldArray;
 
   // Filter inventory batches for this specific SKU
   const availableBatchesForSku = availableInventory.filter((inv: any) => inv.sku === skuId);
@@ -250,7 +254,7 @@ function BatchRows({ skuId, skuIndex, control, register, watchItems, availableIn
         </div>
       )}
       
-      {fields.map((field, batchIndex) => {
+      {fields.map((field: any, batchIndex: number) => {
         // Watch the currently selected batch number to enforce max limits
         const currentBatchNo = watchItems[skuIndex]?.batches?.[batchIndex]?.batchNumber;
         const currentBatch = availableBatchesForSku.find((b: any) => b.batchNumber === currentBatchNo);

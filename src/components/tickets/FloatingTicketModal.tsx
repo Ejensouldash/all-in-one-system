@@ -244,7 +244,9 @@ export function FloatingTicketModal() {
                         <div>
                           <label className="block text-xs font-medium text-gray-700 mb-1">Priority <span className="text-red-500">*</span></label>
                           <select name="priority" required className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all">
-                            <option value="User Feedback">User Feedback</option>
+                            <option value="User Feedback - Low">User Feedback - Low</option>
+                            <option value="User Feedback - Medium">User Feedback - Medium</option>
+                            <option value="User Feedback - High">User Feedback - High</option>
                             <option value="Low">Low</option>
                             <option value="Medium">Medium</option>
                             <option value="High">High</option>

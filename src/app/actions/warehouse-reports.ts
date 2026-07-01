@@ -120,9 +120,6 @@ export async function getMonthlyDistributionReport(month: number, year: number) 
       
       const transferOut = doItemsDuringMonth.reduce((sum, item) => sum + item.qtySent, 0)
 
-      // e) Balance Carry Forward
-      const balanceCarryForward = balanceOpening + transferIn - transferOut
-
       // f) Dates
       let dateValue = new Date(year, month - 1, 1);
       if (transfersDuringMonth.length > 0 && transfersDuringMonth[0].receivedAt) {
@@ -166,6 +163,18 @@ export async function getMonthlyDistributionReport(month: number, year: number) 
 
       const formattedDate = `${dateValue.getDate().toString().padStart(2, '0')}/${(dateValue.getMonth() + 1).toString().padStart(2, '0')}/${dateValue.getFullYear()}`;
 
+      // APPLY USER LOGIC:
+      // If Date != Production Date, shift transferIn to balanceOpening
+      let finalBalanceOpening = balanceOpening;
+      let finalTransferIn = transferIn;
+      if (productionDate !== "-" && formattedDate !== productionDate) {
+        finalBalanceOpening += finalTransferIn;
+        finalTransferIn = 0;
+      }
+
+      // e) Balance Carry Forward
+      const balanceCarryForward = finalBalanceOpening + finalTransferIn - transferOut
+
       // g) Prepared By
       // Find the first DO item for this batch in this month to get the creator
       const preparedBy = doItemsDuringMonth.length > 0 && doItemsDuringMonth[0].distributionOrder.createdBy 
@@ -173,14 +182,14 @@ export async function getMonthlyDistributionReport(month: number, year: number) 
         : "-";
 
       // Only include if there's any activity or balance for this batch in this month
-      if (balanceOpening > 0 || transferIn > 0 || transferOut > 0 || balanceCarryForward > 0) {
+      if (finalBalanceOpening > 0 || finalTransferIn > 0 || transferOut > 0 || balanceCarryForward > 0) {
         reportData.push({
           date: formattedDate,
           productionDate,
           sku,
           batchNumber,
-          balanceOpening,
-          transferIn,
+          balanceOpening: finalBalanceOpening,
+          transferIn: finalTransferIn,
           transferOut,
           balanceCarryForward,
           preparedBy

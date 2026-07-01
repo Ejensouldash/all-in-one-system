@@ -19,12 +19,25 @@ export function SharePDFButton({ elementId, filename }: SharePDFButtonProps) {
       const element = document.getElementById(elementId)
       if (!element) throw new Error("Element not found")
 
+      // Temporarily force desktop width so mobile doesn't squish the PDF
+      const originalWidth = element.style.width;
+      const originalMaxWidth = element.style.maxWidth;
+      element.style.width = '794px'; // A4 width in pixels at 96 DPI
+      element.style.maxWidth = 'none';
+      
+      // Wait a tiny bit for browser to reflow layout
+      await new Promise(resolve => setTimeout(resolve, 50));
+
       // Generate image using html-to-image
       const imgData = await toJpeg(element, {
         quality: 0.95,
         backgroundColor: '#ffffff',
         pixelRatio: 2
       })
+
+      // Restore original styling
+      element.style.width = originalWidth;
+      element.style.maxWidth = originalMaxWidth;
 
       // Get image dimensions
       const img = new Image();

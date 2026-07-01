@@ -20,9 +20,17 @@ const MULTIPLIERS = {
   MACHINE_STRETCH_FILM: [1]
 }
 
-export function TransferInForm({ userName }: { userName: string }) {
+export function TransferInForm({ userName, initialData }: { userName: string, initialData?: any }) {
+  const isEditing = !!initialData;
   const { register, control, handleSubmit, watch, setValue } = useForm({
-    defaultValues: {
+    defaultValues: initialData ? {
+      ...initialData,
+      receiveDate: new Date(initialData.receiveDate).toISOString().split('T')[0],
+      items: initialData.items.map((item: any) => ({
+        ...item,
+        weight: 0 // Optional: reset weight since we only save bags and mult in DB
+      }))
+    } : {
       receiveDate: new Date().toISOString().split('T')[0],
       receiveTime: new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric" }),
       receiverName: userName || "",
@@ -107,15 +115,25 @@ export function TransferInForm({ userName }: { userName: string }) {
         return item;
       })
     }
-
-    const result = await createTransferIn(formattedData)
-    setIsSubmitting(false)
-
-    if (result.success) {
-      alert("DO Received & Synced to Database successfully!")
-      window.location.href = "/forms/production"
-    } else {
-      alert("Error: " + result.error)
+    try {
+      const { createTransferIn, updateTransferIn } = await import('@/app/actions/transferIn');
+      let result;
+      if (isEditing) {
+        result = await updateTransferIn(initialData.id, formattedData);
+      } else {
+        result = await createTransferIn(formattedData);
+      }
+      
+      if (result.success) {
+        alert(isEditing ? 'Transfer In DO updated successfully!' : 'Transfer In DO saved successfully!')
+        window.location.href = '/forms/production/transfer-in/history'
+      } else {
+        alert(`Failed to save: ${result.error}`)
+        setIsSubmitting(false)
+      }
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
+      setIsSubmitting(false)
     }
   }
 

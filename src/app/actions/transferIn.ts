@@ -34,6 +34,54 @@ export async function createTransferIn(data: any) {
   }
 }
 
+export async function updateTransferIn(id: string, data: any) {
+  const session = await auth()
+  if (!session) return { success: false, error: "Unauthorized" }
+
+  try {
+    const existing = await prisma.transferIn.findUnique({
+      where: { id }
+    })
+    
+    if (!existing) return { success: false, error: "Not found" }
+    
+    // Check if within 30 minutes
+    const thirtyMinutes = 30 * 60 * 1000
+    if (Date.now() - existing.createdAt.getTime() > thirtyMinutes) {
+      return { success: false, error: "Time limit exceeded. You can only edit within 30 minutes of submission." }
+    }
+
+    // Delete existing items to replace them (simplified approach)
+    await prisma.transferInItem.deleteMany({
+      where: { transferInId: id }
+    })
+
+    const updated = await prisma.transferIn.update({
+      where: { id },
+      data: {
+        receiveDate: new Date(data.receiveDate),
+        receiveTime: data.receiveTime,
+        doNumber: data.doNumber,
+        receiverName: data.receiverName,
+        items: {
+          create: data.items.map((item: any) => ({
+            category: item.category,
+            batchNo: item.batchNo,
+            bags: Number(item.bags),
+            mult: Number(item.mult),
+          }))
+        }
+      }
+    })
+
+    revalidatePath("/forms")
+    return { success: true, data: updated }
+  } catch (error: any) {
+    console.error("Failed to update Transfer In:", error)
+    return { success: false, error: error.message }
+  }
+}
+
 export async function getTodayTransferIn() {
   try {
     // For prototyping we might just pull the last 20 items ordered descending to ensure we see them

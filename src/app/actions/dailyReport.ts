@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
+import { logUserAction } from "./audit"
 
 export async function createDailyReport(data: any) {
   const session = await auth()
@@ -95,6 +96,13 @@ export async function createDailyReport(data: any) {
 
     revalidatePath("/forms")
     revalidatePath("/forms/daily-report")
+
+    // Log the action
+    await logUserAction(
+      "Submitted Daily Report",
+      `Line: ${data.line}, Shift: ${data.shift}, Date: ${data.date}. Payload: ${JSON.stringify(data)}`
+    )
+
     return { success: true, data: report }
   } catch (error: any) {
     console.error("Failed to create Daily Report:", error)

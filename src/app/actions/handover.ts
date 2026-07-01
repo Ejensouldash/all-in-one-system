@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { randomBytes } from "crypto"
+import { logUserAction } from "./audit"
 
 // Fetch daily reports that are approved and don't have a handover yet
 export async function getEligibleDailyReports() {
@@ -63,6 +64,12 @@ export async function createHandover(data: any) {
 
     revalidatePath("/forms/production")
     revalidatePath("/forms/warehouse")
+
+    await logUserAction(
+      "Created Production Handover",
+      `Handover No: ${handoverNumber}, Daily Report ID: ${data.dailyReportId}. Payload: ${JSON.stringify(data)}`
+    )
+
     return { success: true, data: handover }
   } catch (error: any) {
     console.error("Error creating handover:", error)

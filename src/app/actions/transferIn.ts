@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
+import { logUserAction } from "./audit"
 
 export async function createTransferIn(data: any) {
   const session = await auth()
@@ -27,6 +28,12 @@ export async function createTransferIn(data: any) {
     })
 
     revalidatePath("/forms")
+
+    await logUserAction(
+      "Created Transfer In DO",
+      `DO: ${data.doNumber}, Receiver: ${data.receiverName}. Payload: ${JSON.stringify(data)}`
+    )
+
     return { success: true, data: transferIn }
   } catch (error: any) {
     console.error("Failed to create Transfer In:", error)
@@ -75,6 +82,12 @@ export async function updateTransferIn(id: string, data: any) {
     })
 
     revalidatePath("/forms")
+
+    await logUserAction(
+      "Updated Transfer In DO",
+      `DO: ${data.doNumber}, Edited within 30 minutes limit. Payload: ${JSON.stringify(data)}`
+    )
+
     return { success: true, data: updated }
   } catch (error: any) {
     console.error("Failed to update Transfer In:", error)

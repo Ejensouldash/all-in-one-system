@@ -14,6 +14,7 @@ const AVAILABLE_MODULES = [
   { id: "USERS", name: "User Management", description: "Access to the user directory and organization structure." },
   { id: "SETTINGS", name: "System Settings", description: "Configure system parameters and cost catalogs." },
   { id: "HANDOVER", name: "Production Handover Form", description: "Access to generate and send production handover forms." },
+  { id: "USER_LOGS", name: "User Activity Logs", description: "Monitor user actions across the system." },
 ]
 
 export function AccessForm({ userId, initialModules }: { userId: string, initialModules: string[] }) {

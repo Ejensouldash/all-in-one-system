@@ -33,6 +33,7 @@ model User {
   branch            Branch?                 @relation(fields: [branchId], references: [id])
   unit              Unit?                   @relation(fields: [unitId], references: [id])
   openingStocks     WarehouseOpeningStock[] @relation("OpeningStockSetter")
+  auditLogs         AuditLog[]
 }
 
 model Branch {
@@ -438,4 +439,15 @@ enum ReturnStatus {
   SCRAP
   REPACKED
   RESTOCKED
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  userName  String
+  action    String
+  details   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 }

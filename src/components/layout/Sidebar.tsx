@@ -65,7 +65,14 @@ const adminLinks: NavLink[] = [
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
   { name: "Assets", href: "/assets", icon: Package, module: "WAREHOUSE" }, // Warehouse/Assets
   { name: "Users", href: "/users", icon: Users, module: "USERS" },
-  { name: "Organization", href: "/organization", icon: Building2, module: "USERS" },
+  { 
+    name: "Organization", 
+    icon: Building2, 
+    subLinks: [
+      { name: "Structure", href: "/organization", module: "USERS" },
+      { name: "User Activity Logs", href: "/organization/audit-logs", module: "USER_LOGS" }
+    ]
+  },
   { name: "Settings", href: "/settings", icon: Settings, module: "SETTINGS" },
 ]
 
@@ -76,10 +83,13 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
-    // Auto-open Forms menu if we are in a forms sub-route
-    if (pathname.startsWith("/forms")) {
-      setOpenMenus(prev => ({ ...prev, "Forms": true }))
-    }
+    // Auto-open menus if we are in their sub-route
+    setOpenMenus(prev => {
+      let next = { ...prev };
+      if (pathname.startsWith("/forms")) next["Forms"] = true;
+      if (pathname.startsWith("/organization")) next["Organization"] = true;
+      return next;
+    });
   }, [pathname])
 
   const toggleMenu = (name: string) => {

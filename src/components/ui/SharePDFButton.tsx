@@ -46,28 +46,14 @@ export function SharePDFButton({ elementId, filename }: SharePDFButtonProps) {
         img.onload = resolve;
       });
 
-      // Calculate A4 size
-      const imgWidth = 210 // A4 width in mm
-      const pageHeight = 297 // A4 height in mm
+      // Calculate dimensions in mm
+      const imgWidth = 210 // Fixed A4 width in mm
       const imgHeight = (img.height * imgWidth) / img.width
-      
-      const pdf = new jsPDF("p", "mm", "a4")
-      
-      // If content is longer than one page, we need to add pages
-      let heightLeft = imgHeight
-      let position = 0
-      let pageCount = 1
 
-      pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight)
-      heightLeft -= pageHeight
-
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight
-        pdf.addPage()
-        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight)
-        heightLeft -= pageHeight
-        pageCount++
-      }
+      // Create a single-page PDF with custom dimensions matching the exact image ratio
+      // This prevents page breaks from cutting tables or text in half
+      const pdf = new jsPDF("p", "mm", [imgWidth, imgHeight])
+      pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight)
 
       // Convert PDF to blob
       const pdfBlob = pdf.output("blob")

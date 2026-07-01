@@ -21,7 +21,7 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
   if (!report) redirect("/forms")
   if (report.status !== "PENDING") {
     // Only pending reports can be edited
-    redirect(`/forms/daily-report/${resolvedParams.id}`)
+    redirect(`/forms/production/daily-report/${resolvedParams.id}`)
   }
 
   // Transform Prisma data back to React Hook Form structure

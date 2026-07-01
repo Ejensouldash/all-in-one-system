@@ -94,7 +94,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                 <ApprovalSignatureModal reportId={report.id} />
               )}
               
-              <Link href={`/forms/daily-report/${report.id}/edit`} className="inline-flex items-center text-sm font-black uppercase tracking-wider border-2 border-indigo-600 text-indigo-600 px-4 py-2 bg-white hover:bg-indigo-600 hover:text-white transition-all shadow-[4px_4px_0px_0px_rgba(79,70,229,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px]">
+              <Link href={`/forms/production/daily-report/${report.id}/edit`} className="inline-flex items-center text-sm font-black uppercase tracking-wider border-2 border-indigo-600 text-indigo-600 px-4 py-2 bg-white hover:bg-indigo-600 hover:text-white transition-all shadow-[4px_4px_0px_0px_rgba(79,70,229,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px]">
                 Edit Report
               </Link>
             </>

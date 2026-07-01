@@ -249,7 +249,7 @@ export async function approveDailyReport(id: string, signatureBase64: string) {
       }
     }
     revalidatePath("/forms")
-    revalidatePath(`/forms/daily-report/${id}`)
+    revalidatePath(`/forms/production/daily-report/${id}`)
     return { success: true, data: report }
   } catch (error: any) {
     return { success: false, error: error.message }
@@ -352,7 +352,7 @@ export async function updateDailyReport(id: string, data: any) {
     ])
 
     revalidatePath("/forms")
-    revalidatePath(`/forms/daily-report/${id}`)
+    revalidatePath(`/forms/production/daily-report/${id}`)
     return { success: true }
   } catch (error: any) {
     console.error("Failed to update Daily Report:", error)
@@ -375,7 +375,7 @@ export async function rejectDailyReport(id: string) {
       data: { status: "REJECTED" }
     })
     revalidatePath("/forms")
-    revalidatePath(`/forms/daily-report/${id}`)
+    revalidatePath(`/forms/production/daily-report/${id}`)
     return { success: true, data: report }
   } catch (error: any) {
     return { success: false, error: error.message }

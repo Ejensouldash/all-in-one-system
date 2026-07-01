@@ -419,28 +419,28 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             sectionKey="BOTTLE" 
             title={`BOTTLE INVENTORY (${watchLine.includes("800") ? "800ml" : "425ml"})`} 
             control={control} register={register} watch={watch} setValue={setValue}
-            availableCarryForward={availableCarryForward}
+            availableCarryForward={availableCarryForward.filter(b => b.category.includes("BOTTLE") && b.category.includes(watchLine.includes("800") ? "800" : "425"))}
             multipliers={watchLine.includes("800") ? MULTIPLIERS.BOTTLE_800 : MULTIPLIERS.BOTTLE_425}
-            syncedDOs={syncedDOs.filter(d => d.category.includes("BOTTLE"))}
+            syncedDOs={syncedDOs.filter(d => d.category.includes("BOTTLE") && d.category.includes(watchLine.includes("800") ? "800" : "425"))}
           />
           
           <AdvancedInventorySection 
             sectionKey="LABEL" 
             title={`LABEL INVENTORY (${watchLine.includes("800") ? "800ml" : "425ml"})`} 
             control={control} register={register} watch={watch} setValue={setValue}
-            availableCarryForward={availableCarryForward}
+            availableCarryForward={availableCarryForward.filter(b => b.category.includes("LABEL") && b.category.includes(watchLine.includes("800") ? "800" : "425"))}
             multipliers={watchLine.includes("800") ? [6451] : [8547]}
             isLabel={true}
-            syncedDOs={syncedDOs.filter(d => d.category.includes("LABEL"))}
+            syncedDOs={syncedDOs.filter(d => d.category.includes("LABEL") && d.category.includes(watchLine.includes("800") ? "800" : "425"))}
           />
 
           <AdvancedInventorySection 
             sectionKey="CAP" 
             title="CAP INVENTORY" 
             control={control} register={register} watch={watch} setValue={setValue}
-            availableCarryForward={availableCarryForward}
+            availableCarryForward={availableCarryForward.filter(b => b.category.includes("CAP") && !b.category.includes("CARTON"))}
             multipliers={MULTIPLIERS.CAP}
-            syncedDOs={syncedDOs.filter(d => d.category.includes("CAP"))}
+            syncedDOs={syncedDOs.filter(d => d.category.includes("CAP") && !d.category.includes("CARTON"))}
           />
 
           {PRODUCTION_CONFIG[watchLine as keyof typeof PRODUCTION_CONFIG].map(prod => {
@@ -448,54 +448,54 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             if (!isChecked) return null;
             return (
               <AdvancedInventorySection 
-                key={`BOX_${prod.id}`}
+                key={prod.id}
                 sectionKey={`BOX_${prod.id}`} 
                 title={`BOX INVENTORY (${prod.label})`} 
                 control={control} register={register} watch={watch} setValue={setValue}
-                availableCarryForward={availableCarryForward}
+                availableCarryForward={availableCarryForward.filter(b => b.category.includes("BOX") && b.category.includes(prod.label.replace(" ml ", "ML ").toUpperCase()))}
                 multipliers={[1]} 
-                syncedDOs={syncedDOs.filter(d => d.category.includes("BOX") && d.category.includes(prod.mult.toString()))}
+                syncedDOs={syncedDOs.filter(d => d.category.includes("BOX") && d.category.includes(prod.label.replace(" ml ", "ML ").toUpperCase()))}
               />
             )
           })}
 
           <AdvancedInventorySection 
             sectionKey="CARTON_CAP" 
-            title="CARTON/BOX - CAP INVENTORY" 
+            title="CARTON (EMPTY CAP BOXES) INVENTORY" 
             control={control} register={register} watch={watch} setValue={setValue}
-            availableCarryForward={availableCarryForward}
+            availableCarryForward={availableCarryForward.filter(b => b.category.includes("CARTON CAP"))}
             multipliers={[15]}
-            syncedDOs={syncedDOs.filter(d => d.category === "CARTON/BOX - CAP")}
+            syncedDOs={syncedDOs.filter(d => d.category === "CARTON CAP")}
           />
           <AdvancedInventorySection 
             sectionKey="WRAPPING_HAND" 
-            title="WRAPPING - HAND INVENTORY" 
+            title="HAND WRAPPING INVENTORY" 
             control={control} register={register} watch={watch} setValue={setValue}
-            availableCarryForward={availableCarryForward}
+            availableCarryForward={availableCarryForward.filter(b => b.category.includes("WRAPPING - HAND"))}
             multipliers={[6]}
             syncedDOs={syncedDOs.filter(d => d.category === "WRAPPING - HAND")}
           />
           <AdvancedInventorySection 
             sectionKey="WRAPPING_MACHINE" 
-            title="WRAPPING - MACHINE INVENTORY" 
+            title="MACHINE WRAPPING INVENTORY" 
             control={control} register={register} watch={watch} setValue={setValue}
-            availableCarryForward={availableCarryForward}
+            availableCarryForward={availableCarryForward.filter(b => b.category.includes("WRAPPING - MACHINE"))}
             multipliers={[1]}
             syncedDOs={syncedDOs.filter(d => d.category === "WRAPPING - MACHINE")}
           />
           <AdvancedInventorySection 
             sectionKey="TAPE_OPP" 
-            title="TAPE - OPP INVENTORY" 
+            title="OPP TAPE INVENTORY" 
             control={control} register={register} watch={watch} setValue={setValue}
-            availableCarryForward={availableCarryForward}
+            availableCarryForward={availableCarryForward.filter(b => b.category.includes("TAPE - OPP"))}
             multipliers={[96]}
             syncedDOs={syncedDOs.filter(d => d.category === "TAPE - OPP")}
           />
           <AdvancedInventorySection 
             sectionKey="TAPE_MACHINE" 
-            title="TAPE - MACHINE INVENTORY" 
+            title="MACHINE TAPE INVENTORY" 
             control={control} register={register} watch={watch} setValue={setValue}
-            availableCarryForward={availableCarryForward}
+            availableCarryForward={availableCarryForward.filter(b => b.category.includes("TAPE - MACHINE"))}
             multipliers={[6]}
             syncedDOs={syncedDOs.filter(d => d.category === "TAPE - MACHINE")}
           />
@@ -503,7 +503,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             sectionKey="MACHINE_STRETCH_FILM" 
             title="MACHINE STRETCH FILM INVENTORY" 
             control={control} register={register} watch={watch} setValue={setValue}
-            availableCarryForward={availableCarryForward}
+            availableCarryForward={availableCarryForward.filter(b => b.category.includes("MACHINE STRETCH FILM"))}
             multipliers={[1]}
             syncedDOs={syncedDOs.filter(d => d.category === "MACHINE STRETCH FILM")}
           />

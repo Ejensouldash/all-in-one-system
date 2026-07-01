@@ -95,11 +95,11 @@ export default async function HistoryPage({
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-end space-x-2">
                       {report.status !== 'APPROVED' && (
-                        <Link href={`/forms/daily-report/${report.id}/edit`} className="text-amber-600 hover:text-amber-900 font-black flex items-center bg-amber-50 px-3 py-2 rounded-lg hover:bg-amber-100 transition-colors">
+                        <Link href={`/forms/production/daily-report/${report.id}/edit`} className="text-amber-600 hover:text-amber-900 font-black flex items-center bg-amber-50 px-3 py-2 rounded-lg hover:bg-amber-100 transition-colors">
                           <Edit className="w-4 h-4 mr-1" /> Edit
                         </Link>
                       )}
-                      <Link href={`/forms/daily-report/${report.id}`} className="text-indigo-600 hover:text-indigo-900 font-black flex items-center bg-indigo-50 px-3 py-2 rounded-lg hover:bg-indigo-100 transition-colors">
+                      <Link href={`/forms/production/daily-report/${report.id}`} className="text-indigo-600 hover:text-indigo-900 font-black flex items-center bg-indigo-50 px-3 py-2 rounded-lg hover:bg-indigo-100 transition-colors">
                         <Eye className="w-4 h-4 mr-1" /> View
                       </Link>
                     </td>

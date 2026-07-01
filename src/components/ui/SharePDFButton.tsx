@@ -57,11 +57,19 @@ export function SharePDFButton({ elementId, filename }: SharePDFButtonProps) {
       // Attempt to share if supported
       if (navigator.canShare && navigator.canShare({ files: [new File([pdfBlob], filename, { type: "application/pdf" })] })) {
         const file = new File([pdfBlob], filename, { type: "application/pdf" })
-        await navigator.share({
-          files: [file],
-          title: filename,
-          text: `Please find the attached report: ${filename}`,
-        })
+        try {
+          await navigator.share({
+            files: [file],
+            title: filename,
+            text: `Please find the attached report: ${filename}`,
+          })
+        } catch (shareError: any) {
+          console.warn("Share failed or cancelled:", shareError)
+          // If the gesture expired (NotAllowedError) or something else failed, fallback to download
+          if (shareError.name !== 'AbortError') {
+            pdf.save(filename)
+          }
+        }
       } else {
         // Fallback to download
         pdf.save(filename)

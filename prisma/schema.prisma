@@ -166,6 +166,7 @@ model DailyReport {
   approvedAt          DateTime?
   createdById         String?
   totalManpower       Int?
+  maxTotalManpower    Int?
   breakdowns          BreakdownLog[]
   createdBy           User?                @relation("DailyReportCreator", fields: [createdById], references: [id])
   inventory           InventoryLog[]

@@ -20,6 +20,7 @@ export async function createDailyReport(data: any) {
         verifiedBy: data.verifiedBy,
         remarks: data.remarks,
         totalManpower: Number(data.totalManpower) || null,
+        maxTotalManpower: Number(data.maxTotalManpower) || null,
         createdById: session.user.id,
         
         // Productions
@@ -283,6 +284,7 @@ export async function updateDailyReport(id: string, data: any) {
           verifiedBy: data.verifiedBy,
           remarks: data.remarks,
           totalManpower: Number(data.totalManpower) || null,
+          maxTotalManpower: Number(data.maxTotalManpower) || null,
           
           productions: {
             create: Object.keys(data.production || {}).filter(k => data.production[k].checked).map(k => ({

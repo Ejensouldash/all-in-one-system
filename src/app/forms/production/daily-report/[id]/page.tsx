@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle2, ClipboardList, Package, AlertTriangle } from "
 import { PrintButton } from "@/components/ui/PrintButton"
 import { ApprovalSignatureModal } from "@/components/forms/ApprovalSignatureModal"
 import { ExportDailyReportButton } from "@/components/forms/ExportDailyReportButton"
+import { SharePDFButton } from "@/components/ui/SharePDFButton"
 import { prisma } from "@/lib/prisma"
 
 export default async function ViewDailyReportPage({ params }: { params: Promise<{ id: string }> }) {
@@ -101,11 +102,15 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
           )}
           <ExportDailyReportButton report={report} />
           <PrintButton />
+          <SharePDFButton 
+            elementId="daily-report-print-container" 
+            filename={`Daily Production Report ${report.line.replace(' - ', ' ')} ${report.shift} Date ${new Date(report.date).toLocaleDateString('en-GB').replace(/\//g, '.')}.pdf`}
+          />
         </div>
       </div>
 
       {/* SINGLE MASTER CONTAINER */}
-      <div className="print-container w-full max-w-[210mm] bg-white min-h-[297mm] print:min-h-0 print:box-border flex flex-col print:block shadow-[15px_15px_0px_0px_rgba(0,0,0,0.2)] print:shadow-none border-2 print:border-2 border-black print:border-black print:rounded-none print:bg-white print:text-black print:max-w-none mb-8 print:mb-0">
+      <div id="daily-report-print-container" className="print-container w-full max-w-[210mm] bg-white min-h-[297mm] print:min-h-0 print:box-border flex flex-col print:block shadow-[15px_15px_0px_0px_rgba(0,0,0,0.2)] print:shadow-none border-2 print:border-2 border-black print:border-black print:rounded-none print:bg-white print:text-black print:max-w-none mb-8 print:mb-0">
         
         {/* TOP CONTENT (Expands to fill space) */}
         <div className="flex flex-col print:block">

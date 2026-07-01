@@ -19,6 +19,15 @@ export default async function ProductionDashboard() {
     take: 10,
   })
 
+  // Check if user has HANDOVER module access (Superadmin gets all by default, or specific check)
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { modules: true, role: true }
+  })
+  
+  const trueRole = (session.user as any).trueRole || user?.role
+  const hasHandoverAccess = trueRole === "SUPERADMIN" || user?.modules.includes("HANDOVER") || false
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
@@ -73,22 +82,23 @@ export default async function ProductionDashboard() {
             </Link>
           </div>
 
-          <div className="bg-gradient-to-br from-emerald-900 via-emerald-800 to-green-900 rounded-2xl p-6 sm:p-10 text-white shadow-xl relative overflow-hidden flex flex-col justify-between border border-emerald-700/50 hover:-translate-y-1 transition-transform">
-            <div className="relative z-10 mb-8">
-              <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-emerald-500/30 border border-emerald-400/30 text-emerald-100 text-xs font-bold uppercase tracking-widest mb-6 shadow-sm">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-400 mr-2 animate-pulse"></span>
-                Finished Goods
+          {hasHandoverAccess && (
+            <div className="bg-gradient-to-br from-emerald-900 via-emerald-800 to-green-900 rounded-2xl p-6 sm:p-10 text-white shadow-xl relative overflow-hidden flex flex-col justify-between border border-emerald-700/50 hover:-translate-y-1 transition-transform">
+              <div className="relative z-10 mb-8">
+                <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-emerald-500/30 border border-emerald-400/30 text-emerald-100 text-xs font-bold uppercase tracking-widest mb-6 shadow-sm">
+                  <span className="w-2.5 h-2.5 rounded-full bg-green-400 mr-2 animate-pulse"></span>
+                  Finished Goods
+                </div>
+                <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-3">Handover Form</h2>
+                <p className="text-emerald-200 text-base font-medium max-w-md">
+                  Nota Serahan Produksi to transfer finished goods to the warehouse and log direct deductions.
+                </p>
               </div>
-              <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-3">Handover Form</h2>
-              <p className="text-emerald-200 text-base font-medium max-w-md">
-                Nota Serahan Produksi to transfer finished goods to the warehouse and log direct deductions.
-              </p>
+              <Link href="/forms/production/handover/new" className="group flex items-center justify-center w-full bg-white text-emerald-900 px-8 py-4 rounded-xl font-black text-lg hover:bg-emerald-50 transition-colors shadow-lg uppercase tracking-wider">
+                <ClipboardList className="h-6 w-6 mr-3" /> Create Handover
+              </Link>
             </div>
-            <Link href="/forms/production/handover/new" className="group flex items-center justify-center w-full bg-white text-emerald-900 px-8 py-4 rounded-xl font-black text-lg hover:bg-emerald-50 transition-colors shadow-lg uppercase tracking-wider">
-              <ClipboardList className="h-6 w-6 mr-3" /> Create Handover
-            </Link>
-          </div>
-
+          )}
         </div>
 
         <div className="mb-6 flex items-center justify-between mt-12">

@@ -47,19 +47,23 @@ export default async function AuditLogsPage({
           </div>
         </div>
 
-        <form className="flex items-center bg-white border border-gray-300 rounded-lg shadow-sm px-2 py-1">
-          <Filter className="w-4 h-4 text-gray-400 mx-2" />
-          <select 
-            name="userId" 
-            defaultValue={userId}
-            onChange={(e) => e.target.form?.submit()}
-            className="bg-transparent border-none text-sm font-medium text-gray-700 focus:ring-0 cursor-pointer py-1.5"
-          >
-            <option value="">All Users</option>
-            {users.map(u => (
-              <option key={u.id} value={u.id}>{u.name}</option>
-            ))}
-          </select>
+        <form className="flex items-center space-x-2">
+          <div className="flex items-center bg-white border border-gray-300 rounded-lg shadow-sm px-2 py-1">
+            <Filter className="w-4 h-4 text-gray-400 mx-2" />
+            <select 
+              name="userId" 
+              defaultValue={userId}
+              className="bg-transparent border-none text-sm font-medium text-gray-700 focus:ring-0 cursor-pointer py-1.5 outline-none"
+            >
+              <option value="">All Users</option>
+              {users.map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+          </div>
+          <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
+            Filter
+          </button>
         </form>
       </div>
 

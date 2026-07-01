@@ -24,6 +24,8 @@ export async function createTicket(formData: FormData) {
   const assetType = formData.get("assetType") as string
   const assetNumber = formData.get("assetNumber") as string
   const unitId = formData.get("unitId") as string
+  const location = formData.get("location") as string
+  const priority = (formData.get("priority") as string) || "Low"
 
   if (!title || !description || !requesterName) {
     return { success: false, error: "Please fill in all required fields." }
@@ -34,13 +36,14 @@ export async function createTicket(formData: FormData) {
       data: {
         title,
         description,
-        priority: "Low", // Default priority
-        slaDeadline: calculateSLA("Low"),
+        priority, // Dynamic priority
+        slaDeadline: calculateSLA(priority),
         requesterName,
         phone,
         assetType,
         assetNumber,
         unitId,
+        location,
         createdById: session.user.id
       }
     })

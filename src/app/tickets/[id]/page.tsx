@@ -157,7 +157,9 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                   <MapPin className="h-4 w-4 mr-2 text-gray-300 group-hover:text-blue-400 transition-colors" /> Location / Unit
                 </dt>
                 <dd className="bg-gray-50 p-4 rounded-2xl border border-gray-100 group-hover:bg-blue-50/30 transition-colors">
-                  <div className="text-[11px] text-gray-500 font-bold uppercase tracking-wider mb-1">{ticket.unit?.branch?.name || "No Branch"}</div>
+                  <div className="text-[11px] text-gray-500 font-bold uppercase tracking-wider mb-1">
+                    {ticket.location ? `Loc: ${ticket.location}` : (ticket.unit?.branch?.name || "No Branch")}
+                  </div>
                   <div className="font-black text-blue-950 text-base tracking-tight">{ticket.unit?.name || "Not Specified"}</div>
                 </dd>
               </div>

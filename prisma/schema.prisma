@@ -93,6 +93,7 @@ model Ticket {
   priority      String       @default("Low")
   createdById   String
   unitId        String?
+  location      String?
   linkedAssetId String?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt

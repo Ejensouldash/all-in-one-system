@@ -236,6 +236,23 @@ export function FloatingTicketModal() {
                     <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Issue Details</h3>
                     
                     <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Location <span className="text-red-500">*</span></label>
+                          <input type="text" name="location" required placeholder="e.g. Production Form, Office..." className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Priority <span className="text-red-500">*</span></label>
+                          <select name="priority" required className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all">
+                            <option value="User Feedback">User Feedback</option>
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                            <option value="Urgent">Urgent</option>
+                          </select>
+                        </div>
+                      </div>
+
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">Title <span className="text-red-500">*</span></label>
                         <input type="text" name="title" required placeholder="e.g. Cannot connect to Wi-Fi" className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all" />

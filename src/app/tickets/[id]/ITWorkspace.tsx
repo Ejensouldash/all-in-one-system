@@ -76,6 +76,7 @@ export function ITWorkspace({ ticket, itStaffList, costCatalog = [] }: { ticket:
               <AlertCircle className="h-3 w-3 mr-1" /> Priority
             </label>
             <select name="priority" defaultValue={ticket.priority} className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+              <option value="User Feedback">User Feedback</option>
               <option value="Low">Low</option>
               <option value="Medium">Medium</option>
               <option value="High">High</option>

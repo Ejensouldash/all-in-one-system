@@ -2,7 +2,7 @@
 
 import { Share, Download } from "lucide-react"
 import { useState } from "react"
-import html2canvas from "html2canvas"
+import { toJpeg } from "html-to-image"
 import jsPDF from "jspdf"
 
 interface SharePDFButtonProps {
@@ -19,17 +19,24 @@ export function SharePDFButton({ elementId, filename }: SharePDFButtonProps) {
       const element = document.getElementById(elementId)
       if (!element) throw new Error("Element not found")
 
-      // Generate canvas
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
+      // Generate image using html-to-image
+      const imgData = await toJpeg(element, {
+        quality: 0.95,
+        backgroundColor: '#ffffff',
+        pixelRatio: 2
       })
+
+      // Get image dimensions
+      const img = new Image();
+      img.src = imgData;
+      await new Promise((resolve) => {
+        img.onload = resolve;
+      });
 
       // Calculate A4 size
       const imgWidth = 210 // A4 width in mm
       const pageHeight = 297 // A4 height in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      const imgHeight = (img.height * imgWidth) / img.width
       
       const pdf = new jsPDF("p", "mm", "a4")
       
@@ -37,8 +44,6 @@ export function SharePDFButton({ elementId, filename }: SharePDFButtonProps) {
       let heightLeft = imgHeight
       let position = 0
       let pageCount = 1
-      
-      const imgData = canvas.toDataURL("image/jpeg", 0.95)
 
       pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight)
       heightLeft -= pageHeight

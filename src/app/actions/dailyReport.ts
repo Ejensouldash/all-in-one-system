@@ -85,7 +85,7 @@ export async function createDailyReport(data: any) {
               period: u.period,
               batchNo: u.batchNo,
               bags: Number(u.bags),
-              mult: 1 // Default
+              mult: Number(u.mult) || 1
             }))
 
             return [...sources, ...usages]
@@ -123,18 +123,20 @@ export async function getActiveInventory() {
     })
 
     // Calculate global balance for every batch
-    const batchBalance: Record<string, { bags: number, mult: number, category: string, date: Date, doNumber: string }> = {}
+    const batchBalance: Record<string, { bags: number, mult: number, category: string, date: Date, doNumber: string, batchNo: string }> = {}
     
     allDOItems.forEach(item => {
-      if (!batchBalance[item.batchNo]) {
-        batchBalance[item.batchNo] = { bags: 0, mult: item.mult, category: item.category, date: item.transferIn.receiveDate, doNumber: item.transferIn.doNumber }
+      const key = `${item.batchNo}|${item.mult}`
+      if (!batchBalance[key]) {
+        batchBalance[key] = { bags: 0, mult: item.mult, category: item.category, date: item.transferIn.receiveDate, doNumber: item.transferIn.doNumber, batchNo: item.batchNo }
       }
-      batchBalance[item.batchNo].bags += item.bags
+      batchBalance[key].bags += item.bags
     })
     
     allUsages.forEach(usage => {
-      if (batchBalance[usage.batchNo]) {
-        batchBalance[usage.batchNo].bags -= usage.bags
+      const key = `${usage.batchNo}|${usage.mult}`
+      if (batchBalance[key]) {
+        batchBalance[key].bags -= usage.bags
       }
     })
     
@@ -142,20 +144,21 @@ export async function getActiveInventory() {
     const today = new Date()
     today.setHours(0,0,0,0)
     
-    const usedBatchNos = new Set(allUsages.map(u => u.batchNo))
+    // A batch is "used" if there is any usage today for this specific batchKey
+    const usedBatchKeys = new Set(allUsages.map(u => `${u.batchNo}|${u.mult}`))
     
     const todayDOs: any[] = []
     const storeroomBatches: any[] = []
     
-    Object.keys(batchBalance).forEach(batchNo => {
-      const data = batchBalance[batchNo]
+    Object.keys(batchBalance).forEach(batchKey => {
+      const data = batchBalance[batchKey]
       if (data.bags > 0) { // Only return active batches
-        if (new Date(data.date) >= today && !usedBatchNos.has(batchNo)) {
+        if (new Date(data.date) >= today && !usedBatchKeys.has(batchKey)) {
           // Fresh DO from today that hasn't been touched by any shift yet
-          todayDOs.push({ batchNo, bags: data.bags, mult: data.mult, category: data.category, doNumber: data.doNumber })
+          todayDOs.push({ batchNo: data.batchNo, bags: data.bags, mult: data.mult, category: data.category, doNumber: data.doNumber })
         } else {
           // Either from yesterday, OR from today but already partially used (Shift Carry Forward)
-          storeroomBatches.push({ batchNo, bags: data.bags, mult: data.mult, category: data.category, labelType: "Standard" })
+          storeroomBatches.push({ batchNo: data.batchNo, bags: data.bags, mult: data.mult, category: data.category, labelType: "Standard" })
         }
       }
     })

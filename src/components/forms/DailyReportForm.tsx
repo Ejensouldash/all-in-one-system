@@ -152,34 +152,67 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
 
     setIsSubmitting(true)
     
-    // Format CAP usages correctly based on weight
+    // Process Usage Rejects, Batch Number Splits, and CAP weights
     const formattedData = { ...data };
-    if (formattedData.inventory?.CAP?.usages) {
-      formattedData.inventory.CAP.usages = formattedData.inventory.CAP.usages.map((u: any) => {
-        const w = Number(u.weight) || 0;
-        const b = Number(u.boxes) || 0;
-        
-        let pcs = 0;
-        if (w > 0 && b > 0) {
-          const net = w - (b * 0.88);
-          pcs = net > 0 ? Math.round(net / 0.002125) : 0;
-        } else if (w > 0 && b === 0) {
-          pcs = Math.round(w / 0.002125);
-        } else if (b > 0 && w === 0) {
-          pcs = b * 4000;
-        }
-        
-        let mult = 4000;
-        const doMatch = syncedDOs.find((d: any) => d.batchNo === u.batchNo);
-        if (doMatch) mult = Number(doMatch.mult) || 4000;
-        else {
-          const cfMatch = availableCarryForward.find((c: any) => c.batchNo === u.batchNo);
-          if (cfMatch) mult = Number(cfMatch.mult) || 4000;
-        }
-        
-        return { ...u, bags: pcs > 0 ? (pcs / mult) : 0 };
-      });
-    }
+    Object.keys(formattedData.inventory || {}).forEach(sectionKey => {
+      const lowerItem = sectionKey === "CAP" ? "cap" : sectionKey === "BOTTLE" ? "bottle" : sectionKey === "LABEL" ? "label" : "box";
+      
+      if (formattedData.inventory[sectionKey].usages) {
+        formattedData.inventory[sectionKey].usages = formattedData.inventory[sectionKey].usages.map((u: any) => {
+          // Add usage rejects to global rejects (we add to 'after' by default for usage rejects)
+          if (u.hasReject && Number(u.rejectQty) > 0) {
+            const qty = Number(u.rejectQty);
+            if (u.rejectType === 'Scrap') {
+               formattedData.rejectsScrap[lowerItem].after = (Number(formattedData.rejectsScrap[lowerItem].after) || 0) + qty;
+            } else if (u.rejectType === 'Return') {
+               formattedData.rejectsReturn[lowerItem].after = (Number(formattedData.rejectsReturn[lowerItem].after) || 0) + qty;
+            }
+          }
+          
+          // Split batchNo and mult
+          let pureBatchNo = u.batchNo;
+          let pureMult = 1;
+          if (typeof u.batchNo === 'string' && u.batchNo.includes('|')) {
+            const parts = u.batchNo.split('|');
+            pureBatchNo = parts[0];
+            pureMult = Number(parts[1]);
+          }
+
+          // Format CAP usages correctly based on weight
+          if (sectionKey === "CAP") {
+            const w = Number(u.weight) || 0;
+            const b = Number(u.boxes) || 0;
+            
+            let pcs = 0;
+            if (w > 0 && b > 0) {
+              const net = w - (b * 0.88);
+              pcs = net > 0 ? Math.round(net / 0.002125) : 0;
+            } else if (w > 0 && b === 0) {
+              pcs = Math.round(w / 0.002125);
+            } else if (b > 0 && w === 0) {
+              pcs = b * 4000;
+            }
+            
+            return { ...u, bags: pcs > 0 ? (pcs / 4000) : 0, batchNo: pureBatchNo, mult: 4000 };
+          }
+          
+          return { ...u, batchNo: pureBatchNo, mult: pureMult };
+        });
+      }
+
+      if (formattedData.inventory[sectionKey].sources) {
+        formattedData.inventory[sectionKey].sources = formattedData.inventory[sectionKey].sources.map((s: any) => {
+          let pureBatchNo = s.batchNo;
+          let pureMult = Number(s.mult) || 1;
+          if (typeof s.batchNo === 'string' && s.batchNo.includes('|')) {
+            const parts = s.batchNo.split('|');
+            pureBatchNo = parts[0];
+            pureMult = Number(parts[1]);
+          }
+          return { ...s, batchNo: pureBatchNo, mult: pureMult };
+        });
+      }
+    });
 
     const result = reportId ? await updateDailyReport(reportId, formattedData) : await createDailyReport(formattedData)
     setIsSubmitting(false)
@@ -660,30 +693,31 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
     })
 
     const handleBatchSelect = (index: number, e: React.ChangeEvent<HTMLSelectElement>) => {
-      const selectedBatchNo = e.target.value
+      const selectedBatchKey = e.target.value
       // We must call the register onChange manually so RHF tracks the value
       
-      if (!selectedBatchNo) {
+      if (!selectedBatchKey) {
         setValue(`inventory.${sectionKey}.sources.${index}.bags`, 0)
         return
       }
       
-      const batchData = sectionAvailableBatches.find((b: any) => b.batchNo === selectedBatchNo)
+      const batchData = sectionAvailableBatches.find((b: any) => `${b.batchNo}|${b.mult}` === selectedBatchKey)
       if (batchData) {
-        setValue(`inventory.${sectionKey}.sources.${index}.batchNo`, batchData.batchNo)
+        setValue(`inventory.${sectionKey}.sources.${index}.batchNo`, `${batchData.batchNo}|${batchData.mult}`)
         setValue(`inventory.${sectionKey}.sources.${index}.bags`, batchData.bags)
         setValue(`inventory.${sectionKey}.sources.${index}.mult`, sectionKey === "CAP" ? 4000 : batchData.mult)
         if (isLabel) setValue(`inventory.${sectionKey}.sources.${index}.labelType`, batchData.labelType || "Standard Front")
       }
     }
 
-  const batchSummaries: Record<string, { totalBags: number, usedBags: number, carryFwdBags: number, mult: number }> = {}
+  const batchSummaries: Record<string, { totalBags: number, usedBags: number, carryFwdBags: number, mult: number, pureBatchNo: string }> = {}
 
   syncedDOs.forEach((mock: any) => {
-    if (!batchSummaries[mock.batchNo]) {
-      batchSummaries[mock.batchNo] = { totalBags: 0, usedBags: 0, carryFwdBags: 0, mult: isCap ? 4000 : (Number(mock.mult) || 1) }
+    const key = `${mock.batchNo}|${mock.mult}`
+    if (!batchSummaries[key]) {
+      batchSummaries[key] = { totalBags: 0, usedBags: 0, carryFwdBags: 0, mult: isCap ? 4000 : (Number(mock.mult) || 1), pureBatchNo: mock.batchNo }
     }
-    batchSummaries[mock.batchNo].totalBags += Number(mock.bags) || 0
+    batchSummaries[key].totalBags += Number(mock.bags) || 0
   })
 
   // 2. Sum up available bags per batch from manual Storeroom Sources
@@ -692,8 +726,9 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
     const bags = Number(src.bags) || 0
     const mult = isCap ? 4000 : (Number(src.mult) || 1)
     
+    // src.batchNo is already in "batchNo|mult" format because of our handleBatchSelect
     if (!batchSummaries[src.batchNo]) {
-      batchSummaries[src.batchNo] = { totalBags: 0, usedBags: 0, carryFwdBags: 0, mult: mult }
+      batchSummaries[src.batchNo] = { totalBags: 0, usedBags: 0, carryFwdBags: 0, mult: mult, pureBatchNo: src.batchNo.split('|')[0] }
     }
     batchSummaries[src.batchNo].totalBags += bags
   })
@@ -813,8 +848,8 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                       >
                         <option value="">-- SELECT CARRY FORWARD --</option>
                         {sectionAvailableBatches.map((b: any) => (
-                          <option key={b.batchNo} value={b.batchNo}>
-                            {b.batchNo} ({b.bags} {unit})
+                          <option key={`${b.batchNo}|${b.mult}`} value={`${b.batchNo}|${b.mult}`}>
+                            {b.batchNo} (x{b.mult}) ({b.bags} {unit})
                           </option>
                         ))}
                       </select>
@@ -872,7 +907,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                       <option value="">-- Select Batch --</option>
                       {availableBatches.map(b => {
                         const currentAvail = batchSummaries[b].carryFwdBags + (b === selectedBatch ? usageBags : 0)
-                        return <option key={b} value={b}>{b} (Avail: {currentAvail} {unit})</option>
+                        return <option key={b} value={b}>{batchSummaries[b].pureBatchNo} (x{batchSummaries[b].mult}) (Avail: {Math.round(currentAvail)} {unit})</option>
                       })}
                     </select>
 
@@ -905,7 +940,26 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                     </div>
                     
                     
-                    <button type="button" onClick={() => removeUsage(index)} className="text-red-500 p-2 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
+                    <button type="button" onClick={() => removeUsage(index)} className="text-red-500 p-2 hover:bg-red-50 ml-auto"><Trash2 className="w-4 h-4" /></button>
+                    
+                    {/* USAGE REJECTS */}
+                    <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center w-full mt-1 pt-2 border-t border-blue-100">
+                      <label className="flex items-center text-xs font-bold text-red-600 cursor-pointer min-w-max">
+                        <input type="checkbox" {...register(`inventory.${sectionKey}.usages.${index}.hasReject`)} className="mr-2 accent-red-600 w-4 h-4" />
+                        Ada barang reject?
+                      </label>
+                      
+                      {watchUsages[index]?.hasReject && (
+                        <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center w-full animate-in fade-in zoom-in duration-200">
+                          <input type="number" placeholder="Qty (Pcs)" min="0" {...register(`inventory.${sectionKey}.usages.${index}.rejectQty`)} className="w-24 p-1.5 border border-red-300 text-center text-xs font-bold outline-none focus:border-red-600 bg-red-50" />
+                          <select {...register(`inventory.${sectionKey}.usages.${index}.rejectType`)} className="w-28 p-1.5 border border-red-300 bg-red-50 text-xs font-bold outline-none focus:border-red-600 text-red-700">
+                            <option value="Scrap">Scrap</option>
+                            <option value="Return">Return</option>
+                          </select>
+                          <input type="text" placeholder="Reason..." {...register(`inventory.${sectionKey}.usages.${index}.rejectReason`)} className="flex-1 min-w-[150px] p-1.5 border border-red-300 text-xs font-bold outline-none focus:border-red-600 bg-red-50" />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )
               })}
@@ -944,7 +998,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
               ) : (
                 Object.entries(batchSummaries).map(([batch, data]) => (
                   <tr key={batch} className="border-b border-gray-200 font-bold">
-                    <td className="p-2 border-r border-gray-300 uppercase truncate max-w-[120px]" title={batch}>{batch}</td>
+                    <td className="p-2 border-r border-gray-300 uppercase truncate max-w-[120px]" title={batch}>{data.pureBatchNo} (x{data.mult})</td>
                     <td className="p-2 text-center border-r border-gray-300 text-gray-600">{Math.round(data.totalBags)} <span className="text-[10px]">B</span></td>
                     <td className="p-2 text-center border-r border-gray-300 text-blue-600">{Math.round(data.usedBags)} <span className="text-[10px]">B</span></td>
                     <td className={`p-2 border-l-[3px] border-black flex flex-col items-center justify-center font-black ${data.carryFwdBags < 0 ? 'bg-red-100 text-red-700' : 'bg-yellow-50 text-yellow-900'}`}>

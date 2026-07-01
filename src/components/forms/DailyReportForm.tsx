@@ -897,19 +897,20 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                 })
 
                 return (
-                  <div key={field.id} className="flex flex-wrap 2xl:flex-nowrap gap-2 items-center bg-white p-2 border border-blue-200 shadow-sm">
-                    <select {...register(`inventory.${sectionKey}.usages.${index}.period`)} className="w-28 p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-blue-500">
-                      <option value="Before">Before</option>
-                      <option value="After">After</option>
-                    </select>
+                  <div key={field.id} className="flex flex-col bg-white border border-blue-200 shadow-sm">
+                    <div className="flex flex-wrap 2xl:flex-nowrap gap-2 items-center p-2">
+                      <select {...register(`inventory.${sectionKey}.usages.${index}.period`)} className="w-28 p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-blue-500">
+                        <option value="Before">Before</option>
+                        <option value="After">After</option>
+                      </select>
 
-                    <select {...register(`inventory.${sectionKey}.usages.${index}.batchNo`)} className="flex-1 p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-blue-500 uppercase">
-                      <option value="">-- Select Batch --</option>
-                      {availableBatches.map(b => {
-                        const currentAvail = batchSummaries[b].carryFwdBags + (b === selectedBatch ? usageBags : 0)
-                        return <option key={b} value={b}>{batchSummaries[b].pureBatchNo} (x{batchSummaries[b].mult}) (Avail: {Math.round(currentAvail)} {unit})</option>
-                      })}
-                    </select>
+                      <select {...register(`inventory.${sectionKey}.usages.${index}.batchNo`)} className="flex-1 p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-blue-500 uppercase">
+                        <option value="">-- Select Batch --</option>
+                        {availableBatches.map(b => {
+                          const currentAvail = batchSummaries[b].carryFwdBags + (b === selectedBatch ? usageBags : 0)
+                          return <option key={b} value={b}>{batchSummaries[b].pureBatchNo} (x{batchSummaries[b].mult}) (Avail: {Math.round(currentAvail)} {unit})</option>
+                        })}
+                      </select>
 
                     
                     <div className="flex items-center w-full sm:w-auto sm:flex-1 mt-2 sm:mt-0">
@@ -940,23 +941,24 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                     </div>
                     
                     
-                    <button type="button" onClick={() => removeUsage(index)} className="text-red-500 p-2 hover:bg-red-50 ml-auto"><Trash2 className="w-4 h-4" /></button>
+                      <button type="button" onClick={() => removeUsage(index)} className="text-red-500 p-2 hover:bg-red-50 ml-auto"><Trash2 className="w-4 h-4" /></button>
+                    </div>
                     
                     {/* USAGE REJECTS */}
-                    <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center w-full mt-1 pt-2 border-t border-blue-100">
-                      <label className="flex items-center text-xs font-bold text-red-600 cursor-pointer min-w-max">
+                    <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center w-full px-2 pb-2 bg-red-50/10">
+                      <label className="flex items-center text-xs font-bold text-red-600 cursor-pointer min-w-max pt-1 border-t border-blue-100 w-full sm:w-auto">
                         <input type="checkbox" {...register(`inventory.${sectionKey}.usages.${index}.hasReject`)} className="mr-2 accent-red-600 w-4 h-4" />
                         Ada barang reject?
                       </label>
                       
                       {watchUsages[index]?.hasReject && (
-                        <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center w-full animate-in fade-in zoom-in duration-200">
-                          <input type="number" placeholder="Qty (Pcs)" min="0" {...register(`inventory.${sectionKey}.usages.${index}.rejectQty`)} className="w-24 p-1.5 border border-red-300 text-center text-xs font-bold outline-none focus:border-red-600 bg-red-50" />
-                          <select {...register(`inventory.${sectionKey}.usages.${index}.rejectType`)} className="w-28 p-1.5 border border-red-300 bg-red-50 text-xs font-bold outline-none focus:border-red-600 text-red-700">
+                        <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center w-full animate-in fade-in zoom-in duration-200 pt-1 border-t border-blue-100 sm:border-t-0 sm:pt-0 sm:ml-2">
+                          <input type="number" placeholder="Qty (Pcs)" min="0" {...register(`inventory.${sectionKey}.usages.${index}.rejectQty`)} className="w-24 p-1.5 border border-red-300 text-center text-xs font-bold outline-none focus:border-red-600 bg-white" />
+                          <select {...register(`inventory.${sectionKey}.usages.${index}.rejectType`)} className="w-28 p-1.5 border border-red-300 bg-white text-xs font-bold outline-none focus:border-red-600 text-red-700">
                             <option value="Scrap">Scrap</option>
                             <option value="Return">Return</option>
                           </select>
-                          <input type="text" placeholder="Reason..." {...register(`inventory.${sectionKey}.usages.${index}.rejectReason`)} className="flex-1 min-w-[150px] p-1.5 border border-red-300 text-xs font-bold outline-none focus:border-red-600 bg-red-50" />
+                          <input type="text" placeholder="Reason..." {...register(`inventory.${sectionKey}.usages.${index}.rejectReason`)} className="flex-1 min-w-[150px] p-1.5 border border-red-300 text-xs font-bold outline-none focus:border-red-600 bg-white" />
                         </div>
                       )}
                     </div>

@@ -30,20 +30,22 @@ export async function logUserAction(action: string, details?: string) {
 /**
  * Fetches recent audit logs for the monitoring dashboard.
  */
-export async function getAuditLogs(page: number = 1, pageSize: number = 50) {
+export async function getAuditLogs(page: number = 1, pageSize: number = 50, userId?: string) {
   try {
     const session = await auth()
     if (!session) return { success: false, error: "Unauthorized" }
 
     const skip = (page - 1) * pageSize
+    const whereClause = userId ? { userId } : {}
     
     const [logs, totalCount] = await Promise.all([
       prisma.auditLog.findMany({
+        where: whereClause,
         orderBy: { createdAt: 'desc' },
         skip,
         take: pageSize
       }),
-      prisma.auditLog.count()
+      prisma.auditLog.count({ where: whereClause })
     ])
 
     return { 

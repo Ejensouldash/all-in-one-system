@@ -1,7 +1,8 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { getAuditLogs } from "@/app/actions/audit"
-import { Activity, Clock, User, Info, FileText } from "lucide-react"
+import { Activity, Clock, User, Info, FileText, Filter } from "lucide-react"
+import { prisma } from "@/lib/prisma"
 
 export const metadata = {
   title: "User Activity Logs",
@@ -10,7 +11,7 @@ export const metadata = {
 export default async function AuditLogsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>
+  searchParams: Promise<{ page?: string; userId?: string }>
 }) {
   const session = await auth()
   // Superadmin bypasses, or users with USER_LOGS module
@@ -22,20 +23,44 @@ export default async function AuditLogsPage({
 
   const sp = await searchParams
   const page = Number(sp.page) || 1
-  const result = await getAuditLogs(page, 50)
+  const userId = sp.userId || ""
+
+  const users = await prisma.user.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' }
+  })
+
+  const result = await getAuditLogs(page, 50, userId)
   const logs = result.data || []
   const totalPages = result.totalPages || 0
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
-      <div className="flex items-center space-x-3">
-        <div className="bg-indigo-100 p-2 rounded-lg">
-          <Activity className="h-6 w-6 text-indigo-600" />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
+        <div className="flex items-center space-x-3">
+          <div className="bg-indigo-100 p-2 rounded-lg">
+            <Activity className="h-6 w-6 text-indigo-600" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900">User Activity Logs</h1>
+            <p className="text-gray-500 mt-1 text-sm">Monitor user actions, submissions, and modifications across the system.</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">User Activity Logs</h1>
-          <p className="text-gray-500 mt-1 text-sm">Monitor user actions, submissions, and modifications across the system.</p>
-        </div>
+
+        <form className="flex items-center bg-white border border-gray-300 rounded-lg shadow-sm px-2 py-1">
+          <Filter className="w-4 h-4 text-gray-400 mx-2" />
+          <select 
+            name="userId" 
+            defaultValue={userId}
+            onChange={(e) => e.target.form?.submit()}
+            className="bg-transparent border-none text-sm font-medium text-gray-700 focus:ring-0 cursor-pointer py-1.5"
+          >
+            <option value="">All Users</option>
+            {users.map(u => (
+              <option key={u.id} value={u.id}>{u.name}</option>
+            ))}
+          </select>
+        </form>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">

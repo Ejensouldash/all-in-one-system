@@ -30,7 +30,7 @@ export default async function AuditLogsPage({
     orderBy: { name: 'asc' }
   })
 
-  const result = await getAuditLogs(page, 50, userId)
+  const result = await getAuditLogs(page, 5, userId)
   const logs = result.data || []
   const totalPages = result.totalPages || 0
 
@@ -92,7 +92,7 @@ export default async function AuditLogsPage({
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex items-center">
                         <Clock className="h-4 w-4 mr-2 text-gray-400" />
-                        {new Date(log.createdAt).toLocaleString('en-GB')}
+                        {new Date(log.createdAt).toLocaleString('en-GB', { timeZone: 'Asia/Kuala_Lumpur' })}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -112,7 +112,7 @@ export default async function AuditLogsPage({
                       {log.details ? (
                         <div className="flex items-start">
                           <Info className="h-4 w-4 mr-1.5 text-gray-400 mt-0.5 shrink-0" />
-                          <span className="break-words line-clamp-2" title={log.details}>{log.details}</span>
+                          <span className="break-words line-clamp-2" title={log.details.split('Payload:')[0]}>{log.details.split('Payload:')[0]}</span>
                         </div>
                       ) : (
                         <span className="text-gray-400 italic">No details</span>
@@ -130,12 +130,12 @@ export default async function AuditLogsPage({
             <span className="text-sm text-gray-500">Page {page} of {totalPages}</span>
             <div className="flex space-x-2">
               {page > 1 && (
-                <a href={`/organization/audit-logs?page=${page - 1}`} className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-50">
+                <a href={`/organization/audit-logs?page=${page - 1}${userId ? `&userId=${userId}` : ''}`} className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-50">
                   Previous
                 </a>
               )}
               {page < totalPages && (
-                <a href={`/organization/audit-logs?page=${page + 1}`} className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-50">
+                <a href={`/organization/audit-logs?page=${page + 1}${userId ? `&userId=${userId}` : ''}`} className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-50">
                   Next
                 </a>
               )}

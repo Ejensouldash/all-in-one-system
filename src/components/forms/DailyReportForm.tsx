@@ -25,7 +25,7 @@ const PRODUCTION_CONFIG = {
 }
 
 export function DailyReportForm({ userName, initialData, reportId }: { userName: string, initialData?: any, reportId?: string }) {
-  const { register, control, handleSubmit, watch, setValue } = useForm({
+  const { register, control, handleSubmit, watch, setValue, reset } = useForm({
     defaultValues: initialData || {
       date: new Date().toISOString().split('T')[0],
       time: new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric" }),
@@ -90,6 +90,33 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
   const [availableCarryForward, setAvailableCarryForward] = useState<any[]>([])
   const [isFetchingSync, setIsFetchingSync] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Draft Auto-save Logic
+  useEffect(() => {
+    if (!initialData && !reportId) {
+      const draft = localStorage.getItem("dailyReportDraft")
+      if (draft) {
+        try {
+          const parsed = JSON.parse(draft)
+          if (parsed && typeof parsed === 'object') {
+            reset(parsed)
+          }
+        } catch (e) {
+          console.error("Failed to parse draft", e)
+        }
+      }
+    }
+  }, [initialData, reportId, reset])
+
+  const formValues = watch()
+  useEffect(() => {
+    if (!initialData && !reportId && !isSubmitting) {
+      const timeoutId = setTimeout(() => {
+        localStorage.setItem("dailyReportDraft", JSON.stringify(formValues))
+      }, 1000)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [formValues, initialData, reportId, isSubmitting])
 
   // Fetch Global Inventory on mount
   useEffect(() => {
@@ -218,6 +245,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
     setIsSubmitting(false)
 
     if (result.success) {
+      localStorage.removeItem("dailyReportDraft")
       alert("Success! Daily Report officially submitted to Supabase.")
       window.location.href = "/forms"
     } else {
@@ -429,10 +457,10 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             sectionKey="LABEL" 
             title={`LABEL INVENTORY (${watchLine.includes("800") ? "800ml" : "425ml"})`} 
             control={control} register={register} watch={watch} setValue={setValue}
-            availableCarryForward={availableCarryForward.filter(b => b.category.includes("LABEL") && b.category.includes(watchLine.includes("800") ? "800" : "425"))}
+            availableCarryForward={availableCarryForward.filter(b => b.category.includes("LABEL"))}
             multipliers={watchLine.includes("800") ? [6451] : [8547]}
             isLabel={true}
-            syncedDOs={syncedDOs.filter(d => d.category.includes("LABEL") && d.category.includes(watchLine.includes("800") ? "800" : "425"))}
+            syncedDOs={syncedDOs.filter(d => d.category.includes("LABEL"))}
           />
 
           <AdvancedInventorySection 
@@ -590,7 +618,26 @@ function ProductionBatchDistribution({ prodId, label, isChecked, totalQty, contr
           <div className="space-y-2">
             {fields.map((field, index) => (
               <div key={field.id} className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
-                <input type="text" placeholder="Batch Number" {...register(`production.${prodId}.batches.${index}.batchNo`)} className="w-full sm:w-48 border border-gray-300 p-2 font-bold uppercase text-sm outline-none focus:border-black" />
+                {(() => {
+                  const reg = register(`production.${prodId}.batches.${index}.batchNo`);
+                  return (
+                    <input 
+                      type="text" 
+                      placeholder="xxxxxx-xx" 
+                      maxLength={9}
+                      {...reg} 
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/\D/g, '');
+                        if (val.length > 6) {
+                          val = val.slice(0, 6) + '-' + val.slice(6, 8);
+                        }
+                        e.target.value = val;
+                        reg.onChange(e);
+                      }}
+                      className="w-full sm:w-48 border border-gray-300 p-2 font-bold uppercase text-center text-sm outline-none focus:border-black" 
+                    />
+                  );
+                })()}
                 <div className="flex items-center w-full sm:w-auto relative">
                   <input type="number" placeholder="Qty" min="0" {...register(`production.${prodId}.batches.${index}.qty`)} className="w-full sm:w-28 border border-gray-300 p-2 font-bold outline-none text-center text-sm focus:border-black" />
                   <select {...register(`production.${prodId}.batches.${index}.type`)} className="w-full sm:w-32 border-y border-r border-gray-300 p-2 font-bold outline-none bg-white text-sm focus:border-black">

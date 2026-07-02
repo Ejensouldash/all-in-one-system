@@ -51,7 +51,7 @@ export function FormsTabs({ role }: { role: string }) {
           Analytics
         </Link>
 
-        {(role === "SUPERADMIN" || role === "SUPERVISOR") && (
+        {role === "SUPERADMIN" && (
           <Link 
             href="/dashboard/export"
             className={`flex items-center pb-4 text-sm font-black uppercase tracking-wider border-b-4 transition-colors ${

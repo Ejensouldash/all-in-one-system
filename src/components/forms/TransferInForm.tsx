@@ -45,6 +45,8 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
   const { fields, append, remove } = useFieldArray({ control, name: "items" })
   const watchItems = watch("items")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  const isBoxDO = watchItems.some((item: any) => (item.category || "").includes("BOX"))
 
   const showErrorAndScroll = (elementId: string, message: string) => {
     alert(message)
@@ -88,10 +90,16 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
 
     setIsSubmitting(true)
     
-    const rawDo = data.doNumber.replace(/[^0-9]/g, '')
+    const isBoxSubmission = data.items.some((item: any) => (item.category || "").includes("BOX"));
+    let finalDoNumber = data.doNumber;
+    if (isBoxSubmission) {
+      const rawDo = data.doNumber.replace(/[^0-9]/g, '');
+      finalDoNumber = rawDo ? `DO - ${rawDo}` : "";
+    }
+    
     const formattedData = {
       ...data,
-      doNumber: rawDo ? `DO - ${rawDo}` : "",
+      doNumber: finalDoNumber,
       items: data.items.map((item: any) => {
         const cat = item.category || "";
         if (cat === "CAP") {
@@ -191,28 +199,34 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
           </div>
           <div id="field-doNumber">
             <label className="block text-xs font-black uppercase tracking-wider mb-2">DO Number</label>
-            <div className="flex border-2 border-black bg-white focus-within:ring-2 focus-within:ring-black">
-              <div className="px-3 py-3 bg-gray-100 border-r-2 border-black font-black flex items-center text-gray-800 whitespace-nowrap">
-                DO -
-              </div>
+            <div className={`flex ${isBoxDO ? 'border-2 border-black bg-white focus-within:ring-2 focus-within:ring-black' : ''}`}>
+              {isBoxDO && (
+                <div className="px-3 py-3 bg-gray-100 border-r-2 border-black font-black flex items-center text-gray-800 whitespace-nowrap">
+                  DO -
+                </div>
+              )}
               <input 
                 type="text" 
-                inputMode="numeric" 
-                placeholder="xxxx/xx/xxx" 
+                placeholder={isBoxDO ? "xxxx/xx/xxx" : "Enter DO Number"} 
                 {...register("doNumber")} 
                 onChange={(e) => {
-                  let raw = e.target.value.replace(/[^0-9]/g, '');
-                  let formatted = raw;
-                  if (raw.length > 4) {
-                    formatted = raw.slice(0, 4) + '/' + raw.slice(4);
+                  let val = e.target.value;
+                  if (isBoxDO) {
+                    let raw = val.replace(/[^0-9]/g, '');
+                    let formatted = raw;
+                    if (raw.length > 4) {
+                      formatted = raw.slice(0, 4) + '/' + raw.slice(4);
+                    }
+                    if (raw.length > 6) {
+                      formatted = raw.slice(0, 4) + '/' + raw.slice(4, 6) + '/' + raw.slice(6, 9);
+                    }
+                    setValue("doNumber", formatted, { shouldValidate: true, shouldDirty: true });
+                  } else {
+                    setValue("doNumber", val.toUpperCase(), { shouldValidate: true, shouldDirty: true });
                   }
-                  if (raw.length > 6) {
-                    formatted = raw.slice(0, 4) + '/' + raw.slice(4, 6) + '/' + raw.slice(6, 9);
-                  }
-                  setValue("doNumber", formatted, { shouldValidate: true, shouldDirty: true });
                 }}
-                maxLength={11}
-                className="w-full p-3 font-bold focus:outline-none bg-white" 
+                maxLength={isBoxDO ? 11 : 50}
+                className={`w-full p-3 font-bold focus:outline-none bg-white ${!isBoxDO ? 'border-2 border-black focus:ring-2 focus:ring-black uppercase' : ''}`} 
               />
             </div>
           </div>

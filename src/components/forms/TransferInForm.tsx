@@ -91,10 +91,19 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
     setIsSubmitting(true)
     
     const isBoxSubmission = data.items.some((item: any) => (item.category || "").includes("BOX"));
+    
+    // Always format with DO - prefix
     let finalDoNumber = data.doNumber;
+    
     if (isBoxSubmission) {
       const rawDo = data.doNumber.replace(/[^0-9]/g, '');
       finalDoNumber = rawDo ? `DO - ${rawDo}` : "";
+    } else {
+      // For non-box, if the user didn't type DO -, it's already separated in the UI, 
+      // but in the `data.doNumber` it might just be the string they typed because the UI prefix is outside the input.
+      // Actually, wait, let's look at how the prefix is added.
+      // Wait, let's just make it always `DO - ${data.doNumber}` if it doesn't start with DO - already.
+      finalDoNumber = data.doNumber ? `DO - ${data.doNumber.replace(/^DO\s*-\s*/i, '')}` : "";
     }
     
     const formattedData = {
@@ -199,18 +208,19 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
           </div>
           <div id="field-doNumber">
             <label className="block text-xs font-black uppercase tracking-wider mb-2">DO Number</label>
-            <div className={`flex ${isBoxDO ? 'border-2 border-black bg-white focus-within:ring-2 focus-within:ring-black' : ''}`}>
-              {isBoxDO && (
-                <div className="px-3 py-3 bg-gray-100 border-r-2 border-black font-black flex items-center text-gray-800 whitespace-nowrap">
-                  DO -
-                </div>
-              )}
+            <div className="flex border-2 border-black bg-white focus-within:ring-2 focus-within:ring-black">
+              <div className="px-3 py-3 bg-gray-100 border-r-2 border-black font-black flex items-center text-gray-800 whitespace-nowrap">
+                DO -
+              </div>
               <input 
                 type="text" 
-                placeholder={isBoxDO ? "xxxx/xx/xxx" : "Enter DO Number"} 
+                placeholder={isBoxDO ? "xxxx/xx/xxx" : "xxxxxxxx"} 
                 {...register("doNumber")} 
                 onChange={(e) => {
                   let val = e.target.value;
+                  // Remove DO - if they accidentally paste it
+                  val = val.replace(/^DO\s*-\s*/i, '');
+                  
                   if (isBoxDO) {
                     let raw = val.replace(/[^0-9]/g, '');
                     let formatted = raw;
@@ -226,7 +236,7 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
                   }
                 }}
                 maxLength={isBoxDO ? 11 : 50}
-                className={`w-full p-3 font-bold focus:outline-none bg-white ${!isBoxDO ? 'border-2 border-black focus:ring-2 focus:ring-black uppercase' : ''}`} 
+                className="w-full p-3 font-bold focus:outline-none bg-white uppercase" 
               />
             </div>
           </div>

@@ -269,31 +269,6 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                       </tbody>
                     </table>
                   </div>
-
-                  {/* Table 2: Return */}
-                  <div>
-                    <h3 className="font-bold text-xs uppercase mb-1">Return to Supplier</h3>
-                    <table className="w-full border-2 print:border border-black print:border-black text-xs print:text-[10pt]">
-                      <thead className="bg-gray-100 print:bg-gray-100 print:text-black border-b-2 print:border-b border-black print:border-black">
-                        <tr>
-                          <th className="p-2 print:py-0.5 print:px-2 text-left border-r-2 print:border-r border-black print:border-black uppercase font-black">Item</th>
-                          <th className="p-2 print:py-0.5 print:px-2 text-center border-r-2 print:border-r border-black print:border-black uppercase font-black">Before</th>
-                          <th className="p-2 print:py-0.5 print:px-2 text-center border-r-2 print:border-r border-black print:border-black uppercase font-black">After</th>
-                          <th className="p-2 print:py-0.5 print:px-2 text-center bg-gray-200 print:bg-transparent uppercase font-black">Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {report.rejects.filter((r: any) => r.type === "RETURN").map((rej: any) => (
-                          <tr key={rej.id} className="border-b-2 print:border-b border-black print:border-black font-bold last:border-0 last:print:border-0">
-                            <td className="p-2 print:py-0.5 print:px-2 border-r-2 print:border-r border-black print:border-black uppercase">{rej.item}</td>
-                            <td className="p-2 print:py-0.5 print:px-2 text-center border-r-2 print:border-r border-black print:border-black text-gray-600 print:text-black">{rej.before}</td>
-                            <td className="p-2 print:py-0.5 print:px-2 text-center border-r-2 print:border-r border-black print:border-black text-gray-600 print:text-black">{rej.after}</td>
-                            <td className="p-2 print:py-0.5 print:px-2 text-center bg-gray-100 print:bg-transparent text-red-600 print:text-black font-black">{rej.before + rej.after}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
                 </div>
               </section>
             </div> {/* END TWO COLUMN WRAPPER */}

@@ -348,7 +348,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             </div>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 gap-8">
             {/* Table 1: Scrap / Disposal */}
             <div>
               <h3 className="font-black uppercase tracking-widest mb-3 bg-red-600 text-white px-4 py-2 inline-block">Scrap / Disposal (Reject Terus)</h3>
@@ -374,40 +374,6 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
                         </td>
                         <td className="p-0 border-r-[3px] border-black bg-white">
                           <input type="number" {...register(`rejectsScrap.${lowerItem}.after`)} min="0" disabled={watchNoRejects} className="w-full h-full text-center p-3 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600 text-sm" />
-                        </td>
-                        <td className="p-2 text-center bg-gray-100 font-black text-lg text-red-700">{bef + aft}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Table 2: Return to Supplier */}
-            <div>
-              <h3 className="font-black uppercase tracking-widest mb-3 bg-red-600 text-white px-4 py-2 inline-block">Return to Supplier</h3>
-              <table className={`w-full border-[3px] border-black text-base transition-opacity ${watchNoRejects ? 'opacity-50 pointer-events-none' : ''}`}>
-                <thead className="bg-gray-100 border-b-[3px] border-black">
-                  <tr>
-                    <th className="p-2 text-left border-r-[3px] border-black uppercase tracking-wider font-black text-xs">Item</th>
-                    <th className="p-2 text-center border-r-[3px] border-black uppercase tracking-wider font-black text-xs">Before</th>
-                    <th className="p-2 text-center border-r-[3px] border-black uppercase tracking-wider font-black text-xs">After</th>
-                    <th className="p-2 text-center bg-gray-200 uppercase tracking-wider font-black text-xs">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {['CAP', 'BOTTLE', 'LABEL', 'BOX'].map((item) => {
-                    const lowerItem = item.toLowerCase() as "cap" | "bottle" | "label" | "box"
-                    const bef = Number(watchRejectsReturn?.[lowerItem]?.before) || 0
-                    const aft = Number(watchRejectsReturn?.[lowerItem]?.after) || 0
-                    return (
-                      <tr key={item} className="border-b-[3px] border-black last:border-0 font-medium">
-                        <td className="p-2 border-r-[3px] border-black font-black uppercase tracking-widest text-xs">{item}</td>
-                        <td className="p-0 border-r-[3px] border-black bg-white">
-                          <input type="number" {...register(`rejectsReturn.${lowerItem}.before`)} min="0" disabled={watchNoRejects} className="w-full h-full text-center p-3 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600 text-sm" />
-                        </td>
-                        <td className="p-0 border-r-[3px] border-black bg-white">
-                          <input type="number" {...register(`rejectsReturn.${lowerItem}.after`)} min="0" disabled={watchNoRejects} className="w-full h-full text-center p-3 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600 text-sm" />
                         </td>
                         <td className="p-2 text-center bg-gray-100 font-black text-lg text-red-700">{bef + aft}</td>
                       </tr>

@@ -1,0 +1,1 @@
+export default function AssetDetail({ params }: { params: { id: string } }) { return <div>Asset Detail {params.id}</div>; }

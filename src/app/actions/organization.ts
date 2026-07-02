@@ -69,7 +69,7 @@ export async function deleteUnit(id: string) {
     // STRICT Option A: Prevent deletion if linked data exists
     const linkedUsers = await prisma.user.count({ where: { unitId: id } })
     const linkedTickets = await prisma.ticket.count({ where: { unitId: id } })
-    const linkedAssets = await prisma.asset.count({ where: { unitId: id } })
+    const linkedAssets = 0 // Legacy check removed
 
     if (linkedUsers > 0 || linkedTickets > 0 || linkedAssets > 0) {
       return { success: false, error: `Cannot delete unit. It has ${linkedUsers} users, ${linkedTickets} tickets, and ${linkedAssets} assets linked to it.` }

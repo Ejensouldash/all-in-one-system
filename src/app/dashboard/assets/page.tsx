@@ -1,0 +1,1 @@
+export default function AssetsDashboard() { return <div>Assets Dashboard</div>; }

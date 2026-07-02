@@ -1,0 +1,1 @@
+export function Scanner() { return <div>QR Scanner</div>; }

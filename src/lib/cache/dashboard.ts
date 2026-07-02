@@ -27,7 +27,7 @@ export const getDashboardStats = unstable_cache(
       } as any
     })
 
-    const activeAssets = isSuperAdmin ? await prisma.asset.count({ where: { status: "ACTIVE" } }) : 0
+    const activeAssets = isSuperAdmin ? await prisma.asset.count({ where: { status: "AVAILABLE" } }) : 0
     
     const upcomingEvents = await prisma.event.count({
       where: {

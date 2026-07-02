@@ -34,6 +34,7 @@ model User {
   unit              Unit?                   @relation(fields: [unitId], references: [id])
   openingStocks     WarehouseOpeningStock[] @relation("OpeningStockSetter")
   auditLogs         AuditLog[]
+  assetAssignments  AssetAssignment[]
 }
 
 model Branch {
@@ -52,38 +53,99 @@ model Unit {
   branchId  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  assets    Asset[]
   tickets   Ticket[]
   branch    Branch   @relation(fields: [branchId], references: [id])
   users     User[]
 }
 
-model Asset {
-  id           String     @id @default(uuid())
-  serialNumber String?
-  status       Status     @default(ACTIVE)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  barcode      String?
-  brand        String
-  category     String
-  location     String?
-  model        String
-  unitId       String?
-  assigneeName String?
-  unit         Unit?      @relation(fields: [unitId], references: [id])
-  logs         AssetLog[]
-  tickets      Ticket[]
+enum AssetStatus {
+  AVAILABLE
+  ASSIGNED
+  MAINTENANCE
+  RETIRED
 }
 
-model AssetLog {
-  id          String   @id @default(uuid())
-  assetId     String
-  action      String
-  description String
-  performedBy String?
-  date        DateTime @default(now())
-  asset       Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+enum AssetType {
+  IT_EQUIPMENT
+  VEHICLE
+  MACHINERY
+  FURNITURE
+  SAFETY
+  OTHER
+}
+
+model Department {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  assets    Asset[]
+}
+
+model Location {
+  id        String   @id @default(uuid())
+  name      String
+  block     String?
+  state     String?
+  city      String?
+  assets    Asset[]
+}
+
+model Asset {
+  id             String      @id @default(uuid())
+  assetTag       String      @unique
+  name           String
+  brand          String?
+  model          String?
+  serialNumber   String?
+  deviceId       String?
+  description    String?     @db.Text
+  
+  type           AssetType   @default(OTHER)
+  status         AssetStatus @default(AVAILABLE)
+  
+  purchaseDate   DateTime?   @db.Date
+  price          Float?
+  supplier       String?
+  warrantyInfo   String?
+  
+  plateNumber    String?
+  
+  departmentId   String?
+  department     Department? @relation(fields: [departmentId], references: [id])
+  
+  locationId     String?
+  location       Location?   @relation(fields: [locationId], references: [id])
+  
+  assignments    AssetAssignment[]
+  maintenance    MaintenanceLog[]
+  tickets        Ticket[]
+  
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
+
+model AssetAssignment {
+  id             String    @id @default(uuid())
+  assetId        String
+  asset          Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
+  
+  checkoutDate   DateTime  @default(now())
+  returnDate     DateTime?
+  remarks        String?
+}
+
+model MaintenanceLog {
+  id             String    @id @default(uuid())
+  assetId        String
+  asset          Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  
+  date           DateTime  @default(now())
+  cost           Float?
+  vendor         String?
+  description    String
+  resolution     String?
 }
 
 model Ticket {

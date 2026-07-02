@@ -1,0 +1,1 @@
+export function MaintenanceLogs() { return <div>Maintenance Logs</div>; }

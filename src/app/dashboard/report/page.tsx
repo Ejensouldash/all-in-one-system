@@ -19,9 +19,9 @@ export default async function ITPerformanceReport() {
 
   // Fetch Assets
   const totalAssets = await prisma.asset.count()
-  const activeAssets = await prisma.asset.count({ where: { status: "ACTIVE" } })
+  const activeAssets = await prisma.asset.count({ where: { status: "AVAILABLE" } })
   const maintenanceAssets = await prisma.asset.count({ where: { status: "MAINTENANCE" } })
-  const brokenAssets = await prisma.asset.count({ where: { status: "BROKEN" } })
+  const brokenAssets = await prisma.asset.count({ where: { status: "RETIRED" } })
 
   const resolutionRate = totalTickets === 0 ? 100 : (resolvedTickets / totalTickets) * 100
   const assetHealthRate = totalAssets === 0 ? 100 : (activeAssets / totalAssets) * 100

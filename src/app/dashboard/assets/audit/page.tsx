@@ -1,0 +1,1 @@
+export default function AssetAudit() { return <div>Asset Audit Hub</div>; }

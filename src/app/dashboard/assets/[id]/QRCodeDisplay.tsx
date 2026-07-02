@@ -1,0 +1,1 @@
+export function QRCodeDisplay() { return <div>QR Code Display</div>; }

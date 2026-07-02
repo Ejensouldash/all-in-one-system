@@ -1,0 +1,1 @@
+export function AssignmentHistory() { return <div>Assignment History</div>; }

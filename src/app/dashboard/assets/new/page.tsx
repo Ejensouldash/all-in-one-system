@@ -1,0 +1,1 @@
+export default function NewAsset() { return <div>New Asset</div>; }

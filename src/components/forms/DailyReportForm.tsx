@@ -351,7 +351,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
           <div className="grid grid-cols-1 gap-8">
             {/* Table 1: Scrap / Disposal */}
             <div>
-              <h3 className="font-black uppercase tracking-widest mb-3 bg-red-600 text-white px-4 py-2 inline-block">Scrap / Disposal (Reject Terus)</h3>
+              <h3 className="font-black uppercase tracking-widest mb-3 bg-red-600 text-white px-4 py-2 inline-block">REJECT</h3>
               <table className={`w-full border-[3px] border-black text-base transition-opacity ${watchNoRejects ? 'opacity-50 pointer-events-none' : ''}`}>
                 <thead className="bg-gray-100 border-b-[3px] border-black">
                   <tr>
@@ -920,9 +920,8 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                       {watchUsages[index]?.hasReject && (
                         <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center w-full animate-in fade-in zoom-in duration-200 pt-1 border-t border-blue-100 sm:border-t-0 sm:pt-0 sm:ml-2">
                           <input type="number" placeholder="Qty (Pcs)" min="0" {...register(`inventory.${sectionKey}.usages.${index}.rejectQty`)} className="w-24 p-1.5 border border-red-300 text-center text-xs font-bold outline-none focus:border-red-600 bg-white" />
-                          <select {...register(`inventory.${sectionKey}.usages.${index}.rejectType`)} className="w-28 p-1.5 border border-red-300 bg-white text-xs font-bold outline-none focus:border-red-600 text-red-700">
+                          <select {...register(`inventory.${sectionKey}.usages.${index}.rejectType`)} className="w-28 p-1.5 border border-red-300 bg-red-50 text-xs font-bold outline-none text-red-700 pointer-events-none cursor-not-allowed">
                             <option value="Scrap">Scrap</option>
-                            <option value="Return">Return</option>
                           </select>
                           <input type="text" placeholder="Reason..." {...register(`inventory.${sectionKey}.usages.${index}.rejectReason`)} className="flex-1 min-w-[150px] p-1.5 border border-red-300 text-xs font-bold outline-none focus:border-red-600 bg-white" />
                         </div>

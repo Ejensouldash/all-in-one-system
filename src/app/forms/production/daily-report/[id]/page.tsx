@@ -247,7 +247,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                 <div className="grid grid-cols-1 gap-6">
                   {/* Table 1: Scrap */}
                   <div>
-                    <h3 className="font-bold text-xs uppercase mb-1">Scrap / Disposal (Reject Terus)</h3>
+                    <h3 className="font-bold text-xs uppercase mb-1">REJECT</h3>
                     <table className="w-full border-2 print:border border-black print:border-black text-xs print:text-[10pt]">
                       <thead className="bg-gray-100 print:bg-gray-100 print:text-black border-b-2 print:border-b border-black print:border-black">
                         <tr>

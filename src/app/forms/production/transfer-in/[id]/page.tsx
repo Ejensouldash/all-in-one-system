@@ -91,6 +91,7 @@ export default async function TransferInDetailPage({ params }: { params: Promise
               <thead className="bg-gray-50">
                 <tr>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Category</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Batch No / Lot</th>
                   <th scope="col" className="px-6 py-3 text-center text-xs font-black text-gray-500 uppercase tracking-wider">Bags/Boxes</th>
                   <th scope="col" className="px-6 py-3 text-center text-xs font-black text-gray-500 uppercase tracking-wider">Multiplier</th>
                   <th scope="col" className="px-6 py-3 text-right text-xs font-black text-emerald-600 uppercase tracking-wider">Total Pieces</th>
@@ -101,6 +102,9 @@ export default async function TransferInDetailPage({ params }: { params: Promise
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
                       {item.category}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-mono">
+                      {item.batchNo}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-center text-gray-900">
                       {item.bags}

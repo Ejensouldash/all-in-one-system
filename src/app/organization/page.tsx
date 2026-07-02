@@ -16,7 +16,7 @@ export default async function OrganizationPage() {
   const units = await prisma.unit.findMany({
     include: { 
       branch: true,
-      _count: { select: { users: true, tickets: true, assets: true } }
+      _count: { select: { users: true, tickets: true } }
     },
     orderBy: { createdAt: 'desc' }
   })
@@ -79,7 +79,7 @@ export default async function OrganizationPage() {
                   <div>
                     <div className="font-medium text-gray-900">{unit.name}</div>
                     <div className="text-xs text-blue-600 mt-1 font-medium bg-blue-50 inline-block px-2 py-0.5 rounded border border-blue-100">{unit.branch.name}</div>
-                    <div className="text-xs text-gray-500 mt-1.5">{unit._count.users} Users • {unit._count.assets} Assets • {unit._count.tickets} Tickets</div>
+                    <div className="text-xs text-gray-500 mt-1.5">{unit._count.users} Users • {unit._count.tickets} Tickets</div>
                   </div>
                   <DeleteButton id={unit.id} type="unit" />
                 </li>

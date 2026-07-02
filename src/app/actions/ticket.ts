@@ -159,20 +159,29 @@ export async function getAssetByTag(tag: string) {
   const asset = await prisma.asset.findFirst({
     where: {
       OR: [
-        { barcode: tag },
+        { assetTag: tag },
         { serialNumber: tag }
       ],
-      status: "ACTIVE"
+      status: "AVAILABLE"
     },
     select: {
       id: true,
-      category: true,
+      type: true,
       brand: true,
       model: true,
-      barcode: true,
+      assetTag: true,
       serialNumber: true
     }
   })
   
-  return asset
+  // Map it to legacy fields so the ticket form doesn't break
+  if (!asset) return null
+  return {
+    id: asset.id,
+    category: asset.type,
+    brand: asset.brand,
+    model: asset.model,
+    barcode: asset.assetTag,
+    serialNumber: asset.serialNumber
+  }
 }

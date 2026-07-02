@@ -18,7 +18,7 @@ export default async function DashboardPage() {
   if (isRantau) {
     if (userModules.includes("FORMS")) redirect("/forms")
     if (userModules.includes("TICKETS")) redirect("/tickets")
-    if (userModules.includes("WAREHOUSE")) redirect("/assets")
+    if (userModules.includes("WAREHOUSE")) redirect("/dashboard/assets")
     
     // If they have no modules, show a restricted message instead of the IT dashboard
     return (
@@ -148,7 +148,7 @@ export default async function DashboardPage() {
                 <Link href="/calendar" className="block w-full text-left px-4 py-3 bg-white hover:bg-gray-50 transition-colors rounded-lg text-sm font-medium border border-gray-200 shadow-sm hover:shadow group flex items-center justify-between">
                   IT Event Calendar <ExternalLink className="h-4 w-4 text-gray-400 group-hover:text-indigo-500" />
                 </Link>
-                <Link href="/assets" className="block w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 transition-colors rounded-lg text-sm font-medium border border-blue-100 text-blue-700 shadow-sm hover:shadow group flex items-center justify-between">
+                <Link href="/dashboard/assets" className="block w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 transition-colors rounded-lg text-sm font-medium border border-blue-100 text-blue-700 shadow-sm hover:shadow group flex items-center justify-between">
                   Manage Assets <ExternalLink className="h-4 w-4 text-blue-400 group-hover:text-blue-600" />
                 </Link>
               </>

@@ -63,7 +63,7 @@ const adminLinks: NavLink[] = [
     ]
   },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
-  { name: "Assets", href: "/assets", icon: Package, module: "WAREHOUSE" }, // Warehouse/Assets
+  { name: "Assets", href: "/dashboard/assets", icon: Package, module: "WAREHOUSE" }, // Warehouse/Assets
   { name: "Users", href: "/users", icon: Users, module: "USERS" },
   { 
     name: "Organization", 

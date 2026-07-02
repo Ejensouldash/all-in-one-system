@@ -9,7 +9,7 @@ export function Topbar({ user, onMenuClick }: { user: any, onMenuClick?: () => v
 
   let title = "Dashboard"
   if (pathname.includes("/tickets")) title = "Tickets"
-  if (pathname.includes("/assets")) title = "Assets"
+  if (pathname.includes("/dashboard/assets")) title = "Assets"
   if (pathname.includes("/users")) title = "Users"
   if (pathname.includes("/forms")) title = "Daily Production Report"
   if (pathname.includes("/calendar")) title = "Event Calendar"

@@ -43,7 +43,7 @@ export default auth((req) => {
     requiredModules = ["TICKETS"]
   } else if (nextUrl.pathname.startsWith("/calendar")) {
     requiredModules = ["EVENTS"]
-  } else if (nextUrl.pathname.startsWith("/assets")) {
+  } else if (nextUrl.pathname.startsWith("/dashboard/assets")) {
     requiredModules = ["WAREHOUSE"]
   } else if (nextUrl.pathname.startsWith("/users") || nextUrl.pathname.startsWith("/organization")) {
     requiredModules = ["USERS"]

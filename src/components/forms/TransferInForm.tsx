@@ -320,7 +320,23 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
 
                     <div className="w-full md:w-[25%]" id={`item-${index}-batchNo`}>
                       <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">Batch No</label>
-                      <input type="text" placeholder="Batch No" {...register(`items.${index}.batchNo`)} className="w-full p-3 md:p-2 border-2 border-gray-300 bg-white font-bold outline-none focus:border-black uppercase text-sm" />
+                      <input 
+                        type="text" 
+                        placeholder={cat.includes("BOTTLE") ? "xxxxxx-xx" : "Batch No"}
+                        {...register(`items.${index}.batchNo`)} 
+                        onChange={(e) => {
+                          let val = e.target.value;
+                          if (cat.includes("BOTTLE")) {
+                            val = val.replace(/[^0-9]/g, ''); // keep only numbers
+                            if (val.length > 6) {
+                              val = val.slice(0, 6) + '-' + val.slice(6, 8);
+                            }
+                          }
+                          setValue(`items.${index}.batchNo`, val, { shouldValidate: true, shouldDirty: true });
+                        }}
+                        maxLength={cat.includes("BOTTLE") ? 9 : undefined}
+                        className="w-full p-3 md:p-2 border-2 border-gray-300 bg-white font-bold outline-none focus:border-black uppercase text-sm" 
+                      />
                     </div>
 
                     <div className="flex w-full md:w-[30%] gap-3 md:gap-2">

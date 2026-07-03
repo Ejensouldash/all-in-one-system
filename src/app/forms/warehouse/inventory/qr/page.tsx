@@ -68,10 +68,10 @@ function QRTagContent() {
             {formatSKU(sku)}
           </div>
           
-          <div className="border-4 border-black p-2 mb-4 bg-white flex items-center justify-center">
+          <div className="border-[5px] border-black p-3 mb-4 bg-white flex items-center justify-center">
             <QRCodeSVG 
               value={qrValue} 
-              size={130}
+              size={230}
               level="H"
               includeMargin={false}
             />

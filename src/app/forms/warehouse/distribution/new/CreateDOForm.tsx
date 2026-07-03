@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { createDistributionOrder } from "@/app/actions/warehouse"
 import { Loader2, Plus, Trash2, Save, FileText, Truck, MapPin, QrCode } from "lucide-react"
+import { SearchableSelect } from "@/components/forms/SearchableSelect"
 import { GMPHeader } from "@/components/GMPHeader"
 import { QRScannerModal } from "@/components/forms/QRScannerModal"
 
@@ -206,6 +207,7 @@ export function CreateDOForm({ availableInventory, userId }: { availableInventor
                   watchItems={watchItems}
                   availableInventory={availableInventory}
                   fieldArray={fieldArrays[skuIndex]}
+                  setValue={setValue}
                 />
               </div>
             </div>
@@ -232,7 +234,7 @@ export function CreateDOForm({ availableInventory, userId }: { availableInventor
   )
 }
 
-function BatchRows({ skuId, skuIndex, control, register, watchItems, availableInventory, fieldArray }: any) {
+function BatchRows({ skuId, skuIndex, control, register, watchItems, availableInventory, fieldArray, setValue }: any) {
   const { fields, remove, append } = fieldArray;
 
   // Filter inventory batches for this specific SKU
@@ -266,17 +268,16 @@ function BatchRows({ skuId, skuIndex, control, register, watchItems, availableIn
           <div key={field.id} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-gray-50 p-3 rounded border border-gray-200">
             <div className="flex-1 w-full">
               <label className="block sm:hidden text-[10px] font-black uppercase text-gray-500 mb-1">Select Batch</label>
-              <select 
-                {...register(`items.${skuIndex}.batches.${batchIndex}.batchNumber`, { required: true })}
-                className="w-full border-2 border-black p-2 text-sm font-bold focus:outline-none focus:ring-1 focus:ring-black rounded"
-              >
-                <option value="">-- Choose Batch --</option>
-                {availableBatchesForSku.map((inv: any) => (
-                  <option key={inv.id} value={inv.batchNumber}>
-                    Batch: {inv.batchNumber} (Available: {inv.availableBalance} box)
-                  </option>
-                ))}
-              </select>
+              <input type="hidden" {...register(`items.${skuIndex}.batches.${batchIndex}.batchNumber`, { required: true })} />
+              <SearchableSelect 
+                value={currentBatchNo || ""}
+                onChange={(val) => setValue(`items.${skuIndex}.batches.${batchIndex}.batchNumber`, val)}
+                options={availableBatchesForSku.map((inv: any) => ({
+                  value: inv.batchNumber,
+                  label: `Batch: ${inv.batchNumber} (Available: ${inv.availableBalance} box)`
+                }))}
+                placeholder="-- Choose Batch --"
+              />
             </div>
             
             <div className="w-full sm:w-32 flex-shrink-0">

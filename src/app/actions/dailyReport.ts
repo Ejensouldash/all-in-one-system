@@ -10,6 +10,25 @@ export async function createDailyReport(data: any) {
   if (!session) return { success: false, error: "Unauthorized" }
 
   try {
+    // Aggregate Usage Rejects
+    const aggregatedRejects = {
+      CAP: { before: Number(data.rejectsScrap?.cap?.before) || 0, after: Number(data.rejectsScrap?.cap?.after) || 0 },
+      BOTTLE: { before: Number(data.rejectsScrap?.bottle?.before) || 0, after: Number(data.rejectsScrap?.bottle?.after) || 0 },
+      LABEL: { before: Number(data.rejectsScrap?.label?.before) || 0, after: Number(data.rejectsScrap?.label?.after) || 0 },
+      BOX: { before: Number(data.rejectsScrap?.box?.before) || 0, after: Number(data.rejectsScrap?.box?.after) || 0 }
+    }
+
+    Object.keys(data.inventory || {}).forEach(sectionKey => {
+      const usages = data.inventory[sectionKey]?.usages || []
+      usages.forEach((u: any) => {
+        if (u.hasReject && u.rejectQty) {
+          const qty = Number(u.rejectQty)
+          if (u.period === "Before") aggregatedRejects[sectionKey as keyof typeof aggregatedRejects].before += qty
+          else aggregatedRejects[sectionKey as keyof typeof aggregatedRejects].after += qty
+        }
+      })
+    })
+
     const report = await prisma.dailyReport.create({
       data: {
         date: new Date(data.date),
@@ -41,13 +60,14 @@ export async function createDailyReport(data: any) {
           }))
         },
 
+
         // Rejects
         rejects: {
           create: [
-            ...Object.keys(data.rejectsScrap || {}).map(k => ({
+            ...Object.keys(aggregatedRejects).map(k => ({
               item: k,
-              before: Number(data.rejectsScrap[k].before) || 0,
-              after: Number(data.rejectsScrap[k].after) || 0,
+              before: aggregatedRejects[k as keyof typeof aggregatedRejects].before,
+              after: aggregatedRejects[k as keyof typeof aggregatedRejects].after,
               type: "SCRAP"
             })),
             ...Object.keys(data.rejectsReturn || {}).map(k => ({
@@ -56,7 +76,7 @@ export async function createDailyReport(data: any) {
               after: Number(data.rejectsReturn[k].after) || 0,
               type: "RETURN"
             }))
-          ]
+          ].filter(r => r.before > 0 || r.after > 0)
         },
 
         // Breakdowns
@@ -111,16 +131,30 @@ export async function createDailyReport(data: any) {
   }
 }
 
-export async function getActiveInventory() {
+export async function getActiveInventory(targetDateStr?: string) {
   try {
-    // 1. Fetch ALL Transfer In items ever
+    let targetDate = new Date()
+    if (targetDateStr) {
+      targetDate = new Date(targetDateStr)
+      targetDate.setHours(23, 59, 59, 999)
+    }
+
+    // 1. Fetch ALL Transfer In items up to the target date
     const allDOItems = await prisma.transferInItem.findMany({
+      where: {
+        transferIn: {
+          receiveDate: { lte: targetDate }
+        }
+      },
       include: { transferIn: true }
     })
     
-    // 2. Fetch ALL Usages ever (Globally)
+    // 2. Fetch ALL Usages ever (Globally) up to the target date
     const allUsages = await prisma.inventoryLog.findMany({
-      where: { type: "Usage" }
+      where: { 
+        type: "Usage",
+        report: { date: { lte: targetDate } }
+      }
     })
 
     // Calculate global balance for every batch
@@ -285,6 +319,25 @@ export async function updateDailyReport(id: string, data: any) {
     if (!existing) return { success: false, error: "Report not found" }
     if (existing.status !== "PENDING" && existing.status !== "REJECTED") return { success: false, error: "Cannot edit an approved report." }
 
+    // Aggregate Usage Rejects
+    const aggregatedRejects = {
+      CAP: { before: Number(data.rejectsScrap?.cap?.before) || 0, after: Number(data.rejectsScrap?.cap?.after) || 0 },
+      BOTTLE: { before: Number(data.rejectsScrap?.bottle?.before) || 0, after: Number(data.rejectsScrap?.bottle?.after) || 0 },
+      LABEL: { before: Number(data.rejectsScrap?.label?.before) || 0, after: Number(data.rejectsScrap?.label?.after) || 0 },
+      BOX: { before: Number(data.rejectsScrap?.box?.before) || 0, after: Number(data.rejectsScrap?.box?.after) || 0 }
+    }
+
+    Object.keys(data.inventory || {}).forEach(sectionKey => {
+      const usages = data.inventory[sectionKey]?.usages || []
+      usages.forEach((u: any) => {
+        if (u.hasReject && u.rejectQty) {
+          const qty = Number(u.rejectQty)
+          if (u.period === "Before") aggregatedRejects[sectionKey as keyof typeof aggregatedRejects].before += qty
+          else aggregatedRejects[sectionKey as keyof typeof aggregatedRejects].after += qty
+        }
+      })
+    })
+
     // Update requires deleting existing nested data and recreating
     await prisma.$transaction([
       prisma.productionOutput.deleteMany({ where: { reportId: id } }),
@@ -322,10 +375,10 @@ export async function updateDailyReport(id: string, data: any) {
 
           rejects: {
             create: [
-              ...Object.keys(data.rejectsScrap || {}).map(k => ({
+              ...Object.keys(aggregatedRejects).map(k => ({
                 item: k,
-                before: Number(data.rejectsScrap[k].before) || 0,
-                after: Number(data.rejectsScrap[k].after) || 0,
+                before: aggregatedRejects[k as keyof typeof aggregatedRejects].before,
+                after: aggregatedRejects[k as keyof typeof aggregatedRejects].after,
                 type: "SCRAP"
               })),
               ...Object.keys(data.rejectsReturn || {}).map(k => ({
@@ -334,7 +387,7 @@ export async function updateDailyReport(id: string, data: any) {
                 after: Number(data.rejectsReturn[k].after) || 0,
                 type: "RETURN"
               }))
-            ]
+            ].filter(r => r.before > 0 || r.after > 0)
           },
 
           breakdowns: {

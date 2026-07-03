@@ -91,6 +91,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
   const watchRejectsReturn = useWatch({ control, name: "rejectsReturn" });
   const { fields: breakdownFields, append: appendBreakdown, remove: removeBreakdown } = useFieldArray({ control, name: "breakdowns" });
   const watchNoRejects = watch("noRejects")
+  const watchInventory = watch("inventory")
 
   const [syncedDOs, setSyncedDOs] = useState<any[]>([])
   const [availableCarryForward, setAvailableCarryForward] = useState<any[]>([])
@@ -124,11 +125,13 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
     }
   }, [formValues, initialData, reportId, isSubmitting])
 
-  // Fetch Global Inventory on mount
+  const watchDate = watch("date")
+
+  // Fetch Global Inventory on mount and when date changes
   useEffect(() => {
     async function fetchInventory() {
       setIsFetchingSync(true)
-      const res = await getActiveInventory()
+      const res = await getActiveInventory(watchDate)
       
       if (res.success) {
         setSyncedDOs(res.data.todayDOs)
@@ -136,8 +139,10 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       }
       setIsFetchingSync(false)
     }
-    fetchInventory()
-  }, [])
+    if (watchDate) {
+      fetchInventory()
+    }
+  }, [watchDate])
 
   const showErrorAndScroll = (elementId: string, message: string) => {
     alert(message)
@@ -399,26 +404,37 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
                 <thead className="bg-gray-100 border-b-[3px] border-black">
                   <tr>
                     <th className="p-2 text-left border-r-[3px] border-black uppercase tracking-wider font-black text-xs">Item</th>
-                    <th className="p-2 text-center border-r-[3px] border-black uppercase tracking-wider font-black text-xs">Before</th>
-                    <th className="p-2 text-center border-r-[3px] border-black uppercase tracking-wider font-black text-xs">After</th>
-                    <th className="p-2 text-center bg-gray-200 uppercase tracking-wider font-black text-xs">Total</th>
+                    <th className="p-2 text-center border-r-[3px] border-black uppercase tracking-wider font-black text-xs">Manual Before</th>
+                    <th className="p-2 text-center border-r-[3px] border-black uppercase tracking-wider font-black text-xs">Manual After</th>
+                    <th className="p-2 text-center bg-gray-200 uppercase tracking-wider font-black text-xs">Total (Inc. Usage)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {['CAP', 'BOTTLE', 'LABEL', 'BOX'].map((item) => {
                     const lowerItem = item.toLowerCase() as "cap" | "bottle" | "label" | "box"
-                    const bef = Number(watchRejectsScrap?.[lowerItem]?.before) || 0
-                    const aft = Number(watchRejectsScrap?.[lowerItem]?.after) || 0
+                    const sectionKey = item === "CAP" ? "CAP" : item === "BOTTLE" ? "BOTTLE" : item === "LABEL" ? "LABEL" : "BOX"
+                    
+                    const befManual = Number(watchRejectsScrap?.[lowerItem]?.before) || 0
+                    const aftManual = Number(watchRejectsScrap?.[lowerItem]?.after) || 0
+                    
+                    const usageRejectsBefore = (watchInventory?.[sectionKey]?.usages || []).filter((u:any) => u.hasReject && u.period === "Before").reduce((acc:number, u:any) => acc + (Number(u.rejectQty)||0), 0)
+                    const usageRejectsAfter = (watchInventory?.[sectionKey]?.usages || []).filter((u:any) => u.hasReject && u.period !== "Before").reduce((acc:number, u:any) => acc + (Number(u.rejectQty)||0), 0)
+                    
+                    const totalBef = befManual + usageRejectsBefore
+                    const totalAft = aftManual + usageRejectsAfter
+
                     return (
                       <tr key={item} className="border-b-[3px] border-black last:border-0 font-medium">
                         <td className="p-2 border-r-[3px] border-black font-black uppercase tracking-widest text-xs">{item}</td>
-                        <td className="p-0 border-r-[3px] border-black bg-white">
+                        <td className="p-0 border-r-[3px] border-black bg-white relative">
                           <input type="number" {...register(`rejectsScrap.${lowerItem}.before`)} min="0" disabled={watchNoRejects} className="w-full h-full text-center p-3 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600 text-sm" />
+                          {usageRejectsBefore > 0 && <span className="absolute bottom-1 right-2 text-[10px] text-red-500 font-bold bg-white px-1 shadow-sm border border-red-200 rounded">+{usageRejectsBefore} from usage</span>}
                         </td>
-                        <td className="p-0 border-r-[3px] border-black bg-white">
+                        <td className="p-0 border-r-[3px] border-black bg-white relative">
                           <input type="number" {...register(`rejectsScrap.${lowerItem}.after`)} min="0" disabled={watchNoRejects} className="w-full h-full text-center p-3 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600 text-sm" />
+                          {usageRejectsAfter > 0 && <span className="absolute bottom-1 right-2 text-[10px] text-red-500 font-bold bg-white px-1 shadow-sm border border-red-200 rounded">+{usageRejectsAfter} from usage</span>}
                         </td>
-                        <td className="p-2 text-center bg-gray-100 font-black text-lg text-red-700">{bef + aft}</td>
+                        <td className="p-2 text-center bg-gray-100 font-black text-lg text-red-700">{totalBef + totalAft}</td>
                       </tr>
                     )
                   })}

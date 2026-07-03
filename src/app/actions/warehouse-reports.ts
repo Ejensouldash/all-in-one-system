@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma"
 import { startOfDay, endOfDay, startOfMonth, endOfMonth, parseISO, isBefore, isAfter, isEqual } from "date-fns"
+import { revalidatePath } from "next/cache"
 
 // 1. Fetch Daily Distribution Report Data
 export async function getDailyDistributionReport(dateStr: string) {
@@ -227,13 +228,13 @@ export async function setOpeningStock(data: { batchNumber: string, sku: string, 
     })
 
     if (existing) {
-      const diff = data.openingQty - existing.openingQty;
+      const incrementAmt = data.openingQty;
       await prisma.$transaction(async (tx) => {
         // Update
         await tx.warehouseOpeningStock.update({
           where: { id: existing.id },
           data: {
-            openingQty: data.openingQty,
+            openingQty: { increment: incrementAmt },
             sku: data.sku,
             setById: data.userId
           }
@@ -245,12 +246,12 @@ export async function setOpeningStock(data: { batchNumber: string, sku: string, 
           create: {
             batchNumber: data.batchNumber,
             sku: data.sku,
-            totalQtyIn: data.openingQty,
-            availableBalance: data.openingQty
+            totalQtyIn: incrementAmt,
+            availableBalance: incrementAmt
           },
           update: {
-            totalQtyIn: { increment: diff },
-            availableBalance: { increment: diff }
+            totalQtyIn: { increment: incrementAmt },
+            availableBalance: { increment: incrementAmt }
           }
         })
       })
@@ -284,6 +285,9 @@ export async function setOpeningStock(data: { batchNumber: string, sku: string, 
         })
       })
     }
+    
+    revalidatePath("/forms/warehouse/reports/opening-stock")
+    revalidatePath("/forms/warehouse/dashboard")
     
     return { success: true }
   } catch (error) {

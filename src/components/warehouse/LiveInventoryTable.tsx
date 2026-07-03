@@ -80,7 +80,7 @@ export function LiveInventoryTable({ inventoryBatches }: { inventoryBatches: any
                     <td className="px-6 py-4 whitespace-nowrap text-lg font-black text-emerald-700 text-right bg-emerald-50/30">{batch.availableBalance}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-center space-x-2">
                       <Link 
-                        href={`/forms/warehouse/inventory/batch/${encodeURIComponent(batch.batchNumber)}`}
+                        href={`/forms/warehouse/inventory/batch/${encodeURIComponent(batch.batchNumber)}?sku=${encodeURIComponent(batch.sku)}`}
                         className="inline-block bg-white text-blue-600 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded hover:bg-blue-50 transition-colors border border-blue-600 shadow-[2px_2px_0px_0px_rgba(37,99,235,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px]"
                       >
                         View

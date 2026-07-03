@@ -411,13 +411,15 @@ model HandoverDeduction {
 
 model InventoryBatch {
   id               String   @id @default(uuid())
-  batchNumber      String   @unique
+  batchNumber      String
   sku              String
   totalQtyIn       Int      @default(0)
   totalQtyOut      Int      @default(0)
   availableBalance Int      @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  @@unique([sku, batchNumber])
 }
 
 model DistributionOrder {

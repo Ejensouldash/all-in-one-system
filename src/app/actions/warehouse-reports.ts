@@ -246,7 +246,7 @@ export async function setOpeningStock(data: { batchNumber: string, sku: string, 
         
         // Update live inventory
         await tx.inventoryBatch.upsert({
-          where: { batchNumber: data.batchNumber },
+          where: { sku_batchNumber: { sku: data.sku, batchNumber: data.batchNumber } },
           create: {
             batchNumber: data.batchNumber,
             sku: data.sku,
@@ -275,7 +275,7 @@ export async function setOpeningStock(data: { batchNumber: string, sku: string, 
         
         // Add to live inventory
         await tx.inventoryBatch.upsert({
-          where: { batchNumber: data.batchNumber },
+          where: { sku_batchNumber: { sku: data.sku, batchNumber: data.batchNumber } },
           create: {
             batchNumber: data.batchNumber,
             sku: data.sku,

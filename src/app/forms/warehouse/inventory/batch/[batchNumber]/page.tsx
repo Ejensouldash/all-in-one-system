@@ -4,13 +4,19 @@ import { ChevronLeft, Package, ArrowUpRight, ArrowDownRight, History } from "luc
 import { getBatchLedger } from "@/app/actions/warehouse"
 import { prisma } from "@/lib/prisma"
 
-export default async function BatchHistoryPage({ params }: { params: Promise<{ batchNumber: string }> }) {
+export default async function BatchHistoryPage({ params, searchParams }: { params: Promise<{ batchNumber: string }>, searchParams: Promise<{ sku: string }> }) {
   const resolvedParams = await params
+  const resolvedSearch = await searchParams
   const batchNumber = decodeURIComponent(resolvedParams.batchNumber)
+  const sku = decodeURIComponent(resolvedSearch.sku || "")
+
+  if (!sku) {
+    redirect("/forms/warehouse/dashboard")
+  }
 
   // Fetch the current state of the batch
   const batch = await prisma.inventoryBatch.findUnique({
-    where: { batchNumber }
+    where: { sku_batchNumber: { sku, batchNumber } }
   })
 
   if (!batch) {
@@ -18,7 +24,7 @@ export default async function BatchHistoryPage({ params }: { params: Promise<{ b
   }
 
   // Fetch the ledger
-  const ledgerRes = await getBatchLedger(batchNumber)
+  const ledgerRes = await getBatchLedger(sku, batchNumber)
   const ledger = ledgerRes.success ? ledgerRes.data || [] : []
 
   return (

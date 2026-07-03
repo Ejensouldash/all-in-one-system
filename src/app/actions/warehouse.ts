@@ -31,7 +31,7 @@ export async function receiveProductionTransfer(transferId: string, receivedById
 
       // 2. Upsert InventoryBatch
       await tx.inventoryBatch.upsert({
-        where: { batchNumber: transfer.batchNumber },
+        where: { sku_batchNumber: { sku: transfer.sku, batchNumber: transfer.batchNumber } },
         create: {
           batchNumber: transfer.batchNumber,
           sku: transfer.sku,
@@ -105,7 +105,7 @@ export async function createDistributionOrder(data: DOData) {
       // 2. Decrement InventoryBatch
       for (const item of data.items) {
         const batch = await tx.inventoryBatch.findUnique({
-          where: { batchNumber: item.batchNumber }
+          where: { sku_batchNumber: { sku: item.sku, batchNumber: item.batchNumber } }
         })
 
         if (!batch) {
@@ -117,7 +117,7 @@ export async function createDistributionOrder(data: DOData) {
         }
 
         await tx.inventoryBatch.update({
-          where: { batchNumber: item.batchNumber },
+          where: { sku_batchNumber: { sku: item.sku, batchNumber: item.batchNumber } },
           data: {
             availableBalance: { decrement: item.qtySent },
             totalQtyOut: { increment: item.qtySent }
@@ -204,7 +204,7 @@ export async function restockQuarantineItem(data: { id: string, signature: strin
 
       // Add back to inventory (totalQtyIn and availableBalance)
       await tx.inventoryBatch.upsert({
-        where: { batchNumber: returnNote.batchNumber },
+        where: { sku_batchNumber: { sku: returnNote.sku, batchNumber: returnNote.batchNumber } },
         create: {
           batchNumber: returnNote.batchNumber,
           sku: returnNote.sku,
@@ -235,13 +235,13 @@ export type LedgerEntry = {
   remarks?: string
 }
 
-export async function getBatchLedger(batchNumber: string) {
+export async function getBatchLedger(sku: string, batchNumber: string) {
   try {
     const entries: LedgerEntry[] = []
 
     // 1. Warehouse Opening Stock (IN)
     const openingStocks = await prisma.warehouseOpeningStock.findMany({
-      where: { batchNumber },
+      where: { sku, batchNumber },
       include: { setBy: true }
     })
     openingStocks.forEach(os => {
@@ -256,7 +256,7 @@ export async function getBatchLedger(batchNumber: string) {
 
     // 2. Production Transfers (IN)
     const transfers = await prisma.productionTransfer.findMany({
-      where: { batchNumber, status: "RECEIVED" }
+      where: { sku, batchNumber, status: "RECEIVED" }
     })
     transfers.forEach(t => {
       if (t.receivedAt) {
@@ -272,6 +272,7 @@ export async function getBatchLedger(batchNumber: string) {
     // 3. Handover Items (IN)
     const handovers = await prisma.handoverItem.findMany({
       where: { 
+        category: sku, // category typically holds the SKU format in HandoverItem
         batchNo: batchNumber,
         handover: { status: "ACKNOWLEDGED" }
       },
@@ -290,7 +291,7 @@ export async function getBatchLedger(batchNumber: string) {
 
     // 4. Distribution Orders (OUT)
     const dos = await prisma.dOLineItem.findMany({
-      where: { batchNumber },
+      where: { sku, batchNumber },
       include: { distributionOrder: true }
     })
     dos.forEach(d => {
@@ -305,7 +306,7 @@ export async function getBatchLedger(batchNumber: string) {
 
     // 5. Goods Returns (IN)
     const returns = await prisma.goodsReturnNote.findMany({
-      where: { batchNumber, status: "RESTOCKED" },
+      where: { sku, batchNumber, status: "RESTOCKED" },
       include: { distributionOrder: true }
     })
     returns.forEach(r => {

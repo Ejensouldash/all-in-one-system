@@ -159,7 +159,7 @@ export async function receiveHandover(id: string, signature: string, receiverId:
     for (const item of handover.items) {
       if (item.netToWarehousePcs > 0) {
         await prisma.inventoryBatch.upsert({
-          where: { batchNumber: item.batchNo },
+          where: { sku_batchNumber: { sku: item.category, batchNumber: item.batchNo } },
           update: {
             totalQtyIn: { increment: item.netToWarehousePcs },
             availableBalance: { increment: item.netToWarehousePcs }

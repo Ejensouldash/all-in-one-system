@@ -37,8 +37,8 @@ export function ProductionStockClient({ initialData }: { initialData: StockItem[
   // Sort
   const sortedData = useMemo(() => {
     return [...filteredData].sort((a, b) => {
-      let aVal = a[sortField]
-      let bVal = b[sortField]
+      let aVal = a[sortField] ?? ""
+      let bVal = b[sortField] ?? ""
 
       if (sortField === "bags") {
         aVal = (aVal as number) * a.mult

@@ -181,7 +181,7 @@ export async function getActiveInventory(targetDateStr?: string) {
     const batchBalance: Record<string, { bags: number, mult: number, category: string, date: Date, doNumber: string, batchNo: string }> = {}
     
     allDOItems.forEach(item => {
-      const key = `${item.batchNo}|${item.mult}`
+      const key = `${item.category}|${item.batchNo}|${item.mult}`
       if (!batchBalance[key]) {
         batchBalance[key] = { bags: 0, mult: item.mult, category: item.category, date: item.transferIn.receiveDate, doNumber: item.transferIn.doNumber, batchNo: item.batchNo }
       }
@@ -189,8 +189,10 @@ export async function getActiveInventory(targetDateStr?: string) {
     })
     
     allLogs.forEach(log => {
-      const key = `${log.batchNo}|${log.mult}`
-      if (batchBalance[key]) {
+      // Find matching batch by batchNo and mult
+      const matchingKeys = Object.keys(batchBalance).filter(k => k.endsWith(`|${log.batchNo}|${log.mult}`))
+      if (matchingKeys.length > 0) {
+        const key = matchingKeys[0] // Deduct from the first matching category
         if (log.type === "Usage" || log.type === "Hold") {
           batchBalance[key].bags -= log.bags
         } else if (log.type === "Reuse") {
@@ -200,7 +202,11 @@ export async function getActiveInventory(targetDateStr?: string) {
     })
     
     // A batch is "used" if there is any usage today for this specific batchKey
-    const usedBatchKeys = new Set(allLogs.filter(l => l.type === "Usage").map(u => `${u.batchNo}|${u.mult}`))
+    const usedBatchKeys = new Set()
+    allLogs.filter(l => l.type === "Usage").forEach(u => {
+      const matchingKeys = Object.keys(batchBalance).filter(k => k.endsWith(`|${u.batchNo}|${u.mult}`))
+      if (matchingKeys.length > 0) usedBatchKeys.add(matchingKeys[0])
+    })
     
     const todayDOs: any[] = []
     const storeroomBatches: any[] = []

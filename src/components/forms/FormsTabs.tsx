@@ -10,7 +10,8 @@ export function FormsTabs({ role, hasDatabaseAccess }: { role: string, hasDataba
   // Match root forms, transfer-in, and daily report
   const isHome = pathname === "/forms/production" || 
                  (pathname.startsWith("/forms/production/") && 
-                  !pathname.startsWith("/forms/production/history"))
+                  !pathname.startsWith("/forms/production/stock") &&
+                  !pathname.startsWith("/forms/production/hold-items"))
 
   return (
     <div className="mb-8 border-b border-gray-200 overflow-x-auto">
@@ -28,15 +29,15 @@ export function FormsTabs({ role, hasDatabaseAccess }: { role: string, hasDataba
         </Link>
 
         <Link 
-          href="/forms/production/history"
+          href="/forms/production/stock"
           className={`flex items-center pb-4 text-sm font-black uppercase tracking-wider border-b-4 transition-colors ${
-            pathname.startsWith("/forms/production/history")
+            pathname.startsWith("/forms/production/stock")
               ? "border-amber-500 text-amber-700" 
               : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
           }`}
         >
           <History className="w-5 h-5 mr-2" />
-          My History
+          Production Stock
         </Link>
         
         <Link 

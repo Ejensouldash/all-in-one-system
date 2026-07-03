@@ -1039,6 +1039,24 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                 *Formula Cap: Net Weight = Gross Weight - (Boxes × 0.88kg). 1 Cap ≈ 2.125g.
               </div>
             )}
+            
+            {/* INLINE REJECT INPUT */}
+            <div className={`mt-6 border-t-[3px] border-blue-200 pt-4 ${watch('noRejects') ? 'opacity-50 pointer-events-none' : ''}`}>
+              <h4 className="font-black uppercase tracking-widest text-xs mb-3 text-red-600 flex items-center">
+                <span className="bg-red-600 text-white px-2 py-0.5 mr-2">REJECTS</span> Record Scrap / Disposal
+              </h4>
+              <div className="flex gap-4 items-center">
+                <div className="flex-1 bg-white p-2 border border-red-200">
+                  <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">Before (Pcs)</label>
+                  <input type="number" min="0" {...register(`rejectsScrap.${sectionKey.startsWith("BOX") ? "box" : sectionKey.toLowerCase()}.before`)} disabled={watch('noRejects')} className="w-full p-2 border border-red-300 text-center font-bold text-sm outline-none focus:border-red-600 focus:bg-red-50 text-red-700" />
+                </div>
+                <div className="flex-1 bg-white p-2 border border-red-200">
+                  <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">After (Pcs)</label>
+                  <input type="number" min="0" {...register(`rejectsScrap.${sectionKey.startsWith("BOX") ? "box" : sectionKey.toLowerCase()}.after`)} disabled={watch('noRejects')} className="w-full p-2 border border-red-300 text-center font-bold text-sm outline-none focus:border-red-600 focus:bg-red-50 text-red-700" />
+                </div>
+              </div>
+            </div>
+            
           </div>
 
         </div>

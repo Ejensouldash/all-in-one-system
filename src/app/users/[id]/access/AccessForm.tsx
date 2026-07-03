@@ -16,6 +16,8 @@ const AVAILABLE_MODULES = [
   { id: "HANDOVER", name: "Production Handover Form", description: "Access to generate and send production handover forms." },
   { id: "USER_LOGS", name: "User Activity Logs", description: "Monitor user actions across the system." },
   { id: "DATABASE_MANAGER", name: "Production Database", description: "Manage raw database records for production." },
+  { id: "PRODUCTION_STOCK", name: "Production Stock", description: "View and manage production stock balances." },
+  { id: "TRANSFER_IN_HISTORY", name: "Transfer In History", description: "View, edit, and delete transfer in historical records." },
 ]
 
 export function AccessForm({ userId, initialModules }: { userId: string, initialModules: string[] }) {

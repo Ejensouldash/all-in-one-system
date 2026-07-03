@@ -15,6 +15,11 @@ export default async function ProductionStockPage() {
 
   const user = session.user as any
   const role = user.trueRole || user.role
+  const modules = user.modules || []
+
+  if (role !== "SUPERADMIN" && !modules.includes("PRODUCTION_STOCK")) {
+    redirect("/dashboard")
+  }
 
   // Fetch the active inventory from the server
   const inventory = await getActiveInventory()

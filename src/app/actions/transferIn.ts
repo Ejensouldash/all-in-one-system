@@ -52,10 +52,18 @@ export async function updateTransferIn(id: string, data: any) {
     
     if (!existing) return { success: false, error: "Not found" }
     
-    // Check if within 30 minutes
-    const thirtyMinutes = 30 * 60 * 1000
-    if (Date.now() - existing.createdAt.getTime() > thirtyMinutes) {
-      return { success: false, error: "Time limit exceeded. You can only edit within 30 minutes of submission." }
+    const user = session.user as any
+    const role = user.trueRole || user.role
+    const modules = user.modules || []
+
+    const hasAccess = role === "SUPERADMIN" || modules.includes("TRANSFER_IN_HISTORY")
+
+    // Check if within 30 minutes for normal users
+    if (!hasAccess) {
+      const thirtyMinutes = 30 * 60 * 1000
+      if (Date.now() - existing.createdAt.getTime() > thirtyMinutes) {
+        return { success: false, error: "Time limit exceeded. You can only edit within 30 minutes of submission." }
+      }
     }
 
     // Delete existing items to replace them (simplified approach)
@@ -91,6 +99,38 @@ export async function updateTransferIn(id: string, data: any) {
     return { success: true, data: updated }
   } catch (error: any) {
     console.error("Failed to update Transfer In:", error)
+    return { success: false, error: error.message }
+  }
+}
+
+export async function deleteTransferIn(id: string) {
+  const session = await auth()
+  if (!session) return { success: false, error: "Unauthorized" }
+
+  const user = session.user as any
+  const role = user.trueRole || user.role
+  const modules = user.modules || []
+  
+  if (role !== "SUPERADMIN" && !modules.includes("TRANSFER_IN_HISTORY")) {
+    return { success: false, error: "Unauthorized. You do not have permission to delete Transfer In records." }
+  }
+
+  try {
+    const existing = await prisma.transferIn.findUnique({ where: { id } })
+    if (!existing) return { success: false, error: "Not found" }
+
+    await prisma.transferIn.delete({ where: { id } })
+    
+    revalidatePath("/forms")
+    
+    await logUserAction(
+      "Deleted Transfer In DO",
+      `DO: ${existing.doNumber}, Date: ${existing.receiveDate}`
+    )
+
+    return { success: true }
+  } catch (error: any) {
+    console.error("Failed to delete Transfer In:", error)
     return { success: false, error: error.message }
   }
 }

@@ -1,12 +1,26 @@
+import { auth } from "@/auth"
+import { redirect } from "next/navigation"
 import { getTransferInHistory } from "@/app/actions/transferIn"
 import Link from "next/link"
-import { ClipboardList, Eye, PackagePlus, History, Pencil } from "lucide-react"
+import { ClipboardList, Eye, PackagePlus, History } from "lucide-react"
+import { TransferInHistoryClient } from "@/components/forms/TransferInHistoryClient"
 
 export default async function TransferInHistoryPage({
   searchParams,
 }: {
   searchParams: Promise<{ page?: string }>
 }) {
+  const session = await auth()
+  if (!session) redirect("/login")
+  
+  const user = session.user as any
+  const role = user.trueRole || user.role
+  const modules = user.modules || []
+
+  if (role !== "SUPERADMIN" && !modules.includes("TRANSFER_IN_HISTORY")) {
+    redirect("/dashboard")
+  }
+
   const resolvedParams = await searchParams
   const page = resolvedParams.page ? parseInt(resolvedParams.page) : 1
   const pageSize = 20
@@ -62,37 +76,10 @@ export default async function TransferInHistoryPage({
                   <th scope="col" className="w-32 px-6 py-4 text-right text-xs font-black text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {transfers.map((t: any) => {
-                  const isEditable = Date.now() - new Date(t.createdAt).getTime() <= 30 * 60 * 1000;
-                  return (
-                    <tr key={t.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 truncate">
-                        {new Date(t.receiveDate).toLocaleDateString('en-GB')}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 truncate">
-                        {t.receiveTime}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-600 truncate">
-                        {t.doNumber}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate">
-                        {t.receiverName}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-end space-x-2">
-                        {isEditable && (
-                          <Link href={`/forms/production/transfer-in/${t.id}/edit`} className="text-amber-600 hover:text-amber-900 font-black flex items-center bg-amber-50 px-3 py-2 rounded-lg hover:bg-amber-100 transition-colors">
-                            <Pencil className="w-4 h-4 mr-1" /> Edit
-                          </Link>
-                        )}
-                        <Link href={`/forms/production/transfer-in/${t.id}`} className="text-emerald-600 hover:text-emerald-900 font-black flex items-center bg-emerald-50 px-3 py-2 rounded-lg hover:bg-emerald-100 transition-colors">
-                          <Eye className="w-4 h-4 mr-1" /> View
-                        </Link>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
+              <TransferInHistoryClient 
+                transfers={transfers} 
+                hasAdminAccess={role === "SUPERADMIN" || modules.includes("TRANSFER_IN_HISTORY")} 
+              />
             </table>
           </div>
         )}

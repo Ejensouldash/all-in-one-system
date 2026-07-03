@@ -34,11 +34,16 @@ export default async function EditTransferInPage({
 
   const transfer = result.data
 
+  const user = session.user as any
+  const role = user.trueRole || user.role
+  const modules = user.modules || []
+  const hasAccess = role === "SUPERADMIN" || modules.includes("TRANSFER_IN_HISTORY")
+
   // Check if it's within 30 minutes
   const thirtyMinutes = 30 * 60 * 1000
   const isExpired = Date.now() - new Date(transfer.createdAt).getTime() > thirtyMinutes
 
-  if (isExpired) {
+  if (isExpired && !hasAccess) {
     return (
       <div className="min-h-screen bg-gray-100 p-8 flex flex-col items-center justify-center">
         <div className="bg-white p-8 rounded-xl shadow-sm text-center max-w-md border-l-4 border-amber-500">

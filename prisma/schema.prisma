@@ -227,6 +227,7 @@ model DailyReport {
   preparedSignature   String?
   verifiedSignature   String?
   time                String?
+  reportTime          String?
   approvedAt          DateTime?
   createdById         String?
   totalManpower       Int?

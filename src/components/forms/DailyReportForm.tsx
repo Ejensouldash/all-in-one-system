@@ -34,6 +34,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       date: new Date().toISOString().split('T')[0],
       timeFrom: new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric" }),
       timeTo: new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric" }),
+      reportTime: new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric" }),
       shift: "AM",
       line: "LINE 1 - 800ml" as keyof typeof PRODUCTION_CONFIG,
       preparedBy: userName || "",
@@ -151,6 +152,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
   const onSubmit = async (data: any) => {
     if (!data.date) return showErrorAndScroll('field-date', 'Please fill in the Production Date.')
     if (!data.timeFrom || !data.timeTo) return showErrorAndScroll('field-time', 'Please fill in both Production Time (From and To).')
+    if (!data.reportTime) return showErrorAndScroll('field-reportTime', 'Please fill in the Report Time.')
     if (!data.preparedBy) return showErrorAndScroll('field-preparedBy', 'Please fill in the Prepared By name.')
 
     // Validate Production
@@ -299,6 +301,10 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
                 <span className="font-bold">TO</span>
                 <input type="time" {...register("timeTo")} className="w-full border-2 border-black p-3 font-bold focus:outline-none focus:ring-2 focus:ring-black bg-white" />
               </div>
+            </div>
+            <div id="field-reportTime">
+              <label className="block text-xs font-black uppercase tracking-wider mb-2">Report Time</label>
+              <input type="time" {...register("reportTime")} className="w-full border-2 border-black p-3 font-bold focus:outline-none focus:ring-2 focus:ring-black bg-white" />
             </div>
             <div>
               <label className="block text-xs font-black uppercase tracking-wider mb-2">Shift</label>

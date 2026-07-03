@@ -14,6 +14,7 @@ export async function createDailyReport(data: any) {
       data: {
         date: new Date(data.date),
         time: data.time,
+        reportTime: data.reportTime,
         shift: data.shift,
         line: data.line,
         preparedBy: data.preparedBy,
@@ -294,6 +295,7 @@ export async function updateDailyReport(id: string, data: any) {
         data: {
           status: "PENDING",
           time: data.time,
+          reportTime: data.reportTime,
           shift: data.shift,
           line: data.line,
           preparedBy: data.preparedBy,

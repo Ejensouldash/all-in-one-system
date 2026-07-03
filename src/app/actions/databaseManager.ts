@@ -7,7 +7,7 @@ async function verifySuperAdmin() {
   const session = await auth()
   if (!session) return false
   const user = session.user as any
-  return user.trueRole === "SUPERADMIN"
+  return user.trueRole === "SUPERADMIN" || (user.modules || []).includes("DATABASE_MANAGER")
 }
 
 export async function deleteDailyReports(ids: string[]) {

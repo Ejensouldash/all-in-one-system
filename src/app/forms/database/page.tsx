@@ -11,11 +11,12 @@ export default async function FormsDatabasePage() {
 
   const user = session.user as any
   const isSuperAdmin = user.trueRole === "SUPERADMIN"
+  const hasDatabaseAccess = isSuperAdmin || (user.modules || []).includes("DATABASE_MANAGER")
 
-  if (!isSuperAdmin) {
+  if (!hasDatabaseAccess) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-        <FormsTabs role={user.trueRole || user.role} />
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+      <FormsTabs role={user.trueRole || user.role} hasDatabaseAccess={hasDatabaseAccess} />
         <div className="bg-red-50 border border-red-200 rounded-xl p-12 text-center flex flex-col items-center">
           <AlertTriangle className="h-16 w-16 text-red-500 mb-4" />
           <h2 className="text-2xl font-black text-red-800 tracking-tight">Access Restricted</h2>
@@ -37,7 +38,7 @@ export default async function FormsDatabasePage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 animate-in fade-in duration-500 pb-12">
-      <FormsTabs role={user.trueRole || user.role} />
+      <FormsTabs role={user.trueRole || user.role} hasDatabaseAccess={hasDatabaseAccess} />
 
       <div className="mb-6 flex items-center justify-between">
         <div>

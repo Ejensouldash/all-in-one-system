@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ClipboardList, LayoutDashboard, Database, History, FileSpreadsheet, AlertTriangle } from "lucide-react"
 
-export function FormsTabs({ role }: { role: string }) {
+export function FormsTabs({ role, hasDatabaseAccess }: { role: string, hasDatabaseAccess?: boolean }) {
   const pathname = usePathname()
 
   // Match root forms, transfer-in, and daily report
@@ -77,7 +77,7 @@ export function FormsTabs({ role }: { role: string }) {
           </Link>
         )}
 
-        {role === "SUPERADMIN" && (
+        {(role === "SUPERADMIN" || hasDatabaseAccess) && (
           <Link 
             href="/forms/database"
             className={`flex items-center pb-4 text-sm font-black uppercase tracking-wider border-b-4 transition-colors ${

@@ -1,3 +1,5 @@
+"use client"
+
 import React, { useState, useRef, useEffect } from 'react'
 import { ChevronDown, Search } from 'lucide-react'
 
@@ -16,9 +18,9 @@ export function SearchableSelect({
   const [search, setSearch] = useState("")
   const wrapperRef = useRef<HTMLDivElement>(null)
 
-  const filteredOptions = options.filter(o => 
-    o.label.toLowerCase().includes(search.toLowerCase()) || 
-    o.value.toLowerCase().includes(search.toLowerCase())
+  const filteredOptions = (options || []).filter(o => 
+    (o.label || "").toLowerCase().includes((search || "").toLowerCase()) || 
+    (o.value || "").toLowerCase().includes((search || "").toLowerCase())
   )
 
   useEffect(() => {

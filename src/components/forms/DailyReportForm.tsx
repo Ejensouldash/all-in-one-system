@@ -26,9 +26,14 @@ const PRODUCTION_CONFIG = {
 
 export function DailyReportForm({ userName, initialData, reportId }: { userName: string, initialData?: any, reportId?: string }) {
   const { register, control, handleSubmit, watch, setValue, reset } = useForm({
-    defaultValues: initialData || {
+    defaultValues: initialData ? {
+      ...initialData,
+      timeFrom: initialData.time?.includes(' - ') ? initialData.time.split(' - ')[0] : initialData.time || "",
+      timeTo: initialData.time?.includes(' - ') ? initialData.time.split(' - ')[1] : ""
+    } : {
       date: new Date().toISOString().split('T')[0],
-      time: new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric" }),
+      timeFrom: new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric" }),
+      timeTo: new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric" }),
       shift: "AM",
       line: "LINE 1 - 800ml" as keyof typeof PRODUCTION_CONFIG,
       preparedBy: userName || "",
@@ -46,7 +51,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       maxTotalManpower: "",
       rejectsScrap: { cap: {before:0,after:0}, bottle: {before:0,after:0}, label: {before:0,after:0}, box: {before:0,after:0} },
       rejectsReturn: { cap: {before:0,after:0}, bottle: {before:0,after:0}, label: {before:0,after:0}, box: {before:0,after:0} },
-      breakdowns: [{ section: "Section Filling", downtime: "", reason: "" }],
+      breakdowns: [{ section: "autoscrambler", downtime: "", reason: "" }],
       noRejects: false,
 
       // INVENTORY STATE STRUCTURE - V4.0 (Everything tracked in Bags)
@@ -145,7 +150,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
 
   const onSubmit = async (data: any) => {
     if (!data.date) return showErrorAndScroll('field-date', 'Please fill in the Production Date.')
-    if (!data.time) return showErrorAndScroll('field-time', 'Please fill in the Production Time.')
+    if (!data.timeFrom || !data.timeTo) return showErrorAndScroll('field-time', 'Please fill in both Production Time (From and To).')
     if (!data.preparedBy) return showErrorAndScroll('field-preparedBy', 'Please fill in the Prepared By name.')
 
     // Validate Production
@@ -180,7 +185,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
     setIsSubmitting(true)
     
     // Process Usage Rejects, Batch Number Splits, and CAP weights
-    const formattedData = { ...data };
+    const formattedData = { ...data, time: `${data.timeFrom} - ${data.timeTo}` };
     Object.keys(formattedData.inventory || {}).forEach(sectionKey => {
       const lowerItem = sectionKey === "CAP" ? "cap" : sectionKey === "BOTTLE" ? "bottle" : sectionKey === "LABEL" ? "label" : "box";
       
@@ -288,8 +293,12 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
               <input type="date" {...register("date")} className="w-full border-2 border-black p-3 font-bold focus:outline-none focus:ring-2 focus:ring-black bg-white" />
             </div>
             <div id="field-time">
-              <label className="block text-xs font-black uppercase tracking-wider mb-2">Time</label>
-              <input type="time" {...register("time")} className="w-full border-2 border-black p-3 font-bold focus:outline-none focus:ring-2 focus:ring-black bg-white" />
+              <label className="block text-xs font-black uppercase tracking-wider mb-2">Production Time</label>
+              <div className="flex items-center gap-2">
+                <input type="time" {...register("timeFrom")} className="w-full border-2 border-black p-3 font-bold focus:outline-none focus:ring-2 focus:ring-black bg-white" />
+                <span className="font-bold">TO</span>
+                <input type="time" {...register("timeTo")} className="w-full border-2 border-black p-3 font-bold focus:outline-none focus:ring-2 focus:ring-black bg-white" />
+              </div>
             </div>
             <div>
               <label className="block text-xs font-black uppercase tracking-wider mb-2">Shift</label>
@@ -510,8 +519,17 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
                 <div className="w-full md:w-[25%]">
                   <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1">Section</label>
                   <select {...register(`breakdowns.${index}.section`)} className="w-full p-2 border-2 border-black bg-white font-bold outline-none focus:ring-2 focus:ring-black">
-                    <option value="Section Sorting">Section Sorting</option>
-                    <option value="Section Filling">Section Filling</option>
+                    <option value="autoscrambler">autoscrambler</option>
+                    <option value="rinsing">rinsing</option>
+                    <option value="filling">filling</option>
+                    <option value="capping">capping</option>
+                    <option value="blower">blower</option>
+                    <option value="buffer area">buffer area</option>
+                    <option value="conveyor">conveyor</option>
+                    <option value="label machine">label machine</option>
+                    <option value="laser printer">laser printer</option>
+                    <option value="sealer machine">sealer machine</option>
+                    <option value="robotic arm">robotic arm</option>
                   </select>
                 </div>
                 <div className="w-full md:w-[20%]">
@@ -529,7 +547,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
                 </div>
               </div>
             ))}
-            <button type="button" onClick={() => appendBreakdown({ section: "Section Filling", downtime: "", reason: "" })} className="text-xs font-black uppercase tracking-wider flex items-center text-black border-2 border-black px-4 py-2 bg-white hover:bg-black hover:text-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px]">
+            <button type="button" onClick={() => appendBreakdown({ section: "autoscrambler", downtime: "", reason: "" })} className="text-xs font-black uppercase tracking-wider flex items-center text-black border-2 border-black px-4 py-2 bg-white hover:bg-black hover:text-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px]">
               <Plus className="h-4 w-4 mr-2" /> Add Downtime Record
             </button>
           </div>

@@ -133,11 +133,10 @@ export async function createDailyReport(data: any) {
 
 export async function getActiveInventory(targetDateStr?: string) {
   try {
-    let targetDate = new Date()
-    if (targetDateStr) {
-      targetDate = new Date(targetDateStr)
-      targetDate.setHours(23, 59, 59, 999)
-    }
+    const reportDateString = targetDateStr || new Date().toISOString().split('T')[0]
+    
+    let targetDate = new Date(reportDateString)
+    targetDate.setUTCHours(23, 59, 59, 999)
 
     // 1. Fetch ALL Transfer In items up to the target date
     const allDOItems = await prisma.transferInItem.findMany({
@@ -175,10 +174,6 @@ export async function getActiveInventory(targetDateStr?: string) {
       }
     })
     
-    // Separate into Today's DO vs Storeroom (Yesterday's Carry Forward / Shift Carry Forward)
-    const today = new Date()
-    today.setHours(0,0,0,0)
-    
     // A batch is "used" if there is any usage today for this specific batchKey
     const usedBatchKeys = new Set(allUsages.map(u => `${u.batchNo}|${u.mult}`))
     
@@ -188,7 +183,9 @@ export async function getActiveInventory(targetDateStr?: string) {
     Object.keys(batchBalance).forEach(batchKey => {
       const data = batchBalance[batchKey]
       if (data.bags > 0) { // Only return active batches
-        if (new Date(data.date) >= today && !usedBatchKeys.has(batchKey)) {
+        const doDateString = new Date(data.date).toISOString().split('T')[0]
+        
+        if (doDateString === reportDateString && !usedBatchKeys.has(batchKey)) {
           // Fresh DO from today that hasn't been touched by any shift yet
           todayDOs.push({ batchNo: data.batchNo, bags: data.bags, mult: data.mult, category: data.category, doNumber: data.doNumber })
         } else {

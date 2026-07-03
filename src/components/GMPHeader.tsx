@@ -3,8 +3,8 @@ import React from "react"
 export function GMPHeader({
   documentTitle = "STOCK TRANSFER FORM",
   documentNumber = "BOMSB-LNW-850-002-QR01",
-  issue = "03",
-  date = "08/12/2025"
+  issue = "04",
+  date = "01/07/2026"
 }: {
   documentTitle?: string
   documentNumber?: string

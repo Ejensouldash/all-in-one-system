@@ -109,7 +109,28 @@ export async function createDailyReport(data: any) {
               mult: Number(u.mult) || 1
             }))
 
-            return [...sources, ...usages]
+            const holds = (data.inventory[sectionKey].holds || []).map((h: any) => ({
+              sectionKey,
+              type: "Hold",
+              batchNo: h.batchNo,
+              bags: Number(h.qty),
+              mult: Number(h.mult) || 1
+            }))
+
+            return [...sources, ...usages, ...holds]
+          })
+        },
+
+        // Holds
+        holds: {
+          create: Object.keys(data.inventory || {}).flatMap(sectionKey => {
+            return (data.inventory[sectionKey].holds || []).map((h: any) => ({
+              sectionKey,
+              batchNo: h.batchNo,
+              qty: Number(h.qty),
+              mult: Number(h.mult) || 1,
+              reason: h.reason || ""
+            }))
           })
         }
       }
@@ -148,10 +169,10 @@ export async function getActiveInventory(targetDateStr?: string) {
       include: { transferIn: true }
     })
     
-    // 2. Fetch ALL Usages ever (Globally) up to the target date
-    const allUsages = await prisma.inventoryLog.findMany({
+    // 2. Fetch ALL Usages, Holds, Reuses ever (Globally) up to the target date
+    const allLogs = await prisma.inventoryLog.findMany({
       where: { 
-        type: "Usage",
+        type: { in: ["Usage", "Hold", "Reuse"] },
         report: { date: { lte: targetDate } }
       }
     })
@@ -167,15 +188,19 @@ export async function getActiveInventory(targetDateStr?: string) {
       batchBalance[key].bags += item.bags
     })
     
-    allUsages.forEach(usage => {
-      const key = `${usage.batchNo}|${usage.mult}`
+    allLogs.forEach(log => {
+      const key = `${log.batchNo}|${log.mult}`
       if (batchBalance[key]) {
-        batchBalance[key].bags -= usage.bags
+        if (log.type === "Usage" || log.type === "Hold") {
+          batchBalance[key].bags -= log.bags
+        } else if (log.type === "Reuse") {
+          batchBalance[key].bags += log.bags
+        }
       }
     })
     
     // A batch is "used" if there is any usage today for this specific batchKey
-    const usedBatchKeys = new Set(allUsages.map(u => `${u.batchNo}|${u.mult}`))
+    const usedBatchKeys = new Set(allLogs.filter(l => l.type === "Usage").map(u => `${u.batchNo}|${u.mult}`))
     
     const todayDOs: any[] = []
     const storeroomBatches: any[] = []
@@ -337,6 +362,7 @@ export async function updateDailyReport(id: string, data: any) {
 
     // Update requires deleting existing nested data and recreating
     await prisma.$transaction([
+      prisma.productionHoldItem.deleteMany({ where: { reportId: id } }),
       prisma.productionOutput.deleteMany({ where: { reportId: id } }),
       prisma.rejectLog.deleteMany({ where: { reportId: id } }),
       prisma.inventoryLog.deleteMany({ where: { reportId: id } }),
@@ -415,7 +441,28 @@ export async function updateDailyReport(id: string, data: any) {
                 mult: 1
               }))
 
-              return [...sources, ...usages]
+              const holds = (data.inventory[sectionKey].holds || []).map((h: any) => ({
+                sectionKey,
+                type: "Hold",
+                batchNo: h.batchNo,
+                bags: Number(h.qty),
+                mult: Number(h.mult) || 1
+              }))
+
+              return [...sources, ...usages, ...holds]
+            })
+          },
+
+          // Holds
+          holds: {
+            create: Object.keys(data.inventory || {}).flatMap(sectionKey => {
+              return (data.inventory[sectionKey].holds || []).map((h: any) => ({
+                sectionKey,
+                batchNo: h.batchNo,
+                qty: Number(h.qty),
+                mult: Number(h.mult) || 1,
+                reason: h.reason || ""
+              }))
             })
           }
         }

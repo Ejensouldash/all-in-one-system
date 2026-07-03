@@ -713,9 +713,11 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
   const unit = isLabel ? 'Rolls' : (isCap || isBox) ? 'Boxes' : 'Bags';
     const { fields: sourceFields, append: appendSource, remove: removeSource } = useFieldArray({ control, name: `inventory.${sectionKey}.sources` })
     const { fields: usageFields, append: appendUsage, remove: removeUsage } = useFieldArray({ control, name: `inventory.${sectionKey}.usages` })
+    const { fields: holdFields, append: appendHold, remove: removeHold } = useFieldArray({ control, name: `inventory.${sectionKey}.holds` })
     
     const watchSources = useWatch({ control, name: `inventory.${sectionKey}.sources` }) || []
     const watchUsages = useWatch({ control, name: `inventory.${sectionKey}.usages` }) || []
+    const watchHolds = useWatch({ control, name: `inventory.${sectionKey}.holds` }) || []
 
     // Filter available carry forward batches for this specific section
     const sectionAvailableBatches = availableCarryForward.filter((d: any) => {
@@ -758,12 +760,12 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
       }
     }
 
-  const batchSummaries: Record<string, { totalBags: number, usedBags: number, carryFwdBags: number, mult: number, pureBatchNo: string }> = {}
+  const batchSummaries: Record<string, { totalBags: number, usedBags: number, carryFwdBags: number, mult: number, pureBatchNo: string, holdBags: number }> = {}
 
   syncedDOs.forEach((mock: any) => {
     const key = `${mock.batchNo}|${mock.mult}`
     if (!batchSummaries[key]) {
-      batchSummaries[key] = { totalBags: 0, usedBags: 0, carryFwdBags: 0, mult: isCap ? 4000 : (Number(mock.mult) || 1), pureBatchNo: mock.batchNo }
+      batchSummaries[key] = { totalBags: 0, usedBags: 0, carryFwdBags: 0, mult: isCap ? 4000 : (Number(mock.mult) || 1), pureBatchNo: mock.batchNo, holdBags: 0 }
     }
     batchSummaries[key].totalBags += Number(mock.bags) || 0
   })
@@ -776,7 +778,9 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
     
     // src.batchNo is already in "batchNo|mult" format because of our handleBatchSelect
     if (!batchSummaries[src.batchNo]) {
-      batchSummaries[src.batchNo] = { totalBags: 0, usedBags: 0, carryFwdBags: 0, mult: mult, pureBatchNo: src.batchNo.split('|')[0] }
+      batchSummaries[src.batchNo] = { 
+        totalBags: 0, usedBags: 0, carryFwdBags: 0, mult: mult, pureBatchNo: src.batchNo.split('|')[0], holdBags: 0 
+      }
     }
     batchSummaries[src.batchNo].totalBags += bags
   })
@@ -1039,6 +1043,51 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                 *Formula Cap: Net Weight = Gross Weight - (Boxes × 0.88kg). 1 Cap ≈ 2.125g.
               </div>
             )}
+            
+            {/* STEP 3B: HOLD SECTION */}
+            <div className="mt-6 border-t-[3px] border-blue-200 pt-4">
+              <h4 className="font-black uppercase tracking-widest text-xs mb-3 text-amber-600 flex items-center">
+                <span className="bg-amber-600 text-white px-2 py-0.5 mr-2">HOLD</span> Quarantine / On Hold
+              </h4>
+              
+              <div className="space-y-3">
+                {holdFields.map((field, index) => {
+                  const selectedBatch = watchHolds[index]?.batchNo
+                  const holdBags = Number(watchHolds[index]?.qty) || 0
+                  
+                  const availableBatches = Object.keys(batchSummaries).filter(b => {
+                    if (b === selectedBatch) return true; 
+                    return batchSummaries[b].carryFwdBags > 0; 
+                  })
+
+                  return (
+                    <div key={field.id} className="flex flex-col bg-amber-50/50 border border-amber-200 shadow-sm p-2">
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <select {...register(`inventory.${sectionKey}.holds.${index}.batchNo`)} className="flex-1 min-w-[150px] p-2 border border-amber-300 bg-white text-xs font-bold outline-none focus:border-amber-500 uppercase">
+                          <option value="">-- Select Batch --</option>
+                          {availableBatches.map(b => {
+                            const currentAvail = batchSummaries[b].carryFwdBags + (b === selectedBatch ? holdBags : 0)
+                            return <option key={b} value={b}>{batchSummaries[b].pureBatchNo} (x{batchSummaries[b].mult}) (Avail: {Math.round(currentAvail)} {unit})</option>
+                          })}
+                        </select>
+                        <input type="number" placeholder={`Hold Qty (${unit})`} min="0" {...register(`inventory.${sectionKey}.holds.${index}.qty`)} className="w-28 p-2 border border-amber-300 text-center text-xs font-bold outline-none focus:border-amber-500 bg-white" />
+                        
+                        {/* Hidden multiplier input */}
+                        <input type="hidden" {...register(`inventory.${sectionKey}.holds.${index}.mult`)} value={isCap ? 4000 : multipliers[0]} />
+
+                        <input type="text" placeholder="Reason for holding..." {...register(`inventory.${sectionKey}.holds.${index}.reason`)} className="flex-[2] min-w-[200px] p-2 border border-amber-300 text-xs font-bold outline-none focus:border-amber-500 bg-white" />
+                        
+                        <button type="button" onClick={() => removeHold(index)} className="text-red-500 p-2 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              
+              <button type="button" onClick={() => appendHold({ batchNo: "", qty: 0, mult: isCap ? 4000 : multipliers[0], reason: "" })} className="mt-4 text-xs font-black uppercase tracking-wider flex items-center text-amber-700 border-2 border-amber-300 px-3 py-1.5 bg-white hover:bg-amber-100">
+                <Plus className="h-3 w-3 mr-1" /> Add Hold
+              </button>
+            </div>
             
             {/* INLINE REJECT INPUT */}
             <div className={`mt-6 border-t-[3px] border-blue-200 pt-4 ${watch('noRejects') ? 'opacity-50 pointer-events-none' : ''}`}>

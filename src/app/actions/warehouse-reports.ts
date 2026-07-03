@@ -221,6 +221,7 @@ export async function setOpeningStock(data: { batchNumber: string, sku: string, 
   try {
     const existing = await prisma.warehouseOpeningStock.findFirst({
       where: {
+        sku: data.sku,
         batchNumber: data.batchNumber,
         month: data.month,
         year: data.year

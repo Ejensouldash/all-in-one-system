@@ -476,7 +476,7 @@ model WarehouseOpeningStock {
   createdAt   DateTime @default(now())
   setBy       User     @relation("OpeningStockSetter", fields: [setById], references: [id])
 
-  @@unique([batchNumber, month, year])
+  @@unique([sku, batchNumber, month, year])
 }
 
 enum Role {

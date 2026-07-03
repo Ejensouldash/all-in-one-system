@@ -355,7 +355,7 @@ model ProductionTransfer {
   receivedAt    DateTime?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
-  dailyReport   DailyReport?   @relation(fields: [dailyReportId], references: [id])
+  dailyReport   DailyReport?   @relation(fields: [dailyReportId], references: [id], onDelete: Cascade)
   receivedBy    User?          @relation("TransferReceiver", fields: [receivedById], references: [id])
 }
 
@@ -365,7 +365,7 @@ model ProductionHandover {
   date               DateTime
   
   dailyReportId      String
-  dailyReport        DailyReport @relation(fields: [dailyReportId], references: [id])
+  dailyReport        DailyReport @relation(fields: [dailyReportId], references: [id], onDelete: Cascade)
   
   productionStaffId  String
   productionStaff    User     @relation("HandoverCreator", fields: [productionStaffId], references: [id])

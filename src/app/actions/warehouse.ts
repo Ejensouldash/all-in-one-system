@@ -226,3 +226,106 @@ export async function restockQuarantineItem(data: { id: string, signature: strin
     return { success: false, error: error.message }
   }
 }
+
+export type LedgerEntry = {
+  date: Date
+  type: "IN" | "OUT" | "ADJUSTMENT"
+  reference: string
+  qty: number
+  remarks?: string
+}
+
+export async function getBatchLedger(batchNumber: string) {
+  try {
+    const entries: LedgerEntry[] = []
+
+    // 1. Warehouse Opening Stock (IN)
+    const openingStocks = await prisma.warehouseOpeningStock.findMany({
+      where: { batchNumber },
+      include: { setBy: true }
+    })
+    openingStocks.forEach(os => {
+      entries.push({
+        date: os.createdAt,
+        type: "ADJUSTMENT",
+        reference: `Opening Stock (M${os.month} Y${os.year})`,
+        qty: os.openingQty,
+        remarks: `Set by ${os.setBy.name}`
+      })
+    })
+
+    // 2. Production Transfers (IN)
+    const transfers = await prisma.productionTransfer.findMany({
+      where: { batchNumber, status: "RECEIVED" }
+    })
+    transfers.forEach(t => {
+      if (t.receivedAt) {
+        entries.push({
+          date: t.receivedAt,
+          type: "IN",
+          reference: `Transfer In`,
+          qty: t.qtyProduced
+        })
+      }
+    })
+
+    // 3. Handover Items (IN)
+    const handovers = await prisma.handoverItem.findMany({
+      where: { 
+        batchNo: batchNumber,
+        handover: { status: "ACKNOWLEDGED" }
+      },
+      include: { handover: true }
+    })
+    handovers.forEach(h => {
+      if (h.netToWarehousePcs > 0) {
+        entries.push({
+          date: h.handover.updatedAt,
+          type: "IN",
+          reference: `Handover #${h.handover.handoverNumber}`,
+          qty: h.netToWarehousePcs
+        })
+      }
+    })
+
+    // 4. Distribution Orders (OUT)
+    const dos = await prisma.dOLineItem.findMany({
+      where: { batchNumber },
+      include: { distributionOrder: true }
+    })
+    dos.forEach(d => {
+      entries.push({
+        date: d.distributionOrder.distributionDate,
+        type: "OUT",
+        reference: `DO #${d.distributionOrder.doNumber}`,
+        qty: d.qtySent,
+        remarks: `To: ${d.distributionOrder.destination}`
+      })
+    })
+
+    // 5. Goods Returns (IN)
+    const returns = await prisma.goodsReturnNote.findMany({
+      where: { batchNumber, status: "RESTOCKED" },
+      include: { distributionOrder: true }
+    })
+    returns.forEach(r => {
+      if (r.restockedAt) {
+        entries.push({
+          date: r.restockedAt,
+          type: "IN",
+          reference: `Return DO #${r.distributionOrder.doNumber}`,
+          qty: r.qtyReturned,
+          remarks: `Reason: ${r.reason}`
+        })
+      }
+    })
+
+    // Sort entries by Date ascending
+    entries.sort((a, b) => a.date.getTime() - b.date.getTime())
+
+    return { success: true, data: entries }
+  } catch (error: any) {
+    console.error("Failed to fetch batch ledger:", error)
+    return { success: false, error: error.message }
+  }
+}

@@ -483,10 +483,10 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             sectionKey="LABEL" 
             title={`LABEL INVENTORY (${watchLine.includes("800") ? "800ml" : "425ml"})`} 
             control={control} register={register} watch={watch} setValue={setValue}
-            availableCarryForward={availableCarryForward.filter(b => b.category.includes("LABEL"))}
+            availableCarryForward={availableCarryForward.filter(b => b.category.includes("LABEL") && (watchLine.includes("800") ? b.batchNo.startsWith("8S") : b.batchNo.startsWith("4S")))}
             multipliers={watchLine.includes("800") ? [6451] : [8547]}
             isLabel={true}
-            syncedDOs={syncedDOs.filter(d => d.category.includes("LABEL"))}
+            syncedDOs={syncedDOs.filter(d => d.category.includes("LABEL") && (watchLine.includes("800") ? d.batchNo.startsWith("8S") : d.batchNo.startsWith("4S")))}
           />
 
           <AdvancedInventorySection 

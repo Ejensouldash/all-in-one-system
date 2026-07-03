@@ -49,37 +49,39 @@ function QRTagContent() {
       <div className="print-wrapper bg-white">
         <style>{`
           @media print {
-            @page { size: auto; margin: 0mm; }
-            body { background: white !important; display: flex; justify-content: center; align-items: flex-start; padding-top: 20mm; }
-            .print-wrapper { width: 100% !important; margin: 0 !important; box-shadow: none !important; border: none !important; }
+            @page { size: 90mm 140mm; margin: 0; }
+            body { background: white !important; margin: 0; padding: 0; display: block; }
+            .print-wrapper { margin: 0 !important; padding: 0 !important; box-shadow: none !important; border: none !important; }
             .print\\:hidden { display: none !important; }
+            /* Hide the gray background from the outer div when printing */
+            #__next, html { background: white !important; }
           }
         `}</style>
         
-        <div className="border-[4px] border-black p-8 w-[400px] max-w-full flex flex-col items-center mx-auto" style={{ aspectRatio: '3/4' }}>
+        <div className="border-[3px] border-black flex flex-col items-center mx-auto bg-white" style={{ width: '90mm', height: '140mm', padding: '6mm', boxSizing: 'border-box' }}>
           
-          <h1 className="text-3xl font-black text-center uppercase tracking-tighter leading-none mb-6">
+          <h1 className="text-[22px] font-black text-center uppercase tracking-tighter leading-none mb-3 mt-1">
             Bubbles O2<br/>Marketing
           </h1>
           
-          <div className="text-2xl font-black uppercase tracking-widest mb-10 text-center w-full pb-4 border-b-4 border-black border-dashed">
+          <div className="text-[16px] font-black uppercase tracking-widest mb-4 text-center w-full pb-2 border-b-2 border-black border-dashed flex-none">
             {formatSKU(sku)}
           </div>
           
-          <div className="border-8 border-black p-4 mb-10 bg-white">
+          <div className="border-4 border-black p-2 mb-4 bg-white flex items-center justify-center">
             <QRCodeSVG 
               value={qrValue} 
-              size={200}
+              size={130}
               level="H"
               includeMargin={false}
             />
           </div>
           
-          <div className="mt-auto w-full border-t-4 border-black pt-4">
-            <div className="text-xl font-bold uppercase tracking-widest text-center text-gray-500 mb-1">
+          <div className="mt-auto w-full border-t-[3px] border-black pt-2 flex-none">
+            <div className="text-[11px] font-bold uppercase tracking-widest text-center text-gray-600 mb-0.5">
               Batch No
             </div>
-            <div className="text-3xl font-black text-center tracking-tighter">
+            <div className="text-[20px] font-black text-center tracking-tighter leading-none">
               {batch}
             </div>
           </div>

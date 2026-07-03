@@ -156,7 +156,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                 </div>
                 <div className="flex items-stretch">
                   <div className="p-2 sm:p-3 print:py-0.5 print:px-2 border-r-2 border-black print:border-black bg-gray-50 print:bg-transparent flex items-center w-1/3 sm:w-1/4">Effective Date</div>
-                  <div className="p-2 sm:p-3 print:py-0.5 print:px-2 font-black text-black flex-1 flex items-center">29/6/26</div>
+                  <div className="p-2 sm:p-3 print:py-0.5 print:px-2 font-black text-black flex-1 flex items-center">01/07/2026</div>
                 </div>
               </div>
             </div>

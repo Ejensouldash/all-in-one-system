@@ -2,10 +2,14 @@ import React from "react"
 
 export function GMPHeader({
   documentTitle = "STOCK TRANSFER FORM",
-  documentNumber = "BOMSB-LNW-850-002-QR01"
+  documentNumber = "BOMSB-LNW-850-002-QR01",
+  issue = "03",
+  date = "08/12/2025"
 }: {
   documentTitle?: string
   documentNumber?: string
+  issue?: string
+  date?: string
 } = {}) {
   return (
     <div className="w-full bg-white mb-8 overflow-x-auto">
@@ -40,10 +44,10 @@ export function GMPHeader({
                     <td className="p-1 pl-2 font-bold border-b-2 border-black">Page: <span className="font-normal ml-1">1 of 1</span></td>
                   </tr>
                   <tr>
-                    <td className="p-1 pl-2 font-bold border-b-2 border-black">Issue: <span className="font-normal ml-1">03</span></td>
+                    <td className="p-1 pl-2 font-bold border-b-2 border-black">Issue: <span className="font-normal ml-1">{issue}</span></td>
                   </tr>
                   <tr>
-                    <td className="p-1 pl-2 font-bold">Date: <span className="font-normal ml-1">08/12/2025</span></td>
+                    <td className="p-1 pl-2 font-bold">Date: <span className="font-normal ml-1">{date}</span></td>
                   </tr>
                 </tbody>
               </table>

@@ -138,6 +138,8 @@ export default function DailyReportPage() {
         <GMPHeader 
           documentTitle="DAILY FINISHED GOODS DISTRIBUTION RECORDS"
           documentNumber="BOMSB-LNW-850-001-QR01"
+          issue="04"
+          date="01/07/2026"
         />
 
         <div className="text-center mb-6">

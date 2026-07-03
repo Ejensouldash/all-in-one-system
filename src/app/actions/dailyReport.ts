@@ -221,7 +221,7 @@ export async function getActiveInventory(targetDateStr?: string) {
           todayDOs.push({ batchNo: data.batchNo, bags: data.bags, mult: data.mult, category: data.category, doNumber: data.doNumber })
         } else {
           // Either from yesterday, OR from today but already partially used (Shift Carry Forward)
-          storeroomBatches.push({ batchNo: data.batchNo, bags: data.bags, mult: data.mult, category: data.category, labelType: "Standard" })
+          storeroomBatches.push({ batchNo: data.batchNo, bags: data.bags, mult: data.mult, category: data.category, doNumber: data.doNumber, labelType: "Standard" })
         }
       }
     })

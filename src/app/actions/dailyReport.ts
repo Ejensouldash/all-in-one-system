@@ -179,12 +179,12 @@ export async function getActiveInventory(targetDateStr?: string) {
     })
 
     // Calculate global balance for every batch
-    const batchBalance: Record<string, { bags: number, mult: number, category: string, batchNo: string, transferInId: string }> = {}
+    const batchBalance: Record<string, { bags: number, mult: number, category: string, batchNo: string, transferInId: string, doNumber: string }> = {}
     
     allDOItems.forEach(item => {
       const key = `${item.category}|${item.batchNo}|${item.mult}`
       if (!batchBalance[key]) {
-        batchBalance[key] = { bags: 0, mult: item.mult, category: item.category, batchNo: item.batchNo, transferInId: item.transferIn.id }
+        batchBalance[key] = { bags: 0, mult: item.mult, category: item.category, batchNo: item.batchNo, transferInId: item.transferIn.id, doNumber: item.transferIn.doNumber }
       }
       batchBalance[key].bags += item.bags
     })
@@ -236,11 +236,11 @@ export async function getActiveInventory(targetDateStr?: string) {
 
           // If there's a leftover balance from previous days for this same batch, put it in storeroom
           if (data.bags > totalReceivedToday) {
-            storeroomBatches.push({ batchNo: data.batchNo, bags: data.bags - totalReceivedToday, mult: data.mult, category: data.category, doNumber: "Carry Forward", labelType: "Standard", transferInId: data.transferInId })
+            storeroomBatches.push({ batchNo: data.batchNo, bags: data.bags - totalReceivedToday, mult: data.mult, category: data.category, doNumber: data.doNumber, labelType: "Standard", transferInId: data.transferInId })
           }
         } else {
           // Either from yesterday, OR from today but already partially used (Shift Carry Forward)
-          storeroomBatches.push({ batchNo: data.batchNo, bags: data.bags, mult: data.mult, category: data.category, doNumber: "Carry Forward", labelType: "Standard", transferInId: data.transferInId })
+          storeroomBatches.push({ batchNo: data.batchNo, bags: data.bags, mult: data.mult, category: data.category, doNumber: data.doNumber, labelType: "Standard", transferInId: data.transferInId })
         }
       }
     })

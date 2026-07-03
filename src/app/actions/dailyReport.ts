@@ -174,16 +174,17 @@ export async function getActiveInventory(targetDateStr?: string) {
       where: { 
         type: { in: ["Usage", "Hold", "Reuse"] },
         report: { date: { lte: targetDate } }
-      }
+      },
+      include: { report: true }
     })
 
     // Calculate global balance for every batch
-    const batchBalance: Record<string, { bags: number, mult: number, category: string, date: Date, doNumber: string, batchNo: string, transferInId: string }> = {}
+    const batchBalance: Record<string, { bags: number, mult: number, category: string, batchNo: string, transferInId: string }> = {}
     
     allDOItems.forEach(item => {
       const key = `${item.category}|${item.batchNo}|${item.mult}`
       if (!batchBalance[key]) {
-        batchBalance[key] = { bags: 0, mult: item.mult, category: item.category, date: item.transferIn.receiveDate, doNumber: item.transferIn.doNumber, batchNo: item.batchNo, transferInId: item.transferIn.id }
+        batchBalance[key] = { bags: 0, mult: item.mult, category: item.category, batchNo: item.batchNo, transferInId: item.transferIn.id }
       }
       batchBalance[key].bags += item.bags
     })
@@ -201,11 +202,20 @@ export async function getActiveInventory(targetDateStr?: string) {
       }
     })
     
-    // A batch is "used" if there is any usage today for this specific batchKey
-    const usedBatchKeys = new Set()
-    allLogs.filter(l => l.type === "Usage").forEach(u => {
-      const matchingKeys = Object.keys(batchBalance).filter(k => k.endsWith(`|${u.batchNo}|${u.mult}`))
-      if (matchingKeys.length > 0) usedBatchKeys.add(matchingKeys[0])
+    // A batch is "used TODAY" if there is any usage on reportDateString
+    const usedBatchKeysToday = new Set<string>()
+    allLogs.filter(l => l.type === "Usage").forEach(log => {
+      if (!log.report) return;
+      const logDateString = new Date(log.report.date).toISOString().split('T')[0]
+      if (logDateString === reportDateString) {
+        const matchingKeys = Object.keys(batchBalance).filter(k => k.endsWith(`|${log.batchNo}|${log.mult}`))
+        if (matchingKeys.length > 0) usedBatchKeysToday.add(matchingKeys[0])
+      }
+    })
+
+    const todayDOItems = allDOItems.filter(item => {
+      const doDateString = new Date(item.transferIn.receiveDate).toISOString().split('T')[0]
+      return doDateString === reportDateString
     })
     
     const todayDOs: any[] = []
@@ -214,14 +224,23 @@ export async function getActiveInventory(targetDateStr?: string) {
     Object.keys(batchBalance).forEach(batchKey => {
       const data = batchBalance[batchKey]
       if (data.bags > 0) { // Only return active batches
-        const doDateString = new Date(data.date).toISOString().split('T')[0]
+        const receivedToday = todayDOItems.filter(item => `${item.category}|${item.batchNo}|${item.mult}` === batchKey)
         
-        if (doDateString === reportDateString && !usedBatchKeys.has(batchKey)) {
-          // Fresh DO from today that hasn't been touched by any shift yet
-          todayDOs.push({ batchNo: data.batchNo, bags: data.bags, mult: data.mult, category: data.category, doNumber: data.doNumber, transferInId: data.transferInId })
+        if (receivedToday.length > 0 && !usedBatchKeysToday.has(batchKey)) {
+          // Fresh DO from today that hasn't been touched by any shift yet today
+          let totalReceivedToday = 0
+          receivedToday.forEach(rt => {
+            totalReceivedToday += rt.bags
+            todayDOs.push({ batchNo: rt.batchNo, bags: rt.bags, mult: rt.mult, category: rt.category, doNumber: rt.transferIn.doNumber, transferInId: rt.transferIn.id })
+          })
+
+          // If there's a leftover balance from previous days for this same batch, put it in storeroom
+          if (data.bags > totalReceivedToday) {
+            storeroomBatches.push({ batchNo: data.batchNo, bags: data.bags - totalReceivedToday, mult: data.mult, category: data.category, doNumber: "Carry Forward", labelType: "Standard", transferInId: data.transferInId })
+          }
         } else {
           // Either from yesterday, OR from today but already partially used (Shift Carry Forward)
-          storeroomBatches.push({ batchNo: data.batchNo, bags: data.bags, mult: data.mult, category: data.category, doNumber: data.doNumber, labelType: "Standard", transferInId: data.transferInId })
+          storeroomBatches.push({ batchNo: data.batchNo, bags: data.bags, mult: data.mult, category: data.category, doNumber: "Carry Forward", labelType: "Standard", transferInId: data.transferInId })
         }
       }
     })

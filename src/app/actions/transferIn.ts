@@ -160,6 +160,43 @@ export async function getTodayTransferIn() {
   }
 }
 
+export async function bulkDeleteTransferIn(ids: string[]) {
+  const session = await auth()
+  if (!session) return { success: false, error: "Unauthorized" }
+
+  const user = session.user as any
+  const role = user.trueRole || user.role
+  const modules = user.modules || []
+  
+  if (role !== "SUPERADMIN" && !modules.includes("TRANSFER_IN_HISTORY")) {
+    return { success: false, error: "Unauthorized. You do not have permission to delete Transfer In records." }
+  }
+
+  try {
+    const existing = await prisma.transferIn.findMany({ 
+      where: { id: { in: ids } },
+      select: { doNumber: true, receiveDate: true }
+    })
+    
+    if (existing.length === 0) return { success: false, error: "No records found" }
+
+    await prisma.transferIn.deleteMany({ where: { id: { in: ids } } })
+    
+    revalidatePath("/forms")
+    
+    const details = existing.map(e => `${e.doNumber}`).join(", ")
+    await logUserAction(
+      "Bulk Deleted Transfer In DOs",
+      `Deleted ${existing.length} DOs: ${details}`
+    )
+
+    return { success: true }
+  } catch (error: any) {
+    console.error("Failed to bulk delete Transfer In:", error)
+    return { success: false, error: error.message }
+  }
+}
+
 export async function getTransferInHistory(page: number = 1, pageSize: number = 20) {
   try {
     const skip = (page - 1) * pageSize
@@ -195,5 +232,87 @@ export async function getTransferInById(id: string) {
   } catch (error: any) {
     console.error("Failed to fetch Transfer In details:", error)
     return { success: false, data: null, error: error.message }
+  }
+}
+
+export async function deleteTransferInItem(batchNo: string, doNumber: string) {
+  const session = await auth()
+  if (!session) return { success: false, error: "Unauthorized" }
+
+  const user = session.user as any
+  const role = user.trueRole || user.role
+  const modules = user.modules || []
+  
+  if (role !== "SUPERADMIN" && !modules.includes("PRODUCTION_STOCK")) {
+    return { success: false, error: "Unauthorized. You do not have permission to delete stock items." }
+  }
+
+  try {
+    const transferIn = await prisma.transferIn.findFirst({ where: { doNumber } })
+    if (!transferIn) return { success: false, error: "DO Not found" }
+
+    const item = await prisma.transferInItem.findFirst({
+      where: { transferInId: transferIn.id, batchNo }
+    })
+    
+    if (!item) return { success: false, error: "Item not found in DO" }
+
+    await prisma.transferInItem.delete({ where: { id: item.id } })
+    
+    revalidatePath("/forms")
+    
+    await logUserAction(
+      "Deleted Production Stock Item",
+      `Batch: ${batchNo}, DO: ${doNumber}`
+    )
+
+    return { success: true }
+  } catch (error: any) {
+    console.error("Failed to delete stock item:", error)
+    return { success: false, error: error.message }
+  }
+}
+
+export async function bulkDeleteTransferInItems(items: { batchNo: string, doNumber: string }[]) {
+  const session = await auth()
+  if (!session) return { success: false, error: "Unauthorized" }
+
+  const user = session.user as any
+  const role = user.trueRole || user.role
+  const modules = user.modules || []
+  
+  if (role !== "SUPERADMIN" && !modules.includes("PRODUCTION_STOCK")) {
+    return { success: false, error: "Unauthorized. You do not have permission to delete stock items." }
+  }
+
+  try {
+    let deletedCount = 0;
+    
+    for (const { batchNo, doNumber } of items) {
+      if (!doNumber) continue;
+      const transferIn = await prisma.transferIn.findFirst({ where: { doNumber } })
+      if (!transferIn) continue;
+
+      const item = await prisma.transferInItem.findFirst({
+        where: { transferInId: transferIn.id, batchNo }
+      })
+      
+      if (item) {
+        await prisma.transferInItem.delete({ where: { id: item.id } })
+        deletedCount++;
+      }
+    }
+    
+    revalidatePath("/forms")
+    
+    await logUserAction(
+      "Bulk Deleted Production Stock Items",
+      `Deleted ${deletedCount} item(s).`
+    )
+
+    return { success: true, count: deletedCount }
+  } catch (error: any) {
+    console.error("Failed to bulk delete stock items:", error)
+    return { success: false, error: error.message }
   }
 }

@@ -46,7 +46,10 @@ export default async function ProductionStockPage() {
         </div>
       </div>
 
-      <ProductionStockClient initialData={allStock} />
+      <ProductionStockClient 
+        initialData={allStock} 
+        hasAdminAccess={role === "SUPERADMIN" || modules.includes("PRODUCTION_STOCK")}
+      />
     </div>
   )
 }

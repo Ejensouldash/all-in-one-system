@@ -178,12 +178,12 @@ export async function getActiveInventory(targetDateStr?: string) {
     })
 
     // Calculate global balance for every batch
-    const batchBalance: Record<string, { bags: number, mult: number, category: string, date: Date, doNumber: string, batchNo: string }> = {}
+    const batchBalance: Record<string, { bags: number, mult: number, category: string, date: Date, doNumber: string, batchNo: string, transferInId: string }> = {}
     
     allDOItems.forEach(item => {
       const key = `${item.category}|${item.batchNo}|${item.mult}`
       if (!batchBalance[key]) {
-        batchBalance[key] = { bags: 0, mult: item.mult, category: item.category, date: item.transferIn.receiveDate, doNumber: item.transferIn.doNumber, batchNo: item.batchNo }
+        batchBalance[key] = { bags: 0, mult: item.mult, category: item.category, date: item.transferIn.receiveDate, doNumber: item.transferIn.doNumber, batchNo: item.batchNo, transferInId: item.transferIn.id }
       }
       batchBalance[key].bags += item.bags
     })
@@ -218,10 +218,10 @@ export async function getActiveInventory(targetDateStr?: string) {
         
         if (doDateString === reportDateString && !usedBatchKeys.has(batchKey)) {
           // Fresh DO from today that hasn't been touched by any shift yet
-          todayDOs.push({ batchNo: data.batchNo, bags: data.bags, mult: data.mult, category: data.category, doNumber: data.doNumber })
+          todayDOs.push({ batchNo: data.batchNo, bags: data.bags, mult: data.mult, category: data.category, doNumber: data.doNumber, transferInId: data.transferInId })
         } else {
           // Either from yesterday, OR from today but already partially used (Shift Carry Forward)
-          storeroomBatches.push({ batchNo: data.batchNo, bags: data.bags, mult: data.mult, category: data.category, doNumber: data.doNumber, labelType: "Standard" })
+          storeroomBatches.push({ batchNo: data.batchNo, bags: data.bags, mult: data.mult, category: data.category, doNumber: data.doNumber, labelType: "Standard", transferInId: data.transferInId })
         }
       }
     })

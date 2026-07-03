@@ -67,15 +67,6 @@ export default async function TransferInHistoryPage({
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 table-fixed">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="w-32 px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Date</th>
-                  <th scope="col" className="w-32 px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Time</th>
-                  <th scope="col" className="w-48 px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider">DO Number</th>
-                  <th scope="col" className="w-48 px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Receiver Name</th>
-                  <th scope="col" className="w-32 px-6 py-4 text-right text-xs font-black text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
               <TransferInHistoryClient 
                 transfers={transfers} 
                 hasAdminAccess={role === "SUPERADMIN" || modules.includes("TRANSFER_IN_HISTORY")} 

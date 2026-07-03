@@ -17,10 +17,6 @@ export default async function TransferInHistoryPage({
   const role = user.trueRole || user.role
   const modules = user.modules || []
 
-  if (role !== "SUPERADMIN" && !modules.includes("TRANSFER_IN_HISTORY")) {
-    redirect("/dashboard")
-  }
-
   const resolvedParams = await searchParams
   const page = resolvedParams.page ? parseInt(resolvedParams.page) : 1
   const pageSize = 20

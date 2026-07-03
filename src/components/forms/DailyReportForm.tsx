@@ -939,7 +939,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
           {/* STEP 3: USAGE LOG (IN BAGS) */}
           <div className="p-4 bg-blue-50/30 flex-1">
             <h3 className="font-black uppercase tracking-wider text-sm mb-4 flex items-center text-blue-900">
-              <span className="bg-blue-900 text-white px-2 py-0.5 mr-2">3</span> Usage Log (By {unit.slice(0, -1)})
+              <span className="bg-blue-900 text-white px-2 py-0.5 mr-2">3</span> Usage Log (By {unit === 'Boxes' ? 'Box' : unit.slice(0, -1)})
             </h3>
             
             <div className="space-y-3">
@@ -955,7 +955,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
 
                 return (
                   <div key={field.id} className="flex flex-col bg-white border border-blue-200 shadow-sm">
-                    <div className="flex flex-wrap 2xl:flex-nowrap gap-2 items-center p-2">
+                    <div className="flex flex-wrap gap-2 items-center p-2">
                       <select {...register(`inventory.${sectionKey}.usages.${index}.period`)} className="w-28 p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-blue-500">
                         <option value="Before">Before</option>
                         <option value="After">After</option>

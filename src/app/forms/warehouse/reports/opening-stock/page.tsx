@@ -23,6 +23,7 @@ function OpeningStockPage() {
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState("")
+  const [editMode, setEditMode] = useState(false)
 
   // Form State
   const [batchNumber, setBatchNumber] = useState("")
@@ -55,18 +56,38 @@ function OpeningStockPage() {
       openingQty: parseInt(openingQty),
       month,
       year,
-      userId: session.user.id
+      userId: session.user.id,
+      mode: editMode ? "set" : "add"
     })
 
     if (res.success) {
-      setMessage("Opening stock set successfully!")
+      setMessage(`Opening stock ${editMode ? 'updated' : 'set'} successfully!`)
       setBatchNumber("")
       setOpeningQty("")
+      setEditMode(false)
       fetchStocks()
     } else {
-      setMessage("Failed to set opening stock.")
+      setMessage(`Failed to ${editMode ? 'update' : 'set'} opening stock.`)
     }
     setSubmitting(false)
+  }
+
+  const handleEdit = (stock: any) => {
+    setBatchNumber(stock.batchNumber)
+    setSku(stock.sku)
+    setOpeningQty(stock.openingQty.toString())
+    setMonth(stock.month)
+    setYear(stock.year)
+    setEditMode(true)
+    setMessage("")
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleCancelEdit = () => {
+    setBatchNumber("")
+    setOpeningQty("")
+    setEditMode(false)
+    setMessage("")
   }
 
   const isSuperadmin = session?.user?.role === "SUPERADMIN" || session?.user?.role === "ADMIN" || session?.user?.email === "dina@bubbleso2.com"
@@ -118,12 +139,17 @@ function OpeningStockPage() {
               </div>
             </div>
 
-            <div className="md:col-span-2 pt-2">
-              <button type="submit" disabled={submitting} className="w-full bg-emerald-600 text-white font-bold uppercase py-3 hover:bg-emerald-700 transition-colors disabled:opacity-50">
-                {submitting ? "Saving..." : "Set Opening Stock"}
+            <div className="md:col-span-2 pt-2 flex gap-2">
+              <button type="submit" disabled={submitting} className={`flex-1 text-white font-bold uppercase py-3 transition-colors disabled:opacity-50 ${editMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+                {submitting ? "Saving..." : (editMode ? "Update Opening Stock" : "Set Opening Stock")}
               </button>
-              {message && <p className="mt-2 text-sm font-bold text-emerald-600 text-center">{message}</p>}
+              {editMode && (
+                <button type="button" onClick={handleCancelEdit} className="px-6 bg-gray-200 text-gray-700 font-bold uppercase py-3 hover:bg-gray-300 transition-colors">
+                  Cancel
+                </button>
+              )}
             </div>
+            {message && <div className="md:col-span-2"><p className={`text-sm font-bold text-center ${message.includes('Failed') ? 'text-red-600' : 'text-emerald-600'}`}>{message}</p></div>}
           </form>
         </div>
       )}
@@ -142,6 +168,7 @@ function OpeningStockPage() {
                   <th className="border border-gray-300 p-2 text-left">SKU</th>
                   <th className="border border-gray-300 p-2 text-right">Opening Qty</th>
                   <th className="border border-gray-300 p-2 text-left">Set By</th>
+                  <th className="border border-gray-300 p-2 text-center w-24">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -152,10 +179,18 @@ function OpeningStockPage() {
                     <td className="border border-gray-300 p-2">{formatSKU(stock.sku)}</td>
                     <td className="border border-gray-300 p-2 text-right font-bold text-emerald-700">{stock.openingQty}</td>
                     <td className="border border-gray-300 p-2">{stock.setBy?.name || 'Unknown'}</td>
+                    <td className="border border-gray-300 p-2 text-center">
+                      <button 
+                        onClick={() => handleEdit(stock)}
+                        className="text-xs font-bold uppercase bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 transition-colors"
+                      >
+                        Edit
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {stocks.length === 0 && (
-                  <tr><td colSpan={5} className="border border-gray-300 p-4 text-center text-gray-500 italic">No opening stocks configured yet.</td></tr>
+                  <tr><td colSpan={6} className="border border-gray-300 p-4 text-center text-gray-500 italic">No opening stocks configured yet.</td></tr>
                 )}
               </tbody>
             </table>

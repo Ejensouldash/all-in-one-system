@@ -4,8 +4,9 @@ import { ChevronLeft, Package, ArrowUpRight, ArrowDownRight, History } from "luc
 import { getBatchLedger } from "@/app/actions/warehouse"
 import { prisma } from "@/lib/prisma"
 
-export default async function BatchHistoryPage({ params }: { params: { batchNumber: string } }) {
-  const batchNumber = decodeURIComponent(params.batchNumber)
+export default async function BatchHistoryPage({ params }: { params: Promise<{ batchNumber: string }> }) {
+  const resolvedParams = await params
+  const batchNumber = decodeURIComponent(resolvedParams.batchNumber)
 
   // Fetch the current state of the batch
   const batch = await prisma.inventoryBatch.findUnique({

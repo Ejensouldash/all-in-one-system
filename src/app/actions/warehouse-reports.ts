@@ -217,7 +217,7 @@ export async function getMonthlyDistributionReport(month: number, year: number) 
 }
 
 // 3. Set Opening Stock (System Initialization)
-export async function setOpeningStock(data: { batchNumber: string, sku: string, openingQty: number, month: number, year: number, userId: string }) {
+export async function setOpeningStock(data: { batchNumber: string, sku: string, openingQty: number, month: number, year: number, userId: string, mode?: "add" | "set" }) {
   try {
     const existing = await prisma.warehouseOpeningStock.findFirst({
       where: {
@@ -228,13 +228,17 @@ export async function setOpeningStock(data: { batchNumber: string, sku: string, 
     })
 
     if (existing) {
-      const incrementAmt = data.openingQty;
+      const isSetMode = data.mode === "set"
+      // If 'add', we just add the openingQty to what's already there
+      // If 'set', the difference is (newQty - oldQty)
+      const incrementAmt = isSetMode ? (data.openingQty - existing.openingQty) : data.openingQty;
+      
       await prisma.$transaction(async (tx) => {
-        // Update
+        // Update Opening Stock record
         await tx.warehouseOpeningStock.update({
           where: { id: existing.id },
           data: {
-            openingQty: { increment: incrementAmt },
+            openingQty: isSetMode ? data.openingQty : { increment: incrementAmt },
             sku: data.sku,
             setById: data.userId
           }
@@ -246,8 +250,8 @@ export async function setOpeningStock(data: { batchNumber: string, sku: string, 
           create: {
             batchNumber: data.batchNumber,
             sku: data.sku,
-            totalQtyIn: incrementAmt,
-            availableBalance: incrementAmt
+            totalQtyIn: incrementAmt > 0 ? incrementAmt : 0,
+            availableBalance: incrementAmt > 0 ? incrementAmt : 0
           },
           update: {
             totalQtyIn: { increment: incrementAmt },

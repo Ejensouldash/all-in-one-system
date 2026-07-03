@@ -404,9 +404,9 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
                 <thead className="bg-gray-100 border-b-[3px] border-black">
                   <tr>
                     <th className="p-2 text-left border-r-[3px] border-black uppercase tracking-wider font-black text-xs">Item</th>
-                    <th className="p-2 text-center border-r-[3px] border-black uppercase tracking-wider font-black text-xs">Manual Before</th>
-                    <th className="p-2 text-center border-r-[3px] border-black uppercase tracking-wider font-black text-xs">Manual After</th>
-                    <th className="p-2 text-center bg-gray-200 uppercase tracking-wider font-black text-xs">Total (Inc. Usage)</th>
+                    <th className="p-2 text-center border-r-[3px] border-black uppercase tracking-wider font-black text-xs">Before</th>
+                    <th className="p-2 text-center border-r-[3px] border-black uppercase tracking-wider font-black text-xs">After</th>
+                    <th className="p-2 text-center bg-gray-200 uppercase tracking-wider font-black text-xs">Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -417,22 +417,17 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
                     const befManual = Number(watchRejectsScrap?.[lowerItem]?.before) || 0
                     const aftManual = Number(watchRejectsScrap?.[lowerItem]?.after) || 0
                     
-                    const usageRejectsBefore = (watchInventory?.[sectionKey]?.usages || []).filter((u:any) => u.hasReject && u.period === "Before").reduce((acc:number, u:any) => acc + (Number(u.rejectQty)||0), 0)
-                    const usageRejectsAfter = (watchInventory?.[sectionKey]?.usages || []).filter((u:any) => u.hasReject && u.period !== "Before").reduce((acc:number, u:any) => acc + (Number(u.rejectQty)||0), 0)
-                    
-                    const totalBef = befManual + usageRejectsBefore
-                    const totalAft = aftManual + usageRejectsAfter
+                    const totalBef = befManual
+                    const totalAft = aftManual
 
                     return (
                       <tr key={item} className="border-b-[3px] border-black last:border-0 font-medium">
                         <td className="p-2 border-r-[3px] border-black font-black uppercase tracking-widest text-xs">{item}</td>
                         <td className="p-0 border-r-[3px] border-black bg-white relative">
                           <input type="number" {...register(`rejectsScrap.${lowerItem}.before`)} min="0" disabled={watchNoRejects} className="w-full h-full text-center p-3 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600 text-sm" />
-                          {usageRejectsBefore > 0 && <span className="absolute bottom-1 right-2 text-[10px] text-red-500 font-bold bg-white px-1 shadow-sm border border-red-200 rounded">+{usageRejectsBefore} from usage</span>}
                         </td>
                         <td className="p-0 border-r-[3px] border-black bg-white relative">
                           <input type="number" {...register(`rejectsScrap.${lowerItem}.after`)} min="0" disabled={watchNoRejects} className="w-full h-full text-center p-3 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600 text-sm" />
-                          {usageRejectsAfter > 0 && <span className="absolute bottom-1 right-2 text-[10px] text-red-500 font-bold bg-white px-1 shadow-sm border border-red-200 rounded">+{usageRejectsAfter} from usage</span>}
                         </td>
                         <td className="p-2 text-center bg-gray-100 font-black text-lg text-red-700">{totalBef + totalAft}</td>
                       </tr>
@@ -448,7 +443,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
         <section>
           <div className="flex items-center mb-6 border-b-[3px] border-black pb-2">
             <span className="bg-black text-white px-3 py-1 font-black text-lg mr-3">4</span>
-            <h2 className="text-2xl font-black uppercase tracking-tight">Inventory & Material Tracking (Decoupled sync)</h2>
+            <h2 className="text-2xl font-black uppercase tracking-tight">Inventory & Material Tracking</h2>
           </div>
           
           <div className="bg-emerald-50 border-[3px] border-emerald-200 p-5 mb-8 flex flex-col md:flex-row gap-6 shadow-sm">
@@ -927,6 +922,15 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                 )
               })}
             </div>
+            {watchSources.length > 0 && (
+              <div className="mt-2 flex justify-end">
+                <div className="bg-emerald-50 px-4 py-2 border-2 border-emerald-200 font-black text-sm flex items-center gap-3">
+                  <span className="text-gray-600 uppercase tracking-widest text-xs">Total Storeroom</span>
+                  <span className="text-lg">{watchSources.reduce((acc: number, s: any) => acc + (Number(s?.bags)||0), 0)} {unit}</span>
+                  <span className="text-emerald-700">({watchSources.reduce((acc: number, s: any) => acc + ((Number(s?.bags)||0) * (Number(s?.mult)||1)), 0)} Pcs)</span>
+                </div>
+              </div>
+            )}
             <button type="button" onClick={() => appendSource({ batchNo: "", bags: 0, mult: sectionKey === "CAP" ? 4000 : multipliers[0], ...(isLabel && {labelType: "Standard Front"}) })} className="mt-4 text-xs font-black uppercase tracking-wider flex items-center border-2 border-black px-3 py-1.5 hover:bg-gray-100">
               <Plus className="h-3 w-3 mr-1" /> Add Storeroom Batch
             </button>
@@ -996,28 +1000,36 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                     
                       <button type="button" onClick={() => removeUsage(index)} className="text-red-500 p-2 hover:bg-red-50 ml-auto"><Trash2 className="w-4 h-4" /></button>
                     </div>
-                    
-                    {/* USAGE REJECTS */}
-                    <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center w-full px-2 pb-2 bg-red-50/10">
-                      <label className="flex items-center text-xs font-bold text-red-600 cursor-pointer min-w-max pt-1 border-t border-blue-100 w-full sm:w-auto">
-                        <input type="checkbox" {...register(`inventory.${sectionKey}.usages.${index}.hasReject`)} className="mr-2 accent-red-600 w-4 h-4" />
-                        Ada barang reject?
-                      </label>
-                      
-                      {watchUsages[index]?.hasReject && (
-                        <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center w-full animate-in fade-in zoom-in duration-200 pt-1 border-t border-blue-100 sm:border-t-0 sm:pt-0 sm:ml-2">
-                          <input type="number" placeholder="Qty (Pcs)" min="0" {...register(`inventory.${sectionKey}.usages.${index}.rejectQty`)} className="w-24 p-1.5 border border-red-300 text-center text-xs font-bold outline-none focus:border-red-600 bg-white" />
-                          <select {...register(`inventory.${sectionKey}.usages.${index}.rejectType`)} className="w-28 p-1.5 border border-red-300 bg-red-50 text-xs font-bold outline-none text-red-700 pointer-events-none cursor-not-allowed">
-                            <option value="Scrap">Scrap</option>
-                          </select>
-                          <input type="text" placeholder="Reason..." {...register(`inventory.${sectionKey}.usages.${index}.rejectReason`)} className="flex-1 min-w-[150px] p-1.5 border border-red-300 text-xs font-bold outline-none focus:border-red-600 bg-white" />
-                        </div>
-                      )}
-                    </div>
                   </div>
                 )
               })}
             </div>
+            {watchUsages.length > 0 && (
+              <div className="mt-2 flex justify-end">
+                <div className="bg-blue-100 px-4 py-2 border-2 border-blue-200 font-black text-sm flex items-center gap-3">
+                  <span className="text-gray-600 uppercase tracking-widest text-xs">Total Usage</span>
+                  <span className="text-lg">{isCap ? watchUsages.reduce((acc: number, u: any) => acc + (Number(u?.boxes)||0), 0) : watchUsages.reduce((acc: number, u: any) => acc + (Number(u?.bags)||0), 0)} {unit}</span>
+                  {isCap && (
+                    <span className="text-blue-700">
+                      ({watchUsages.reduce((acc: number, u: any) => {
+                        const w = Number(u?.weight)||0;
+                        const b = Number(u?.boxes)||0;
+                        let pcs = 0;
+                        if (w > 0 && b > 0) {
+                          const net = w - (b*0.88);
+                          pcs = net > 0 ? Math.round(net/0.002125) : 0;
+                        } else if (w > 0 && b === 0) {
+                          pcs = Math.round(w/0.002125);
+                        } else if (b > 0 && w === 0) {
+                          pcs = b * 4000;
+                        }
+                        return acc + pcs;
+                      }, 0)} Pcs)
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
             
             <button type="button" onClick={() => appendUsage({ period: "Before", batchNo: "", bags: 0, boxes: 0, weight: 0 })} className="mt-4 text-xs font-black uppercase tracking-wider flex items-center text-blue-700 border-2 border-blue-300 px-3 py-1.5 bg-white hover:bg-blue-100">
               <Plus className="h-3 w-3 mr-1" /> Log Usage

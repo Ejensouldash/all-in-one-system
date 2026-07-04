@@ -95,15 +95,15 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
   report.inventory.forEach(i => {
     if (initialData.inventory[i.sectionKey]) {
       const entry = {
-        batchNo: i.batchNo,
+        batchNo: `${i.batchNo}|${i.mult}`,
         bags: i.bags,
         mult: i.mult,
         period: i.period || undefined,
         labelType: i.labelType || undefined
       }
-      if (i.type === "Storeroom") {
+      if (i.type === "Storeroom" || i.type === "CarryForward") {
         initialData.inventory[i.sectionKey].sources.push(entry)
-      } else {
+      } else if (i.type === "Usage") {
         initialData.inventory[i.sectionKey].usages.push(entry)
       }
     }

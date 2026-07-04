@@ -33,6 +33,9 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
     verifiedBy: report.verifiedBy || "",
     remarks: report.remarks || "",
     totalManpower: report.totalManpower ? report.totalManpower.toString() : "",
+    timeFrom: report.time ? report.time.split(" - ")[0] : "",
+    timeTo: report.time ? report.time.split(" - ")[1] : "",
+    reportTime: report.reportTime || "",
     
     production: {
       p800_12: { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard", otherType: "" }] },

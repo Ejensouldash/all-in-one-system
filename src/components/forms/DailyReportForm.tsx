@@ -501,15 +501,19 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
           {PRODUCTION_CONFIG[watchLine as keyof typeof PRODUCTION_CONFIG].map(prod => {
             const isChecked = productionCheckboxes[prod.id as keyof typeof productionCheckboxes]?.checked
             if (!isChecked) return null;
+            
+            const size = prod.id.replace("p", "").split("_")[0];
+            const pack = prod.id.split("_")[1];
+            
             return (
               <AdvancedInventorySection 
                 key={prod.id}
                 sectionKey={`BOX_${prod.id}`} 
                 title={`BOX INVENTORY (${prod.label})`} 
                 control={control} register={register} watch={watch} setValue={setValue}
-                availableCarryForward={availableCarryForward.filter(b => b.category.includes("BOX") && b.category.includes(prod.label.replace(" ml ", "ML ").toUpperCase()))}
+                availableCarryForward={availableCarryForward.filter(b => b.category.includes("BOX") && !b.category.includes("CARTON") && b.category.includes(size) && b.category.includes(pack))}
                 multipliers={[1]} 
-                syncedDOs={syncedDOs.filter(d => d.category.includes("BOX") && d.category.includes(prod.label.replace(" ml ", "ML ").toUpperCase()))}
+                syncedDOs={syncedDOs.filter(d => d.category.includes("BOX") && !d.category.includes("CARTON") && d.category.includes(size) && d.category.includes(pack))}
               />
             )
           })}

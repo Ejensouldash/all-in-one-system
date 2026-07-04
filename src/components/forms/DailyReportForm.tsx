@@ -28,8 +28,8 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
   const { register, control, handleSubmit, watch, setValue, reset } = useForm({
     defaultValues: initialData ? {
       ...initialData,
-      timeFrom: initialData.time?.includes(' - ') ? initialData.time.split(' - ')[0] : initialData.time || "",
-      timeTo: initialData.time?.includes(' - ') ? initialData.time.split(' - ')[1] : ""
+      timeFrom: initialData.timeFrom || (initialData.time?.includes(' - ') ? initialData.time.split(' - ')[0] : initialData.time || ""),
+      timeTo: initialData.timeTo || (initialData.time?.includes(' - ') ? initialData.time.split(' - ')[1] : "")
     } : {
       date: new Date().toISOString().split('T')[0],
       timeFrom: new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric" }),

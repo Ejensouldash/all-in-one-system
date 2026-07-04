@@ -36,6 +36,8 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
     timeFrom: report.time ? report.time.split(" - ")[0] : "",
     timeTo: report.time ? report.time.split(" - ")[1] : "",
     reportTime: report.reportTime || "",
+    preparedSignature: report.preparedSignature || "",
+    verifiedSignature: report.verifiedSignature || "",
     
     production: {
       p800_12: { checked: false, qty: 0, batches: [{ batchNo: "", qty: 0, type: "Standard", otherType: "" }] },

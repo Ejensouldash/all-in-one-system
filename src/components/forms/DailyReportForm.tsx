@@ -131,7 +131,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
   useEffect(() => {
     async function fetchInventory() {
       setIsFetchingSync(true)
-      const res = await getActiveInventory(watchDate)
+      const res = await getActiveInventory(watchDate, reportId)
       
       if (res.success) {
         setSyncedDOs(res.data.todayDOs)
@@ -142,7 +142,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
     if (watchDate) {
       fetchInventory()
     }
-  }, [watchDate])
+  }, [watchDate, reportId])
 
   const showErrorAndScroll = (elementId: string, message: string) => {
     alert(message)

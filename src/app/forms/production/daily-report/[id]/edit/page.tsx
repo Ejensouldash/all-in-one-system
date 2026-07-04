@@ -94,13 +94,21 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
   // Populate Inventory
   report.inventory.forEach(i => {
     if (initialData.inventory[i.sectionKey]) {
-      const entry = {
+      const entry: any = {
         batchNo: `${i.batchNo}|${i.mult}`,
         bags: i.bags,
         mult: i.mult,
         period: i.period || undefined,
         labelType: i.labelType || undefined
       }
+
+      if (i.sectionKey === "CAP" && i.type === "Usage") {
+        // We only have bags in DB. Reconstruct pseudo boxes and weight so form doesn't calculate 0 pcs on save.
+        const pcs = i.bags * 4000;
+        entry.boxes = 0;
+        entry.weight = Number((pcs * 0.002125).toFixed(2));
+      }
+
       if (i.type === "Storeroom" || i.type === "CarryForward") {
         initialData.inventory[i.sectionKey].sources.push(entry)
       } else if (i.type === "Usage") {

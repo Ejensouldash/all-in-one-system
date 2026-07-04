@@ -152,7 +152,7 @@ export async function createDailyReport(data: any) {
   }
 }
 
-export async function getActiveInventory(targetDateStr?: string) {
+export async function getActiveInventory(targetDateStr?: string, excludeReportId?: string) {
   try {
     const reportDateString = targetDateStr || new Date().toISOString().split('T')[0]
     
@@ -190,6 +190,9 @@ export async function getActiveInventory(targetDateStr?: string) {
     })
     
     allLogs.forEach(log => {
+      // Ignore logs from the report being edited so we don't double-deduct or incorrectly flag them as used
+      if (excludeReportId && log.reportId === excludeReportId) return;
+
       // Find matching batch by batchNo and mult
       const matchingKeys = Object.keys(batchBalance).filter(k => k.endsWith(`|${log.batchNo}|${log.mult}`))
       if (matchingKeys.length > 0) {
@@ -206,6 +209,8 @@ export async function getActiveInventory(targetDateStr?: string) {
     const usedBatchKeysToday = new Set<string>()
     allLogs.filter(l => l.type === "Usage").forEach(log => {
       if (!log.report) return;
+      if (excludeReportId && log.reportId === excludeReportId) return; // ignore usages from current report
+      
       const logDateString = new Date(log.report.date).toISOString().split('T')[0]
       if (logDateString === reportDateString) {
         const matchingKeys = Object.keys(batchBalance).filter(k => k.endsWith(`|${log.batchNo}|${log.mult}`))

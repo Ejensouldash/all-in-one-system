@@ -897,6 +897,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
 
                     <div className="w-full sm:w-56">
                       <select 
+                        value={watchSources[index]?.batchNo || ""}
                         {...register(`inventory.${sectionKey}.sources.${index}.batchNo`, {
                           onChange: (e: any) => handleBatchSelect(index, e)
                         })} 
@@ -969,7 +970,11 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                         <option value="After">After</option>
                       </select>
 
-                      <select {...register(`inventory.${sectionKey}.usages.${index}.batchNo`)} className="flex-1 p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-blue-500 uppercase">
+                      <select 
+                        value={watchUsages[index]?.batchNo || ""}
+                        {...register(`inventory.${sectionKey}.usages.${index}.batchNo`)} 
+                        className="flex-1 p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-blue-500 uppercase"
+                      >
                         <option value="">-- Select Batch --</option>
                         {availableBatches.map(b => {
                           const currentAvail = batchSummaries[b].carryFwdBags + (b === selectedBatch ? usageBags : 0)
@@ -1067,7 +1072,11 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                   return (
                     <div key={field.id} className="flex flex-col bg-amber-50/50 border border-amber-200 shadow-sm p-2">
                       <div className="flex flex-wrap gap-2 items-center">
-                        <select {...register(`inventory.${sectionKey}.holds.${index}.batchNo`)} className="flex-1 min-w-[150px] p-2 border border-amber-300 bg-white text-xs font-bold outline-none focus:border-amber-500 uppercase">
+                        <select 
+                          value={watchHolds[index]?.batchNo || ""}
+                          {...register(`inventory.${sectionKey}.holds.${index}.batchNo`)} 
+                          className="flex-1 min-w-[150px] p-2 border border-amber-300 bg-white text-xs font-bold outline-none focus:border-amber-500 uppercase"
+                        >
                           <option value="">-- Select Batch --</option>
                           {availableBatches.map(b => {
                             const currentAvail = batchSummaries[b].carryFwdBags + (b === selectedBatch ? holdBags : 0)

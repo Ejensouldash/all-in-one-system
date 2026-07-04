@@ -89,10 +89,11 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
 
   // Populate Rejects
   report.rejects.forEach(r => {
-    if (r.type === "RETURN" && initialData.rejectsReturn[r.item]) {
-      initialData.rejectsReturn[r.item] = { before: r.before, after: r.after }
-    } else if (initialData.rejectsScrap[r.item]) {
-      initialData.rejectsScrap[r.item] = { before: r.before, after: r.after }
+    const itemKey = r.item.toLowerCase()
+    if (r.type === "RETURN" && initialData.rejectsReturn[itemKey]) {
+      initialData.rejectsReturn[itemKey] = { before: r.before, after: r.after }
+    } else if (initialData.rejectsScrap[itemKey]) {
+      initialData.rejectsScrap[itemKey] = { before: r.before, after: r.after }
     }
   })
 

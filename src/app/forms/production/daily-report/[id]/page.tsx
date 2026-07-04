@@ -8,6 +8,21 @@ import { ApprovalSignatureModal } from "@/components/forms/ApprovalSignatureModa
 import { ExportDailyReportButton } from "@/components/forms/ExportDailyReportButton"
 import { SharePDFButton } from "@/components/ui/SharePDFButton"
 import { prisma } from "@/lib/prisma"
+import { Metadata } from "next"
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const resolvedParams = await params
+  const report = await prisma.dailyReport.findUnique({ where: { id: resolvedParams.id } })
+  
+  if (!report) return { title: 'Report Not Found' }
+  
+  const dateStr = new Date(report.date).toLocaleDateString('en-GB').replace(/\//g, '.')
+  const lineStr = report.line.replace(' - ', ' ')
+  
+  return {
+    title: `Daily Production Report ${lineStr} ${report.shift} Date ${dateStr}`
+  }
+}
 
 export default async function ViewDailyReportPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth()

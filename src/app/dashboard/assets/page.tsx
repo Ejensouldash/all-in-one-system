@@ -10,7 +10,8 @@ import {
   QrCode,
   List,
   Wrench,
-  ExternalLink
+  ExternalLink,
+  Printer
 } from "lucide-react"
 import { DashboardCharts } from "./DashboardCharts"
 
@@ -112,6 +113,9 @@ export default async function AssetsDashboard() {
         <div className="flex gap-2">
           <Link href="/dashboard/assets/audit" className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-medium text-sm transition flex items-center shadow-sm border border-slate-200">
             <QrCode className="w-4 h-4 mr-2 text-slate-500" /> Scan QR
+          </Link>
+          <Link href="/dashboard/assets/qr" className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-medium text-sm transition flex items-center shadow-sm border border-slate-200">
+            <Printer className="w-4 h-4 mr-2 text-slate-500" /> Print QR
           </Link>
           <Link href="/dashboard/assets/new" className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition flex items-center shadow-sm">
             <Plus className="w-4 h-4 mr-2" /> Add Asset

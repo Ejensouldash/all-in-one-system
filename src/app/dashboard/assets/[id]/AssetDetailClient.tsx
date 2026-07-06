@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { updateAsset, deleteAsset } from "@/app/actions/asset"
 import { Edit2, Trash2, ArrowLeft, Save, X, History, Wrench, Package } from "lucide-react"
+import { QRCodeDisplay } from "./QRCodeDisplay"
 import Link from "next/link"
 import { format } from "date-fns"
 
@@ -265,6 +266,9 @@ export function AssetDetailClient({ asset, departments, locations }: { asset: an
                 </div>
               </div>
             </div>
+
+            {/* QR Code Sticker */}
+            <QRCodeDisplay assetId={asset.id} assetTag={asset.assetTag} />
           </div>
         </div>
       )}

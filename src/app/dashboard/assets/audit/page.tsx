@@ -2,26 +2,24 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { ScanLine, Search, Package, AlertCircle } from "lucide-react"
+import { ScanLine, Search, Package, AlertCircle, Camera } from "lucide-react"
+import { QRScannerModal } from "@/components/forms/QRScannerModal"
 
 export default function AuditScanPage() {
   const router = useRouter()
   const [assetTag, setAssetTag] = useState("")
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState("")
+  const [showScanner, setShowScanner] = useState(false)
 
-  const handleScan = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!assetTag.trim()) return
+  const handleLookup = async (tag: string) => {
+    if (!tag.trim()) return
 
     setIsSearching(true)
     setError("")
 
     try {
-      // In a real app we would hit a specific audit API, but for now we just redirect to the asset page
-      // Or we can search via a server action, but let's just redirect and let the page handle 404
-      // We will look up the asset first to make sure it exists
-      const res = await fetch(`/api/assets/lookup?tag=${encodeURIComponent(assetTag)}`)
+      const res = await fetch(`/api/assets/lookup?tag=${encodeURIComponent(tag)}`)
       if (res.ok) {
         const data = await res.json()
         if (data.id) {
@@ -39,6 +37,28 @@ export default function AuditScanPage() {
     }
   }
 
+  const handleScan = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await handleLookup(assetTag)
+  }
+
+  const handleQRScan = async (decodedText: string) => {
+    setShowScanner(false)
+    
+    // If scanned text is a URL, extract asset ID from it
+    if (decodedText.includes("/dashboard/assets/")) {
+      const id = decodedText.split("/dashboard/assets/").pop()
+      if (id) {
+        router.push(`/dashboard/assets/${id}`)
+        return
+      }
+    }
+    
+    // Otherwise treat it as an asset tag
+    setAssetTag(decodedText.toUpperCase())
+    await handleLookup(decodedText)
+  }
+
   return (
     <div className="p-4 md:p-8 animate-in fade-in duration-500 flex items-center justify-center min-h-[calc(100vh-80px)]">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -51,6 +71,21 @@ export default function AuditScanPage() {
         </div>
 
             <div className="p-8">
+              {/* Camera QR Scanner Button */}
+              <button
+                onClick={() => setShowScanner(true)}
+                className="w-full flex items-center justify-center gap-3 py-4 px-4 mb-6 border-2 border-dashed border-teal-300 rounded-xl text-teal-700 font-bold hover:bg-teal-50 hover:border-teal-400 transition-all group"
+              >
+                <Camera className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                <span className="text-lg">Open Camera Scanner</span>
+              </button>
+
+              <div className="flex items-center gap-4 mb-6">
+                <div className="flex-1 h-px bg-slate-200" />
+                <span className="text-xs text-slate-400 font-bold uppercase">or enter manually</span>
+                <div className="flex-1 h-px bg-slate-200" />
+              </div>
+
               <form onSubmit={handleScan} className="space-y-6">
                 
                 {error && (
@@ -94,6 +129,13 @@ export default function AuditScanPage() {
               </form>
             </div>
       </div>
+
+      {/* QR Scanner Modal */}
+      <QRScannerModal
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScan={handleQRScan}
+      />
     </div>
   )
 }

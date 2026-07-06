@@ -51,8 +51,8 @@ export default auth((req) => {
     requiredModules = ["SETTINGS"]
   }
 
-  if (requiredModules.length > 0 && req.auth?.user.role !== "SUPERADMIN") {
-    const userModules = (req.auth?.user as any).modules || []
+  if (requiredModules.length > 0 && req.auth?.user?.role !== "SUPERADMIN") {
+    const userModules = (req.auth?.user as any)?.modules || []
     const hasAccess = requiredModules.some(m => userModules.includes(m))
     if (!hasAccess) {
       return NextResponse.redirect(new URL("/dashboard", nextUrl))

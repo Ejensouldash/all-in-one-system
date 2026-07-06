@@ -385,18 +385,18 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                         const [batchNo, multStr] = batchKey.split('|');
                         const multVal = Number(multStr);
                         
+                        // Get storeroom balance (carry forward from previous day)
                         const storeroomObj = sources.find((s:any) => s.batchNo === batchNo && s.mult === multVal)
-                        let startBags = 0
-                        let mult = multVal
+                        let storeroomBags = storeroomObj ? storeroomObj.bags : 0
                         
-                        if (storeroomObj) {
-                          startBags = storeroomObj.bags
-                        } else {
-                          const doObj = doAggregated[batchKey]
-                          if (doObj) {
-                            startBags = doObj.bags
-                          }
-                        }
+                        // Get today's Transfer In for this batch
+                        const todayDOBags = sectionDOItems
+                          .filter((d:any) => d.batchNo === batchNo && d.mult === multVal)
+                          .reduce((sum:number, d:any) => sum + d.bags, 0)
+                        
+                        // Total available = Storeroom + Transfer In
+                        const startBags = storeroomBags + todayDOBags
+                        const mult = multVal
                         
                         const usedBags = usages.filter((u:any) => u.batchNo === batchNo && u.mult === multVal).reduce((sum:number, u:any) => sum + u.bags, 0)
                         const carryFwdBags = startBags - usedBags

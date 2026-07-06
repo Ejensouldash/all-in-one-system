@@ -205,7 +205,9 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       if (!log.report) return;
       if (excludeReportId && log.reportId === excludeReportId) return; // ignore usages from current report
       
-      const logDateString = new Date(log.report.date).toISOString().split('T')[0]
+      // Fix timezone issue by using local date string comparison
+      const logDate = new Date(log.report.date)
+      const logDateString = `${logDate.getFullYear()}-${String(logDate.getMonth() + 1).padStart(2, '0')}-${String(logDate.getDate()).padStart(2, '0')}`
       if (logDateString === reportDateString) {
         const matchingKeys = Object.keys(batchBalance).filter(k => k.endsWith(`|${log.batchNo}|${log.mult}`))
         if (matchingKeys.length > 0) usedBatchKeysToday.add(matchingKeys[0])
@@ -213,7 +215,9 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
     })
 
     const todayDOItems = allDOItems.filter(item => {
-      const doDateString = new Date(item.transferIn.receiveDate).toISOString().split('T')[0]
+      // Fix timezone issue by using local date string comparison
+      const receiveDate = new Date(item.transferIn.receiveDate)
+      const doDateString = `${receiveDate.getFullYear()}-${String(receiveDate.getMonth() + 1).padStart(2, '0')}-${String(receiveDate.getDate()).padStart(2, '0')}`
       if (doDateString !== reportDateString) return false;
       
       // Filter by shift if provided (assuming PM shift starts at 19:00 / 7:00 PM)

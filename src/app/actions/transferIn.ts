@@ -28,6 +28,9 @@ export async function createTransferIn(data: any) {
     })
 
     revalidatePath("/forms")
+    revalidatePath("/forms/production/stock")
+    revalidatePath("/forms/production/transfer-in")
+    revalidatePath("/forms/production/daily-report", "layout")
 
     await logUserAction(
       "Created Transfer In DO",
@@ -90,6 +93,9 @@ export async function updateTransferIn(id: string, data: any) {
     })
 
     revalidatePath("/forms")
+    revalidatePath("/forms/production/stock")
+    revalidatePath("/forms/production/transfer-in")
+    revalidatePath("/forms/production/daily-report", "layout")
 
     await logUserAction(
       "Updated Transfer In DO",
@@ -122,6 +128,9 @@ export async function deleteTransferIn(id: string) {
     await prisma.transferIn.delete({ where: { id } })
     
     revalidatePath("/forms")
+    revalidatePath("/forms/production/stock")
+    revalidatePath("/forms/production/transfer-in")
+    revalidatePath("/forms/production/daily-report", "layout")
     
     await logUserAction(
       "Deleted Transfer In DO",
@@ -183,6 +192,9 @@ export async function bulkDeleteTransferIn(ids: string[]) {
     await prisma.transferIn.deleteMany({ where: { id: { in: ids } } })
     
     revalidatePath("/forms")
+    revalidatePath("/forms/production/stock")
+    revalidatePath("/forms/production/transfer-in")
+    revalidatePath("/forms/production/daily-report", "layout")
     
     const details = existing.map(e => `${e.doNumber}`).join(", ")
     await logUserAction(
@@ -257,9 +269,25 @@ export async function deleteTransferInItem(batchNo: string, doNumber: string) {
     
     if (!item) return { success: false, error: "Item not found in DO" }
 
+    // Find all reports that might be affected by this deletion (reports on or after the Transfer In date)
+    const affectedReports = await prisma.dailyReport.findMany({
+      where: {
+        date: { gte: transferIn.receiveDate }
+      },
+      select: { id: true }
+    })
+
     await prisma.transferInItem.delete({ where: { id: item.id } })
     
     revalidatePath("/forms")
+    revalidatePath("/forms/production/stock")
+    revalidatePath("/forms/production/transfer-in")
+    revalidatePath("/forms/production/daily-report", "layout")
+    
+    // Revalidate specific affected report pages
+    for (const report of affectedReports) {
+      revalidatePath(`/forms/production/daily-report/${report.id}`)
+    }
     
     await logUserAction(
       "Deleted Production Stock Item",
@@ -287,11 +315,14 @@ export async function bulkDeleteTransferInItems(items: { batchNo: string, doNumb
 
   try {
     let deletedCount = 0;
+    const affectedDates: Date[] = []
     
     for (const { batchNo, doNumber } of items) {
       if (!doNumber) continue;
       const transferIn = await prisma.transferIn.findFirst({ where: { doNumber } })
       if (!transferIn) continue;
+      
+      affectedDates.push(transferIn.receiveDate)
 
       const item = await prisma.transferInItem.findFirst({
         where: { transferInId: transferIn.id, batchNo }
@@ -303,7 +334,24 @@ export async function bulkDeleteTransferInItems(items: { batchNo: string, doNumb
       }
     }
     
+    // Find all reports affected by these deletions
+    const earliestDate = affectedDates.length > 0 ? new Date(Math.min(...affectedDates.map(d => d.getTime()))) : new Date()
+    const affectedReports = await prisma.dailyReport.findMany({
+      where: {
+        date: { gte: earliestDate }
+      },
+      select: { id: true }
+    })
+    
     revalidatePath("/forms")
+    revalidatePath("/forms/production/stock")
+    revalidatePath("/forms/production/transfer-in")
+    revalidatePath("/forms/production/daily-report", "layout")
+    
+    // Revalidate specific affected report pages
+    for (const report of affectedReports) {
+      revalidatePath(`/forms/production/daily-report/${report.id}`)
+    }
     
     await logUserAction(
       "Bulk Deleted Production Stock Items",

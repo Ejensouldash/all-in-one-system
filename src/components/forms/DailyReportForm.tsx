@@ -504,7 +504,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
                 <tbody>
                   {(() => {
                     const baseItems = ['CAP', 'BOTTLE', 'LABEL'];
-                    const activeBoxItems = PRODUCTION_CONFIG[watchLine as keyof typeof PRODUCTION_CONFIG]
+                    const activeBoxItems = (PRODUCTION_CONFIG[watchLine as keyof typeof PRODUCTION_CONFIG] || [])
                       .filter(prod => productionCheckboxes[prod.id as keyof typeof productionCheckboxes]?.checked)
                       .map(prod => `BOX_${prod.id}`);
                     const itemsToRender = [...baseItems, ...(activeBoxItems.length > 0 ? activeBoxItems : ['BOX'])];
@@ -512,7 +512,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
                     return itemsToRender.map((item) => {
                       const lowerItem = item.toLowerCase() as any;
                       const displayItem = item.startsWith('BOX_') 
-                        ? `BOX (${PRODUCTION_CONFIG[watchLine as keyof typeof PRODUCTION_CONFIG].find(p => `BOX_${p.id}` === item)?.label})` 
+                        ? `BOX (${(PRODUCTION_CONFIG[watchLine as keyof typeof PRODUCTION_CONFIG] || []).find(p => `BOX_${p.id}` === item)?.label})` 
                         : item;
                       
                       const befManual = Number(watchRejectsScrap?.[lowerItem]?.before) || 0
@@ -600,7 +600,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             syncedDOs={syncedDOs.filter(d => d.category.includes("CAP") && !d.category.includes("CARTON"))}
           />
 
-          {PRODUCTION_CONFIG[watchLine as keyof typeof PRODUCTION_CONFIG].map(prod => {
+          {(PRODUCTION_CONFIG[watchLine as keyof typeof PRODUCTION_CONFIG] || []).map(prod => {
             const isChecked = productionCheckboxes[prod.id as keyof typeof productionCheckboxes]?.checked
             if (!isChecked) return null;
             

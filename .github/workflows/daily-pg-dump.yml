@@ -35,6 +35,7 @@ jobs:
           DATE=$(date +"%Y%m%d")
           FILENAME="BubblesO2_Full_DB_${DATE}.sql.gz"
           echo "Dumping database to ${FILENAME}..."
+          set -eo pipefail
           
           # Run pg_dump and compress on the fly
           # Includes schema, data, auth, roles, etc.

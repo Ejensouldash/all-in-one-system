@@ -165,8 +165,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       
       if (res.success) {
         setAllTodayDOs(res.data.todayDOs)
-        const autoSynced = res.data.todayDOs.filter((d: any) => !d.category.includes("CAP"))
-        setSyncedDOs(autoSynced)
+        setSyncedDOs(res.data.todayDOs)
         setAvailableCarryForward(res.data.storeroomBatches)
       }
       setIsFetchingSync(false)

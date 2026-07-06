@@ -31,7 +31,11 @@ export async function createDailyReport(data: any) {
         
         // Productions
         productions: {
-          create: Object.keys(data.production || {}).filter(k => data.production[k].checked).map(k => ({
+          create: Object.keys(data.production || {}).filter(k => {
+            if (data.line.includes('800') && !k.includes('800')) return false;
+            if (data.line.includes('425') && !k.includes('425')) return false;
+            return data.production[k].checked;
+          }).map(k => ({
             productType: k,
             totalBox: Number(data.production[k].qty),
             batches: {
@@ -76,6 +80,8 @@ export async function createDailyReport(data: any) {
         // Inventory
         inventory: {
           create: Object.keys(data.inventory || {}).flatMap(sectionKey => {
+            if (data.line.includes('800') && sectionKey.startsWith('BOX_') && !sectionKey.includes('800')) return [];
+            if (data.line.includes('425') && sectionKey.startsWith('BOX_') && !sectionKey.includes('425')) return [];
             const sources = data.inventory[sectionKey].sources.map((s: any) => ({
               sectionKey,
               type: "Storeroom", // Technically we only submit Storeroom now, as TransferIn comes from DO
@@ -109,6 +115,8 @@ export async function createDailyReport(data: any) {
         // Holds
         holds: {
           create: Object.keys(data.inventory || {}).flatMap(sectionKey => {
+            if (data.line.includes('800') && sectionKey.startsWith('BOX_') && !sectionKey.includes('800')) return [];
+            if (data.line.includes('425') && sectionKey.startsWith('BOX_') && !sectionKey.includes('425')) return [];
             return (data.inventory[sectionKey].holds || []).map((h: any) => ({
               sectionKey,
               batchNo: h.batchNo,
@@ -393,7 +401,11 @@ export async function updateDailyReport(id: string, data: any) {
           maxTotalManpower: Number(data.maxTotalManpower) || null,
           
           productions: {
-            create: Object.keys(data.production || {}).filter(k => data.production[k].checked).map(k => ({
+            create: Object.keys(data.production || {}).filter(k => {
+              if (data.line.includes('800') && !k.includes('800')) return false;
+              if (data.line.includes('425') && !k.includes('425')) return false;
+              return data.production[k].checked;
+            }).map(k => ({
               productType: k,
               totalBox: Number(data.production[k].qty),
               batches: {
@@ -434,6 +446,8 @@ export async function updateDailyReport(id: string, data: any) {
 
           inventory: {
             create: Object.keys(data.inventory || {}).flatMap(sectionKey => {
+              if (data.line.includes('800') && sectionKey.startsWith('BOX_') && !sectionKey.includes('800')) return [];
+              if (data.line.includes('425') && sectionKey.startsWith('BOX_') && !sectionKey.includes('425')) return [];
               const sources = data.inventory[sectionKey].sources.map((s: any) => ({
                 sectionKey,
                 type: "Storeroom",
@@ -467,6 +481,8 @@ export async function updateDailyReport(id: string, data: any) {
           // Holds
           holds: {
             create: Object.keys(data.inventory || {}).flatMap(sectionKey => {
+              if (data.line.includes('800') && sectionKey.startsWith('BOX_') && !sectionKey.includes('800')) return [];
+              if (data.line.includes('425') && sectionKey.startsWith('BOX_') && !sectionKey.includes('425')) return [];
               return (data.inventory[sectionKey].holds || []).map((h: any) => ({
                 sectionKey,
                 batchNo: h.batchNo,

@@ -42,9 +42,9 @@ jobs:
           
           echo "FILENAME=${FILENAME}" >> $GITHUB_ENV
 
-      - name: Upload to Supabase and Enforce Retention
+      - name: Upload to Google Drive and Enforce Retention
         env:
-          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
         run: |
-          node .github/scripts/backup-supabase.js
+          node .github/scripts/backup-gdrive.js

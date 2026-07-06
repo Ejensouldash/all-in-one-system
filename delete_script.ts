@@ -6,9 +6,7 @@ async function main() {
   // Find all TransferInItem that match the criteria
   const items = await prisma.transferInItem.findMany({
     where: {
-      category: {
-        in: ["BOTTLE 800ml", "BOTTLE 425ml"]
-      },
+      category: "CAP",
       transferIn: {
         receiveDate: { lte: targetDate },
         doNumber: { notIn: ["020726", "DO - 020726"] }

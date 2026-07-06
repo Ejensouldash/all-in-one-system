@@ -89,9 +89,9 @@ export function BackupRestorePanel() {
     fetchBackups()
   }, [])
 
-  const handleDownloadSql = async (fileName: string) => {
+  const handleDownloadSql = async (fileId: string) => {
     setStatus("Generating download link...")
-    const res = await getBackupDownloadUrl(fileName)
+    const res = await getBackupDownloadUrl(fileId)
     if (res.success && res.url) {
       window.location.href = res.url
       setStatus("Download started!")
@@ -183,7 +183,7 @@ export function BackupRestorePanel() {
                         <td className="px-4 py-3 text-gray-500">{new Date(bkp.created_at).toLocaleString('en-GB')}</td>
                         <td className="px-4 py-3 text-right">
                           <button
-                            onClick={() => handleDownloadSql(bkp.name)}
+                            onClick={() => handleDownloadSql(bkp.id)}
                             className="inline-flex items-center px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold shadow-sm transition-colors"
                           >
                             <Download className="h-3 w-3 mr-1" /> Download

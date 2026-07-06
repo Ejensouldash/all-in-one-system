@@ -172,90 +172,99 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       include: { report: true }
     })
 
-    // Calculate global balance for every batch
-    const batchBalance: Record<string, { bags: number, mult: number, category: string, batchNo: string, transferInId: string, doNumber: string }> = {}
-    
+    // Helper: compare dates using LOCAL date components (avoids UTC timezone shift on +08:00)
+    const toLocalDateStr = (d: Date) => {
+      const dt = new Date(d)
+      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+    }
+
+    // Helper: was this Transfer In item RECEIVED TODAY (on the report date) and does it match the shift?
+    const isReceivedToday = (item: any) => {
+      if (toLocalDateStr(item.transferIn.receiveDate) !== reportDateString) return false
+      // Filter by shift if provided (assuming PM shift starts at 19:00 / 7:00 PM)
+      if (shift && item.transferIn.receiveTime) {
+        const hour = parseInt(item.transferIn.receiveTime.split(':')[0], 10)
+        if (!isNaN(hour)) {
+          const isPM = hour >= 19
+          if (shift === "AM" && isPM) return false
+          if (shift === "PM" && !isPM) return false
+        }
+      }
+      return true
+    }
+
+    // Accumulate, per batch key (category|batchNo|mult):
+    //  - totalBalance: ALL transfer-in up to target date, minus Usage/Hold (excluding the current report), plus Reuse
+    //  - todayItems:   the individual transfer-in items RECEIVED TODAY (shift matched)
+    // NOTE: Today's Transfer In is tracked separately so it can ALWAYS be shown under
+    //       "Transfer In (Received Today)" — even when the same Batch No already had
+    //       carry-forward stock from a previous day.
+    const batchInfo: Record<string, {
+      totalBalance: number,
+      todayItems: any[],
+      mult: number,
+      category: string,
+      batchNo: string,
+      transferInId: string,
+      doNumber: string
+    }> = {}
+
     allDOItems.forEach(item => {
       const key = `${item.category}|${item.batchNo}|${item.mult}`
-      if (!batchBalance[key]) {
-        batchBalance[key] = { bags: 0, mult: item.mult, category: item.category, batchNo: item.batchNo, transferInId: item.transferIn.id, doNumber: item.transferIn.doNumber }
+      if (!batchInfo[key]) {
+        batchInfo[key] = { totalBalance: 0, todayItems: [], mult: item.mult, category: item.category, batchNo: item.batchNo, transferInId: item.transferIn.id, doNumber: item.transferIn.doNumber }
       }
-      batchBalance[key].bags += item.bags
+      batchInfo[key].totalBalance += item.bags
+      if (isReceivedToday(item)) {
+        batchInfo[key].todayItems.push(item)
+      }
     })
-    
+
     allLogs.forEach(log => {
-      // Ignore logs from the report being edited so we don't double-deduct or incorrectly flag them as used
+      // Ignore logs from the report being edited so we don't double-deduct them
       if (excludeReportId && log.reportId === excludeReportId) return;
 
       // Find matching batch by batchNo and mult
-      const matchingKeys = Object.keys(batchBalance).filter(k => k.endsWith(`|${log.batchNo}|${log.mult}`))
+      const matchingKeys = Object.keys(batchInfo).filter(k => k.endsWith(`|${log.batchNo}|${log.mult}`))
       if (matchingKeys.length > 0) {
         const key = matchingKeys[0] // Deduct from the first matching category
         if (log.type === "Usage" || log.type === "Hold") {
-          batchBalance[key].bags -= log.bags
+          batchInfo[key].totalBalance -= log.bags
         } else if (log.type === "Reuse") {
-          batchBalance[key].bags += log.bags
+          batchInfo[key].totalBalance += log.bags
         }
-      }
-    })
-    
-    // A batch is "used TODAY" if there is any usage on reportDateString
-    const usedBatchKeysToday = new Set<string>()
-    allLogs.filter(l => l.type === "Usage").forEach(log => {
-      if (!log.report) return;
-      if (excludeReportId && log.reportId === excludeReportId) return; // ignore usages from current report
-      
-      // Fix timezone issue by using local date string comparison
-      const logDate = new Date(log.report.date)
-      const logDateString = `${logDate.getFullYear()}-${String(logDate.getMonth() + 1).padStart(2, '0')}-${String(logDate.getDate()).padStart(2, '0')}`
-      if (logDateString === reportDateString) {
-        const matchingKeys = Object.keys(batchBalance).filter(k => k.endsWith(`|${log.batchNo}|${log.mult}`))
-        if (matchingKeys.length > 0) usedBatchKeysToday.add(matchingKeys[0])
       }
     })
 
-    const todayDOItems = allDOItems.filter(item => {
-      // Fix timezone issue by using local date string comparison
-      const receiveDate = new Date(item.transferIn.receiveDate)
-      const doDateString = `${receiveDate.getFullYear()}-${String(receiveDate.getMonth() + 1).padStart(2, '0')}-${String(receiveDate.getDate()).padStart(2, '0')}`
-      if (doDateString !== reportDateString) return false;
-      
-      // Filter by shift if provided (assuming PM shift starts at 19:00 / 7:00 PM)
-      if (shift && item.transferIn.receiveTime) {
-        const hour = parseInt(item.transferIn.receiveTime.split(':')[0], 10);
-        if (!isNaN(hour)) {
-          const isPM = hour >= 19;
-          if (shift === "AM" && isPM) return false;
-          if (shift === "PM" && !isPM) return false;
-        }
-      }
-      return true;
-    })
-    
     const todayDOs: any[] = []
     const storeroomBatches: any[] = []
-    
-    Object.keys(batchBalance).forEach(batchKey => {
-      const data = batchBalance[batchKey]
-      if (data.bags > 0) { // Only return active batches
-        const receivedToday = todayDOItems.filter(item => `${item.category}|${item.batchNo}|${item.mult}` === batchKey)
-        
-        if (receivedToday.length > 0 && !usedBatchKeysToday.has(batchKey)) {
-          // Fresh DO from today that hasn't been touched by any shift yet today
-          let totalReceivedToday = 0
-          receivedToday.forEach(rt => {
-            totalReceivedToday += rt.bags
-            todayDOs.push({ batchNo: rt.batchNo, bags: rt.bags, mult: rt.mult, category: rt.category, doNumber: rt.transferIn.doNumber, transferInId: rt.transferIn.id, id: rt.id })
-          })
 
-          // If there's a leftover balance from previous days for this same batch, put it in storeroom
-          if (data.bags > totalReceivedToday) {
-            storeroomBatches.push({ batchNo: data.batchNo, bags: data.bags - totalReceivedToday, mult: data.mult, category: data.category, doNumber: data.doNumber, labelType: "Standard", transferInId: data.transferInId })
-          }
-        } else {
-          // Either from yesterday, OR from today but already partially used (Shift Carry Forward), OR it is CAP
-          storeroomBatches.push({ batchNo: data.batchNo, bags: data.bags, mult: data.mult, category: data.category, doNumber: data.doNumber, labelType: "Standard", transferInId: data.transferInId })
+    Object.keys(batchInfo).forEach(batchKey => {
+      const info = batchInfo[batchKey]
+
+      // Today's Transfer In (raw quantity received today for this batch)
+      const todayInRaw = info.todayItems.reduce((sum, it) => sum + it.bags, 0)
+
+      // FORMULA: Total Available = Carry Forward (previous day) + Today's Transfer In
+      //  => Carry Forward (Storeroom) = Total Available - Today's Transfer In
+      // (Total Available already excludes the current report's own usage via excludeReportId.)
+      let carryForward = info.totalBalance - todayInRaw
+
+      // Always list today's received Transfer In separately (each DO item keeps its own id),
+      // regardless of whether this batch also carries previous-day stock.
+      info.todayItems.forEach(it => {
+        if (it.bags > 0) {
+          todayDOs.push({ batchNo: it.batchNo, bags: it.bags, mult: it.mult, category: it.category, doNumber: it.transferIn.doNumber, transferInId: it.transferIn.id, id: it.id })
         }
+      })
+
+      // Safety clamp: if today's Transfer In was already consumed within the same day by
+      // other reports, carryForward could turn negative — clamp to 0.
+      if (carryForward < 0) carryForward = 0
+
+      // Show the remaining previous-day balance under the Storeroom (Carry Forward) section.
+      if (carryForward > 0) {
+        storeroomBatches.push({ batchNo: info.batchNo, bags: carryForward, mult: info.mult, category: info.category, doNumber: info.doNumber, labelType: "Standard", transferInId: info.transferInId })
       }
     })
 

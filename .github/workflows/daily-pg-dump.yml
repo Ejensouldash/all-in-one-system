@@ -1,0 +1,50 @@
+name: Daily Postgres Database Backup
+
+on:
+  schedule:
+    # Runs at 18:00 UTC every day (02:00 MYT)
+    - cron: '0 18 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install PostgreSQL Client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Dump Database and Compress
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          DATE=$(date +"%Y%m%d")
+          FILENAME="BubblesO2_Full_DB_${DATE}.sql.gz"
+          echo "Dumping database to ${FILENAME}..."
+          
+          # Run pg_dump and compress on the fly
+          # Includes schema, data, auth, roles, etc.
+          pg_dump "$DATABASE_URL" --clean --if-exists --no-owner --no-privileges | gzip > "$FILENAME"
+          
+          echo "FILENAME=${FILENAME}" >> $GITHUB_ENV
+
+      - name: Upload to Supabase and Enforce Retention
+        env:
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          node .github/scripts/backup-supabase.js

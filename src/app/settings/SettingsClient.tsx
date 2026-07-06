@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { updateProfile, updateGlobalSettings, generateBackup, restoreBackup } from "@/app/actions/settings"
+import { getSystemBackups, getBackupDownloadUrl } from "@/app/actions/backupActions"
 import { createNotice, toggleNotice, deleteNotice } from "@/app/actions/notice"
-import { Save, Download, Upload, AlertTriangle, CheckCircle2, Megaphone, Trash2, Power } from "lucide-react"
+import { Save, Download, Upload, AlertTriangle, CheckCircle2, Megaphone, Trash2, Power, Database } from "lucide-react"
 
 export function ProfileForm({ user }: { user: any }) {
   const [status, setStatus] = useState("")
@@ -71,9 +72,37 @@ export function BackupRestorePanel() {
   const [isRestoring, setIsRestoring] = useState(false)
   const [status, setStatus] = useState("")
   const [file, setFile] = useState<File | null>(null)
+  const [sqlBackups, setSqlBackups] = useState<any[]>([])
+  const [isLoadingBackups, setIsLoadingBackups] = useState(true)
+
+  useEffect(() => {
+    async function fetchBackups() {
+      setIsLoadingBackups(true)
+      const res = await getSystemBackups()
+      if (res.success && res.data) {
+        setSqlBackups(res.data)
+      } else {
+        console.error("Failed to load backups:", res.error)
+      }
+      setIsLoadingBackups(false)
+    }
+    fetchBackups()
+  }, [])
+
+  const handleDownloadSql = async (fileName: string) => {
+    setStatus("Generating download link...")
+    const res = await getBackupDownloadUrl(fileName)
+    if (res.success && res.url) {
+      window.location.href = res.url
+      setStatus("Download started!")
+    } else {
+      setStatus(`Download Failed: ${res.error}`)
+    }
+    setTimeout(() => setStatus(""), 3000)
+  }
 
   const handleBackup = async () => {
-    setStatus("Generating backup...")
+    setStatus("Generating JSON export...")
     const res = await generateBackup()
     if (res.success && res.data) {
       const blob = new Blob([res.data], { type: "application/json" })
@@ -85,9 +114,9 @@ export function BackupRestorePanel() {
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-      setStatus("Backup downloaded successfully!")
+      setStatus("JSON export downloaded successfully!")
     } else {
-      setStatus(`Backup Failed: ${res.error}`)
+      setStatus(`Export Failed: ${res.error}`)
     }
     setTimeout(() => setStatus(""), 5000)
   }
@@ -123,17 +152,68 @@ export function BackupRestorePanel() {
 
   return (
     <div className="space-y-8">
-      {/* Backup Section */}
+      {/* Enterprise SQL Backups Section */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-5">
+        <div className="flex items-start">
+          <div className="bg-emerald-100 p-2 rounded-lg text-emerald-700 mr-4">
+            <Database className="h-6 w-6" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-emerald-900">Enterprise Database Backups</h3>
+            <p className="text-sm text-emerald-700 mt-1 mb-4">
+              Full PostgreSQL database dumps (including schema, auth, and data) are generated automatically every day at 18:00 UTC and kept for 30 days.
+            </p>
+            
+            {isLoadingBackups ? (
+              <div className="text-sm text-emerald-600 font-medium animate-pulse">Loading backups...</div>
+            ) : sqlBackups.length > 0 ? (
+              <div className="overflow-hidden bg-white border border-emerald-200 rounded-md shadow-sm">
+                <table className="min-w-full divide-y divide-gray-200 text-sm text-left">
+                  <thead className="bg-emerald-50 text-emerald-800">
+                    <tr>
+                      <th className="px-4 py-2 font-medium">Backup File</th>
+                      <th className="px-4 py-2 font-medium">Date Created</th>
+                      <th className="px-4 py-2 font-medium text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {sqlBackups.map((bkp) => (
+                      <tr key={bkp.name} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3 font-medium text-gray-800">{bkp.name}</td>
+                        <td className="px-4 py-3 text-gray-500">{new Date(bkp.created_at).toLocaleString('en-GB')}</td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => handleDownloadSql(bkp.name)}
+                            className="inline-flex items-center px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold shadow-sm transition-colors"
+                          >
+                            <Download className="h-3 w-3 mr-1" /> Download
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-sm text-emerald-700 bg-emerald-100 p-3 rounded">
+                No automatic backups found yet. The first backup will run at 18:00 UTC today.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* JSON Export Section */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-5">
         <div className="flex items-start">
-          <div className="bg-blue-100 p-2 rounded-lg text-blue-600 mr-4">
+          <div className="bg-gray-200 p-2 rounded-lg text-gray-600 mr-4">
             <Download className="h-6 w-6" />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900">Generate System Backup</h3>
-            <p className="text-sm text-gray-500 mt-1 mb-4">Download a complete snapshot of all database records including users, assets, tickets, and configurations as a JSON file.</p>
-            <button onClick={handleBackup} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center shadow-sm">
-              <Download className="h-4 w-4 mr-2" /> Download Backup
+            <h3 className="font-semibold text-gray-900">Quick JSON Data Export (Frontend only)</h3>
+            <p className="text-sm text-gray-500 mt-1 mb-4">Download a snapshot of raw data records as a JSON file. This does not contain schema, policies, or auth details.</p>
+            <button onClick={handleBackup} className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center shadow-sm">
+              <Download className="h-4 w-4 mr-2" /> Download JSON
             </button>
           </div>
         </div>
@@ -146,9 +226,18 @@ export function BackupRestorePanel() {
             <Upload className="h-6 w-6" />
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-red-900">Restore from Backup</h3>
+            <h3 className="font-semibold text-red-900">Restore from JSON (Partial Data Only)</h3>
+            
+            <div className="mt-2 mb-4 p-3 bg-red-100 border-l-4 border-red-500 text-red-800 text-sm font-medium">
+              <div className="flex items-center mb-1">
+                <AlertTriangle className="h-4 w-4 mr-1.5" />
+                <strong>WARNING</strong>
+              </div>
+              This JSON restore only inserts basic row data. It DOES NOT restore database schemas, user authentication records, or policies. For full disaster recovery, you must execute the downloaded .sql.gz files manually via pgAdmin or Supabase CLI.
+            </div>
+
             <p className="text-sm text-red-700 mt-1 mb-4 font-medium flex items-center">
-              <AlertTriangle className="h-4 w-4 mr-1.5" /> Warning: Restoring will overwrite all current live data.
+              <AlertTriangle className="h-4 w-4 mr-1.5" /> Warning: Restoring will overwrite all current live data rows.
             </p>
             <div className="flex items-center space-x-3">
               <input 
@@ -171,7 +260,7 @@ export function BackupRestorePanel() {
 
       {status && (
         <div className={`p-4 rounded-lg font-medium flex items-center ${status.includes("Failed") || status.includes("Error") ? "bg-red-100 text-red-800" : "bg-blue-50 text-blue-800"}`}>
-          {status.includes("success") ? <CheckCircle2 className="h-5 w-5 mr-2" /> : <AlertTriangle className="h-5 w-5 mr-2" />}
+          {status.includes("success") || status.includes("started") ? <CheckCircle2 className="h-5 w-5 mr-2" /> : <AlertTriangle className="h-5 w-5 mr-2" />}
           {status}
         </div>
       )}

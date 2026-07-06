@@ -66,10 +66,22 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
   const getInventoryForSection = (key: string) => report.inventory.filter((i: any) => i.sectionKey === key)
 
   // Fetch Transfer In for the same date
-  const transferIns = await prisma.transferIn.findMany({
+  let transferIns = await prisma.transferIn.findMany({
     where: { receiveDate: report.date },
     include: { items: true }
   })
+  
+  if (report.shift) {
+    transferIns = transferIns.filter((ti: any) => {
+      if (!ti.receiveTime) return true;
+      const hour = parseInt(ti.receiveTime.split(':')[0], 10);
+      if (isNaN(hour)) return true;
+      const isPM = hour >= 19;
+      if (report.shift.toUpperCase() === "AM" && isPM) return false;
+      if (report.shift.toUpperCase() === "PM" && !isPM) return false;
+      return true;
+    });
+  }
 
   return (
     <div className="min-h-screen bg-gray-400 print:bg-white p-4 sm:p-8 print:p-0 print:m-0 font-sans pb-20 print:pb-0 flex flex-col items-center print:block">
@@ -509,14 +521,41 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                 </table>
               </div>
             </section>
-            {/* Section 5: Remarks */}
+            {/* Section 5: Remarks / Downtime */}
             <section className="print:break-inside-avoid mb-4 print:mb-0">
               <h2 className="text-lg print:text-[11pt] font-black uppercase tracking-tight border-b-2 border-black print:border-black pb-1 mb-3 print:mb-1 print:break-after-avoid">5. Remarks / Downtime</h2>
+              
+              {/* Breakdown Table */}
+              {report.breakdowns && report.breakdowns.length > 0 && (
+                <div className="mb-3 print:mb-2">
+                  <table className="w-full text-xs print:text-[9pt] border-2 border-black print:border-black">
+                    <thead className="bg-gray-100 print:bg-gray-100 border-b-2 border-black print:border-black">
+                      <tr>
+                        <th className="p-2 print:py-1 print:px-2 text-left border-r-2 border-black uppercase font-black w-1/4">Section</th>
+                        <th className="p-2 print:py-1 print:px-2 text-center border-r-2 border-black uppercase font-black w-1/4">Downtime (Mins)</th>
+                        <th className="p-2 print:py-1 print:px-2 text-left uppercase font-black w-1/2">Reason / Remark</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {report.breakdowns.map((b: any) => (
+                        <tr key={b.id} className="border-b-2 border-black print:border-black last:border-0 font-bold">
+                          <td className="p-2 print:py-1 print:px-2 border-r-2 border-black uppercase">{b.section}</td>
+                          <td className="p-2 print:py-1 print:px-2 text-center border-r-2 border-black text-red-600 print:text-black">{b.downtime}</td>
+                          <td className="p-2 print:py-1 print:px-2 uppercase text-gray-700 print:text-black">{b.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* General Remarks Box */}
+              <h3 className="font-black text-[10px] print:text-[8pt] uppercase text-gray-500 mb-1">General Remarks</h3>
               <div className="bg-yellow-50 print:bg-white border-2 print:border border-yellow-200 print:border-black p-3 print:p-1.5 min-h-[40px] print:min-h-[30px] text-xs print:text-[9pt]">
                 {report.remarks ? (
                   <p className="font-bold text-yellow-900 print:text-black whitespace-pre-wrap leading-tight">{report.remarks}</p>
                 ) : (
-                  <p className="font-bold italic text-yellow-600/50 print:text-gray-400 print:text-black">No remarks provided.</p>
+                  <p className="font-bold italic text-yellow-600/50 print:text-gray-400 print:text-black">No general remarks provided.</p>
                 )}
               </div>
             </section>

@@ -119,6 +119,15 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
     setTimeout(() => setIsDraftLoaded(true), 500)
   }, [initialData, reportId, reset])
 
+  useEffect(() => {
+    const handleRemoveDO = (e: any) => {
+      const doId = e.detail;
+      setSyncedDOs(prev => prev.filter((d: any) => d.id !== doId));
+    };
+    window.addEventListener('removeSyncedDO', handleRemoveDO);
+    return () => window.removeEventListener('removeSyncedDO', handleRemoveDO);
+  }, []);
+
   const formValues = watch()
   useEffect(() => {
     if (!initialData && !reportId && !isSubmitting && isDraftLoaded) {
@@ -203,7 +212,8 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
     // Process Usage Rejects, Batch Number Splits, and CAP weights
     const formattedData = { ...data, time: `${data.timeFrom} - ${data.timeTo}` };
     Object.keys(formattedData.inventory || {}).forEach(sectionKey => {
-      const lowerItem = sectionKey === "CAP" ? "cap" : sectionKey === "BOTTLE" ? "bottle" : sectionKey === "LABEL" ? "label" : "box";
+      let lowerItem = sectionKey === "CAP" ? "cap" : sectionKey === "BOTTLE" ? "bottle" : sectionKey === "LABEL" ? "label" : "box";
+      if (sectionKey.startsWith("BOX_")) lowerItem = sectionKey.toLowerCase();
       
       if (formattedData.inventory[sectionKey].usages) {
         formattedData.inventory[sectionKey].usages = formattedData.inventory[sectionKey].usages.map((u: any) => {
@@ -219,7 +229,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
           
           // Split batchNo and mult
           let pureBatchNo = u.batchNo;
-          let pureMult = 1;
+          let pureMult = Number(u.mult) || 1;
           if (typeof u.batchNo === 'string' && u.batchNo.includes('|')) {
             const parts = u.batchNo.split('|');
             pureBatchNo = parts[0];
@@ -258,6 +268,19 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             pureMult = Number(parts[1]);
           }
           return { ...s, batchNo: pureBatchNo, mult: pureMult };
+        });
+      }
+
+      if (formattedData.inventory[sectionKey].holds) {
+        formattedData.inventory[sectionKey].holds = formattedData.inventory[sectionKey].holds.map((h: any) => {
+          let pureBatchNo = h.batchNo;
+          let pureMult = Number(h.mult) || 1;
+          if (typeof h.batchNo === 'string' && h.batchNo.includes('|')) {
+            const parts = h.batchNo.split('|');
+            pureBatchNo = parts[0];
+            pureMult = Number(parts[1]);
+          }
+          return { ...h, batchNo: pureBatchNo, mult: pureMult };
         });
       }
     });
@@ -479,29 +502,39 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
                   </tr>
                 </thead>
                 <tbody>
-                  {['CAP', 'BOTTLE', 'LABEL', 'BOX'].map((item) => {
-                    const lowerItem = item.toLowerCase() as "cap" | "bottle" | "label" | "box"
-                    const sectionKey = item === "CAP" ? "CAP" : item === "BOTTLE" ? "BOTTLE" : item === "LABEL" ? "LABEL" : "BOX"
+                  {(() => {
+                    const baseItems = ['CAP', 'BOTTLE', 'LABEL'];
+                    const activeBoxItems = PRODUCTION_CONFIG[watchLine as keyof typeof PRODUCTION_CONFIG]
+                      .filter(prod => productionCheckboxes[prod.id as keyof typeof productionCheckboxes]?.checked)
+                      .map(prod => `BOX_${prod.id}`);
+                    const itemsToRender = [...baseItems, ...(activeBoxItems.length > 0 ? activeBoxItems : ['BOX'])];
                     
-                    const befManual = Number(watchRejectsScrap?.[lowerItem]?.before) || 0
-                    const aftManual = Number(watchRejectsScrap?.[lowerItem]?.after) || 0
-                    
-                    const totalBef = befManual
-                    const totalAft = aftManual
+                    return itemsToRender.map((item) => {
+                      const lowerItem = item.toLowerCase() as any;
+                      const displayItem = item.startsWith('BOX_') 
+                        ? `BOX (${PRODUCTION_CONFIG[watchLine as keyof typeof PRODUCTION_CONFIG].find(p => `BOX_${p.id}` === item)?.label})` 
+                        : item;
+                      
+                      const befManual = Number(watchRejectsScrap?.[lowerItem]?.before) || 0
+                      const aftManual = Number(watchRejectsScrap?.[lowerItem]?.after) || 0
+                      
+                      const totalBef = befManual
+                      const totalAft = aftManual
 
-                    return (
-                      <tr key={item} className="border-b-[3px] border-black last:border-0 font-medium">
-                        <td className="p-2 border-r-[3px] border-black font-black uppercase tracking-widest text-xs">{item}</td>
-                        <td className="p-0 border-r-[3px] border-black bg-white relative">
-                          <input type="number" {...register(`rejectsScrap.${lowerItem}.before`)} min="0" disabled={watchNoRejects} onFocus={(e) => e.target.select()} onWheel={(e) => (e.target as HTMLElement).blur()} className="w-full h-full text-center p-3 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600 text-sm" />
-                        </td>
-                        <td className="p-0 border-r-[3px] border-black bg-white relative">
-                          <input type="number" {...register(`rejectsScrap.${lowerItem}.after`)} min="0" disabled={watchNoRejects} onFocus={(e) => e.target.select()} onWheel={(e) => (e.target as HTMLElement).blur()} className="w-full h-full text-center p-3 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600 text-sm" />
-                        </td>
-                        <td className="p-2 text-center bg-gray-100 font-black text-lg text-red-700">{totalBef + totalAft}</td>
-                      </tr>
-                    )
-                  })}
+                      return (
+                        <tr key={item} className="border-b-[3px] border-black last:border-0 font-medium">
+                          <td className="p-2 border-r-[3px] border-black font-black uppercase tracking-widest text-xs">{displayItem}</td>
+                          <td className="p-0 border-r-[3px] border-black bg-white relative">
+                            <input type="number" {...register(`rejectsScrap.${lowerItem}.before`)} min="0" disabled={watchNoRejects} onFocus={(e) => e.target.select()} onWheel={(e) => (e.target as HTMLElement).blur()} className="w-full h-full text-center p-3 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600 text-sm" />
+                          </td>
+                          <td className="p-0 border-r-[3px] border-black bg-white relative">
+                            <input type="number" {...register(`rejectsScrap.${lowerItem}.after`)} min="0" disabled={watchNoRejects} onFocus={(e) => e.target.select()} onWheel={(e) => (e.target as HTMLElement).blur()} className="w-full h-full text-center p-3 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600 text-sm" />
+                          </td>
+                          <td className="p-2 text-center bg-gray-100 font-black text-lg text-red-700">{totalBef + totalAft}</td>
+                        </tr>
+                      )
+                    });
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -918,7 +951,20 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                     </div>
                     <div className="flex items-center text-xs font-bold">
                       <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 mr-3">{doItem.bags} {unit}</span>
-                      <span className="text-gray-500">x {doItem.mult} = {doItem.bags * doItem.mult} Pcs</span>
+                      <span className="text-gray-500 mr-2">x {doItem.mult} = {doItem.bags * doItem.mult} Pcs</span>
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          if (window.confirm('Remove this Transfer In from syncing?')) {
+                            const event = new CustomEvent('removeSyncedDO', { detail: doItem.id });
+                            window.dispatchEvent(event);
+                          }
+                        }}
+                        className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors"
+                        title="Remove from sync"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 ))}

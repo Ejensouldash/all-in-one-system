@@ -10,24 +10,8 @@ export async function createDailyReport(data: any) {
   if (!session) return { success: false, error: "Unauthorized" }
 
   try {
-    // Aggregate Usage Rejects
-    const aggregatedRejects = {
-      CAP: { before: Number(data.rejectsScrap?.cap?.before) || 0, after: Number(data.rejectsScrap?.cap?.after) || 0 },
-      BOTTLE: { before: Number(data.rejectsScrap?.bottle?.before) || 0, after: Number(data.rejectsScrap?.bottle?.after) || 0 },
-      LABEL: { before: Number(data.rejectsScrap?.label?.before) || 0, after: Number(data.rejectsScrap?.label?.after) || 0 },
-      BOX: { before: Number(data.rejectsScrap?.box?.before) || 0, after: Number(data.rejectsScrap?.box?.after) || 0 }
-    }
-
-    Object.keys(data.inventory || {}).forEach(sectionKey => {
-      const usages = data.inventory[sectionKey]?.usages || []
-      usages.forEach((u: any) => {
-        if (u.hasReject && u.rejectQty) {
-          const qty = Number(u.rejectQty)
-          if (u.period === "Before") aggregatedRejects[sectionKey as keyof typeof aggregatedRejects].before += qty
-          else aggregatedRejects[sectionKey as keyof typeof aggregatedRejects].after += qty
-        }
-      })
-    })
+    // Note: Usage rejects are already aggregated into data.rejectsScrap and data.rejectsReturn
+    // by the frontend form logic. We just map them directly.
 
     const report = await prisma.dailyReport.create({
       data: {
@@ -65,14 +49,14 @@ export async function createDailyReport(data: any) {
         // Rejects
         rejects: {
           create: [
-            ...Object.keys(aggregatedRejects).map(k => ({
-              item: k,
-              before: aggregatedRejects[k as keyof typeof aggregatedRejects].before,
-              after: aggregatedRejects[k as keyof typeof aggregatedRejects].after,
+            ...Object.keys(data.rejectsScrap || {}).map(k => ({
+              item: k.toUpperCase(),
+              before: Number(data.rejectsScrap[k].before) || 0,
+              after: Number(data.rejectsScrap[k].after) || 0,
               type: "SCRAP"
             })),
             ...Object.keys(data.rejectsReturn || {}).map(k => ({
-              item: k,
+              item: k.toUpperCase(),
               before: Number(data.rejectsReturn[k].before) || 0,
               after: Number(data.rejectsReturn[k].after) || 0,
               type: "RETURN"
@@ -383,24 +367,8 @@ export async function updateDailyReport(id: string, data: any) {
     if (!existing) return { success: false, error: "Report not found" }
     if (existing.status !== "PENDING" && existing.status !== "REJECTED" && existing.status !== "DRAFT") return { success: false, error: "Cannot edit an approved report." }
 
-    // Aggregate Usage Rejects
-    const aggregatedRejects = {
-      CAP: { before: Number(data.rejectsScrap?.cap?.before) || 0, after: Number(data.rejectsScrap?.cap?.after) || 0 },
-      BOTTLE: { before: Number(data.rejectsScrap?.bottle?.before) || 0, after: Number(data.rejectsScrap?.bottle?.after) || 0 },
-      LABEL: { before: Number(data.rejectsScrap?.label?.before) || 0, after: Number(data.rejectsScrap?.label?.after) || 0 },
-      BOX: { before: Number(data.rejectsScrap?.box?.before) || 0, after: Number(data.rejectsScrap?.box?.after) || 0 }
-    }
-
-    Object.keys(data.inventory || {}).forEach(sectionKey => {
-      const usages = data.inventory[sectionKey]?.usages || []
-      usages.forEach((u: any) => {
-        if (u.hasReject && u.rejectQty) {
-          const qty = Number(u.rejectQty)
-          if (u.period === "Before") aggregatedRejects[sectionKey as keyof typeof aggregatedRejects].before += qty
-          else aggregatedRejects[sectionKey as keyof typeof aggregatedRejects].after += qty
-        }
-      })
-    })
+    // Note: Usage rejects are already aggregated into data.rejectsScrap and data.rejectsReturn
+    // by the frontend form logic. We just map them directly.
 
     // Update requires deleting existing nested data and recreating
     await prisma.$transaction([
@@ -440,14 +408,14 @@ export async function updateDailyReport(id: string, data: any) {
 
           rejects: {
             create: [
-              ...Object.keys(aggregatedRejects).map(k => ({
-                item: k,
-                before: aggregatedRejects[k as keyof typeof aggregatedRejects].before,
-                after: aggregatedRejects[k as keyof typeof aggregatedRejects].after,
+              ...Object.keys(data.rejectsScrap || {}).map(k => ({
+                item: k.toUpperCase(),
+                before: Number(data.rejectsScrap[k].before) || 0,
+                after: Number(data.rejectsScrap[k].after) || 0,
                 type: "SCRAP"
               })),
               ...Object.keys(data.rejectsReturn || {}).map(k => ({
-                item: k,
+                item: k.toUpperCase(),
                 before: Number(data.rejectsReturn[k].before) || 0,
                 after: Number(data.rejectsReturn[k].after) || 0,
                 type: "RETURN"

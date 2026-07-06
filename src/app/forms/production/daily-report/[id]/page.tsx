@@ -400,22 +400,25 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                         
                         const usedBags = usages.filter((u:any) => u.batchNo === batchNo && u.mult === multVal).reduce((sum:number, u:any) => sum + u.bags, 0)
                         const carryFwdBags = startBags - usedBags
-                        carryForwardSummaries.push({ batchNo, startBags, usedBags, carryFwdBags, mult })
+                        carryForwardSummaries.push({ batchNo, startBags, usedBags, carryFwdBags, mult, labelType: storeroomObj?.labelType })
                       })
 
                       // Accumulate row totals
                       const rowTotals = {
-                        storeroom: {} as Record<number, number>,
-                        transferIn: {} as Record<number, number>,
-                        usageBefore: {} as Record<number, number>,
-                        usageAfter: {} as Record<number, number>,
-                        carryForward: {} as Record<number, number>,
+                        storeroom: {} as Record<string, number>,
+                        transferIn: {} as Record<string, number>,
+                        usageBefore: {} as Record<string, number>,
+                        usageAfter: {} as Record<string, number>,
+                        carryForward: {} as Record<string, number>,
                       };
-                      sectionDOItems.forEach((s: any) => { rowTotals.transferIn[s.mult] = (rowTotals.transferIn[s.mult] || 0) + s.bags; });
-                      sources.forEach((s: any) => { rowTotals.storeroom[s.mult] = (rowTotals.storeroom[s.mult] || 0) + s.bags; });
-                      usages.filter((u:any) => u.period === 'Before').forEach((u: any) => { rowTotals.usageBefore[u.mult] = (rowTotals.usageBefore[u.mult] || 0) + u.bags; });
-                      usages.filter((u:any) => u.period === 'After').forEach((u: any) => { rowTotals.usageAfter[u.mult] = (rowTotals.usageAfter[u.mult] || 0) + u.bags; });
-                      carryForwardSummaries.forEach((s: any) => { rowTotals.carryForward[s.mult] = (rowTotals.carryForward[s.mult] || 0) + s.carryFwdBags; });
+                      
+                      const getGroupKey = (item: any) => item.labelType ? `${item.mult}|${item.labelType}` : `${item.mult}`;
+
+                      sectionDOItems.forEach((s: any) => { const k = getGroupKey(s); rowTotals.transferIn[k] = (rowTotals.transferIn[k] || 0) + s.bags; });
+                      sources.forEach((s: any) => { const k = getGroupKey(s); rowTotals.storeroom[k] = (rowTotals.storeroom[k] || 0) + s.bags; });
+                      usages.filter((u:any) => u.period === 'Before').forEach((u: any) => { const k = getGroupKey(u); rowTotals.usageBefore[k] = (rowTotals.usageBefore[k] || 0) + u.bags; });
+                      usages.filter((u:any) => u.period === 'After').forEach((u: any) => { const k = getGroupKey(u); rowTotals.usageAfter[k] = (rowTotals.usageAfter[k] || 0) + u.bags; });
+                      carryForwardSummaries.forEach((s: any) => { const k = getGroupKey(s); rowTotals.carryForward[k] = (rowTotals.carryForward[k] || 0) + s.carryFwdBags; });
 
                       return (
                         <React.Fragment key={key}>
@@ -459,7 +462,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                             <div className="space-y-1.5">
                               {usages.filter((u:any) => u.period === 'Before').map((u: any) => (
                                 <div key={u.id} className="text-[10px] print:text-[8pt] font-bold leading-tight border-b border-dashed border-gray-200 print:border-gray-300 pb-1 last:border-0 last:pb-0 break-inside-avoid">
-                                  <div>{u.batchNo}</div>
+                                  <div>{u.batchNo} {u.labelType ? `(${u.labelType})` : ''}</div>
                                   <div className="text-blue-700 print:text-black">{u.bags} <span className="text-[8px] print:text-[6pt] text-gray-500">(x{u.mult})</span></div>
                                 </div>
                               ))}
@@ -471,7 +474,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                             <div className="space-y-1.5">
                               {usages.filter((u:any) => u.period === 'After').map((u: any) => (
                                 <div key={u.id} className="text-[10px] print:text-[8pt] font-bold leading-tight border-b border-dashed border-gray-200 print:border-gray-300 pb-1 last:border-0 last:pb-0 break-inside-avoid">
-                                  <div>{u.batchNo}</div>
+                                  <div>{u.batchNo} {u.labelType ? `(${u.labelType})` : ''}</div>
                                   <div className="text-blue-700 print:text-black">{u.bags} <span className="text-[8px] print:text-[6pt] text-gray-500">(x{u.mult})</span></div>
                                 </div>
                               ))}
@@ -484,7 +487,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                               <div className="space-y-1.5">
                                 {carryForwardSummaries.map((summary: any) => (
                                   <div key={summary.batchNo} className="text-[10px] print:text-[8pt] font-bold leading-tight border-b border-dashed border-yellow-200 print:border-gray-300 pb-1 last:border-0 last:pb-0 break-inside-avoid">
-                                    <div className="uppercase mb-0.5">{summary.batchNo}</div>
+                                    <div className="uppercase mb-0.5">{summary.batchNo} {summary.labelType ? `(${summary.labelType})` : ''}</div>
                                     <div className="whitespace-nowrap bg-yellow-100 print:bg-transparent px-1 print:px-0 py-0.5 rounded text-[9px] print:text-[7pt] text-gray-800">
                                       Av: {summary.startBags} - {summary.usedBags} = <span className="font-black text-[10px] print:text-[8pt] text-black">{summary.carryFwdBags}</span> <span className="text-[8px] print:text-[6pt] text-gray-600">(x{summary.mult})</span>
                                     </div>
@@ -497,44 +500,54 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                           <tr className="border-b-2 border-black print:border-black bg-gray-100 print:bg-transparent font-black text-[10px] print:text-[8pt]">
                             <td className="p-2 print:p-1 border-r-2 border-black">{key === 'BOTTLE' ? 'TOTAL BAG' : key === 'LABEL' ? 'QUANTITY (ROLL)' : 'QUANTITY (PCS)'}</td>
                             <td className="p-2 print:p-1 border-r-2 border-black align-top">
-                              {Object.entries(rowTotals.storeroom).map(([mult, bags]) => (
-                                <div key={mult} className="mb-1 last:mb-0">
-                                  <div className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                              {Object.entries(rowTotals.storeroom).map(([keyStr, bags]) => {
+                                const [mult, labelType] = keyStr.split('|');
+                                return (
+                                <div key={keyStr} className="mb-1 last:mb-0">
+                                  <div className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span> {labelType && <span className="text-gray-800 print:text-black text-[9px] print:text-[7pt]">({labelType})</span>}</div>
                                   {key === 'CAP' && <div className="text-[9px] print:text-[7pt] text-gray-500 font-bold mt-0.5">= {bags * Number(mult)} Pcs</div>}
                                 </div>
-                              ))}
+                              )})}
                             </td>
                             <td className="p-2 print:p-1 border-r-2 border-black align-top">
-                              {Object.entries(rowTotals.transferIn).map(([mult, bags]) => (
-                                <div key={mult} className="mb-1 last:mb-0">
-                                  <div className="text-emerald-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                              {Object.entries(rowTotals.transferIn).map(([keyStr, bags]) => {
+                                const [mult, labelType] = keyStr.split('|');
+                                return (
+                                <div key={keyStr} className="mb-1 last:mb-0">
+                                  <div className="text-emerald-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span> {labelType && <span className="text-gray-800 print:text-black text-[9px] print:text-[7pt]">({labelType})</span>}</div>
                                   {key === 'CAP' && <div className="text-[9px] print:text-[7pt] text-gray-500 font-bold mt-0.5">= {bags * Number(mult)} Pcs</div>}
                                 </div>
-                              ))}
+                              )})}
                             </td>
                             <td className="p-2 print:p-1 border-r border-black align-top">
-                              {Object.entries(rowTotals.usageBefore).map(([mult, bags]) => (
-                                <div key={mult} className="mb-1 last:mb-0">
-                                  <div className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                              {Object.entries(rowTotals.usageBefore).map(([keyStr, bags]) => {
+                                const [mult, labelType] = keyStr.split('|');
+                                return (
+                                <div key={keyStr} className="mb-1 last:mb-0">
+                                  <div className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span> {labelType && <span className="text-gray-800 print:text-black text-[9px] print:text-[7pt]">({labelType})</span>}</div>
                                   {key === 'CAP' && <div className="text-[9px] print:text-[7pt] text-gray-500 font-bold mt-0.5">= {bags * Number(mult)} Pcs</div>}
                                 </div>
-                              ))}
+                              )})}
                             </td>
                             <td className="p-2 print:p-1 border-r-2 border-black align-top">
-                              {Object.entries(rowTotals.usageAfter).map(([mult, bags]) => (
-                                <div key={mult} className="mb-1 last:mb-0">
-                                  <div className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                              {Object.entries(rowTotals.usageAfter).map(([keyStr, bags]) => {
+                                const [mult, labelType] = keyStr.split('|');
+                                return (
+                                <div key={keyStr} className="mb-1 last:mb-0">
+                                  <div className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span> {labelType && <span className="text-gray-800 print:text-black text-[9px] print:text-[7pt]">({labelType})</span>}</div>
                                   {key === 'CAP' && <div className="text-[9px] print:text-[7pt] text-gray-500 font-bold mt-0.5">= {bags * Number(mult)} Pcs</div>}
                                 </div>
-                              ))}
+                              )})}
                             </td>
                             <td className="p-2 print:p-1 border-black align-top bg-yellow-100 print:bg-transparent">
-                              {Object.entries(rowTotals.carryForward).map(([mult, bags]) => (
-                                <div key={mult} className="mb-1 last:mb-0">
-                                  <div>{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                              {Object.entries(rowTotals.carryForward).map(([keyStr, bags]) => {
+                                const [mult, labelType] = keyStr.split('|');
+                                return (
+                                <div key={keyStr} className="mb-1 last:mb-0">
+                                  <div>{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span> {labelType && <span className="text-gray-800 print:text-black text-[9px] print:text-[7pt]">({labelType})</span>}</div>
                                   {key === 'CAP' && <div className="text-[9px] print:text-[7pt] text-gray-500 font-bold mt-0.5">= {bags * Number(mult)} Pcs</div>}
                                 </div>
-                              ))}
+                              )})}
                             </td>
                           </tr>
                         </React.Fragment>

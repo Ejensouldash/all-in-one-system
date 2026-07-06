@@ -1,0 +1,438 @@
+◇ injected env (8) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+{
+  "id": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+  "date": "2026-07-03T00:00:00.000Z",
+  "shift": "AM",
+  "line": "LINE 2 - 425ml",
+  "preparedBy": "myra",
+  "verifiedBy": "ALIF",
+  "remarks": "",
+  "createdAt": "2026-07-06T06:07:03.334Z",
+  "status": "PENDING",
+  "preparedSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAABACAYAAAANtMclAAADQklEQVR4AcyXS4oUQRCGR9ceQBeCggfwAIJ6BwXBhXoDQfcqeABduHAhjivXnkBFl4IXEBzBhQvvoPH1dAx/RdcjH1HNNPl3Vj4qvozIyK6uswfrfi6Z+Rtb3bf6pKwBBvbUCD+3+mg1ems1fYwdZIIx+G9r/InVLMCqQaGPsccZYAdicECZadztAbN6QlgCPAqLON8KvmOGgJI4djlaflvvO9Nl002Tlte1YMJKgrw3K3hs1aDg2TPrAXbRajKZvhiVwxIwAIAkDgZom81BwbgDmUvbJzCfBXibsaM58DWb6UcAoDUH5Y+1HIaHAK1rp9wKPYR/9Dixb+zfF7tBV2rNTXHYBWsBwwO7nCznwgj3DMCEhP0DClznYxzgGevkRtp2WVTuyayXfk2ogQADCtzHqAEAnAsl86aEPeTjL/wCMPsH3PuoAXIEWoHYQNimRjiAXa4HoaaDAQd+oqNDeKqJdai28PiBdbAahIe9QDO3KSSmJ9YH68Epq44LYDpIGHTc2/+Ntxrmh9Ek4NiX0cZbt4NjyNubeg1w9Jac2cD0aw2weku+7HjLArLB0VsSF86OssGaUByfUW9ZRSYYb/XccjxhjCoTzN76ueUJNOktK8kC462GefE3IQusUEI8622Wx3hLmLGHFr1lUobH0VvsLqoXrN4S3iJvWVUvWENMJmOzSL3gR0Ip9pZ7esCA/Ny+wViNesCaVM9roMxtBeveklQIe8VqBV8XQkFSyeztZQtYjxBm2GvqKrWANcw8+qqAPrkFrG8Gn91QbV0LJswIDgm1N4/1CDUlFStGNR7jqf7DaEoqoKgGzLuy/1I17y1QVArmpQ5xD2reW25GpWDdW+7bC5hzm+otKy/xWM8t9/CfirpLS+Axbzm/XVBuXgJHb7vOLkDXHJh9RT6XFzDk7a56Dryat6x4Dsz+MsfVfYTcEPUU+DuDosnXTZlTdTkGxtOrwcqP0O5ujoHjrxTH52s3KRiIYJ5ASKelZbIajWDCrONc/+IrWxGs/x6d1fXcdSOxjuArYQL7G7pymhH8N5j9FtppzQiOx+Z2GikYiuBXMr5amGFEMEdnVSBQFMH07UWnCszDnnCn/MWZCt9/AAAA//+vowKEAAAABklEQVQDADCXgkDBfIbjAAAAAElFTkSuQmCC",
+  "verifiedSignature": null,
+  "time": "07:30 - 17:30",
+  "reportTime": "18:43",
+  "approvedAt": null,
+  "createdById": "be11b8a7-3c16-44b1-ab32-77eda73b25bb",
+  "totalManpower": 8,
+  "maxTotalManpower": 8,
+  "inventory": [
+    {
+      "id": "9f90ba17-ee32-44ad-8f40-6cfae823232c",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOTTLE",
+      "type": "Storeroom",
+      "period": null,
+      "batchNo": "042726-02",
+      "bags": 32,
+      "mult": 181,
+      "labelType": null
+    },
+    {
+      "id": "5e821f0d-976e-4a92-9ada-027f1d672762",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOTTLE",
+      "type": "Storeroom",
+      "period": null,
+      "batchNo": "042726-01",
+      "bags": 23,
+      "mult": 181,
+      "labelType": null
+    },
+    {
+      "id": "9435f461-7350-47f3-8e3a-db74f4b6918c",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOTTLE",
+      "type": "Storeroom",
+      "period": null,
+      "batchNo": "022726-02",
+      "bags": 23,
+      "mult": 181,
+      "labelType": null
+    },
+    {
+      "id": "ebb1a59f-5419-4744-b38d-01083c98d2b9",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOTTLE",
+      "type": "Storeroom",
+      "period": null,
+      "batchNo": "032726-02",
+      "bags": 85,
+      "mult": 181,
+      "labelType": null
+    },
+    {
+      "id": "3f0eed55-d0ef-41c4-9190-8810ee4cab1d",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOTTLE",
+      "type": "Storeroom",
+      "period": null,
+      "batchNo": "032726-02",
+      "bags": 170,
+      "mult": 162,
+      "labelType": null
+    },
+    {
+      "id": "6db6490a-2814-4b14-a1aa-c32cf6904cd0",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOTTLE",
+      "type": "Storeroom",
+      "period": null,
+      "batchNo": "032726-01",
+      "bags": 20,
+      "mult": 162,
+      "labelType": null
+    },
+    {
+      "id": "23a05dd1-988d-4594-bc22-3f045115fe45",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOTTLE",
+      "type": "Storeroom",
+      "period": null,
+      "batchNo": "022726-02",
+      "bags": 60,
+      "mult": 162,
+      "labelType": null
+    },
+    {
+      "id": "2e3c6ed1-25cb-471b-ba09-50ae2d5a9fb3",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOTTLE",
+      "type": "Storeroom",
+      "period": null,
+      "batchNo": "042726-01",
+      "bags": 47,
+      "mult": 162,
+      "labelType": null
+    },
+    {
+      "id": "aa2982f1-31a1-4839-9953-24b6d1931aa1",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOTTLE",
+      "type": "Storeroom",
+      "period": null,
+      "batchNo": "042726-02",
+      "bags": 19,
+      "mult": 162,
+      "labelType": null
+    },
+    {
+      "id": "e34a6228-acad-4075-bf22-272d28055fcb",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOTTLE",
+      "type": "Storeroom",
+      "period": null,
+      "batchNo": "022726-01",
+      "bags": 4,
+      "mult": 162,
+      "labelType": null
+    },
+    {
+      "id": "e2f75f10-ba24-4d74-973d-a2e5f21c859f",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOTTLE",
+      "type": "Usage",
+      "period": "Before",
+      "batchNo": "042726-01",
+      "bags": 23,
+      "mult": 181,
+      "labelType": null
+    },
+    {
+      "id": "b5cfd4c5-ac7e-4c60-a0a1-661b2bab6793",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOTTLE",
+      "type": "Usage",
+      "period": "Before",
+      "batchNo": "032726-01",
+      "bags": 20,
+      "mult": 162,
+      "labelType": null
+    },
+    {
+      "id": "7c6fa14d-5df7-4f35-843b-102326305fdd",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOTTLE",
+      "type": "Usage",
+      "period": "Before",
+      "batchNo": "032726-02",
+      "bags": 120,
+      "mult": 162,
+      "labelType": null
+    },
+    {
+      "id": "2eaaf3c6-d789-4c09-a1eb-2200bd74de00",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOTTLE",
+      "type": "Usage",
+      "period": "After",
+      "batchNo": "032726-02",
+      "bags": 20,
+      "mult": 162,
+      "labelType": null
+    },
+    {
+      "id": "134748f8-9be4-4062-9ff8-3cfae9ad855c",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOTTLE",
+      "type": "Usage",
+      "period": "After",
+      "batchNo": "042726-02",
+      "bags": 4,
+      "mult": 181,
+      "labelType": null
+    },
+    {
+      "id": "6a62b684-bd8c-4b49-a435-da06babdfd9f",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "LABEL",
+      "type": "Storeroom",
+      "period": null,
+      "batchNo": "4STDF-030326",
+      "bags": 107,
+      "mult": 1,
+      "labelType": "Standard Front"
+    },
+    {
+      "id": "6da01115-66d8-4b4f-85ce-ce81fe3403cd",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "LABEL",
+      "type": "Storeroom",
+      "period": null,
+      "batchNo": "4STDF-130526",
+      "bags": 490,
+      "mult": 1,
+      "labelType": "Standard Front"
+    },
+    {
+      "id": "0b8a6bde-66fb-4db0-8894-7dc7320c5b80",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "LABEL",
+      "type": "Storeroom",
+      "period": null,
+      "batchNo": "4STDB-030326 ",
+      "bags": 102,
+      "mult": 1,
+      "labelType": "Standard Back"
+    },
+    {
+      "id": "bcf50a1b-9e54-4aa4-aafc-9c75cce93b58",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "LABEL",
+      "type": "Storeroom",
+      "period": null,
+      "batchNo": "4STDB-130526",
+      "bags": 504,
+      "mult": 1,
+      "labelType": "Standard Back"
+    },
+    {
+      "id": "cb2ba5b7-6506-464a-93d1-715beef3e105",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "LABEL",
+      "type": "Usage",
+      "period": "Before",
+      "batchNo": "4STDF-030326",
+      "bags": 3,
+      "mult": 1,
+      "labelType": null
+    },
+    {
+      "id": "69734cf8-a7d3-45f1-8d1c-d7439883fe0d",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "LABEL",
+      "type": "Usage",
+      "period": "Before",
+      "batchNo": "4STDB-030326 ",
+      "bags": 3,
+      "mult": 1,
+      "labelType": null
+    },
+    {
+      "id": "bbe35dae-7e9c-4198-83e3-d98dfbf78b16",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "LABEL",
+      "type": "Usage",
+      "period": "After",
+      "batchNo": "4STDF-030326",
+      "bags": 1,
+      "mult": 1,
+      "labelType": null
+    },
+    {
+      "id": "160ff58e-9583-477b-816b-2b72fc578560",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "LABEL",
+      "type": "Usage",
+      "period": "After",
+      "batchNo": "4STDB-030326 ",
+      "bags": 1,
+      "mult": 1,
+      "labelType": null
+    },
+    {
+      "id": "fcb4199d-920b-4a13-9d51-248bbe63b42f",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "CAP",
+      "type": "Storeroom",
+      "period": null,
+      "batchNo": "042726-02",
+      "bags": 9,
+      "mult": 4000,
+      "labelType": null
+    },
+    {
+      "id": "705cab12-84eb-4531-a083-baec97cc5923",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "CAP",
+      "type": "Storeroom",
+      "period": null,
+      "batchNo": "05272601",
+      "bags": 8,
+      "mult": 4000,
+      "labelType": null
+    },
+    {
+      "id": "bed41131-6a93-47de-b0a3-745bb42c1914",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "CAP",
+      "type": "Usage",
+      "period": "Before",
+      "batchNo": "042726-02",
+      "bags": 7,
+      "mult": 4000,
+      "labelType": null
+    },
+    {
+      "id": "35c9ab69-a213-4af0-a968-4094a7e1bfd6",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "CAP",
+      "type": "Usage",
+      "period": "After",
+      "batchNo": "05272601",
+      "bags": 2,
+      "mult": 4000,
+      "labelType": null
+    },
+    {
+      "id": "2241d67a-5f78-4e45-99a5-ddc1a2b7020e",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOX_p425_24",
+      "type": "Storeroom",
+      "period": null,
+      "batchNo": "230626-42524 (STD)",
+      "bags": 812,
+      "mult": 1,
+      "labelType": null
+    },
+    {
+      "id": "f927d1bb-4502-475a-895d-1843d26dc0ea",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOX_p425_24",
+      "type": "Storeroom",
+      "period": null,
+      "batchNo": "290725-42524 (B)",
+      "bags": 285,
+      "mult": 1,
+      "labelType": null
+    },
+    {
+      "id": "3f9dc1e1-a6f8-43d6-94f6-f3e288e92262",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOX_p425_24",
+      "type": "Usage",
+      "period": "Before",
+      "batchNo": "230626-42524 (STD)",
+      "bags": 812,
+      "mult": 1,
+      "labelType": null
+    },
+    {
+      "id": "201ab4dc-7ca9-4827-a974-160d40cb6248",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOX_p425_24",
+      "type": "Usage",
+      "period": "Before",
+      "batchNo": "290626-42524 (STD) ",
+      "bags": 339,
+      "mult": 1,
+      "labelType": null
+    },
+    {
+      "id": "aa3da034-241b-4ea8-ad9e-11c1c766e7b0",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOX_p425_24",
+      "type": "Usage",
+      "period": "After",
+      "batchNo": "290626-42524 (STD) ",
+      "bags": 265,
+      "mult": 1,
+      "labelType": null
+    },
+    {
+      "id": "8842bc63-cc2f-47ba-8d78-7b2c604e0ed0",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOX_p425_6",
+      "type": "Storeroom",
+      "period": null,
+      "batchNo": "130526-42506",
+      "bags": 610,
+      "mult": 1,
+      "labelType": null
+    },
+    {
+      "id": "7621efde-8a3d-4ed4-97f6-9575f4456b29",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "sectionKey": "BOX_p425_6",
+      "type": "Usage",
+      "period": "After",
+      "batchNo": "130526-42506",
+      "bags": 14,
+      "mult": 1,
+      "labelType": null
+    }
+  ],
+  "productions": [
+    {
+      "id": "173acbb8-ac53-43c1-85d6-562002b0f4d5",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "productType": "p425_24",
+      "totalBox": 1403,
+      "batches": [
+        {
+          "id": "a2924d6f-317b-48cc-9d70-9827292cf1de",
+          "productionOutputId": "173acbb8-ac53-43c1-85d6-562002b0f4d5",
+          "batchNo": "052726-01",
+          "qty": 1151,
+          "type": "Standard",
+          "otherType": ""
+        },
+        {
+          "id": "b1ce2b09-7c89-45ab-a40b-2301831fc449",
+          "productionOutputId": "173acbb8-ac53-43c1-85d6-562002b0f4d5",
+          "batchNo": "052726-02",
+          "qty": 252,
+          "type": "Standard",
+          "otherType": ""
+        }
+      ]
+    },
+    {
+      "id": "afecad02-8d6c-41d4-a4af-3a0ea4449010",
+      "reportId": "33c3b9e0-5590-47fd-a73d-45f2487a5be3",
+      "productType": "p425_6",
+      "totalBox": 14,
+      "batches": [
+        {
+          "id": "8d13e05e-3236-4a71-8e0f-4c0b85b157c8",
+          "productionOutputId": "afecad02-8d6c-41d4-a4af-3a0ea4449010",
+          "batchNo": "052726-02",
+          "qty": 14,
+          "type": "Standard",
+          "otherType": ""
+        }
+      ]
+    }
+  ]
+}

@@ -1096,10 +1096,34 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
             </div>
             {watchSources.length > 0 && (
               <div className="mt-2 flex justify-end">
-                <div className="bg-emerald-50 px-4 py-2 border-2 border-emerald-200 font-black text-sm flex items-center gap-3">
+                <div className="bg-emerald-100 px-4 py-2 border-2 border-emerald-200 font-black text-sm flex items-center gap-3">
                   <span className="text-gray-600 uppercase tracking-widest text-xs">Total Storeroom</span>
-                  <span className="text-lg">{watchSources.reduce((acc: number, s: any) => acc + (Number(s?.bags)||0), 0)} {unit}</span>
-                  <span className="text-emerald-700">({watchSources.reduce((acc: number, s: any) => acc + ((Number(s?.bags)||0) * (Number(s?.mult)||1)), 0)} Pcs)</span>
+                  {isLabel ? (
+                    <div className="flex flex-col text-xs space-y-1">
+                      {Object.entries(
+                        watchSources.reduce((acc: any, s: any) => {
+                          const type = s.labelType || "Unknown";
+                          const bags = Number(s.bags) || 0;
+                          if (bags > 0) acc[type] = (acc[type] || 0) + bags;
+                          return acc;
+                        }, {})
+                      ).map(([type, bags]: any) => (
+                        <div key={type} className="flex justify-between min-w-[200px]">
+                          <span className="text-gray-700">{type.toUpperCase()}</span>
+                          <span className="text-black">{bags} {unit}</span>
+                        </div>
+                      ))}
+                      <div className="border-t border-emerald-300 pt-1 mt-1 flex justify-between min-w-[200px] text-sm">
+                        <span className="text-gray-600">OVERALL</span>
+                        <span className="text-lg">{watchSources.reduce((acc: number, s: any) => acc + (Number(s?.bags)||0), 0)} {unit}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="text-lg">{watchSources.reduce((acc: number, s: any) => acc + (Number(s?.bags)||0), 0)} {unit}</span>
+                      <span className="text-emerald-700">({watchSources.reduce((acc: number, s: any) => acc + ((Number(s?.bags)||0) * (Number(s?.mult)||1)), 0)} Pcs)</span>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -1132,6 +1156,33 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                         <option value="Before">Before</option>
                         <option value="After">After</option>
                       </select>
+
+                      {isLabel && (
+                        <select
+                          {...register(`inventory.${sectionKey}.usages.${index}.labelType`)}
+                          className="w-32 p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-blue-500 uppercase"
+                        >
+                          <option value="Standard Front">Standard Front</option>
+                          <option value="Standard Back">Standard Back</option>
+                          <option value="Brunei Front">Brunei Front</option>
+                          <option value="Brunei Back">Brunei Back</option>
+                          <option value="Sabah Front">Sabah Front</option>
+                          <option value="Sabah Back">Sabah Back</option>
+                          <option value="JHEAINS Front">JHEAINS Front</option>
+                          <option value="JHEAINS Back">JHEAINS Back</option>
+                          {(!title?.includes('800')) && <option value="Casuarina">Casuarina</option>}
+                          <option value="MFL Front">MFL Front</option>
+                          <option value="MFL Back">MFL Back</option>
+                          <option value="YNS">YNS</option>
+                          <option value="KOWARIS">KOWARIS</option>
+                          {(!title?.includes('800')) && <option value="Richiamo">Richiamo</option>}
+                          {(!title?.includes('800')) && <option value="Al Falah">Al Falah</option>}
+                          {(!title?.includes('800')) && <option value="Mihas">Mihas</option>}
+                          {(!title?.includes('800')) && <option value="LTDI">LTDI</option>}
+                          {(!title?.includes('800')) && <option value="Yayasan Pahang">Yayasan Pahang</option>}
+                          <option value="Others">Others</option>
+                        </select>
+                      )}
 
                       <select 
                         value={watchUsages[index]?.batchNo || ""}
@@ -1189,30 +1240,46 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
               <div className="mt-2 flex justify-end">
                 <div className="bg-blue-100 px-4 py-2 border-2 border-blue-200 font-black text-sm flex items-center gap-3">
                   <span className="text-gray-600 uppercase tracking-widest text-xs">Total Usage</span>
-                  <span className="text-lg">{isCap ? watchUsages.reduce((acc: number, u: any) => acc + (Number(u?.boxes)||0), 0) : watchUsages.reduce((acc: number, u: any) => acc + (Number(u?.bags)||0), 0)} {unit}</span>
-                  {isCap && (
-                    <span className="text-blue-700">
-                      ({watchUsages.reduce((acc: number, u: any) => {
-                        const w = Number(u?.weight)||0;
-                        const b = Number(u?.boxes)||0;
-                        let pcs = 0;
-                        if (w > 0 && b > 0) {
-                          const net = w - (b*0.88);
-                          pcs = net > 0 ? Math.round(net/0.002125) : 0;
-                        } else if (w > 0 && b === 0) {
-                          pcs = Math.round(w/0.002125);
-                        } else if (b > 0 && w === 0) {
-                          pcs = b * 4000;
-                        }
-                        return acc + pcs;
-                      }, 0)} Pcs)
-                    </span>
+                  {isLabel ? (
+                    <div className="flex flex-col text-xs space-y-1">
+                      {Object.entries(
+                        watchUsages.reduce((acc: any, u: any) => {
+                          const type = u.labelType || "Unknown";
+                          const bags = Number(u.bags) || 0;
+                          if (bags > 0) acc[type] = (acc[type] || 0) + bags;
+                          return acc;
+                        }, {})
+                      ).map(([type, bags]: any) => (
+                        <div key={type} className="flex justify-between min-w-[200px]">
+                          <span className="text-gray-700">{type.toUpperCase()}</span>
+                          <span className="text-black">{bags} {unit}</span>
+                        </div>
+                      ))}
+                      <div className="border-t border-blue-300 pt-1 mt-1 flex justify-between min-w-[200px] text-sm">
+                        <span className="text-gray-600">OVERALL</span>
+                        <span className="text-lg">{watchUsages.reduce((acc: number, u: any) => acc + (Number(u?.bags)||0), 0)} {unit}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="text-lg">{isCap ? watchUsages.reduce((acc: number, u: any) => acc + (Number(u?.boxes)||0), 0) : watchUsages.reduce((acc: number, u: any) => acc + (Number(u?.bags)||0), 0)} {unit}</span>
+                      {isCap && (
+                        <span className="text-blue-700">({watchUsages.reduce((acc: number, u: any) => {
+                          const w = Number(u?.weight)||0;
+                          const b = Number(u?.boxes)||0;
+                          if (w > 0 && b > 0) return acc + Math.round((w - (b*0.88))/0.002125);
+                          if (w > 0 && b === 0) return acc + Math.round(w/0.002125);
+                          if (b > 0 && w === 0) return acc + (b * 4000);
+                          return acc;
+                        }, 0)} Pcs)</span>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
             )}
             
-            <button type="button" onClick={() => appendUsage({ period: "Before", batchNo: "", bags: 0, boxes: 0, weight: 0 })} className="mt-4 text-xs font-black uppercase tracking-wider flex items-center text-blue-700 border-2 border-blue-300 px-3 py-1.5 bg-white hover:bg-blue-100">
+            <button type="button" onClick={() => appendUsage({ period: "Before", batchNo: "", bags: 0, boxes: 0, weight: 0, ...(isLabel && {labelType: "Standard Front"}) })} className="mt-4 text-xs font-black uppercase tracking-wider flex items-center text-blue-700 border-2 border-blue-300 px-3 py-1.5 bg-white hover:bg-blue-100">
               <Plus className="h-3 w-3 mr-1" /> Log Usage
             </button>
             {isCap && (

@@ -97,7 +97,8 @@ export async function createDailyReport(data: any) {
               period: u.period,
               batchNo: u.batchNo,
               bags: Number(u.bags),
-              mult: Number(u.mult) || 1
+              mult: Number(u.mult) || 1,
+              labelType: u.labelType
             }))
 
             const holds = (data.inventory[sectionKey].holds || []).map((h: any) => ({
@@ -463,7 +464,8 @@ export async function updateDailyReport(id: string, data: any) {
                 period: u.period,
                 batchNo: u.batchNo,
                 bags: Number(u.bags),
-                mult: Number(u.mult) || 1
+                mult: Number(u.mult) || 1,
+                labelType: u.labelType
               }))
 
               const holds = (data.inventory[sectionKey].holds || []).map((h: any) => ({

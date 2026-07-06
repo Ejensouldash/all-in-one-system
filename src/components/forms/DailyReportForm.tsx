@@ -98,6 +98,8 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
   const [isFetchingSync, setIsFetchingSync] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const [isDraftLoaded, setIsDraftLoaded] = useState(false)
+
   // Draft Auto-save Logic
   useEffect(() => {
     if (!initialData && !reportId) {
@@ -113,17 +115,23 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
         }
       }
     }
+    // Give reset time to propagate before enabling draft saving
+    setTimeout(() => setIsDraftLoaded(true), 500)
   }, [initialData, reportId, reset])
 
   const formValues = watch()
   useEffect(() => {
-    if (!initialData && !reportId && !isSubmitting) {
+    if (!initialData && !reportId && !isSubmitting && isDraftLoaded) {
       const timeoutId = setTimeout(() => {
-        localStorage.setItem("dailyReportDraft", JSON.stringify(formValues))
+        try {
+          localStorage.setItem("dailyReportDraft", JSON.stringify(formValues))
+        } catch (e) {
+          console.warn("Could not save draft (storage full or blocked)")
+        }
       }, 1000)
       return () => clearTimeout(timeoutId)
     }
-  }, [formValues, initialData, reportId, isSubmitting])
+  }, [formValues, initialData, reportId, isSubmitting, isDraftLoaded])
 
   const watchDate = watch("date")
 
@@ -424,10 +432,10 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
                       <tr key={item} className="border-b-[3px] border-black last:border-0 font-medium">
                         <td className="p-2 border-r-[3px] border-black font-black uppercase tracking-widest text-xs">{item}</td>
                         <td className="p-0 border-r-[3px] border-black bg-white relative">
-                          <input type="number" {...register(`rejectsScrap.${lowerItem}.before`)} min="0" disabled={watchNoRejects} className="w-full h-full text-center p-3 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600 text-sm" />
+                          <input type="number" {...register(`rejectsScrap.${lowerItem}.before`)} min="0" disabled={watchNoRejects} onFocus={(e) => e.target.select()} onWheel={(e) => (e.target as HTMLElement).blur()} className="w-full h-full text-center p-3 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600 text-sm" />
                         </td>
                         <td className="p-0 border-r-[3px] border-black bg-white relative">
-                          <input type="number" {...register(`rejectsScrap.${lowerItem}.after`)} min="0" disabled={watchNoRejects} className="w-full h-full text-center p-3 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600 text-sm" />
+                          <input type="number" {...register(`rejectsScrap.${lowerItem}.after`)} min="0" disabled={watchNoRejects} onFocus={(e) => e.target.select()} onWheel={(e) => (e.target as HTMLElement).blur()} className="w-full h-full text-center p-3 outline-none hover:bg-red-50 focus:bg-red-50 font-black text-red-600 text-sm" />
                         </td>
                         <td className="p-2 text-center bg-gray-100 font-black text-lg text-red-700">{totalBef + totalAft}</td>
                       </tr>
@@ -1125,11 +1133,11 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
               <div className="flex gap-4 items-center">
                 <div className="flex-1 bg-white p-2 border border-red-200">
                   <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">Before (Pcs)</label>
-                  <input type="number" min="0" {...register(`rejectsScrap.${sectionKey.startsWith("BOX") ? "box" : sectionKey.toLowerCase()}.before`)} disabled={watch('noRejects')} className="w-full p-2 border border-red-300 text-center font-bold text-sm outline-none focus:border-red-600 focus:bg-red-50 text-red-700" />
+                  <input type="number" min="0" {...register(`rejectsScrap.${sectionKey.startsWith("BOX") ? "box" : sectionKey.toLowerCase()}.before`)} disabled={watch('noRejects')} onFocus={(e) => e.target.select()} onWheel={(e) => (e.target as HTMLElement).blur()} className="w-full p-2 border border-red-300 text-center font-bold text-sm outline-none focus:border-red-600 focus:bg-red-50 text-red-700" />
                 </div>
                 <div className="flex-1 bg-white p-2 border border-red-200">
                   <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">After (Pcs)</label>
-                  <input type="number" min="0" {...register(`rejectsScrap.${sectionKey.startsWith("BOX") ? "box" : sectionKey.toLowerCase()}.after`)} disabled={watch('noRejects')} className="w-full p-2 border border-red-300 text-center font-bold text-sm outline-none focus:border-red-600 focus:bg-red-50 text-red-700" />
+                  <input type="number" min="0" {...register(`rejectsScrap.${sectionKey.startsWith("BOX") ? "box" : sectionKey.toLowerCase()}.after`)} disabled={watch('noRejects')} onFocus={(e) => e.target.select()} onWheel={(e) => (e.target as HTMLElement).blur()} className="w-full p-2 border border-red-300 text-center font-bold text-sm outline-none focus:border-red-600 focus:bg-red-50 text-red-700" />
                 </div>
               </div>
             </div>

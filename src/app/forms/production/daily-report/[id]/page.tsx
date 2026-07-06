@@ -307,7 +307,6 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                     </tr>
                   </thead>
                   <tbody>
-                  <tbody>
                     {(() => {
                       const is800 = report.line.includes("800");
                       const is425 = report.line.includes("425");

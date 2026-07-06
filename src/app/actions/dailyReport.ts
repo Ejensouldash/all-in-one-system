@@ -377,6 +377,7 @@ export async function updateDailyReport(id: string, data: any) {
       prisma.productionOutput.deleteMany({ where: { reportId: id } }),
       prisma.rejectLog.deleteMany({ where: { reportId: id } }),
       prisma.inventoryLog.deleteMany({ where: { reportId: id } }),
+      prisma.breakdownLog.deleteMany({ where: { reportId: id } }),
       prisma.dailyReport.update({
         where: { id },
         data: {

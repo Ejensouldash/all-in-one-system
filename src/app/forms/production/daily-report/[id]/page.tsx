@@ -498,27 +498,42 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                             <td className="p-2 print:p-1 border-r-2 border-black">{key === 'BOTTLE' ? 'TOTAL BAG' : key === 'LABEL' ? 'Quantity (ROLL)' : 'Quantity (PCS)'}</td>
                             <td className="p-2 print:p-1 border-r-2 border-black align-top">
                               {Object.entries(rowTotals.storeroom).map(([mult, bags]) => (
-                                <div key={mult} className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                                <div key={mult} className="mb-1 last:mb-0">
+                                  <div className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                                  {key === 'CAP' && <div className="text-[9px] print:text-[7pt] text-gray-500 font-bold mt-0.5">= {bags * Number(mult)} Pcs</div>}
+                                </div>
                               ))}
                             </td>
                             <td className="p-2 print:p-1 border-r-2 border-black align-top">
                               {Object.entries(rowTotals.transferIn).map(([mult, bags]) => (
-                                <div key={mult} className="text-emerald-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                                <div key={mult} className="mb-1 last:mb-0">
+                                  <div className="text-emerald-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                                  {key === 'CAP' && <div className="text-[9px] print:text-[7pt] text-gray-500 font-bold mt-0.5">= {bags * Number(mult)} Pcs</div>}
+                                </div>
                               ))}
                             </td>
                             <td className="p-2 print:p-1 border-r border-black align-top">
                               {Object.entries(rowTotals.usageBefore).map(([mult, bags]) => (
-                                <div key={mult} className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                                <div key={mult} className="mb-1 last:mb-0">
+                                  <div className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                                  {key === 'CAP' && <div className="text-[9px] print:text-[7pt] text-gray-500 font-bold mt-0.5">= {bags * Number(mult)} Pcs</div>}
+                                </div>
                               ))}
                             </td>
                             <td className="p-2 print:p-1 border-r-2 border-black align-top">
                               {Object.entries(rowTotals.usageAfter).map(([mult, bags]) => (
-                                <div key={mult} className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                                <div key={mult} className="mb-1 last:mb-0">
+                                  <div className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                                  {key === 'CAP' && <div className="text-[9px] print:text-[7pt] text-gray-500 font-bold mt-0.5">= {bags * Number(mult)} Pcs</div>}
+                                </div>
                               ))}
                             </td>
                             <td className="p-2 print:p-1 border-black align-top bg-yellow-100 print:bg-transparent">
                               {Object.entries(rowTotals.carryForward).map(([mult, bags]) => (
-                                <div key={mult}>{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                                <div key={mult} className="mb-1 last:mb-0">
+                                  <div>{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                                  {key === 'CAP' && <div className="text-[9px] print:text-[7pt] text-gray-500 font-bold mt-0.5">= {bags * Number(mult)} Pcs</div>}
+                                </div>
                               ))}
                             </td>
                           </tr>

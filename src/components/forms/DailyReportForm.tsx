@@ -271,7 +271,6 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
     } else {
       alert("Failed to submit: " + result.error)
     }
-    }
   }
 
   const handleSaveAsDraft = async () => {

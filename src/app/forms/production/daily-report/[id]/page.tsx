@@ -296,8 +296,8 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                   <thead className="bg-gray-100 print:bg-gray-100 font-black uppercase text-left border-b-2 border-black print:border-black leading-tight text-[10px] print:text-[8pt]">
                     <tr>
                       <th className="w-[15%] p-1.5 print:p-1 border-r-2 border-black align-top" rowSpan={2}>Material</th>
-                      <th className="w-[25%] p-1.5 print:p-1 border-r-2 border-black align-top" rowSpan={2}>Transfer In (DO)</th>
                       <th className="w-[20%] p-1.5 print:p-1 border-r-2 border-black align-top" rowSpan={2}>Storeroom Balance</th>
+                      <th className="w-[25%] p-1.5 print:p-1 border-r-2 border-black align-top" rowSpan={2}>Transfer In (DO)</th>
                       <th className="w-[20%] p-1.5 print:p-1 border-r-2 border-b-2 border-black align-top text-center" colSpan={2}>Usage Log</th>
                       <th className="w-[20%] p-1.5 print:p-1 align-top" rowSpan={2}>Carry Forward</th>
                     </tr>
@@ -307,7 +307,21 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                     </tr>
                   </thead>
                   <tbody>
-                    {['BOTTLE', 'LABEL', 'CAP', 'BOX_p800_12', 'BOX_p800_20', 'BOX_p425_24', 'BOX_p425_6'].map(key => {
+                    {(() => {
+                      const totals = {
+                        storeroom: {} as Record<number, number>,
+                        transferIn: {} as Record<number, number>,
+                        usageBefore: {} as Record<number, number>,
+                        usageAfter: {} as Record<number, number>,
+                        carryForward: {} as Record<number, number>,
+                      };
+                      const is800 = report.line.includes("800");
+                      const is425 = report.line.includes("425");
+                      const allowedBottleMults = is800 ? [225] : is425 ? [181, 162] : [];
+
+                      return (
+                        <>
+                          {['BOTTLE', 'LABEL', 'CAP', 'BOX_p800_12', 'BOX_p800_20', 'BOX_p425_24', 'BOX_p425_6'].map(key => {
                       
                       // 1. Hide boxes that were not ticked in Production
                       if (key.startsWith('BOX_')) {
@@ -327,9 +341,24 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
 
                       // Filter transferIns for this section
                       const sectionDOItems = transferIns.flatMap(ti => ti.items.map(item => ({...item, doNumber: ti.doNumber}))).filter((item: any) => {
-                        if (key === 'BOTTLE') return item.category.includes("BOTTLE");
-                        if (key === 'LABEL') return item.category.includes("LABEL");
-                        if (key === 'CAP') return item.category.includes("CAP");
+                        if (key === 'BOTTLE') {
+                           if (item.category.includes("BOTTLE")) {
+                             return allowedBottleMults.length === 0 || allowedBottleMults.includes(item.mult);
+                           }
+                           return false;
+                        }
+                        if (key === 'LABEL') {
+                            if (!item.category.includes("LABEL")) return false;
+                            if (is800 && item.category.includes("425")) return false;
+                            if (is425 && item.category.includes("800")) return false;
+                            return true;
+                        }
+                        if (key === 'CAP') {
+                            if (!item.category.includes("CAP")) return false;
+                            if (is800 && item.category.includes("425")) return false;
+                            if (is425 && item.category.includes("800")) return false;
+                            return true;
+                        }
                         if (key.startsWith('BOX_')) {
                           const multStr = key.split('_').pop();
                           return item.category.includes("BOX") && item.category.includes(multStr!);
@@ -361,6 +390,13 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                         carryForwardSummaries.push({ batchNo, startBags, usedBags, carryFwdBags, mult })
                       })
 
+                      // Accumulate totals
+                      sectionDOItems.forEach((s: any) => { totals.transferIn[s.mult] = (totals.transferIn[s.mult] || 0) + s.bags; });
+                      sources.forEach((s: any) => { totals.storeroom[s.mult] = (totals.storeroom[s.mult] || 0) + s.bags; });
+                      usages.filter((u:any) => u.period === 'Before').forEach((u: any) => { totals.usageBefore[u.mult] = (totals.usageBefore[u.mult] || 0) + u.bags; });
+                      usages.filter((u:any) => u.period === 'After').forEach((u: any) => { totals.usageAfter[u.mult] = (totals.usageAfter[u.mult] || 0) + u.bags; });
+                      carryForwardSummaries.forEach((s: any) => { totals.carryForward[s.mult] = (totals.carryForward[s.mult] || 0) + s.carryFwdBags; });
+
                       return (
                         <tr key={key} className="border-b border-black print:border-black print:break-inside-avoid">
                           {/* 1. Material */}
@@ -368,7 +404,21 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                             {titleName}
                           </td>
                           
-                          {/* 2. Transfer In */}
+                          {/* 2. Storeroom Balance */}
+                          <td className="p-2 print:p-1 border-r-2 border-black align-top break-words">
+                            {sources.length === 0 ? <span className="text-gray-400 italic font-normal text-[10px] print:text-[8pt]">Nil</span> : (
+                              <div className="space-y-1.5">
+                                {sources.map((s: any) => (
+                                  <div key={s.id} className="text-[10px] print:text-[8pt] font-bold leading-tight border-b border-dashed border-gray-200 print:border-gray-300 pb-1 last:border-0 last:pb-0 break-inside-avoid">
+                                    <div>{s.batchNo} {s.labelType ? `(${s.labelType})` : ''}</div>
+                                    <div>{s.bags} <span className="text-[8px] print:text-[6pt] text-gray-500">(x{s.mult})</span></div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* 3. Transfer In */}
                           <td className="p-2 print:p-1 border-r-2 border-black align-top break-words">
                             {sectionDOItems.length === 0 ? <span className="text-gray-400 italic font-normal text-[10px] print:text-[8pt]">Nil</span> : (
                               <div className="space-y-1.5">
@@ -383,27 +433,13 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                             )}
                           </td>
 
-                          {/* 3. Storeroom Balance */}
-                          <td className="p-2 print:p-1 border-r-2 border-black align-top break-words">
-                            {sources.length === 0 ? <span className="text-gray-400 italic font-normal text-[10px] print:text-[8pt]">Nil</span> : (
-                              <div className="space-y-1.5">
-                                {sources.map((s: any) => (
-                                  <div key={s.id} className="text-[10px] print:text-[8pt] font-bold leading-tight border-b border-dashed border-gray-200 print:border-gray-300 pb-1 last:border-0 last:pb-0 break-inside-avoid">
-                                    <div>{s.batchNo} {s.labelType ? `(${s.labelType})` : ''}</div>
-                                    <div>{s.bags} <span className="text-[8px] print:text-[6pt] text-gray-500">(x{s.mult})</span></div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </td>
-
                           {/* 4. Usage Before */}
                           <td className="p-2 print:p-1 border-r border-black align-top break-words">
                             <div className="space-y-1.5">
                               {usages.filter((u:any) => u.period === 'Before').map((u: any) => (
                                 <div key={u.id} className="text-[10px] print:text-[8pt] font-bold leading-tight border-b border-dashed border-gray-200 print:border-gray-300 pb-1 last:border-0 last:pb-0 break-inside-avoid">
                                   <div>{u.batchNo}</div>
-                                  <div className="text-blue-700 print:text-black">{u.bags}</div>
+                                  <div className="text-blue-700 print:text-black">{u.bags} <span className="text-[8px] print:text-[6pt] text-gray-500">(x{u.mult})</span></div>
                                 </div>
                               ))}
                             </div>
@@ -429,7 +465,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                                   <div key={summary.batchNo} className="text-[10px] print:text-[8pt] font-bold leading-tight border-b border-dashed border-yellow-200 print:border-gray-300 pb-1 last:border-0 last:pb-0 break-inside-avoid">
                                     <div className="uppercase mb-0.5">{summary.batchNo}</div>
                                     <div className="whitespace-nowrap bg-yellow-100 print:bg-transparent px-1 print:px-0 py-0.5 rounded text-[9px] print:text-[7pt] text-gray-800">
-                                      Av: {summary.startBags} - {summary.usedBags} = <span className="font-black text-[10px] print:text-[8pt] text-black">{summary.carryFwdBags}</span>
+                                      Av: {summary.startBags} - {summary.usedBags} = <span className="font-black text-[10px] print:text-[8pt] text-black">{summary.carryFwdBags}</span> <span className="text-[8px] print:text-[6pt] text-gray-600">(x{summary.mult})</span>
                                     </div>
                                   </div>
                                 ))}
@@ -439,6 +475,36 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                         </tr>
                       )
                     })}
+                    <tr className="border-t-2 border-black print:border-black bg-gray-100 print:bg-transparent font-black text-[10px] print:text-[8pt]">
+                      <td className="p-2 print:p-1 border-r-2 border-black">TOTAL BAG</td>
+                      <td className="p-2 print:p-1 border-r-2 border-black align-top">
+                        {Object.entries(totals.storeroom).map(([mult, bags]) => (
+                          <div key={mult} className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                        ))}
+                      </td>
+                      <td className="p-2 print:p-1 border-r-2 border-black align-top">
+                        {Object.entries(totals.transferIn).map(([mult, bags]) => (
+                          <div key={mult} className="text-emerald-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                        ))}
+                      </td>
+                      <td className="p-2 print:p-1 border-r border-black align-top">
+                        {Object.entries(totals.usageBefore).map(([mult, bags]) => (
+                          <div key={mult} className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                        ))}
+                      </td>
+                      <td className="p-2 print:p-1 border-r-2 border-black align-top">
+                        {Object.entries(totals.usageAfter).map(([mult, bags]) => (
+                          <div key={mult} className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                        ))}
+                      </td>
+                      <td className="p-2 print:p-1 border-black align-top bg-yellow-100 print:bg-transparent">
+                        {Object.entries(totals.carryForward).map(([mult, bags]) => (
+                          <div key={mult}>{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                        ))}
+                      </td>
+                    </tr>
+                    </>
+                    )})()}
                   </tbody>
                 </table>
               </div>

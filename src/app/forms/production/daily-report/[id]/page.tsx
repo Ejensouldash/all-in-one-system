@@ -56,10 +56,11 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
   
   const doAggregated: Record<string, { bags: number, mult: number }> = {}
   doItems.forEach(item => {
-    if (!doAggregated[item.batchNo]) {
-      doAggregated[item.batchNo] = { bags: 0, mult: item.mult }
+    const key = `${item.batchNo}|${item.mult}`;
+    if (!doAggregated[key]) {
+      doAggregated[key] = { bags: 0, mult: item.mult }
     }
-    doAggregated[item.batchNo].bags += item.bags
+    doAggregated[key].bags += item.bags
   })
 
   // Helper to group inventory items by section
@@ -308,15 +309,15 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                 <table className="w-full table-fixed text-xs print:text-[8pt] border-collapse border-2 border-black print:border-black bg-white">
                   <thead className="bg-gray-100 print:bg-gray-100 font-black uppercase text-left border-b-2 border-black print:border-black leading-tight text-[10px] print:text-[8pt]">
                     <tr>
-                      <th className="w-[15%] p-1.5 print:p-1 border-r-2 border-black align-top" rowSpan={2}>Material</th>
-                      <th className="w-[20%] p-1.5 print:p-1 border-r-2 border-black align-top" rowSpan={2}>Storeroom Balance</th>
-                      <th className="w-[25%] p-1.5 print:p-1 border-r-2 border-black align-top" rowSpan={2}>Transfer In (DO)</th>
-                      <th className="w-[20%] p-1.5 print:p-1 border-r-2 border-b-2 border-black align-top text-center" colSpan={2}>Usage Log</th>
+                      <th className="w-[12%] p-1.5 print:p-1 border-r-2 border-black align-top" rowSpan={2}>Material</th>
+                      <th className="w-[18%] p-1.5 print:p-1 border-r-2 border-black align-top" rowSpan={2}>Storeroom Balance</th>
+                      <th className="w-[20%] p-1.5 print:p-1 border-r-2 border-black align-top" rowSpan={2}>Transfer In (DO)</th>
+                      <th className="w-[30%] p-1.5 print:p-1 border-r-2 border-b-2 border-black align-top text-center" colSpan={2}>Usage Log</th>
                       <th className="w-[20%] p-1.5 print:p-1 align-top" rowSpan={2}>Carry Forward</th>
                     </tr>
                     <tr>
-                      <th className="w-[10%] p-1 print:p-0.5 border-r border-black bg-blue-50/50 print:bg-transparent text-center">Before</th>
-                      <th className="w-[10%] p-1 print:p-0.5 border-r-2 border-black bg-blue-50/50 print:bg-transparent text-center">After</th>
+                      <th className="w-[15%] p-1 print:p-0.5 border-r border-black bg-blue-50/50 print:bg-transparent text-center">Before</th>
+                      <th className="w-[15%] p-1 print:p-0.5 border-r-2 border-black bg-blue-50/50 print:bg-transparent text-center">After</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -368,26 +369,31 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                         return false;
                       });
 
-                      const sectionBatchNos = Array.from(new Set([...sources.map((s:any)=>s.batchNo), ...usages.map((u:any)=>u.batchNo)]))
+                      const sectionBatchNos = Array.from(new Set([
+                        ...sources.map((s:any)=>`${s.batchNo}|${s.mult}`), 
+                        ...sectionDOItems.map((d:any)=>`${d.batchNo}|${d.mult}`),
+                        ...usages.map((u:any)=>`${u.batchNo}|${u.mult}`)
+                      ]))
                       
                       const carryForwardSummaries: any[] = []
-                      sectionBatchNos.forEach((batchNo: any) => {
-                        const storeroomObj = sources.find((s:any) => s.batchNo === batchNo)
+                      sectionBatchNos.forEach((batchKey: any) => {
+                        const [batchNo, multStr] = batchKey.split('|');
+                        const multVal = Number(multStr);
+                        
+                        const storeroomObj = sources.find((s:any) => s.batchNo === batchNo && s.mult === multVal)
                         let startBags = 0
-                        let mult = 1
+                        let mult = multVal
                         
                         if (storeroomObj) {
                           startBags = storeroomObj.bags
-                          mult = storeroomObj.mult
                         } else {
-                          const doObj = doAggregated[batchNo]
+                          const doObj = doAggregated[batchKey]
                           if (doObj) {
                             startBags = doObj.bags
-                            mult = doObj.mult
                           }
                         }
                         
-                        const usedBags = usages.filter((u:any) => u.batchNo === batchNo).reduce((sum:number, u:any) => sum + u.bags, 0)
+                        const usedBags = usages.filter((u:any) => u.batchNo === batchNo && u.mult === multVal).reduce((sum:number, u:any) => sum + u.bags, 0)
                         const carryFwdBags = startBags - usedBags
                         carryForwardSummaries.push({ batchNo, startBags, usedBags, carryFwdBags, mult })
                       })
@@ -461,7 +467,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                               {usages.filter((u:any) => u.period === 'After').map((u: any) => (
                                 <div key={u.id} className="text-[10px] print:text-[8pt] font-bold leading-tight border-b border-dashed border-gray-200 print:border-gray-300 pb-1 last:border-0 last:pb-0 break-inside-avoid">
                                   <div>{u.batchNo}</div>
-                                  <div className="text-blue-700 print:text-black">{u.bags}</div>
+                                  <div className="text-blue-700 print:text-black">{u.bags} <span className="text-[8px] print:text-[6pt] text-gray-500">(x{u.mult})</span></div>
                                 </div>
                               ))}
                             </div>
@@ -577,7 +583,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                 )}
               </div>
               <h4 className="font-black uppercase tracking-widest text-lg print:text-[9pt] whitespace-nowrap leading-tight">{report.preparedBy}</h4>
-              <p className="text-xs print:text-[7pt] font-bold uppercase tracking-wider text-gray-500 print:text-black">Di Isi Oleh (Prepared By)</p>
+              <p className="text-xs print:text-[7pt] font-bold uppercase tracking-wider text-gray-500 print:text-black">PREPARED BY</p>
             </div>
 
             {/* Verified By Box */}
@@ -591,7 +597,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                 )}
               </div>
               <h4 className="font-black uppercase tracking-widest text-lg print:text-[9pt] whitespace-nowrap leading-tight">{report.verifiedBy || "_____________________"}</h4>
-              <p className="text-xs print:text-[7pt] font-bold uppercase tracking-wider text-gray-500 print:text-black">Di Sahkan Oleh (Verified By)</p>
+              <p className="text-xs print:text-[7pt] font-bold uppercase tracking-wider text-gray-500 print:text-black">VERIFIED BY</p>
             </div>
           </div>
         </div>

@@ -1060,11 +1060,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                         className="w-full p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-black uppercase"
                       >
                         <option value="">-- SELECT CARRY FORWARD --</option>
-                        {watchSources[index]?.batchNo && !sectionAvailableBatches.some((b: any) => `${b.batchNo}|${b.mult}` === watchSources[index].batchNo) && (
-                          <option value={watchSources[index].batchNo}>
-                            {watchSources[index].batchNo.split('|')[0]} (x{watchSources[index].batchNo.split('|')[1]}) (Saved)
-                          </option>
-                        )}
+                        {/* Removed (Saved) fallback as requested by user */ }
                         {sectionAvailableBatches.map((b: any) => (
                           <option key={`${b.batchNo}|${b.mult}`} value={`${b.batchNo}|${b.mult}`}>
                             {b.batchNo} (x{b.mult}) ({b.bags} {unit})
@@ -1137,11 +1133,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                         className="flex-1 p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-blue-500 uppercase"
                       >
                         <option value="">-- Select Batch --</option>
-                        {watchUsages[index]?.batchNo && !availableBatches.includes(watchUsages[index].batchNo) && (
-                          <option value={watchUsages[index].batchNo}>
-                            {watchUsages[index].batchNo.split('|')[0]} (x{watchUsages[index].batchNo.split('|')[1]}) (Saved)
-                          </option>
-                        )}
+                        {/* Removed (Saved) fallback as requested by user */ }
                         {availableBatches.map(b => {
                           const currentAvail = batchSummaries[b].carryFwdBags + (b === selectedBatch ? usageBags : 0)
                           return <option key={b} value={b}>{batchSummaries[b].pureBatchNo} (x{batchSummaries[b].mult}) (Avail: {Math.round(currentAvail)} {unit})</option>

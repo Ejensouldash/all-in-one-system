@@ -449,7 +449,7 @@ export async function updateDailyReport(id: string, data: any) {
                 period: u.period,
                 batchNo: u.batchNo,
                 bags: Number(u.bags),
-                mult: 1
+                mult: Number(u.mult) || 1
               }))
 
               const holds = (data.inventory[sectionKey].holds || []).map((h: any) => ({

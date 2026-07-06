@@ -494,9 +494,8 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                             )}
                           </td>
                         </tr>
-                        {key === 'BOTTLE' && (
                           <tr className="border-b-2 border-black print:border-black bg-gray-100 print:bg-transparent font-black text-[10px] print:text-[8pt]">
-                            <td className="p-2 print:p-1 border-r-2 border-black">TOTAL BAG</td>
+                            <td className="p-2 print:p-1 border-r-2 border-black">{key === 'BOTTLE' ? 'TOTAL BAG' : key === 'LABEL' ? 'Quantity (ROLL)' : 'Quantity (PCS)'}</td>
                             <td className="p-2 print:p-1 border-r-2 border-black align-top">
                               {Object.entries(rowTotals.storeroom).map(([mult, bags]) => (
                                 <div key={mult} className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
@@ -523,7 +522,6 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                               ))}
                             </td>
                           </tr>
-                        )}
                         </React.Fragment>
                       )
                     })}

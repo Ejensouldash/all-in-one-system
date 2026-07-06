@@ -119,15 +119,6 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
     setTimeout(() => setIsDraftLoaded(true), 500)
   }, [initialData, reportId, reset])
 
-  useEffect(() => {
-    const handleRemoveDO = (e: any) => {
-      const doId = e.detail;
-      setSyncedDOs(prev => prev.filter((d: any) => d.id !== doId));
-    };
-    window.addEventListener('removeSyncedDO', handleRemoveDO);
-    return () => window.removeEventListener('removeSyncedDO', handleRemoveDO);
-  }, []);
-
   const formValues = watch()
   useEffect(() => {
     if (!initialData && !reportId && !isSubmitting && isDraftLoaded) {
@@ -951,20 +942,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                     </div>
                     <div className="flex items-center text-xs font-bold">
                       <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 mr-3">{doItem.bags} {unit}</span>
-                      <span className="text-gray-500 mr-2">x {doItem.mult} = {doItem.bags * doItem.mult} Pcs</span>
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          if (window.confirm('Remove this Transfer In from syncing?')) {
-                            const event = new CustomEvent('removeSyncedDO', { detail: doItem.id });
-                            window.dispatchEvent(event);
-                          }
-                        }}
-                        className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors"
-                        title="Remove from sync"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <span className="text-gray-500">x {doItem.mult} = {doItem.bags * doItem.mult} Pcs</span>
                     </div>
                   </div>
                 ))}

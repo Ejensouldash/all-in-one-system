@@ -227,7 +227,8 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       if (data.bags > 0) { // Only return active batches
         const receivedToday = todayDOItems.filter(item => `${item.category}|${item.batchNo}|${item.mult}` === batchKey)
         
-        if (receivedToday.length > 0 && !usedBatchKeysToday.has(batchKey)) {
+        // CAP EXCEPTION: Never auto-sync into todayDOs. Always put into storeroomBatches.
+        if (receivedToday.length > 0 && !usedBatchKeysToday.has(batchKey) && !data.category.includes("CAP")) {
           // Fresh DO from today that hasn't been touched by any shift yet today
           let totalReceivedToday = 0
           receivedToday.forEach(rt => {
@@ -240,7 +241,7 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
             storeroomBatches.push({ batchNo: data.batchNo, bags: data.bags - totalReceivedToday, mult: data.mult, category: data.category, doNumber: data.doNumber, labelType: "Standard", transferInId: data.transferInId })
           }
         } else {
-          // Either from yesterday, OR from today but already partially used (Shift Carry Forward)
+          // Either from yesterday, OR from today but already partially used (Shift Carry Forward), OR it is CAP
           storeroomBatches.push({ batchNo: data.batchNo, bags: data.bags, mult: data.mult, category: data.category, doNumber: data.doNumber, labelType: "Standard", transferInId: data.transferInId })
         }
       }

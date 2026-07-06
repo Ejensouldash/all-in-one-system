@@ -308,14 +308,10 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                     </tr>
                   </thead>
                   <tbody>
-                    {(() => {
+                    {['BOTTLE', 'LABEL', 'CAP', 'BOX_p800_12', 'BOX_p800_20', 'BOX_p425_24', 'BOX_p425_6'].map(key => {
                       const is800 = report.line.includes("800");
                       const is425 = report.line.includes("425");
                       const allowedBottleMults = is800 ? [225] : is425 ? [181, 162] : [];
-
-                      return (
-                        <>
-                          {['BOTTLE', 'LABEL', 'CAP', 'BOX_p800_12', 'BOX_p800_20', 'BOX_p425_24', 'BOX_p425_6'].map(key => {
                       
                       // 1. Hide boxes that were not ticked in Production
                       if (key.startsWith('BOX_')) {
@@ -508,8 +504,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                         </React.Fragment>
                       )
                     })}
-                    </>
-                    )})()}
+
                   </tbody>
                 </table>
               </div>

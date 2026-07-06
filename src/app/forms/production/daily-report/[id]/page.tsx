@@ -495,7 +495,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                           </td>
                         </tr>
                           <tr className="border-b-2 border-black print:border-black bg-gray-100 print:bg-transparent font-black text-[10px] print:text-[8pt]">
-                            <td className="p-2 print:p-1 border-r-2 border-black">{key === 'BOTTLE' ? 'TOTAL BAG' : key === 'LABEL' ? 'Quantity (ROLL)' : 'Quantity (PCS)'}</td>
+                            <td className="p-2 print:p-1 border-r-2 border-black">{key === 'BOTTLE' ? 'TOTAL BAG' : key === 'LABEL' ? 'QUANTITY (ROLL)' : 'QUANTITY (PCS)'}</td>
                             <td className="p-2 print:p-1 border-r-2 border-black align-top">
                               {Object.entries(rowTotals.storeroom).map(([mult, bags]) => (
                                 <div key={mult} className="mb-1 last:mb-0">

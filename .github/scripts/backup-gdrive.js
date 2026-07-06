@@ -4,25 +4,17 @@ const { google } = require('googleapis');
 async function main() {
   const filename = process.env.FILENAME;
   const folderId = process.env.GDRIVE_FOLDER_ID;
-  const credentialsJsonStr = process.env.GDRIVE_CREDENTIALS_JSON;
+  const clientId = process.env.GDRIVE_CLIENT_ID;
+  const clientSecret = process.env.GDRIVE_CLIENT_SECRET;
+  const refreshToken = process.env.GDRIVE_REFRESH_TOKEN;
 
-  if (!filename || !folderId || !credentialsJsonStr) {
+  if (!filename || !folderId || !clientId || !clientSecret || !refreshToken) {
     console.error("Missing required environment variables for Google Drive backup.");
     process.exit(1);
   }
 
-  let credentials;
-  try {
-    credentials = JSON.parse(credentialsJsonStr);
-  } catch (error) {
-    console.error("Failed to parse GDRIVE_CREDENTIALS_JSON. Ensure it is valid JSON.");
-    process.exit(1);
-  }
-
-  const auth = new google.auth.GoogleAuth({
-    credentials,
-    scopes: ['https://www.googleapis.com/auth/drive.file'],
-  });
+  const auth = new google.auth.OAuth2(clientId, clientSecret);
+  auth.setCredentials({ refresh_token: refreshToken });
 
   const drive = google.drive({ version: 'v3', auth });
 

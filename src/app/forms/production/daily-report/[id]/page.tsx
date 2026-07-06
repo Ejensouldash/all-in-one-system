@@ -307,14 +307,8 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                     </tr>
                   </thead>
                   <tbody>
+                  <tbody>
                     {(() => {
-                      const totals = {
-                        storeroom: {} as Record<number, number>,
-                        transferIn: {} as Record<number, number>,
-                        usageBefore: {} as Record<number, number>,
-                        usageAfter: {} as Record<number, number>,
-                        carryForward: {} as Record<number, number>,
-                      };
                       const is800 = report.line.includes("800");
                       const is425 = report.line.includes("425");
                       const allowedBottleMults = is800 ? [225] : is425 ? [181, 162] : [];
@@ -390,15 +384,23 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                         carryForwardSummaries.push({ batchNo, startBags, usedBags, carryFwdBags, mult })
                       })
 
-                      // Accumulate totals
-                      sectionDOItems.forEach((s: any) => { totals.transferIn[s.mult] = (totals.transferIn[s.mult] || 0) + s.bags; });
-                      sources.forEach((s: any) => { totals.storeroom[s.mult] = (totals.storeroom[s.mult] || 0) + s.bags; });
-                      usages.filter((u:any) => u.period === 'Before').forEach((u: any) => { totals.usageBefore[u.mult] = (totals.usageBefore[u.mult] || 0) + u.bags; });
-                      usages.filter((u:any) => u.period === 'After').forEach((u: any) => { totals.usageAfter[u.mult] = (totals.usageAfter[u.mult] || 0) + u.bags; });
-                      carryForwardSummaries.forEach((s: any) => { totals.carryForward[s.mult] = (totals.carryForward[s.mult] || 0) + s.carryFwdBags; });
+                      // Accumulate row totals
+                      const rowTotals = {
+                        storeroom: {} as Record<number, number>,
+                        transferIn: {} as Record<number, number>,
+                        usageBefore: {} as Record<number, number>,
+                        usageAfter: {} as Record<number, number>,
+                        carryForward: {} as Record<number, number>,
+                      };
+                      sectionDOItems.forEach((s: any) => { rowTotals.transferIn[s.mult] = (rowTotals.transferIn[s.mult] || 0) + s.bags; });
+                      sources.forEach((s: any) => { rowTotals.storeroom[s.mult] = (rowTotals.storeroom[s.mult] || 0) + s.bags; });
+                      usages.filter((u:any) => u.period === 'Before').forEach((u: any) => { rowTotals.usageBefore[u.mult] = (rowTotals.usageBefore[u.mult] || 0) + u.bags; });
+                      usages.filter((u:any) => u.period === 'After').forEach((u: any) => { rowTotals.usageAfter[u.mult] = (rowTotals.usageAfter[u.mult] || 0) + u.bags; });
+                      carryForwardSummaries.forEach((s: any) => { rowTotals.carryForward[s.mult] = (rowTotals.carryForward[s.mult] || 0) + s.carryFwdBags; });
 
                       return (
-                        <tr key={key} className="border-b border-black print:border-black print:break-inside-avoid">
+                        <React.Fragment key={key}>
+                        <tr className="border-b border-black print:border-black print:break-inside-avoid">
                           {/* 1. Material */}
                           <td className="p-2 print:p-1 border-r-2 border-black bg-emerald-50 print:bg-transparent font-black uppercase text-emerald-900 print:text-black align-top break-words text-[10px] print:text-[8pt]">
                             {titleName}
@@ -473,36 +475,39 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                             )}
                           </td>
                         </tr>
+                        {key === 'BOTTLE' && (
+                          <tr className="border-b-2 border-black print:border-black bg-gray-100 print:bg-transparent font-black text-[10px] print:text-[8pt]">
+                            <td className="p-2 print:p-1 border-r-2 border-black">TOTAL BAG</td>
+                            <td className="p-2 print:p-1 border-r-2 border-black align-top">
+                              {Object.entries(rowTotals.storeroom).map(([mult, bags]) => (
+                                <div key={mult} className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                              ))}
+                            </td>
+                            <td className="p-2 print:p-1 border-r-2 border-black align-top">
+                              {Object.entries(rowTotals.transferIn).map(([mult, bags]) => (
+                                <div key={mult} className="text-emerald-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                              ))}
+                            </td>
+                            <td className="p-2 print:p-1 border-r border-black align-top">
+                              {Object.entries(rowTotals.usageBefore).map(([mult, bags]) => (
+                                <div key={mult} className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                              ))}
+                            </td>
+                            <td className="p-2 print:p-1 border-r-2 border-black align-top">
+                              {Object.entries(rowTotals.usageAfter).map(([mult, bags]) => (
+                                <div key={mult} className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                              ))}
+                            </td>
+                            <td className="p-2 print:p-1 border-black align-top bg-yellow-100 print:bg-transparent">
+                              {Object.entries(rowTotals.carryForward).map(([mult, bags]) => (
+                                <div key={mult}>{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
+                              ))}
+                            </td>
+                          </tr>
+                        )}
+                        </React.Fragment>
                       )
                     })}
-                    <tr className="border-t-2 border-black print:border-black bg-gray-100 print:bg-transparent font-black text-[10px] print:text-[8pt]">
-                      <td className="p-2 print:p-1 border-r-2 border-black">TOTAL BAG</td>
-                      <td className="p-2 print:p-1 border-r-2 border-black align-top">
-                        {Object.entries(totals.storeroom).map(([mult, bags]) => (
-                          <div key={mult} className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
-                        ))}
-                      </td>
-                      <td className="p-2 print:p-1 border-r-2 border-black align-top">
-                        {Object.entries(totals.transferIn).map(([mult, bags]) => (
-                          <div key={mult} className="text-emerald-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
-                        ))}
-                      </td>
-                      <td className="p-2 print:p-1 border-r border-black align-top">
-                        {Object.entries(totals.usageBefore).map(([mult, bags]) => (
-                          <div key={mult} className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
-                        ))}
-                      </td>
-                      <td className="p-2 print:p-1 border-r-2 border-black align-top">
-                        {Object.entries(totals.usageAfter).map(([mult, bags]) => (
-                          <div key={mult} className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
-                        ))}
-                      </td>
-                      <td className="p-2 print:p-1 border-black align-top bg-yellow-100 print:bg-transparent">
-                        {Object.entries(totals.carryForward).map(([mult, bags]) => (
-                          <div key={mult}>{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span></div>
-                        ))}
-                      </td>
-                    </tr>
                     </>
                     )})()}
                   </tbody>

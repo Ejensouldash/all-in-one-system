@@ -25,7 +25,7 @@ const PRODUCTION_CONFIG = {
 }
 
 export function DailyReportForm({ userName, initialData, reportId }: { userName: string, initialData?: any, reportId?: string }) {
-  const { register, control, handleSubmit, watch, setValue, reset } = useForm({
+  const { register, control, handleSubmit, watch, setValue, reset, getValues } = useForm({
     defaultValues: initialData ? {
       ...initialData,
       timeFrom: initialData.timeFrom || (initialData.time?.includes(' - ') ? initialData.time.split(' - ')[0] : initialData.time || ""),
@@ -271,6 +271,57 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
     } else {
       alert("Failed to submit: " + result.error)
     }
+    }
+  }
+
+  const handleSaveAsDraft = async () => {
+    const data = getValues();
+    if (!data.date) return showErrorAndScroll("Please select a Production Date.", "date")
+    if (!data.shift) return showErrorAndScroll("Please select a Shift.", "shift")
+    if (!data.line) return showErrorAndScroll("Please select a Line.", "line")
+
+    setIsSubmitting(true)
+    data.time = `${data.timeFrom || ""} - ${data.timeTo || ""}`
+    data.isDraft = true
+
+    // Normalize batch numbers
+    Object.keys(data.inventory || {}).forEach(sectionKey => {
+      if (data.inventory[sectionKey].usages) {
+        data.inventory[sectionKey].usages = data.inventory[sectionKey].usages.map((u: any) => {
+          let pureBatchNo = u.batchNo;
+          let pureMult = Number(u.mult) || 1;
+          if (typeof u.batchNo === 'string' && u.batchNo.includes('|')) {
+            const parts = u.batchNo.split('|');
+            pureBatchNo = parts[0];
+            pureMult = Number(parts[1]);
+          }
+          return { ...u, batchNo: pureBatchNo, mult: pureMult };
+        });
+      }
+      if (data.inventory[sectionKey].sources) {
+        data.inventory[sectionKey].sources = data.inventory[sectionKey].sources.map((s: any) => {
+          let pureBatchNo = s.batchNo;
+          let pureMult = Number(s.mult) || 1;
+          if (typeof s.batchNo === 'string' && s.batchNo.includes('|')) {
+            const parts = s.batchNo.split('|');
+            pureBatchNo = parts[0];
+            pureMult = Number(parts[1]);
+          }
+          return { ...s, batchNo: pureBatchNo, mult: pureMult };
+        });
+      }
+    });
+
+    const result = reportId ? await updateDailyReport(reportId, data) : await createDailyReport(data)
+    setIsSubmitting(false)
+
+    if (result.success) {
+      localStorage.removeItem("dailyReportDraft")
+      alert("Draft saved successfully!")
+      window.location.href = "/forms"
+    } else {
+      alert("Failed to save draft: " + result.error)
+    }
   }
 
   const renderProductionRow = (prodId: string, label: string) => {
@@ -287,9 +338,19 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
     <div className="bg-white text-black min-h-screen font-sans border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] mb-12">
       <div className="border-b-[3px] border-black p-6 bg-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center">
         <div>
-          <Link href="/forms" className="inline-flex items-center text-sm font-black uppercase tracking-wider border-2 border-black px-4 py-2 mb-6 hover:bg-black hover:text-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px]">
-            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Forms
-          </Link>
+          <div className="flex items-center gap-4 mb-6">
+            <Link href="/forms" className="inline-flex items-center text-sm font-black uppercase tracking-wider border-2 border-black px-4 py-2 hover:bg-black hover:text-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px]">
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back to Forms
+            </Link>
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={handleSaveAsDraft}
+              className="inline-flex items-center text-sm font-black uppercase tracking-wider border-2 border-black bg-yellow-400 px-4 py-2 hover:bg-yellow-500 transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px] disabled:opacity-50"
+            >
+              <Save className="h-4 w-4 mr-2" /> Save as Draft
+            </button>
+          </div>
           <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tighter">KAR Production Daily Report</h1>
           <p className="font-bold text-gray-600 uppercase tracking-widest text-sm mt-2">Digital Operations Module v4.0</p>
         </div>

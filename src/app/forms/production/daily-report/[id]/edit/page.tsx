@@ -19,8 +19,8 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
   })
 
   if (!report) redirect("/forms")
-  if (report.status !== "PENDING") {
-    // Only pending reports can be edited
+  if (report.status !== "PENDING" && report.status !== "REJECTED" && report.status !== "DRAFT") {
+    // Only pending, rejected, or draft reports can be edited
     redirect(`/forms/production/daily-report/${resolvedParams.id}`)
   }
 

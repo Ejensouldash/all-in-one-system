@@ -3,7 +3,7 @@ import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { getDailyReportById } from "@/app/actions/dailyReport"
 import Link from "next/link"
-import { ArrowLeft, CheckCircle2, ClipboardList, Package, AlertTriangle } from "lucide-react"
+import { ArrowLeft, CheckCircle2, AlertTriangle, Save, ClipboardList, Package } from "lucide-react"
 import { PrintButton } from "@/components/ui/PrintButton"
 import { ApprovalSignatureModal } from "@/components/forms/ApprovalSignatureModal"
 import { ExportDailyReportButton } from "@/components/forms/ExportDailyReportButton"
@@ -98,16 +98,16 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
           <Link href="/forms" className="inline-flex items-center text-sm font-black uppercase tracking-wider border-2 border-black px-4 py-2 bg-white hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px] mr-4">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back
           </Link>
-          <div className={`px-3 py-1.5 text-xs font-black uppercase border-2 flex items-center ${report.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-800' : 'bg-yellow-100 text-yellow-800 border-yellow-800'}`}>
-            {report.status === 'APPROVED' ? <CheckCircle2 className="w-4 h-4 mr-1.5"/> : <AlertTriangle className="w-4 h-4 mr-1.5"/>}
+          <div className={`px-3 py-1.5 text-xs font-black uppercase border-2 flex items-center ${report.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-800' : report.status === 'DRAFT' ? 'bg-blue-100 text-blue-800 border-blue-800' : report.status === 'REJECTED' ? 'bg-red-100 text-red-800 border-red-800' : 'bg-yellow-100 text-yellow-800 border-yellow-800'}`}>
+            {report.status === 'APPROVED' ? <CheckCircle2 className="w-4 h-4 mr-1.5"/> : report.status === 'DRAFT' ? <Save className="w-4 h-4 mr-1.5" /> : report.status === 'REJECTED' ? <AlertTriangle className="w-4 h-4 mr-1.5" /> : <AlertTriangle className="w-4 h-4 mr-1.5"/>}
             {report.status}
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {report.status === "PENDING" && (
+          {(report.status === "PENDING" || report.status === "REJECTED" || report.status === "DRAFT") && (
             <>
-              {((session.user as any).trueRole === "SUPERVISOR" || (session.user as any).trueRole === "SUPERADMIN") && (
+              {report.status === "PENDING" && ((session.user as any).trueRole === "SUPERVISOR" || (session.user as any).trueRole === "SUPERADMIN") && (
                 <ApprovalSignatureModal reportId={report.id} />
               )}
               

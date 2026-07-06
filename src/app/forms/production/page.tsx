@@ -154,6 +154,14 @@ export default async function ProductionDashboard() {
                           <span className="px-2.5 py-1 inline-flex text-xs leading-5 font-black uppercase rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm">
                             Approved
                           </span>
+                        ) : report.status === 'DRAFT' ? (
+                          <span className="px-2.5 py-1 inline-flex text-xs leading-5 font-black uppercase rounded-full bg-blue-100 text-blue-800 border border-blue-300 shadow-sm">
+                            Draft
+                          </span>
+                        ) : report.status === 'REJECTED' ? (
+                          <span className="px-2.5 py-1 inline-flex text-xs leading-5 font-black uppercase rounded-full bg-red-100 text-red-800 border border-red-300 shadow-sm">
+                            Rejected
+                          </span>
                         ) : (
                           <span className="px-2.5 py-1 inline-flex text-xs leading-5 font-black uppercase rounded-full bg-amber-100 text-amber-800 border border-amber-300 shadow-sm">
                             Pending

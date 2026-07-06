@@ -31,6 +31,7 @@ export async function createDailyReport(data: any) {
 
     const report = await prisma.dailyReport.create({
       data: {
+        status: data.isDraft ? "DRAFT" : "PENDING",
         date: new Date(data.date),
         time: data.time,
         reportTime: data.reportTime,
@@ -366,10 +367,10 @@ export async function updateDailyReport(id: string, data: any) {
   if (!session) return { success: false, error: "Unauthorized" }
 
   try {
-    // Verify report is PENDING or REJECTED
+    // Verify report is PENDING, REJECTED, or DRAFT
     const existing = await prisma.dailyReport.findUnique({ where: { id } })
     if (!existing) return { success: false, error: "Report not found" }
-    if (existing.status !== "PENDING" && existing.status !== "REJECTED") return { success: false, error: "Cannot edit an approved report." }
+    if (existing.status !== "PENDING" && existing.status !== "REJECTED" && existing.status !== "DRAFT") return { success: false, error: "Cannot edit an approved report." }
 
     // Aggregate Usage Rejects
     const aggregatedRejects = {
@@ -399,7 +400,7 @@ export async function updateDailyReport(id: string, data: any) {
       prisma.dailyReport.update({
         where: { id },
         data: {
-          status: "PENDING",
+          status: data.isDraft ? "DRAFT" : "PENDING",
           time: data.time,
           reportTime: data.reportTime,
           shift: data.shift,

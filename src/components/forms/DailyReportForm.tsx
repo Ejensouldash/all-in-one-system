@@ -94,6 +94,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
   const watchInventory = watch("inventory")
 
   const [syncedDOs, setSyncedDOs] = useState<any[]>([])
+  const [allTodayDOs, setAllTodayDOs] = useState<any[]>([])
   const [availableCarryForward, setAvailableCarryForward] = useState<any[]>([])
   const [isFetchingSync, setIsFetchingSync] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -124,8 +125,19 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       const doId = e.detail;
       setSyncedDOs(prev => prev.filter((d: any) => d.id !== doId));
     };
+    const handleAddDO = (e: any) => {
+      const newDO = e.detail;
+      setSyncedDOs(prev => {
+        if (prev.some(d => d.id === newDO.id)) return prev;
+        return [...prev, newDO];
+      });
+    };
     window.addEventListener('removeSyncedDO', handleRemoveDO);
-    return () => window.removeEventListener('removeSyncedDO', handleRemoveDO);
+    window.addEventListener('addSyncedDO', handleAddDO);
+    return () => {
+      window.removeEventListener('removeSyncedDO', handleRemoveDO);
+      window.removeEventListener('addSyncedDO', handleAddDO);
+    };
   }, []);
 
   const formValues = watch()
@@ -152,7 +164,9 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       const res = await getActiveInventory(watchDate, reportId, watchShift)
       
       if (res.success) {
-        setSyncedDOs(res.data.todayDOs)
+        setAllTodayDOs(res.data.todayDOs)
+        const autoSynced = res.data.todayDOs.filter((d: any) => !d.category.includes("CAP"))
+        setSyncedDOs(autoSynced)
         setAvailableCarryForward(res.data.storeroomBatches)
       }
       setIsFetchingSync(false)
@@ -598,6 +612,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             availableCarryForward={availableCarryForward.filter(b => b.category.includes("CAP") && !b.category.includes("CARTON"))}
             multipliers={MULTIPLIERS.CAP}
             syncedDOs={syncedDOs.filter(d => d.category.includes("CAP") && !d.category.includes("CARTON"))}
+            availableDOsToSync={allTodayDOs.filter(d => d.category.includes("CAP") && !d.category.includes("CARTON"))}
           />
 
           {(PRODUCTION_CONFIG[watchLine as keyof typeof PRODUCTION_CONFIG] || []).map(prod => {
@@ -813,7 +828,7 @@ function ProductionBatchDistribution({ prodId, label, isChecked, totalQty, contr
 }
 
 // --- SUB COMPONENT FOR ADVANCED INVENTORY SECTION V4.0 (Bags Logic) ---
-const AdvancedInventorySection = ({ title, sectionKey, control, register, setValue, watch, availableCarryForward = [], multipliers = [1], isLabel = false, syncedDOs = [] }: any) => {
+const AdvancedInventorySection = ({ title, sectionKey, control, register, setValue, watch, availableCarryForward = [], multipliers = [1], isLabel = false, syncedDOs = [], availableDOsToSync = undefined }: any) => {
   const isCap = sectionKey === "CAP";
   const isBox = sectionKey.startsWith("BOX");
   const unit = isLabel ? 'Rolls' : (isCap || isBox) ? 'Boxes' : 'Bags';
@@ -968,6 +983,32 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {availableDOsToSync && availableDOsToSync.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-emerald-200">
+                <label className="text-[10px] font-black uppercase text-emerald-800 block mb-1">Select Transfer In to Add</label>
+                <select 
+                  className="w-full p-2 border border-emerald-300 bg-white text-xs font-bold outline-none focus:border-emerald-500 uppercase"
+                  onChange={(e) => {
+                    const doId = e.target.value;
+                    if (!doId) return;
+                    const selected = availableDOsToSync.find((d: any) => d.id === doId);
+                    if (selected && !syncedDOs.some((d: any) => d.id === doId)) {
+                      const event = new CustomEvent('addSyncedDO', { detail: selected });
+                      window.dispatchEvent(event);
+                    }
+                    e.target.value = "";
+                  }}
+                >
+                  <option value="">-- SELECT DO --</option>
+                  {availableDOsToSync.filter((d: any) => !syncedDOs.some((s: any) => s.id === d.id)).map((d: any) => (
+                    <option key={d.id} value={d.id}>
+                      {d.doNumber} - {d.batchNo} ({d.bags} {unit})
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
           </div>

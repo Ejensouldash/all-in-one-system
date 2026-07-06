@@ -227,13 +227,12 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       if (data.bags > 0) { // Only return active batches
         const receivedToday = todayDOItems.filter(item => `${item.category}|${item.batchNo}|${item.mult}` === batchKey)
         
-        // CAP EXCEPTION: Never auto-sync into todayDOs. Always put into storeroomBatches.
-        if (receivedToday.length > 0 && !usedBatchKeysToday.has(batchKey) && !data.category.includes("CAP")) {
+        if (receivedToday.length > 0 && !usedBatchKeysToday.has(batchKey)) {
           // Fresh DO from today that hasn't been touched by any shift yet today
           let totalReceivedToday = 0
           receivedToday.forEach(rt => {
             totalReceivedToday += rt.bags
-            todayDOs.push({ batchNo: rt.batchNo, bags: rt.bags, mult: rt.mult, category: rt.category, doNumber: rt.transferIn.doNumber, transferInId: rt.transferIn.id })
+            todayDOs.push({ batchNo: rt.batchNo, bags: rt.bags, mult: rt.mult, category: rt.category, doNumber: rt.transferIn.doNumber, transferInId: rt.transferIn.id, id: rt.id })
           })
 
           // If there's a leftover balance from previous days for this same batch, put it in storeroom

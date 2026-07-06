@@ -1,0 +1,1 @@
+import { NextResponse } from 'next/server'; import { prisma } from '@/lib/prisma'; export async function GET() { const items = await prisma.transferIn.findMany({ where: { receiveDate: new Date('2026-07-03') } }); return NextResponse.json(items); } 

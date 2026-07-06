@@ -153,7 +153,7 @@ export async function createDailyReport(data: any) {
   }
 }
 
-export async function getActiveInventory(targetDateStr?: string, excludeReportId?: string) {
+export async function getActiveInventory(targetDateStr?: string, excludeReportId?: string, shift?: string) {
   try {
     const reportDateString = targetDateStr || new Date().toISOString().split('T')[0]
     
@@ -221,7 +221,18 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
 
     const todayDOItems = allDOItems.filter(item => {
       const doDateString = new Date(item.transferIn.receiveDate).toISOString().split('T')[0]
-      return doDateString === reportDateString
+      if (doDateString !== reportDateString) return false;
+      
+      // Filter by shift if provided (assuming PM shift starts at 19:00 / 7:00 PM)
+      if (shift && item.transferIn.receiveTime) {
+        const hour = parseInt(item.transferIn.receiveTime.split(':')[0], 10);
+        if (!isNaN(hour)) {
+          const isPM = hour >= 19;
+          if (shift === "AM" && isPM) return false;
+          if (shift === "PM" && !isPM) return false;
+        }
+      }
+      return true;
     })
     
     const todayDOs: any[] = []

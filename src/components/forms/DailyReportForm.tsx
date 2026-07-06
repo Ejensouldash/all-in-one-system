@@ -134,12 +134,13 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
   }, [formValues, initialData, reportId, isSubmitting, isDraftLoaded])
 
   const watchDate = watch("date")
+  const watchShift = watch("shift")
 
   // Fetch Global Inventory on mount and when date changes
   useEffect(() => {
     async function fetchInventory() {
       setIsFetchingSync(true)
-      const res = await getActiveInventory(watchDate, reportId)
+      const res = await getActiveInventory(watchDate, reportId, watchShift)
       
       if (res.success) {
         setSyncedDOs(res.data.todayDOs)
@@ -150,7 +151,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
     if (watchDate) {
       fetchInventory()
     }
-  }, [watchDate, reportId])
+  }, [watchDate, watchShift, reportId])
 
   const showErrorAndScroll = (elementId: string, message: string) => {
     alert(message)

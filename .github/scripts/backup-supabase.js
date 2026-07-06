@@ -25,8 +25,7 @@ async function run() {
     console.log(`Bucket ${bucketName} not found. Attempting to create it...`);
     const { error: createError } = await supabase.storage.createBucket(bucketName, {
       public: false,
-      allowedMimeTypes: ['application/gzip', 'application/x-gzip'],
-      fileSizeLimit: 1024 * 1024 * 1024 // 1GB limit for backups
+      allowedMimeTypes: ['application/gzip', 'application/x-gzip']
     });
     
     if (createError) {

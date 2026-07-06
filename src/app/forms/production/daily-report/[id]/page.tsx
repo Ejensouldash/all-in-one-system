@@ -289,7 +289,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                       <tbody>
                         {report.rejects.filter((r: any) => r.type === "SCRAP" || !r.type).map((rej: any) => (
                           <tr key={rej.id} className="border-b-2 print:border-b border-black print:border-black font-bold last:border-0 last:print:border-0">
-                            <td className="p-2 print:py-0.5 print:px-2 border-r-2 print:border-r border-black print:border-black uppercase">{rej.item}</td>
+                            <td className="p-2 print:py-0.5 print:px-2 border-r-2 print:border-r border-black print:border-black uppercase">{rej.item.startsWith('BOX_P') ? `BOX (${rej.item.replace('BOX_P800_', '800 ML X ').replace('BOX_P425_', '425 ML X ')})` : rej.item}</td>
                             <td className="p-2 print:py-0.5 print:px-2 text-center border-r-2 print:border-r border-black print:border-black text-gray-600 print:text-black">{rej.before}</td>
                             <td className="p-2 print:py-0.5 print:px-2 text-center border-r-2 print:border-r border-black print:border-black text-gray-600 print:text-black">{rej.after}</td>
                             <td className="p-2 print:py-0.5 print:px-2 text-center bg-gray-100 print:bg-transparent text-red-600 print:text-black font-black">{rej.before + rej.after}</td>
@@ -340,7 +340,9 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                       const sources = inv.filter((i: any) => i.type === 'Storeroom' && i.batchNo?.trim())
                       const usages = inv.filter((i: any) => i.type === 'Usage' && i.batchNo?.trim())
                       
-                      const titleName = key.replace('p800_', '800ml ').replace('p425_', '425ml ')
+                      const titleName = key.startsWith('BOX_') 
+                        ? `BOX (${key.replace('BOX_p800_', '800 ML X ').replace('BOX_p425_', '425 ML X ')})` 
+                        : key
 
                       // Filter transferIns for this section
                       const sectionDOItems = transferIns.flatMap(ti => ti.items.map(item => ({...item, doNumber: ti.doNumber}))).filter((item: any) => {

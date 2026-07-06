@@ -90,9 +90,9 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
   // Populate Rejects
   report.rejects.forEach(r => {
     const itemKey = r.item.toLowerCase()
-    if (r.type === "RETURN" && initialData.rejectsReturn[itemKey]) {
+    if (r.type === "RETURN") {
       initialData.rejectsReturn[itemKey] = { before: r.before, after: r.after }
-    } else if (initialData.rejectsScrap[itemKey]) {
+    } else {
       initialData.rejectsScrap[itemKey] = { before: r.before, after: r.after }
     }
   })

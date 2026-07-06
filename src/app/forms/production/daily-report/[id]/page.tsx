@@ -48,25 +48,12 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
     )
   }
 
-  // Fetch DO items to get starting quantities of auto-synced batches
-  const allBatchNos = Array.from(new Set(report.inventory.map((i: any) => i.batchNo).filter(Boolean)))
-  const doItems = await prisma.transferInItem.findMany({
-    where: { batchNo: { in: allBatchNos as string[] } }
-  })
-  
-  const doAggregated: Record<string, { bags: number, mult: number }> = {}
-  doItems.forEach(item => {
-    const key = `${item.batchNo}|${item.mult}`;
-    if (!doAggregated[key]) {
-      doAggregated[key] = { bags: 0, mult: item.mult }
-    }
-    doAggregated[key].bags += item.bags
-  })
-
   // Helper to group inventory items by section
   const getInventoryForSection = (key: string) => report.inventory.filter((i: any) => i.sectionKey === key)
 
-  // Fetch Transfer In for the same date
+  // Fetch Transfer In for the same date.
+  // Both receiveDate and report.date are stored as midnight UTC of a calendar date,
+  // so an exact equality match is correct here.
   let transferIns = await prisma.transferIn.findMany({
     where: { receiveDate: report.date },
     include: { items: true }

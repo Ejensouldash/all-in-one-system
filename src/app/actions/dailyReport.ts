@@ -172,15 +172,16 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       include: { report: true }
     })
 
-    // Helper: compare dates using LOCAL date components (avoids UTC timezone shift on +08:00)
-    const toLocalDateStr = (d: Date) => {
-      const dt = new Date(d)
-      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
-    }
+    // Helper: extract the calendar date (YYYY-MM-DD) from a stored Date.
+    // receiveDate / report.date are stored as MIDNIGHT UTC of a calendar date, and the
+    // client sends "YYYY-MM-DD" strings, so we must read the UTC date components. This is
+    // timezone-independent (correct on UTC, +08, or any server) and stays consistent with
+    // the report view which matches transfer-in by exact UTC date.
+    const toDateStr = (d: Date) => new Date(d).toISOString().split('T')[0]
 
     // Helper: was this Transfer In item RECEIVED TODAY (on the report date) and does it match the shift?
     const isReceivedToday = (item: any) => {
-      if (toLocalDateStr(item.transferIn.receiveDate) !== reportDateString) return false
+      if (toDateStr(item.transferIn.receiveDate) !== reportDateString) return false
       // Filter by shift if provided (assuming PM shift starts at 19:00 / 7:00 PM)
       if (shift && item.transferIn.receiveTime) {
         const hour = parseInt(item.transferIn.receiveTime.split(':')[0], 10)

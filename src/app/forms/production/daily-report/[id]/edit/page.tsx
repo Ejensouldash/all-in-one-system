@@ -114,7 +114,7 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
     if (i.type === "TransferIn") {
       let category = "";
       if (i.sectionKey === "CAP") category = "CAP";
-      else if (i.sectionKey === "BOTTLE") category = "BOTTLE";
+      else if (i.sectionKey === "BOTTLE") category = "BOTTLE " + (report.line.includes("800") ? "800ML" : "425ML");
       else if (i.sectionKey === "LABEL") category = "LABEL";
       else if (i.sectionKey.startsWith("BOX_")) {
         const size = i.sectionKey.replace("BOX_p", "").split("_")[0];

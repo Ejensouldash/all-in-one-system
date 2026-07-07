@@ -351,8 +351,17 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                         ? `BOX (${key.replace('BOX_p800_', '800 ML X ').replace('BOX_p425_', '425 ML X ')})` 
                         : key
 
+                      // Check if report has explicit TransferIn logs (new format)
+                      const hasExplicitTransferIns = report.inventory.some((i: any) => i.type === "TransferIn");
+                      const explicitTransferIns = report.inventory.filter((i: any) => i.sectionKey === key && i.type === "TransferIn");
+
                       // Filter transferIns for this section
-                      const sectionDOItems = transferIns.flatMap(ti => ti.items.map(item => ({...item, doNumber: ti.doNumber}))).filter((item: any) => {
+                      const sectionDOItems = hasExplicitTransferIns ? explicitTransferIns.map((i: any) => ({
+                        batchNo: i.batchNo,
+                        mult: i.mult,
+                        bags: i.bags,
+                        doNumber: i.labelType
+                      })) : transferIns.flatMap(ti => ti.items.map(item => ({...item, doNumber: ti.doNumber}))).filter((item: any) => {
                         if (key === 'BOTTLE') {
                            if (item.category.includes("BOTTLE")) {
                              return allowedBottleMults.length === 0 || allowedBottleMults.includes(item.mult);

@@ -98,7 +98,30 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
   })
 
   // Populate Inventory
+  initialData.syncedDOs = [];
   report.inventory.forEach(i => {
+    if (i.type === "TransferIn") {
+      let category = "";
+      if (i.sectionKey === "CAP") category = "CAP";
+      else if (i.sectionKey === "BOTTLE") category = "BOTTLE";
+      else if (i.sectionKey === "LABEL") category = "LABEL";
+      else if (i.sectionKey.startsWith("BOX_")) {
+        const size = i.sectionKey.replace("BOX_p", "").split("_")[0];
+        const pack = i.sectionKey.split("_")[2];
+        category = `BOX_${size}_${pack}`; // Enough for includes("BOX") and includes(size)
+      }
+      
+      initialData.syncedDOs.push({
+        id: `explicit-${i.id}`,
+        doNumber: i.labelType || "",
+        batchNo: i.batchNo,
+        bags: i.bags,
+        mult: i.mult,
+        category: category
+      });
+      return;
+    }
+
     // Skip empty rows (batchNo === "") that were saved by accident
     if (initialData.inventory[i.sectionKey] && i.batchNo && i.batchNo.trim() !== "") {
       const entry: any = {

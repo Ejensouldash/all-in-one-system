@@ -109,7 +109,26 @@ export async function createDailyReport(data: any) {
               mult: Number(h.mult) || 1
             })).filter((h: any) => h.batchNo && h.batchNo.trim() !== "")
 
-            return [...sources, ...usages, ...holds]
+            const transferIns = (data.syncedDOs || []).filter((d: any) => {
+              if (sectionKey === "CAP") return d.category.includes("CAP") && !d.category.includes("CARTON");
+              if (sectionKey === "BOTTLE") return d.category.includes("BOTTLE") && d.category.includes(data.line.includes("800") ? "800" : "425");
+              if (sectionKey === "LABEL") return d.category.includes("LABEL") && (data.line.includes("800") ? d.batchNo.startsWith("8S") : d.batchNo.startsWith("4S"));
+              if (sectionKey.startsWith("BOX_")) {
+                const size = sectionKey.replace("BOX_p", "").split("_")[0];
+                const pack = sectionKey.split("_")[2]; // e.g. BOX_p800_12 -> 800, 12
+                return d.category.includes("BOX") && !d.category.includes("CARTON") && d.category.includes(size) && d.category.includes(pack);
+              }
+              return false;
+            }).map((d: any) => ({
+              sectionKey,
+              type: "TransferIn",
+              batchNo: d.batchNo,
+              bags: Number(d.bags),
+              mult: Number(d.mult) || 1,
+              labelType: d.doNumber
+            }));
+
+            return [...sources, ...usages, ...holds, ...transferIns]
           })
         },
 
@@ -492,7 +511,26 @@ export async function updateDailyReport(id: string, data: any) {
                 mult: Number(h.mult) || 1
               })).filter((h: any) => h.batchNo && h.batchNo.trim() !== "")
 
-              return [...sources, ...usages, ...holds]
+              const transferIns = (data.syncedDOs || []).filter((d: any) => {
+                if (sectionKey === "CAP") return d.category.includes("CAP") && !d.category.includes("CARTON");
+                if (sectionKey === "BOTTLE") return d.category.includes("BOTTLE") && d.category.includes(data.line.includes("800") ? "800" : "425");
+                if (sectionKey === "LABEL") return d.category.includes("LABEL") && (data.line.includes("800") ? d.batchNo.startsWith("8S") : d.batchNo.startsWith("4S"));
+                if (sectionKey.startsWith("BOX_")) {
+                  const size = sectionKey.replace("BOX_p", "").split("_")[0];
+                  const pack = sectionKey.split("_")[2];
+                  return d.category.includes("BOX") && !d.category.includes("CARTON") && d.category.includes(size) && d.category.includes(pack);
+                }
+                return false;
+              }).map((d: any) => ({
+                sectionKey,
+                type: "TransferIn",
+                batchNo: d.batchNo,
+                bags: Number(d.bags),
+                mult: Number(d.mult) || 1,
+                labelType: d.doNumber
+              }));
+
+              return [...sources, ...usages, ...holds, ...transferIns]
             })
           },
 

@@ -110,6 +110,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
           const parsed = JSON.parse(draft)
           if (parsed && typeof parsed === 'object') {
             reset(parsed)
+            if (parsed.syncedDOs) setSyncedDOs(parsed.syncedDOs)
           }
         } catch (e) {
           console.error("Failed to parse draft", e)
@@ -145,17 +146,19 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
     if (!initialData && !reportId && !isSubmitting && isDraftLoaded) {
       const timeoutId = setTimeout(() => {
         try {
-          localStorage.setItem("dailyReportDraft", JSON.stringify(formValues))
+          localStorage.setItem("dailyReportDraft", JSON.stringify({ ...formValues, syncedDOs }))
         } catch (e) {
           console.warn("Could not save draft (storage full or blocked)")
         }
       }, 1000)
       return () => clearTimeout(timeoutId)
     }
-  }, [formValues, initialData, reportId, isSubmitting, isDraftLoaded])
+  }, [formValues, syncedDOs, initialData, reportId, isSubmitting, isDraftLoaded])
 
   const watchDate = watch("date")
   const watchShift = watch("shift")
+
+  const isInitialMount = useRef(true)
 
   // Fetch Global Inventory on mount and when date changes
   useEffect(() => {
@@ -165,10 +168,17 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       
       if (res.success) {
         setAllTodayDOs(res.data.todayDOs)
-        setSyncedDOs(res.data.todayDOs)
+        
+        if (isInitialMount.current && ((initialData?.syncedDOs && initialData.syncedDOs.length > 0) || (localStorage.getItem("dailyReportDraft") && JSON.parse(localStorage.getItem("dailyReportDraft")!).syncedDOs))) {
+          // Do not overwrite syncedDOs if we just loaded them from draft or edit
+        } else {
+          setSyncedDOs(res.data.todayDOs)
+        }
+        
         setAvailableCarryForward(res.data.storeroomBatches)
       }
       setIsFetchingSync(false)
+      isInitialMount.current = false;
     }
     if (watchDate) {
       fetchInventory()
@@ -223,7 +233,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
     setIsSubmitting(true)
     
     // Process Usage Rejects, Batch Number Splits, and CAP weights
-    const formattedData = { ...data, time: `${data.timeFrom} - ${data.timeTo}` };
+    const formattedData = { ...data, time: `${data.timeFrom} - ${data.timeTo}`, syncedDOs };
     Object.keys(formattedData.inventory || {}).forEach(sectionKey => {
       let lowerItem = sectionKey === "CAP" ? "cap" : sectionKey === "BOTTLE" ? "bottle" : sectionKey === "LABEL" ? "label" : "box";
       if (sectionKey.startsWith("BOX_")) lowerItem = sectionKey.toLowerCase();
@@ -319,6 +329,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
     setIsSubmitting(true)
     data.time = `${data.timeFrom || ""} - ${data.timeTo || ""}`
     data.isDraft = true
+    data.syncedDOs = syncedDOs;
 
     // Normalize batch numbers
     Object.keys(data.inventory || {}).forEach(sectionKey => {

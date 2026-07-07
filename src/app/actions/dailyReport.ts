@@ -89,7 +89,7 @@ export async function createDailyReport(data: any) {
               bags: Number(s.bags),
               mult: Number(s.mult),
               labelType: s.labelType
-            }))
+            })).filter((s: any) => s.batchNo && s.batchNo.trim() !== "")
             
             const usages = data.inventory[sectionKey].usages.map((u: any) => ({
               sectionKey,
@@ -99,7 +99,7 @@ export async function createDailyReport(data: any) {
               bags: Number(u.bags),
               mult: Number(u.mult) || 1,
               labelType: u.labelType
-            }))
+            })).filter((u: any) => u.batchNo && u.batchNo.trim() !== "")
 
             const holds = (data.inventory[sectionKey].holds || []).map((h: any) => ({
               sectionKey,
@@ -107,7 +107,7 @@ export async function createDailyReport(data: any) {
               batchNo: h.batchNo,
               bags: Number(h.qty),
               mult: Number(h.mult) || 1
-            }))
+            })).filter((h: any) => h.batchNo && h.batchNo.trim() !== "")
 
             return [...sources, ...usages, ...holds]
           })
@@ -124,7 +124,7 @@ export async function createDailyReport(data: any) {
               qty: Number(h.qty),
               mult: Number(h.mult) || 1,
               reason: h.reason || ""
-            }))
+            })).filter((h: any) => h.batchNo && h.batchNo.trim() !== "")
           })
         }
       }
@@ -472,7 +472,7 @@ export async function updateDailyReport(id: string, data: any) {
                 bags: Number(s.bags),
                 mult: Number(s.mult),
                 labelType: s.labelType
-              }))
+              })).filter((s: any) => s.batchNo && s.batchNo.trim() !== "")
               
               const usages = data.inventory[sectionKey].usages.map((u: any) => ({
                 sectionKey,
@@ -482,7 +482,7 @@ export async function updateDailyReport(id: string, data: any) {
                 bags: Number(u.bags),
                 mult: Number(u.mult) || 1,
                 labelType: u.labelType
-              }))
+              })).filter((u: any) => u.batchNo && u.batchNo.trim() !== "")
 
               const holds = (data.inventory[sectionKey].holds || []).map((h: any) => ({
                 sectionKey,
@@ -490,7 +490,7 @@ export async function updateDailyReport(id: string, data: any) {
                 batchNo: h.batchNo,
                 bags: Number(h.qty),
                 mult: Number(h.mult) || 1
-              }))
+              })).filter((h: any) => h.batchNo && h.batchNo.trim() !== "")
 
               return [...sources, ...usages, ...holds]
             })
@@ -507,7 +507,7 @@ export async function updateDailyReport(id: string, data: any) {
                 qty: Number(h.qty),
                 mult: Number(h.mult) || 1,
                 reason: h.reason || ""
-              }))
+              })).filter((h: any) => h.batchNo && h.batchNo.trim() !== "")
             })
           }
         }

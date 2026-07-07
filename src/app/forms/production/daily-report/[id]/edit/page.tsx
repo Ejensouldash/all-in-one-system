@@ -99,7 +99,8 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
 
   // Populate Inventory
   report.inventory.forEach(i => {
-    if (initialData.inventory[i.sectionKey]) {
+    // Skip empty rows (batchNo === "") that were saved by accident
+    if (initialData.inventory[i.sectionKey] && i.batchNo && i.batchNo.trim() !== "") {
       const entry: any = {
         batchNo: `${i.batchNo}|${i.mult}`,
         bags: i.bags,

@@ -352,7 +352,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                         : key
 
                       // Check if report has explicit TransferIn logs (new format)
-                      const hasExplicitTransferIns = report.inventory.some((i: any) => i.type === "TransferIn");
+                      const hasExplicitTransferIns = report.inventory.some((i: any) => i.type === "TransferIn" || i.type === "TransferInFlag");
                       const explicitTransferIns = report.inventory.filter((i: any) => i.sectionKey === key && i.type === "TransferIn");
 
                       // Filter transferIns for this section

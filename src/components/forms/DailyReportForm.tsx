@@ -169,7 +169,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       if (res.success) {
         setAllTodayDOs(res.data.todayDOs)
         
-        if (isInitialMount.current && ((initialData?.syncedDOs && initialData.syncedDOs.length > 0) || (localStorage.getItem("dailyReportDraft") && JSON.parse(localStorage.getItem("dailyReportDraft")!).syncedDOs))) {
+        if (isInitialMount.current && ((initialData?.syncedDOs !== undefined) || (localStorage.getItem("dailyReportDraft") && JSON.parse(localStorage.getItem("dailyReportDraft")!).syncedDOs))) {
           // Do not overwrite syncedDOs if we just loaded them from draft or edit
         } else {
           setSyncedDOs(res.data.todayDOs)

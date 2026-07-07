@@ -128,7 +128,15 @@ export async function createDailyReport(data: any) {
               labelType: d.doNumber
             }));
 
-            return [...sources, ...usages, ...holds, ...transferIns]
+            const flags = sectionKey === "BOTTLE" && Array.isArray(data.syncedDOs) ? [{
+              sectionKey: "SYSTEM",
+              type: "TransferInFlag",
+              batchNo: "FLAG",
+              bags: 0,
+              mult: 0
+            }] : [];
+
+            return [...sources, ...usages, ...holds, ...transferIns, ...flags]
           })
         },
 
@@ -530,7 +538,15 @@ export async function updateDailyReport(id: string, data: any) {
                 labelType: d.doNumber
               }));
 
-              return [...sources, ...usages, ...holds, ...transferIns]
+              const flags = sectionKey === "BOTTLE" && Array.isArray(data.syncedDOs) ? [{
+                sectionKey: "SYSTEM",
+                type: "TransferInFlag",
+                batchNo: "FLAG",
+                bags: 0,
+                mult: 0
+              }] : [];
+
+              return [...sources, ...usages, ...holds, ...transferIns, ...flags]
             })
           },
 

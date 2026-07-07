@@ -104,8 +104,13 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
   })
 
   // Populate Inventory
-  initialData.syncedDOs = [];
+  const hasExplicitTransferIns = report.inventory.some((i: any) => i.type === "TransferIn" || i.type === "TransferInFlag");
+  if (hasExplicitTransferIns) {
+    initialData.syncedDOs = [];
+  }
+  
   report.inventory.forEach(i => {
+    if (i.type === "TransferInFlag") return;
     if (i.type === "TransferIn") {
       let category = "";
       if (i.sectionKey === "CAP") category = "CAP";

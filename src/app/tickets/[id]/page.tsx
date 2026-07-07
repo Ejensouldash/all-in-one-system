@@ -32,7 +32,15 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
     )
   }
 
-  const itStaffList = isSuperAdmin ? await prisma.user.findMany({ where: { role: "SUPERADMIN" } }) : []
+  const itStaffList = isSuperAdmin ? await prisma.user.findMany({ 
+    where: { 
+      OR: [
+        { role: "SUPERADMIN" },
+        { unit: { name: "Information Technology" } }
+      ]
+    },
+    orderBy: { name: 'asc' }
+  }) : []
   const costCatalog = isSuperAdmin ? await prisma.costCatalog.findMany({ orderBy: { itemName: 'asc' } }) : []
 
   return (

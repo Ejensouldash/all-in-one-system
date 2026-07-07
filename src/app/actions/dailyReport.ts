@@ -71,7 +71,7 @@ export async function createDailyReport(data: any) {
         // Breakdowns
         breakdowns: {
           create: (data.breakdowns || []).map((b: any) => ({
-            section: b.section,
+            section: b.section === "others" && b.customSection ? b.customSection : b.section,
             downtime: Number(b.downtime) || 0,
             reason: b.reason || ""
           }))
@@ -474,7 +474,7 @@ export async function updateDailyReport(id: string, data: any) {
 
           breakdowns: {
             create: (data.breakdowns || []).map((b: any) => ({
-              section: b.section,
+              section: b.section === "others" && b.customSection ? b.customSection : b.section,
               downtime: Number(b.downtime) || 0,
               reason: b.reason || ""
             }))

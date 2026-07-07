@@ -667,9 +667,9 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
                   <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1">Section</label>
                   <select {...register(`breakdowns.${index}.section`)} className="w-full p-2 border-2 border-black bg-white font-bold outline-none focus:ring-2 focus:ring-black">
                     <option value="autoscrambler">autoscrambler</option>
-                    <option value="rinsing">rinsing</option>
-                    <option value="filling">filling</option>
-                    <option value="capping">capping</option>
+                    <option value="rinsing 3 in 1">rinsing 3 in 1</option>
+                    <option value="filling 3 in 1">filling 3 in 1</option>
+                    <option value="capping 3 in 1">capping 3 in 1</option>
                     <option value="blower">blower</option>
                     <option value="buffer area">buffer area</option>
                     <option value="conveyor">conveyor</option>
@@ -677,7 +677,11 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
                     <option value="laser printer">laser printer</option>
                     <option value="sealer machine">sealer machine</option>
                     <option value="robotic arm">robotic arm</option>
+                    <option value="others">others</option>
                   </select>
+                  {watch(`breakdowns.${index}.section`) === "others" && (
+                    <input type="text" {...register(`breakdowns.${index}.customSection`)} placeholder="Specify section" className="mt-2 w-full p-2 border-2 border-black bg-white font-bold outline-none focus:ring-2 focus:ring-black" />
+                  )}
                 </div>
                 <div className="w-full md:w-[20%]">
                   <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1">Downtime (Minutes)</label>

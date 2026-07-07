@@ -58,7 +58,13 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
       label: { before: 0, after: 0 },
       box: { before: 0, after: 0 },
     },
-    breakdowns: report.breakdowns || [],
+    breakdowns: (report.breakdowns || []).map(b => {
+      const predefined = ["autoscrambler", "rinsing 3 in 1", "filling 3 in 1", "capping 3 in 1", "blower", "buffer area", "conveyor", "label machine", "laser printer", "sealer machine", "robotic arm", "others"];
+      if (predefined.includes(b.section)) {
+        return b;
+      }
+      return { ...b, section: "others", customSection: b.section };
+    }),
 
     inventory: {
       BOTTLE: { sources: [], usages: [] },

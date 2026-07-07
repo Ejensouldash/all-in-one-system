@@ -93,7 +93,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
   const watchNoRejects = watch("noRejects")
   const watchInventory = watch("inventory")
 
-  const [syncedDOs, setSyncedDOs] = useState<any[]>([])
+  const [syncedDOs, setSyncedDOs] = useState<any[]>(initialData?.syncedDOs || [])
   const [allTodayDOs, setAllTodayDOs] = useState<any[]>([])
   const [availableCarryForward, setAvailableCarryForward] = useState<any[]>([])
   const [isFetchingSync, setIsFetchingSync] = useState(true)

@@ -59,7 +59,7 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
       box: { before: 0, after: 0 },
     },
     breakdowns: (report.breakdowns || []).map(b => {
-      const predefined = ["autoscrambler", "rinsing 3 in 1", "filling 3 in 1", "capping 3 in 1", "blower", "buffer area", "conveyor", "label machine", "laser printer", "sealer machine", "robotic arm", "others"];
+      const predefined = ["autoscrambler", "3 in 1", "rinsing 3 in 1", "filling 3 in 1", "capping 3 in 1", "blower", "buffer area", "conveyor", "label machine", "laser printer", "sealer machine", "robotic arm", "others"];
       if (predefined.includes(b.section)) {
         return b;
       }

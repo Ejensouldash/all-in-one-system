@@ -667,6 +667,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
                   <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1">Section</label>
                   <select {...register(`breakdowns.${index}.section`)} className="w-full p-2 border-2 border-black bg-white font-bold outline-none focus:ring-2 focus:ring-black">
                     <option value="autoscrambler">autoscrambler</option>
+                    <option value="3 in 1">3 in 1</option>
                     <option value="rinsing 3 in 1">rinsing 3 in 1</option>
                     <option value="filling 3 in 1">filling 3 in 1</option>
                     <option value="capping 3 in 1">capping 3 in 1</option>

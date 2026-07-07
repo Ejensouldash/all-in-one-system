@@ -44,7 +44,7 @@ jobs:
           
           # Run pg_dump and compress on the fly
           # Includes schema, data, auth, roles, etc.
-          pg_dump "$DATABASE_URL" --clean --if-exists --no-owner --no-privileges | gzip > "$FILENAME"
+          /usr/lib/postgresql/17/bin/pg_dump "$DATABASE_URL" --clean --if-exists --no-owner --no-privileges | gzip > "$FILENAME"
           
           echo "FILENAME=${FILENAME}" >> $GITHUB_ENV
 

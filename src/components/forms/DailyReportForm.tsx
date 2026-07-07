@@ -516,8 +516,9 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
                 </thead>
                 <tbody>
                   {(() => {
-                    const itemsToRender = ['CAP', 'BOTTLE', 'LABEL', 'BOX'];
-                    
+                    const baseItems = ['CAP', 'BOTTLE', 'LABEL'];
+                    const activeBoxItems = (PRODUCTION_CONFIG[watchLine as keyof typeof PRODUCTION_CONFIG] || []).map(prod => `BOX_${prod.id}`);
+                    const itemsToRender = [...baseItems, ...activeBoxItems];
                     return itemsToRender.map((item) => {
                       const lowerItem = item.toLowerCase() as any;
                       const displayItem = item.startsWith('BOX_') 
@@ -1344,11 +1345,11 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
               <div className="flex gap-4 items-center">
                 <div className="flex-1 bg-white p-2 border border-red-200">
                   <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">Before (Pcs)</label>
-                  <input type="number" min="0" {...register(`rejectsScrap.${sectionKey.startsWith("BOX") ? "box" : sectionKey.toLowerCase()}.before`)} disabled={watch('noRejects')} onFocus={(e) => e.target.select()} onWheel={(e) => (e.target as HTMLElement).blur()} className="w-full p-2 border border-red-300 text-center font-bold text-sm outline-none focus:border-red-600 focus:bg-red-50 text-red-700" />
+                  <input type="number" min="0" {...register(`rejectsScrap.${sectionKey.toLowerCase()}.before`)} disabled={watch('noRejects')} onFocus={(e) => e.target.select()} onWheel={(e) => (e.target as HTMLElement).blur()} className="w-full p-2 border border-red-300 text-center font-bold text-sm outline-none focus:border-red-600 focus:bg-red-50 text-red-700" />
                 </div>
                 <div className="flex-1 bg-white p-2 border border-red-200">
                   <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">After (Pcs)</label>
-                  <input type="number" min="0" {...register(`rejectsScrap.${sectionKey.startsWith("BOX") ? "box" : sectionKey.toLowerCase()}.after`)} disabled={watch('noRejects')} onFocus={(e) => e.target.select()} onWheel={(e) => (e.target as HTMLElement).blur()} className="w-full p-2 border border-red-300 text-center font-bold text-sm outline-none focus:border-red-600 focus:bg-red-50 text-red-700" />
+                  <input type="number" min="0" {...register(`rejectsScrap.${sectionKey.toLowerCase()}.after`)} disabled={watch('noRejects')} onFocus={(e) => e.target.select()} onWheel={(e) => (e.target as HTMLElement).blur()} className="w-full p-2 border border-red-300 text-center font-bold text-sm outline-none focus:border-red-600 focus:bg-red-50 text-red-700" />
                 </div>
               </div>
             </div>

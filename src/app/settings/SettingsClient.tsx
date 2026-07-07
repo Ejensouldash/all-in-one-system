@@ -167,7 +167,7 @@ export function BackupRestorePanel() {
             {isLoadingBackups ? (
               <div className="text-sm text-emerald-600 font-medium animate-pulse">Loading backups...</div>
             ) : sqlBackups.length > 0 ? (
-              <div className="overflow-hidden bg-white border border-emerald-200 rounded-md shadow-sm">
+              <div className="overflow-x-auto bg-white border border-emerald-200 rounded-md shadow-sm">
                 <table className="min-w-full divide-y divide-gray-200 text-sm text-left">
                   <thead className="bg-emerald-50 text-emerald-800">
                     <tr>

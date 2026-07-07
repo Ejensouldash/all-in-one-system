@@ -3,7 +3,7 @@
 import { useForm, useFieldArray, useWatch, Control, UseFormRegister } from "react-hook-form"
 import { Plus, Trash2, Save, ArrowLeft, Info, AlertTriangle, CheckCircle2, CloudDownload, Loader2, History, PenTool } from "lucide-react"
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { getActiveInventory, createDailyReport, updateDailyReport } from "@/app/actions/dailyReport"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
 

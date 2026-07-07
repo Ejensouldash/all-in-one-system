@@ -516,11 +516,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
                 </thead>
                 <tbody>
                   {(() => {
-                    const baseItems = ['CAP', 'BOTTLE', 'LABEL'];
-                    const activeBoxItems = (PRODUCTION_CONFIG[watchLine as keyof typeof PRODUCTION_CONFIG] || [])
-                      .filter(prod => productionCheckboxes[prod.id as keyof typeof productionCheckboxes]?.checked)
-                      .map(prod => `BOX_${prod.id}`);
-                    const itemsToRender = [...baseItems, ...(activeBoxItems.length > 0 ? activeBoxItems : ['BOX'])];
+                    const itemsToRender = ['CAP', 'BOTTLE', 'LABEL', 'BOX'];
                     
                     return itemsToRender.map((item) => {
                       const lowerItem = item.toLowerCase() as any;
@@ -616,7 +612,6 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
 
           {(PRODUCTION_CONFIG[watchLine as keyof typeof PRODUCTION_CONFIG] || []).map(prod => {
             const isChecked = productionCheckboxes[prod.id as keyof typeof productionCheckboxes]?.checked
-            if (!isChecked) return null;
             
             const size = prod.id.replace("p", "").split("_")[0];
             const pack = prod.id.split("_")[1];

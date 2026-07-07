@@ -173,15 +173,17 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
     })
 
     // Helper: extract the calendar date (YYYY-MM-DD) from a stored Date.
-    // receiveDate / report.date are stored as MIDNIGHT UTC of a calendar date, and the
-    // client sends "YYYY-MM-DD" strings, so we must read the UTC date components. This is
-    // timezone-independent (correct on UTC, +08, or any server) and stays consistent with
-    // the report view which matches transfer-in by exact UTC date.
-    const toDateStr = (d: Date) => new Date(d).toISOString().split('T')[0]
+    // By adding 8 hours (Malaysia Time, GMT+8), we ensure that whether the date 
+    // was saved as Midnight UTC (from YYYY-MM-DD string) or local Malaysia time
+    // (from a datepicker), it will correctly resolve to the intended local calendar date.
+    const toMalaysiaDateStr = (d: Date) => {
+      const offsetDate = new Date(new Date(d).getTime() + 8 * 60 * 60 * 1000)
+      return offsetDate.toISOString().split('T')[0]
+    }
 
     // Helper: was this Transfer In item RECEIVED TODAY (on the report date) and does it match the shift?
     const isReceivedToday = (item: any) => {
-      if (toDateStr(item.transferIn.receiveDate) !== reportDateString) return false
+      if (toMalaysiaDateStr(item.transferIn.receiveDate) !== reportDateString) return false
       // Filter by shift if provided (assuming PM shift starts at 19:00 / 7:00 PM)
       if (shift && item.transferIn.receiveTime) {
         const hour = parseInt(item.transferIn.receiveTime.split(':')[0], 10)
@@ -598,17 +600,13 @@ export async function getApprovedDailyReportsByDateRange(startDate: string, endD
   try {
     const start = new Date(startDate)
     start.setHours(0, 0, 0, 0)
-    
     const end = new Date(endDate)
     end.setHours(23, 59, 59, 999)
 
     const reports = await prisma.dailyReport.findMany({
       where: {
-        status: "APPROVED",
-        date: {
-          gte: start,
-          lte: end
-        }
+        date: { gte: start, lte: end },
+        status: "APPROVED"
       },
       include: {
         productions: { include: { batches: true } },
@@ -618,10 +616,36 @@ export async function getApprovedDailyReportsByDateRange(startDate: string, endD
       },
       orderBy: { date: 'asc' }
     })
-    
+
     return { success: true, data: reports }
   } catch (error: any) {
     console.error("Failed to fetch approved reports:", error)
     return { success: false, error: error.message }
   }
 }
+
+export async function deleteDailyReport(id: string) {
+  const session = await auth()
+  if (!session) return { success: false, error: "Unauthorized" }
+
+  const user = session.user as any
+  if (user.trueRole !== "SUPERADMIN" && user.trueRole !== "SUPERVISOR") {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  try {
+    // InventoryLog has onDelete: Cascade, so deleting the report 
+    // will delete the logs and restore stock automatically
+    await prisma.dailyReport.delete({
+      where: { id }
+    })
+
+    revalidatePath("/forms")
+    revalidatePath("/forms/production/daily-report")
+    
+    return { success: true }
+  } catch (error: any) {
+    console.error("Failed to delete report:", error)
+    return { success: false, error: error.message }
+  }
+}  

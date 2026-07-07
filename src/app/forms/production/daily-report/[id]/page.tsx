@@ -6,6 +6,7 @@ import Link from "next/link"
 import { ArrowLeft, CheckCircle2, AlertTriangle, Save, ClipboardList, Package } from "lucide-react"
 import { PrintButton } from "@/components/ui/PrintButton"
 import { ApprovalSignatureModal } from "@/components/forms/ApprovalSignatureModal"
+import { DeleteReportButton } from "@/components/forms/DeleteReportButton"
 import { ExportDailyReportButton } from "@/components/forms/ExportDailyReportButton"
 import { SharePDFButton } from "@/components/ui/SharePDFButton"
 import { prisma } from "@/lib/prisma"
@@ -52,12 +53,25 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
   const getInventoryForSection = (key: string) => report.inventory.filter((i: any) => i.sectionKey === key)
 
   // Fetch Transfer In for the same date.
-  // Both receiveDate and report.date are stored as midnight UTC of a calendar date,
-  // so an exact equality match is correct here.
-  let transferIns = await prisma.transferIn.findMany({
-    where: { receiveDate: report.date },
+  // Because receiveDate might be saved as UTC Midnight or GMT+8 depending on the input method,
+  // we fetch a 48h window and filter exactly in Malaysia Time (GMT+8) to prevent DOs from disappearing.
+  const toMalaysiaDateStr = (d: Date) => {
+    const offsetDate = new Date(new Date(d).getTime() + 8 * 60 * 60 * 1000)
+    return offsetDate.toISOString().split('T')[0]
+  }
+  const reportDateStr = toMalaysiaDateStr(report.date)
+
+  const startDate = new Date(report.date.getTime() - 24 * 60 * 60 * 1000)
+  const endDate = new Date(report.date.getTime() + 24 * 60 * 60 * 1000)
+
+  let allTransferIns = await prisma.transferIn.findMany({
+    where: { 
+      receiveDate: { gte: startDate, lte: endDate }
+    },
     include: { items: true }
   })
+
+  let transferIns = allTransferIns.filter(doItem => toMalaysiaDateStr(doItem.receiveDate) === reportDateStr)
   
   if (report.shift) {
     transferIns = transferIns.filter((ti: any) => {
@@ -105,6 +119,9 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {((session.user as any).trueRole === "SUPERADMIN" || (session.user as any).trueRole === "SUPERVISOR") && (
+            <DeleteReportButton reportId={report.id} />
+          )}
           {(report.status === "PENDING" || report.status === "REJECTED" || report.status === "DRAFT") && (
             <>
               {report.status === "PENDING" && ((session.user as any).trueRole === "SUPERVISOR" || (session.user as any).trueRole === "SUPERADMIN") && (

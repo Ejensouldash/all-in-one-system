@@ -589,6 +589,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             availableCarryForward={availableCarryForward.filter(b => b.category.includes("BOTTLE") && b.category.includes(watchLine.includes("800") ? "800" : "425"))}
             multipliers={watchLine.includes("800") ? MULTIPLIERS.BOTTLE_800 : MULTIPLIERS.BOTTLE_425}
             syncedDOs={syncedDOs.filter(d => d.category.includes("BOTTLE") && d.category.includes(watchLine.includes("800") ? "800" : "425"))}
+            availableDOsToSync={allTodayDOs.filter(d => d.category.includes("BOTTLE") && d.category.includes(watchLine.includes("800") ? "800" : "425"))}
           />
           
           <AdvancedInventorySection 
@@ -599,6 +600,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             multipliers={watchLine.includes("800") ? [6451] : [8547]}
             isLabel={true}
             syncedDOs={syncedDOs.filter(d => d.category.includes("LABEL") && (watchLine.includes("800") ? d.batchNo.startsWith("8S") : d.batchNo.startsWith("4S")))}
+            availableDOsToSync={allTodayDOs.filter(d => d.category.includes("LABEL") && (watchLine.includes("800") ? d.batchNo.startsWith("8S") : d.batchNo.startsWith("4S")))}
           />
 
           <AdvancedInventorySection 
@@ -626,6 +628,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
                 availableCarryForward={availableCarryForward.filter(b => b.category.includes("BOX") && !b.category.includes("CARTON") && b.category.includes(size) && b.category.includes(pack))}
                 multipliers={[1]} 
                 syncedDOs={syncedDOs.filter(d => d.category.includes("BOX") && !d.category.includes("CARTON") && d.category.includes(size) && d.category.includes(pack))}
+                availableDOsToSync={allTodayDOs.filter(d => d.category.includes("BOX") && !d.category.includes("CARTON") && d.category.includes(size) && d.category.includes(pack))}
               />
             )
           })}

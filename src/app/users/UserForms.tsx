@@ -57,6 +57,10 @@ export function AddUserForm({ branches, units }: { branches: any[], units: any[]
             <input type="email" name="email" required className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm outline-none focus:ring-1 focus:ring-blue-500" />
           </div>
           <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Google Calendar Email (Optional)</label>
+            <input type="email" name="googleEmail" placeholder="For event auto-sync" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm outline-none focus:ring-1 focus:ring-blue-500" />
+          </div>
+          <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
             <select name="role" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm outline-none focus:ring-1 focus:ring-blue-500 bg-white">
               <option value="STAFF">Staff (Standard)</option>
@@ -195,6 +199,10 @@ function EditProfileForm({ user, branches, units, onClose }: { user: any, branch
           <input type="email" name="email" defaultValue={user.email} required className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm outline-none focus:ring-1 focus:ring-blue-500" />
         </div>
         <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Google Calendar Email (Optional)</label>
+          <input type="email" name="googleEmail" defaultValue={user.googleEmail || ""} placeholder="For event auto-sync" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm outline-none focus:ring-1 focus:ring-blue-500" />
+        </div>
+        <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
           <select name="role" defaultValue={user.role} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm outline-none focus:ring-1 focus:ring-blue-500 bg-white">
             <option value="STAFF">Staff (Standard)</option>
@@ -202,7 +210,6 @@ function EditProfileForm({ user, branches, units, onClose }: { user: any, branch
             <option value="SUPERADMIN">SuperAdmin</option>
           </select>
         </div>
-        <div className="hidden md:block"></div>
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">Branch</label>
           <select name="branchId" value={selectedBranch} onChange={(e) => setSelectedBranch(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm outline-none focus:ring-1 focus:ring-blue-500 bg-white">

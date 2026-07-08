@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { revalidatePath } from "next/cache"
+import { createGoogleEvent, deleteGoogleEvent } from "@/lib/google-calendar"
 
 export async function createEvent(formData: FormData) {
   const session = await auth()
@@ -26,6 +27,29 @@ export async function createEvent(formData: FormData) {
   }
 
   try {
+    // Collect attendee emails for Google Calendar invites
+    let attendeeEmails: string[] = []
+    
+    // Add creator's email if they have one
+    const creator = await prisma.user.findUnique({ where: { id: session.user.id } })
+    if (creator?.googleEmail) attendeeEmails.push(creator.googleEmail)
+    
+    // Add assignee's email if assigned
+    if (assigneeId) {
+      const assignee = await prisma.user.findUnique({ where: { id: assigneeId } })
+      if (assignee?.googleEmail) attendeeEmails.push(assignee.googleEmail)
+    }
+
+    // 1. Sync with Google Calendar
+    const googleEventId = await createGoogleEvent({
+      title,
+      description,
+      startDateTime,
+      endDateTime,
+      attendeeEmails
+    })
+
+    // 2. Save to database
     await prisma.event.create({
       data: {
         title,
@@ -33,7 +57,8 @@ export async function createEvent(formData: FormData) {
         startDateTime,
         endDateTime,
         assigneeId: assigneeId || null,
-        createdById: session.user.id
+        createdById: session.user.id,
+        googleEventId: googleEventId
       }
     })
     
@@ -50,6 +75,11 @@ export async function deleteEvent(id: string) {
   if (session?.user.role !== "SUPERADMIN") return { success: false, error: "Unauthorized" }
 
   try {
+    const event = await prisma.event.findUnique({ where: { id } })
+    if (event?.googleEventId) {
+      await deleteGoogleEvent(event.googleEventId)
+    }
+
     await prisma.event.delete({ where: { id } })
     revalidatePath("/calendar")
     revalidatePath("/dashboard")

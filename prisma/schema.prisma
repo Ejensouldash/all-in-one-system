@@ -17,6 +17,7 @@ model User {
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
   modules           String[]                @default([])
+  googleEmail       String?
   dailyReports      DailyReport[]           @relation("DailyReportCreator")
   createdDOs        DistributionOrder[]     @relation("DOCreator")
   assignedEvents    Event[]                 @relation("EventAssignee")
@@ -198,6 +199,7 @@ model Event {
   endDateTime   DateTime
   assigneeId    String?
   createdById   String
+  googleEventId String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   assignee      User?    @relation("EventAssignee", fields: [assigneeId], references: [id])

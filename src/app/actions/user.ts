@@ -14,6 +14,7 @@ export async function createUser(formData: FormData) {
   const role = formData.get("role") as any
   const branchId = formData.get("branchId") as string
   const unitId = formData.get("unitId") as string
+  const googleEmail = formData.get("googleEmail") as string
   const plainPassword = formData.get("password") as string || "P@ssword123"
 
   if (!name || !email) return { success: false, error: "Name and email are required" }
@@ -31,7 +32,8 @@ export async function createUser(formData: FormData) {
         password: hashedPassword,
         role: role || "STAFF",
         branchId: branchId || null,
-        unitId: unitId || null
+        unitId: unitId || null,
+        googleEmail: googleEmail || null
       }
     })
     
@@ -72,6 +74,7 @@ export async function updateUser(id: string, formData: FormData) {
   const role = formData.get("role") as any
   const branchId = formData.get("branchId") as string
   const unitId = formData.get("unitId") as string
+  const googleEmail = formData.get("googleEmail") as string
 
   if (!name || !email) return { success: false, error: "Name and email are required" }
 
@@ -86,7 +89,8 @@ export async function updateUser(id: string, formData: FormData) {
         email,
         role: role || "STAFF",
         branchId: branchId || null,
-        unitId: unitId || null
+        unitId: unitId || null,
+        googleEmail: googleEmail || null
       }
     })
     

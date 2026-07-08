@@ -2,7 +2,6 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { CalendarDays, Sparkles } from "lucide-react"
-import { format } from "date-fns"
 import { InteractiveCalendar } from "@/components/calendar/InteractiveCalendar"
 
 export default async function EventCalendarPage() {
@@ -31,7 +30,14 @@ export default async function EventCalendarPage() {
     orderBy: { name: "asc" },
   })
 
-  const today = new Date()
+  // Render "Today" in Malaysia time (server runs in UTC on Vercel)
+  const todayLabel = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kuala_Lumpur",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date())
 
   return (
     <div className="animate-in fade-in space-y-5 pb-20 duration-500">
@@ -59,7 +65,7 @@ export default async function EventCalendarPage() {
             <Sparkles className="h-4 w-4 text-blue-100" />
             <div>
               <div className="text-[11px] font-semibold uppercase tracking-wide text-blue-100">Today</div>
-              <div className="text-sm font-bold text-white">{format(today, "EEE, d MMM yyyy")}</div>
+              <div className="text-sm font-bold text-white">{todayLabel}</div>
             </div>
           </div>
         </div>

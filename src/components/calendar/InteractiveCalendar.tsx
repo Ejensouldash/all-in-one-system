@@ -30,6 +30,10 @@ import {
   CalendarClock,
   Sparkles,
   Users,
+  CalendarCheck,
+  Check,
+  CircleAlert,
+  Zap,
 } from "lucide-react"
 import {
   normalizeEvents,
@@ -41,7 +45,13 @@ import {
 } from "./calendar-utils"
 import { MonthView, WeekView, DayView } from "./CalendarViews"
 import { EventFormModal, EventViewModal, DeleteConfirmModal } from "./CalendarDialogs"
-import { addEvent, updateEvent, deleteEvent, respondToInvite } from "@/app/actions/calendar"
+import {
+  addEvent,
+  updateEvent,
+  deleteEvent,
+  respondToInvite,
+  testGoogleCalendarConnection,
+} from "@/app/actions/calendar"
 import "./CalendarCSS.css"
 
 const cn = (...a) => a.filter(Boolean).join(" ")
@@ -94,6 +104,10 @@ export function InteractiveCalendar({ events: rawEvents, itStaff, allUsers = [],
   const [modal, setModal] = useState(null) // 'add' | 'edit' | 'view' | 'delete'
   const [selectedEventId, setSelectedEventId] = useState(null)
   const [slot, setSlot] = useState(null)
+
+  const [syncWarning, setSyncWarning] = useState("")
+  const [gTest, setGTest] = useState(null)
+  const [gTesting, setGTesting] = useState(false)
 
   const dateInputRef = useRef(null)
 
@@ -183,12 +197,18 @@ export function InteractiveCalendar({ events: rawEvents, itStaff, allUsers = [],
 
   const handleCreate = async (formData) => {
     const res = await addEvent(formData)
-    if (res?.success) closeModal()
+    if (res?.success) {
+      closeModal()
+      setSyncWarning(res.warning || "")
+    }
     return res
   }
   const handleUpdate = async (formData) => {
     const res = await updateEvent(selectedEventId, formData)
-    if (res?.success) closeModal()
+    if (res?.success) {
+      closeModal()
+      setSyncWarning(res.warning || "")
+    }
     return res
   }
   const handleDelete = async (event) => {
@@ -201,6 +221,19 @@ export function InteractiveCalendar({ events: rawEvents, itStaff, allUsers = [],
     return await respondToInvite(selectedEventId, status)
   }
 
+  const runGoogleTest = async () => {
+    setGTesting(true)
+    setGTest(null)
+    try {
+      const res = await testGoogleCalendarConnection()
+      setGTest(res)
+    } catch (e) {
+      setGTest({ configured: true, ok: false, error: e?.message || "Test failed" })
+    } finally {
+      setGTesting(false)
+    }
+  }
+
   const manualAdd = () => {
     const { start, end } = roundedNow()
     openAdd(start, end)
@@ -210,6 +243,20 @@ export function InteractiveCalendar({ events: rawEvents, itStaff, allUsers = [],
     <div className="flex flex-col gap-5 xl:flex-row">
       {/* ============================ Main ============================ */}
       <div className="min-w-0 flex-1">
+        {syncWarning && (
+          <div className="calendar-fade-in mb-3 flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+            <span className="flex-1">{syncWarning}</span>
+            <button
+              type="button"
+              onClick={() => setSyncWarning("")}
+              className="rounded-full p-1 text-amber-500 transition-colors hover:bg-amber-100"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
         <div className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
           {/* Toolbar */}
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -477,6 +524,61 @@ export function InteractiveCalendar({ events: rawEvents, itStaff, allUsers = [],
           <p className="mt-3 text-[11px] leading-relaxed text-gray-400">
             Categories are auto-detected from the event title to keep the schedule colour-coded.
           </p>
+        </div>
+
+        {/* Google Calendar Sync */}
+        <div className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div className="mb-1.5 flex items-center gap-2">
+            <CalendarCheck className="h-4 w-4 text-blue-600" />
+            <h3 className="text-sm font-bold text-gray-900">Google Calendar Sync</h3>
+          </div>
+          <p className="mb-3 text-[11px] leading-relaxed text-gray-400">
+            New events sync to Google Calendar automatically. Test the connection to see its status.
+          </p>
+          <button
+            type="button"
+            onClick={runGoogleTest}
+            disabled={gTesting}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-70"
+          >
+            {gTesting ? (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
+            ) : (
+              <Zap className="h-4 w-4 text-blue-600" />
+            )}
+            {gTesting ? "Testing..." : "Test connection"}
+          </button>
+
+          {gTest && (
+            <div
+              className={cn(
+                "calendar-fade-in mt-3 rounded-xl border p-3 text-xs",
+                gTest.ok ? "border-emerald-100 bg-emerald-50" : "border-rose-100 bg-rose-50"
+              )}
+            >
+              <div
+                className={cn(
+                  "flex items-center gap-1.5 font-bold",
+                  gTest.ok ? "text-emerald-700" : "text-rose-700"
+                )}
+              >
+                {gTest.ok ? <Check className="h-4 w-4" /> : <CircleAlert className="h-4 w-4" />}
+                {gTest.ok ? "Connected" : gTest.configured ? "Connection failed" : "Not configured"}
+              </div>
+              {gTest.calendarName && (
+                <div className="mt-1 text-gray-600">
+                  Calendar: <span className="font-semibold">{gTest.calendarName}</span>
+                </div>
+              )}
+              {gTest.serviceAccount && (
+                <div className="mt-0.5 break-all text-[10px] text-gray-500">{gTest.serviceAccount}</div>
+              )}
+              {gTest.error && <div className="mt-1 break-words text-rose-600">{gTest.error}</div>}
+              {gTest.hint && (
+                <div className="mt-2 rounded-lg bg-white/70 p-2 leading-relaxed text-gray-600">{gTest.hint}</div>
+              )}
+            </div>
+          )}
         </div>
       </aside>
 

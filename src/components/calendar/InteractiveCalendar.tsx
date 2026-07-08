@@ -1,272 +1,521 @@
-"use client"
 // @ts-nocheck
+"use client"
 
-import { useState } from 'react'
-import { Calendar, dateFnsLocalizer } from 'react-big-calendar'
-import { format, parse, startOfWeek, getDay } from 'date-fns'
-import { enUS } from 'date-fns/locale/en-US'
-import 'react-big-calendar/lib/css/react-big-calendar.css'
-import './CalendarCSS.css'
-import { X, Calendar as CalendarIcon, Clock, User } from 'lucide-react'
-import { addEvent } from '@/app/actions/calendar'
-
-const locales = {
-  'en-US': enUS,
-}
-
-const localizer = dateFnsLocalizer({
+import { useEffect, useMemo, useRef, useState } from "react"
+import {
   format,
-  parse,
   startOfWeek,
-  getDay,
-  locales,
-})
+  endOfWeek,
+  isSameMonth,
+  isToday,
+  isTomorrow,
+  addMonths,
+  subMonths,
+  addWeeks,
+  subWeeks,
+  addDays,
+  subDays,
+} from "date-fns"
+// (isSameDay intentionally not imported here; day comparisons live in the views)
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Search,
+  X,
+  CalendarDays,
+  LayoutGrid,
+  CalendarRange,
+  Clock,
+  CalendarClock,
+  Sparkles,
+  Users,
+} from "lucide-react"
+import {
+  normalizeEvents,
+  getWeekDays,
+  getTheme,
+  fmtTimeShort,
+  CATEGORY_ORDER,
+  CATEGORY_THEMES,
+} from "./calendar-utils"
+import { MonthView, WeekView, DayView } from "./CalendarViews"
+import { EventFormModal, EventViewModal, DeleteConfirmModal } from "./CalendarDialogs"
+import { addEvent, updateEvent, deleteEvent, respondToInvite } from "@/app/actions/calendar"
+import "./CalendarCSS.css"
 
-type InteractiveCalendarProps = {
-  events: any[]
-  itStaff: { id: string, name: string }[]
+const cn = (...a) => a.filter(Boolean).join(" ")
+const VIEWS = [
+  { key: "month", label: "Month", icon: LayoutGrid },
+  { key: "week", label: "Week", icon: CalendarRange },
+  { key: "day", label: "Day", icon: CalendarClock },
+]
+
+function roundedNow() {
+  const d = new Date()
+  d.setMinutes(0, 0, 0)
+  const end = new Date(d)
+  end.setHours(end.getHours() + 1)
+  return { start: d, end }
 }
 
-function CustomToolbar(toolbar: any) {
-  const date = toolbar.date
+function relativeDayLabel(d) {
+  if (isToday(d)) return "Today"
+  if (isTomorrow(d)) return "Tomorrow"
+  return format(d, "EEE, d MMM")
+}
 
-  return (
-    <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-      <div className="flex rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-        <button type="button" onClick={() => toolbar.onNavigate('TODAY')} className="px-4 py-2 bg-white hover:bg-gray-50 text-sm font-bold text-gray-700 border-r border-gray-200 transition-colors">Today</button>
-        <button type="button" onClick={() => toolbar.onNavigate('PREV')} className="px-4 py-2 bg-white hover:bg-gray-50 text-sm font-bold text-gray-700 border-r border-gray-200 transition-colors">Back</button>
-        <button type="button" onClick={() => toolbar.onNavigate('NEXT')} className="px-4 py-2 bg-white hover:bg-gray-50 text-sm font-bold text-gray-700 transition-colors">Next</button>
-      </div>
+/** Animated count-up for the stat numbers. */
+function CountUp({ value }) {
+  const [n, setN] = useState(0)
+  useEffect(() => {
+    let raf
+    const start = performance.now()
+    const dur = 650
+    const tick = (t) => {
+      const p = Math.min(1, (t - start) / dur)
+      const eased = 1 - Math.pow(1 - p, 3)
+      setN(Math.round(value * eased))
+      if (p < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [value])
+  return <>{n}</>
+}
 
-      <div className="flex-1 flex justify-center">
-        <div className="relative group">
-          <input 
-            type="month" 
-            value={format(date, 'yyyy-MM')}
-            onChange={(e) => {
-              if (!e.target.value) return
-              const [year, month] = e.target.value.split('-')
-              const newDate = new Date(Number(year), Number(month) - 1, 1)
-              toolbar.onNavigate('DATE', newDate)
-            }}
-            className="text-xl font-black text-gray-900 bg-transparent border-none outline-none cursor-pointer hover:bg-gray-50 px-4 py-2 rounded-xl transition-colors text-center w-auto appearance-none"
-            title="Click to jump to a specific month/year"
-          />
-        </div>
-      </div>
+export function InteractiveCalendar({ events: rawEvents, itStaff, allUsers = [], currentUserId }: any) {
+  const [view, setViewState] = useState("month")
+  const [date, setDate] = useState(() => new Date())
+  const [now, setNow] = useState(() => new Date())
+  const [query, setQuery] = useState("")
+  const [anim, setAnim] = useState("fade") // 'next' | 'prev' | 'fade'
 
-      <div className="flex rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-        <button type="button" className={`px-4 py-2 text-sm font-bold border-r border-gray-200 transition-colors ${toolbar.view === 'month' ? 'bg-blue-50 text-blue-700' : 'bg-white hover:bg-gray-50 text-gray-700'}`} onClick={() => toolbar.onView('month')}>Month</button>
-        <button type="button" className={`px-4 py-2 text-sm font-bold border-r border-gray-200 transition-colors ${toolbar.view === 'week' ? 'bg-blue-50 text-blue-700' : 'bg-white hover:bg-gray-50 text-gray-700'}`} onClick={() => toolbar.onView('week')}>Week</button>
-        <button type="button" className={`px-4 py-2 text-sm font-bold transition-colors ${toolbar.view === 'day' ? 'bg-blue-50 text-blue-700' : 'bg-white hover:bg-gray-50 text-gray-700'}`} onClick={() => toolbar.onView('day')}>Day</button>
-      </div>
+  const [modal, setModal] = useState(null) // 'add' | 'edit' | 'view' | 'delete'
+  const [selectedEventId, setSelectedEventId] = useState(null)
+  const [slot, setSlot] = useState(null)
 
-      <button type="button" onClick={toolbar.onAddClick} className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl shadow-sm transition-colors mt-2 sm:mt-0">
-        + Add Event
-      </button>
-    </div>
+  const dateInputRef = useRef(null)
+
+  // Tick the current-time indicator every minute
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 60000)
+    return () => clearInterval(t)
+  }, [])
+
+  const events = useMemo(() => normalizeEvents(rawEvents), [rawEvents])
+
+  // Derive the open event from the live list so edits/RSVP reflect instantly
+  const selectedEvent = useMemo(
+    () => events.find((e) => e.id === selectedEventId) ?? null,
+    [events, selectedEventId]
   )
-}
 
-export function InteractiveCalendar({ events, itStaff }: InteractiveCalendarProps) {
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
-  const [selectedSlot, setSelectedSlot] = useState<{ start: Date, end: Date } | null>(null)
-  const [selectedEvent, setSelectedEvent] = useState<any>(null)
-  const [isPending, setIsPending] = useState(false)
-  
-  // Controlled Calendar State
-  const [view, setView] = useState<any>('month')
-  const [date, setDate] = useState<Date>(new Date())
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return events
+    return events.filter(
+      (e) =>
+        e.title.toLowerCase().includes(q) ||
+        (e.description || "").toLowerCase().includes(q) ||
+        (e.assigneeName || "").toLowerCase().includes(q)
+    )
+  }, [events, query])
 
-  // Define a set of tailwind background colors for events
-  const EVENT_COLORS = [
-    'bg-blue-500 hover:bg-blue-600 border-blue-600',
-    'bg-emerald-500 hover:bg-emerald-600 border-emerald-600',
-    'bg-violet-500 hover:bg-violet-600 border-violet-600',
-    'bg-amber-500 hover:bg-amber-600 border-amber-600',
-    'bg-rose-500 hover:bg-rose-600 border-rose-600',
-    'bg-cyan-500 hover:bg-cyan-600 border-cyan-600',
-  ]
+  const weekDays = useMemo(() => getWeekDays(date), [date])
 
-  // Map events to react-big-calendar format
-  const calendarEvents = events.map((event, index) => ({
-    id: event.id,
-    title: event.title,
-    start: new Date(event.startDateTime),
-    end: new Date(event.endDateTime),
-    resource: event,
-    colorClass: EVENT_COLORS[index % EVENT_COLORS.length]
-  }))
+  const upcoming = useMemo(
+    () => filtered.filter((e) => e.end >= now).slice(0, 6),
+    [filtered, now]
+  )
 
-  const handleSelectSlot = (slotInfo: { start: Date, end: Date }) => {
-    setSelectedSlot(slotInfo)
-    setIsAddModalOpen(true)
-  }
+  const stats = useMemo(() => {
+    const monthCount = events.filter((e) => isSameMonth(e.start, date)).length
+    const upcomingCount = events.filter((e) => e.end >= now).length
+    return { total: events.length, monthCount, upcomingCount }
+  }, [events, date, now])
 
-  const handleManualAddClick = () => {
-    const now = new Date()
-    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000)
-    setSelectedSlot({ start: now, end: oneHourLater })
-    setIsAddModalOpen(true)
-  }
-
-  const eventStyleGetter = (event: any) => {
-    return {
-      className: `${event.colorClass} border-0 shadow-sm`,
-      style: {
-        color: 'white',
-        fontWeight: 'bold',
-        fontSize: '0.75rem',
-        borderRadius: '6px'
-      }
+  /* --------------------------- navigation --------------------------- */
+  function navigate(dir) {
+    if (dir === 0) {
+      setAnim("fade")
+      return setDate(new Date())
     }
-  }
-
-  const handleSelectEvent = (event: any) => {
-    setSelectedEvent(event.resource)
-    setIsViewModalOpen(true)
-  }
-
-  const handleAddSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsPending(true)
-    try {
-      const formData = new FormData(e.currentTarget)
-      await addEvent(formData)
-      setIsAddModalOpen(false)
-    } catch (error) {
-      console.error(error)
-      alert("Failed to add event")
-    } finally {
-      setIsPending(false)
+    setAnim(dir > 0 ? "next" : "prev")
+    const fns = {
+      month: dir > 0 ? addMonths : subMonths,
+      week: dir > 0 ? addWeeks : subWeeks,
+      day: dir > 0 ? addDays : subDays,
     }
+    setDate((d) => fns[view](d, 1))
+  }
+
+  function changeView(v) {
+    setAnim("fade")
+    setViewState(v)
+  }
+
+  function periodLabel() {
+    if (view === "month") return format(date, "MMMM yyyy")
+    if (view === "day") return format(date, "EEEE, d MMM yyyy")
+    const ws = startOfWeek(date, { weekStartsOn: 0 })
+    const we = endOfWeek(date, { weekStartsOn: 0 })
+    if (isSameMonth(ws, we)) return `${format(ws, "d")} – ${format(we, "d MMM yyyy")}`
+    const sameYear = ws.getFullYear() === we.getFullYear()
+    return `${format(ws, sameYear ? "d MMM" : "d MMM yyyy")} – ${format(we, "d MMM yyyy")}`
+  }
+
+  /* ----------------------------- handlers --------------------------- */
+  const openAdd = (start, end) => {
+    setSlot({ start, end })
+    setModal("add")
+  }
+  const openView = (event) => {
+    setSelectedEventId(event.id)
+    setModal("view")
+  }
+  const gotoDay = (day) => {
+    setAnim("fade")
+    setDate(day)
+    setViewState("day")
+  }
+  const closeModal = () => setModal(null)
+
+  const handleCreate = async (formData) => {
+    const res = await addEvent(formData)
+    if (res?.success) closeModal()
+    return res
+  }
+  const handleUpdate = async (formData) => {
+    const res = await updateEvent(selectedEventId, formData)
+    if (res?.success) closeModal()
+    return res
+  }
+  const handleDelete = async (event) => {
+    const res = await deleteEvent(event.id)
+    if (res?.success) closeModal()
+    return res
+  }
+  const handleRespond = async (status) => {
+    // Keep the view modal open; the RSVP reflects live via revalidation
+    return await respondToInvite(selectedEventId, status)
+  }
+
+  const manualAdd = () => {
+    const { start, end } = roundedNow()
+    openAdd(start, end)
   }
 
   return (
-    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-      
-      <Calendar
-        localizer={localizer}
-        events={calendarEvents}
-        startAccessor="start"
-        endAccessor="end"
-        style={{ height: '70vh', minHeight: 500 }}
-        selectable
-        onSelectSlot={handleSelectSlot}
-        onSelectEvent={handleSelectEvent}
-        view={view}
-        onView={setView}
-        date={date}
-        onNavigate={setDate}
-        views={['month', 'week', 'day']}
-        popup
-        eventPropGetter={eventStyleGetter}
-        components={{
-          toolbar: (props) => <CustomToolbar {...props} onAddClick={handleManualAddClick} />
-        }}
-        className="font-sans"
-      />
+    <div className="flex flex-col gap-5 xl:flex-row">
+      {/* ============================ Main ============================ */}
+      <div className="min-w-0 flex-1">
+        <div className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+          {/* Toolbar */}
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate(0)}
+                className="rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+              >
+                Today
+              </button>
+              <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => navigate(-1)}
+                  className="rounded-l-xl p-2 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-800"
+                  aria-label="Previous"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <div className="h-5 w-px bg-gray-200" />
+                <button
+                  type="button"
+                  onClick={() => navigate(1)}
+                  className="rounded-r-xl p-2 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-800"
+                  aria-label="Next"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </div>
 
-      {/* Add Event Modal */}
-      {isAddModalOpen && selectedSlot && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-              <h3 className="font-bold text-gray-900 text-lg">Add New Event</h3>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-full p-2 transition-colors">
-                <X className="w-5 h-5" />
+              <div className="relative flex items-center">
+                <h2 className="ml-1 text-lg font-black tracking-tight text-gray-900 sm:text-xl">
+                  {periodLabel()}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      dateInputRef.current?.showPicker?.()
+                    } catch {
+                      dateInputRef.current?.focus?.()
+                    }
+                  }}
+                  className="ml-1.5 rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-blue-600"
+                  aria-label="Jump to date"
+                >
+                  <CalendarDays className="h-4 w-4" />
+                </button>
+                <input
+                  ref={dateInputRef}
+                  type="date"
+                  value={format(date, "yyyy-MM-dd")}
+                  onChange={(e) => e.target.value && setDate(new Date(e.target.value))}
+                  className="pointer-events-none absolute left-0 top-full h-0 w-0 opacity-0"
+                  tabIndex={-1}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Search */}
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search events..."
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2 pl-9 pr-8 text-sm outline-none transition-shadow focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-500/20 sm:w-48"
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* View switcher */}
+              <div className="flex items-center rounded-xl border border-gray-200 bg-gray-50 p-1">
+                {VIEWS.map((v) => {
+                  const Icon = v.icon
+                  const active = view === v.key
+                  return (
+                    <button
+                      key={v.key}
+                      type="button"
+                      onClick={() => changeView(v.key)}
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-all active:scale-95",
+                        active
+                          ? "bg-white text-blue-600 shadow-sm ring-1 ring-blue-100"
+                          : "text-gray-500 hover:text-gray-800"
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span className="hidden sm:inline">{v.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <button
+                type="button"
+                onClick={manualAdd}
+                className="calendar-btn-glow flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition-all hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/25 active:scale-95"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Add Event</span>
               </button>
             </div>
-            
-            <form onSubmit={handleAddSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Event Title</label>
-                <input name="title" required type="text" className="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Server Maintenance" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Start Time</label>
-                  <input name="startDateTime" required type="datetime-local" defaultValue={format(selectedSlot.start, "yyyy-MM-dd'T'HH:mm")} className="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 outline-none" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">End Time</label>
-                  <input name="endDateTime" required type="datetime-local" defaultValue={format(selectedSlot.end, "yyyy-MM-dd'T'HH:mm")} className="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 outline-none" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Assign To (Optional)</label>
-                <select name="assigneeId" className="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 outline-none">
-                  <option value="">-- Unassigned --</option>
-                  {itStaff.map(staff => (
-                    <option key={staff.id} value={staff.id}>{staff.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Description</label>
-                <textarea name="description" rows={3} className="w-full border border-gray-200 rounded-xl p-3 bg-gray-50 outline-none resize-none" placeholder="Details..."></textarea>
-              </div>
-
-              <button disabled={isPending} type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-colors disabled:opacity-70 mt-4">
-                {isPending ? "Saving..." : "Save Event"}
-              </button>
-            </form>
           </div>
-        </div>
-      )}
 
-      {/* View Event Modal */}
-      {isViewModalOpen && selectedEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden border border-gray-100">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-start">
-              <div>
-                <h3 className="font-black text-gray-900 text-xl">{selectedEvent.title}</h3>
-                <span className="inline-flex items-center text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full mt-2">
-                  <CalendarIcon className="w-3 h-3 mr-1" /> Scheduled Event
+          {/* Views */}
+          <div
+            key={`${view}-${+date}`}
+            className={cn(
+              "calendar-view",
+              anim === "next" && "calendar-in-right",
+              anim === "prev" && "calendar-in-left",
+              anim === "fade" && "calendar-in-fade"
+            )}
+          >
+            {view === "month" && (
+              <MonthView
+                events={filtered}
+                date={date}
+                onSelectEvent={openView}
+                onSelectSlot={openAdd}
+                onNavigateDay={gotoDay}
+              />
+            )}
+            {view === "week" && (
+              <WeekView
+                events={filtered}
+                days={weekDays}
+                now={now}
+                onSelectEvent={openView}
+                onSelectSlot={openAdd}
+                onNavigateDay={gotoDay}
+              />
+            )}
+            {view === "day" && (
+              <DayView
+                events={filtered}
+                date={date}
+                now={now}
+                onSelectEvent={openView}
+                onSelectSlot={openAdd}
+                onNavigateDay={gotoDay}
+              />
+            )}
+          </div>
+
+          {query && filtered.length === 0 && (
+            <div className="mt-4 rounded-2xl border border-dashed border-gray-200 py-8 text-center text-sm text-gray-400">
+              No events match &ldquo;{query}&rdquo;
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ========================== Sidebar ========================== */}
+      <aside className="w-full shrink-0 space-y-5 xl:w-80">
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "Total", value: stats.total, icon: CalendarDays, tint: "text-blue-600 bg-blue-50" },
+            { label: format(date, "MMM"), value: stats.monthCount, icon: LayoutGrid, tint: "text-violet-600 bg-violet-50" },
+            { label: "Upcoming", value: stats.upcomingCount, icon: Sparkles, tint: "text-emerald-600 bg-emerald-50" },
+          ].map((s, i) => {
+            const Icon = s.icon
+            return (
+              <div
+                key={s.label}
+                className="calendar-list-in rounded-2xl border border-gray-100 bg-white p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                style={{ animationDelay: `${i * 70}ms` }}
+              >
+                <div className={cn("mb-2 flex h-8 w-8 items-center justify-center rounded-lg", s.tint)}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="text-xl font-black leading-none text-gray-900">
+                  <CountUp value={s.value} />
+                </div>
+                <div className="mt-1 truncate text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                  {s.label}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Upcoming */}
+        <div className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <Clock className="h-4 w-4 text-blue-600" />
+            <h3 className="text-sm font-bold text-gray-900">Upcoming Events</h3>
+          </div>
+          {upcoming.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-gray-200 py-6 text-center text-xs text-gray-400">
+              Nothing scheduled ahead.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {upcoming.map((ev, i) => {
+                const theme = getTheme(ev.category)
+                return (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => openView(ev)}
+                    style={{ animationDelay: `${i * 60}ms` }}
+                    className="calendar-list-in group flex w-full items-stretch gap-3 rounded-2xl border border-gray-100 p-2.5 text-left transition-all hover:-translate-y-px hover:border-gray-200 hover:shadow-md"
+                  >
+                    <span className={cn("w-1 shrink-0 rounded-full", theme.bar)} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold text-gray-900 group-hover:text-blue-600">
+                        {ev.title}
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-gray-500">
+                        <span className={cn("rounded-md px-1.5 py-0.5 font-semibold", theme.soft, theme.softText)}>
+                          {relativeDayLabel(ev.start)}
+                        </span>
+                        <span className="tabular-nums">{fmtTimeShort(ev.start)}</span>
+                        {ev.attendees.length > 0 && (
+                          <span className="ml-auto flex items-center gap-0.5 text-gray-400">
+                            <Users className="h-3 w-3" />
+                            {ev.attendees.length}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Legend */}
+        <div className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-sm font-bold text-gray-900">Categories</h3>
+          <div className="flex flex-wrap gap-2">
+            {CATEGORY_ORDER.map((key) => {
+              const theme = CATEGORY_THEMES[key]
+              const Icon = theme.icon
+              return (
+                <span
+                  key={key}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                    theme.soft,
+                    theme.softText
+                  )}
+                >
+                  <Icon className="h-3 w-3" />
+                  {theme.label}
                 </span>
-              </div>
-              <button onClick={() => setIsViewModalOpen(false)} className="text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-full p-2 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-6 space-y-5 bg-gray-50/50">
-              <div className="flex items-center text-gray-700">
-                <Clock className="w-5 h-5 mr-3 text-gray-400" />
-                <div>
-                  <div className="text-sm font-medium">
-                    {new Date(selectedEvent.startDateTime).toLocaleDateString()} at {new Date(selectedEvent.startDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-0.5">
-                    Until {new Date(selectedEvent.endDateTime).toLocaleDateString()} at {new Date(selectedEvent.endDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center text-gray-700">
-                <User className="w-5 h-5 mr-3 text-gray-400" />
-                <div>
-                  <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-0.5">Assigned To</div>
-                  <div className="text-sm font-medium">{selectedEvent.assignee?.name || "Unassigned"}</div>
-                </div>
-              </div>
-
-              {selectedEvent.description && (
-                <div className="bg-white p-4 rounded-xl border border-gray-200">
-                  <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-2">Description</div>
-                  <p className="text-sm text-gray-700">{selectedEvent.description}</p>
-                </div>
-              )}
-            </div>
+              )
+            })}
           </div>
+          <p className="mt-3 text-[11px] leading-relaxed text-gray-400">
+            Categories are auto-detected from the event title to keep the schedule colour-coded.
+          </p>
         </div>
-      )}
+      </aside>
 
+      {/* ============================ Modals ============================ */}
+      <EventFormModal
+        open={modal === "add"}
+        mode="add"
+        slot={slot}
+        itStaff={itStaff}
+        allUsers={allUsers}
+        currentUserId={currentUserId}
+        onClose={closeModal}
+        onSubmit={handleCreate}
+      />
+      <EventFormModal
+        open={modal === "edit"}
+        mode="edit"
+        event={selectedEvent}
+        itStaff={itStaff}
+        allUsers={allUsers}
+        currentUserId={currentUserId}
+        onClose={closeModal}
+        onSubmit={handleUpdate}
+      />
+      <EventViewModal
+        open={modal === "view"}
+        event={selectedEvent}
+        currentUserId={currentUserId}
+        onClose={closeModal}
+        onEdit={() => setModal("edit")}
+        onDelete={() => setModal("delete")}
+        onRespond={handleRespond}
+      />
+      <DeleteConfirmModal
+        open={modal === "delete"}
+        event={selectedEvent}
+        onClose={closeModal}
+        onConfirm={handleDelete}
+      />
     </div>
   )
 }

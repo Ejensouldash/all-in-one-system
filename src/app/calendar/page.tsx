@@ -1,7 +1,8 @@
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
-import { CalendarDays } from "lucide-react"
+import { CalendarDays, Sparkles } from "lucide-react"
+import { format } from "date-fns"
 import { InteractiveCalendar } from "@/components/calendar/InteractiveCalendar"
 
 export default async function EventCalendarPage() {
@@ -9,29 +10,68 @@ export default async function EventCalendarPage() {
   if (!session || session.user.role !== "SUPERADMIN") redirect("/dashboard")
 
   const events = await prisma.event.findMany({
-    include: { assignee: true, createdBy: true },
-    orderBy: { startDateTime: 'asc' }
+    include: {
+      assignee: true,
+      createdBy: true,
+      attendees: {
+        include: { user: { select: { id: true, name: true, email: true } } },
+      },
+    },
+    orderBy: { startDateTime: "asc" },
   })
 
   // We only fetch SUPERADMINs for the assignee dropdown
   const itStaff = await prisma.user.findMany({
     where: { role: "SUPERADMIN" },
-    select: { id: true, name: true }
+    select: { id: true, name: true },
   })
 
+  // Everyone can be invited as a guest (Google-Calendar style)
+  const allUsers = await prisma.user.findMany({
+    select: { id: true, name: true, email: true, role: true },
+    orderBy: { name: "asc" },
+  })
+
+  const today = new Date()
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 pb-20">
-      <div className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900 flex items-center">
-            <CalendarDays className="h-6 w-6 mr-3 text-blue-600" />
-            IT Schedule & Operations Calendar
-          </h1>
-          <p className="text-gray-500 mt-1">Full-screen interactive view. Click any day to add an event, or click an event to view details.</p>
+    <div className="animate-in fade-in space-y-5 pb-20 duration-500">
+      {/* Hero */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-600 to-indigo-700 p-6 shadow-lg sm:p-8">
+        <div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-24 right-24 h-56 w-56 rounded-full bg-indigo-400/20 blur-3xl" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur">
+              <CalendarDays className="h-7 w-7 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+                IT Schedule &amp; Operations
+              </h1>
+              <p className="mt-1 max-w-xl text-sm text-blue-100">
+                Plan, track and manage your team&apos;s events. Click any day or time slot to
+                schedule, and select an event to view or edit its details.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-start rounded-2xl bg-white/10 px-4 py-2.5 ring-1 ring-white/20 backdrop-blur sm:self-auto">
+            <Sparkles className="h-4 w-4 text-blue-100" />
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-blue-100">Today</div>
+              <div className="text-sm font-bold text-white">{format(today, "EEE, d MMM yyyy")}</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <InteractiveCalendar events={events} itStaff={itStaff} />
+      <InteractiveCalendar
+        events={events}
+        itStaff={itStaff}
+        allUsers={allUsers}
+        currentUserId={session.user.id}
+      />
     </div>
   )
 }

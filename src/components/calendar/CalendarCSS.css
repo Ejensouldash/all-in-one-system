@@ -1,85 +1,160 @@
-/* Custom CSS to make react-big-calendar look premium */
+/* ============================================================
+   Event Calendar - custom styles & animations
+   (fully custom UI; reduced-motion safe)
+   ============================================================ */
 
-.rbc-calendar {
-  font-family: inherit;
-  min-height: 600px;
+/* ---------- Scrollbar ---------- */
+.calendar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+  scroll-behavior: smooth;
+}
+.calendar-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.calendar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.calendar-scroll::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.calendar-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+  background-clip: content-box;
 }
 
-.rbc-btn-group button {
-  color: #374151;
-  background-color: #fff;
-  border: 1px solid #e5e7eb;
-  padding: 0.5rem 1rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  transition: all 0.2s;
+/* ---------- Keyframes ---------- */
+@keyframes calendar-pop-in {
+  0% { opacity: 0; transform: translateY(16px) scale(0.96); }
+  60% { transform: translateY(-2px) scale(1.005); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes calendar-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes calendar-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes calendar-in-fade {
+  from { opacity: 0; transform: translateY(10px) scale(0.992); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes calendar-in-right {
+  from { opacity: 0; transform: translateX(26px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes calendar-in-left {
+  from { opacity: 0; transform: translateX(-26px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes calendar-chip-in {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes calendar-list-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes calendar-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+@keyframes calendar-now-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.5); }
+  70% { box-shadow: 0 0 0 6px rgba(244, 63, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+}
+@keyframes calendar-today-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.35); }
+  50% { box-shadow: 0 0 0 4px rgba(37, 99, 235, 0); }
+}
+@keyframes calendar-shine {
+  from { transform: translateX(-120%) skewX(-20deg); }
+  to { transform: translateX(220%) skewX(-20deg); }
+}
+@keyframes calendar-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
 }
 
-.rbc-btn-group button:hover {
-  background-color: #f9fafb;
+/* ---------- Applied classes ---------- */
+.calendar-pop { animation: calendar-pop-in 0.34s cubic-bezier(0.16, 1, 0.3, 1); }
+.calendar-backdrop { animation: calendar-backdrop-in 0.2s ease-out; }
+.calendar-fade-in { animation: calendar-fade-in 0.25s ease-out; }
+
+.calendar-view { will-change: transform, opacity; }
+.calendar-in-fade { animation: calendar-in-fade 0.32s cubic-bezier(0.16, 1, 0.3, 1); }
+.calendar-in-right { animation: calendar-in-right 0.34s cubic-bezier(0.16, 1, 0.3, 1); }
+.calendar-in-left { animation: calendar-in-left 0.34s cubic-bezier(0.16, 1, 0.3, 1); }
+
+.calendar-chip-in { animation: calendar-chip-in 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
+.calendar-list-in { animation: calendar-list-in 0.3s ease-out both; }
+.calendar-shake { animation: calendar-shake 0.4s ease-in-out; }
+
+/* Current-time indicator dot */
+.calendar-now-dot { animation: calendar-now-pulse 2s ease-out infinite; }
+
+/* Today number badge subtle pulse */
+.calendar-today-badge { animation: calendar-today-pulse 2.4s ease-in-out infinite; }
+
+/* Event chips: smooth hover lift */
+.calendar-event {
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease, filter 0.15s ease;
+  will-change: transform;
+}
+.calendar-event:hover {
+  transform: translateY(-1px) scale(1.015);
+  filter: brightness(1.05);
+  z-index: 30;
 }
 
-.rbc-btn-group button.rbc-active {
-  background-color: #eff6ff;
-  color: #2563eb;
-  border-color: #bfdbfe;
-  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+/* Primary button shine sweep on hover */
+.calendar-btn-glow { position: relative; overflow: hidden; }
+.calendar-btn-glow::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: translateX(-120%) skewX(-20deg);
+  pointer-events: none;
 }
+.calendar-btn-glow:hover::after { animation: calendar-shine 0.75s ease; }
 
-.rbc-toolbar-label {
-  font-weight: 800;
-  font-size: 1.25rem;
-  color: #111827;
-}
+.calendar-float { animation: calendar-float 3s ease-in-out infinite; }
 
-.rbc-header {
-  padding: 0.75rem 0;
-  font-weight: 700;
-  color: #4b5563;
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid #e5e7eb;
-}
+/* Day cell hover reveal for the + affordance */
+.calendar-daycell .calendar-add-hint { opacity: 0; transform: scale(0.6); transition: all 0.15s ease; }
+.calendar-daycell:hover .calendar-add-hint { opacity: 1; transform: scale(1); }
 
-.rbc-month-view {
-  border: 1px solid #e5e7eb;
-  border-radius: 0.75rem;
-  overflow: hidden;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-}
-
-.rbc-day-bg {
-  border-left: 1px solid #f3f4f6;
-  border-bottom: 1px solid #f3f4f6;
-  transition: background-color 0.2s;
-}
-
-.rbc-day-bg:hover {
-  background-color: #f8fafc;
-}
-
-.rbc-today {
-  background-color: #f0fdf4 !important;
-}
-
-.rbc-event {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  border: none;
-  border-radius: 0.375rem;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  box-shadow: 0 1px 2px 0 rgba(59, 130, 246, 0.3);
-  transition: transform 0.1s;
-}
-
-.rbc-event:hover {
-  transform: scale(1.02);
-}
-
-.rbc-event-content {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .calendar-pop,
+  .calendar-backdrop,
+  .calendar-fade-in,
+  .calendar-in-fade,
+  .calendar-in-right,
+  .calendar-in-left,
+  .calendar-chip-in,
+  .calendar-list-in,
+  .calendar-shake,
+  .calendar-now-dot,
+  .calendar-today-badge,
+  .calendar-float {
+    animation: none !important;
+  }
+  .calendar-event:hover { transform: none; }
+  .calendar-scroll { scroll-behavior: auto; }
+  .calendar-btn-glow:hover::after { animation: none; }
 }

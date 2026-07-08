@@ -1,0 +1,4 @@
+{
+    "kiroAgent.trust.defaultPattern": "full",
+    "kiroAgent.trust.defaultScope": "user"
+}

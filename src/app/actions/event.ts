@@ -20,8 +20,9 @@ export async function createEvent(formData: FormData) {
     return { success: false, error: "Missing required fields" }
   }
 
-  const startDateTime = new Date(startDateStr)
-  const endDateTime = new Date(endDateStr)
+  // Append +08:00 to force parsing in Malaysia timezone
+  const startDateTime = new Date(`${startDateStr}+08:00`)
+  const endDateTime = new Date(`${endDateStr}+08:00`)
 
   if (endDateTime <= startDateTime) {
     return { success: false, error: "End time must be after start time" }

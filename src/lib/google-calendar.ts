@@ -31,8 +31,7 @@ export type GoogleEventInput = {
 
 export async function createGoogleEvent(event: GoogleEventInput) {
   if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
-    console.warn("Google Calendar credentials missing. Skipping sync.")
-    return null
+    throw new Error("Google Calendar credentials are not configured in Vercel Environment Variables.")
   }
 
   try {
@@ -59,9 +58,9 @@ export async function createGoogleEvent(event: GoogleEventInput) {
     })
 
     return res.data.id
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating Google Calendar event:", error)
-    return null
+    throw new Error(`Google Calendar API Error: ${error.message || "Unknown error"}`)
   }
 }
 

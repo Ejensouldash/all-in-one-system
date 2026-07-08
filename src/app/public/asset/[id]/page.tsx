@@ -2,9 +2,10 @@ import { prisma } from "@/lib/prisma"
 import { notFound } from "next/navigation"
 import { Package, MapPin, Building2, Calendar, Tag, ShieldCheck, DollarSign } from "lucide-react"
 
-export default async function PublicAssetPage({ params }: { params: { id: string } }) {
+export default async function PublicAssetPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
   const asset = await prisma.asset.findUnique({
-    where: { id: params.id },
+    where: { id: resolvedParams.id },
     include: {
       department: true,
       location: true,

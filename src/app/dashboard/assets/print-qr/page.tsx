@@ -6,13 +6,15 @@ import PrintButton from "./PrintButton"
 export default async function PrintQRPage({
   searchParams,
 }: {
-  searchParams: { ids?: string }
+  searchParams: Promise<{ ids?: string }>
 }) {
-  if (!searchParams.ids) {
+  const resolvedSearchParams = await searchParams;
+  
+  if (!resolvedSearchParams.ids) {
     return <div className="p-10 text-center font-bold text-red-500">No assets selected for printing.</div>
   }
 
-  const ids = searchParams.ids.split(',')
+  const ids = resolvedSearchParams.ids.split(',')
   
   const assets = await prisma.asset.findMany({
     where: {

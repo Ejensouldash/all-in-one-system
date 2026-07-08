@@ -167,6 +167,7 @@ function OpeningStockPage() {
                   <th className="border border-gray-300 p-2 text-left">Batch Number</th>
                   <th className="border border-gray-300 p-2 text-left">SKU</th>
                   <th className="border border-gray-300 p-2 text-right">Opening Qty</th>
+                  <th className="border border-gray-300 p-2 text-left">Date Configured</th>
                   <th className="border border-gray-300 p-2 text-left">Set By</th>
                   <th className="border border-gray-300 p-2 text-center w-24">Action</th>
                 </tr>
@@ -178,6 +179,14 @@ function OpeningStockPage() {
                     <td className="border border-gray-300 p-2 font-bold uppercase">{stock.batchNumber}</td>
                     <td className="border border-gray-300 p-2">{formatSKU(stock.sku)}</td>
                     <td className="border border-gray-300 p-2 text-right font-bold text-emerald-700">{stock.openingQty}</td>
+                    <td className="border border-gray-300 p-2 text-xs text-gray-600">
+                      {stock.createdAt ? (
+                        <>
+                          {new Date(stock.createdAt).toLocaleDateString('en-GB')} <br/>
+                          {new Date(stock.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                        </>
+                      ) : '-'}
+                    </td>
                     <td className="border border-gray-300 p-2">{stock.setBy?.name || 'Unknown'}</td>
                     <td className="border border-gray-300 p-2 text-center">
                       <button 
@@ -190,7 +199,7 @@ function OpeningStockPage() {
                   </tr>
                 ))}
                 {stocks.length === 0 && (
-                  <tr><td colSpan={6} className="border border-gray-300 p-4 text-center text-gray-500 italic">No opening stocks configured yet.</td></tr>
+                  <tr><td colSpan={7} className="border border-gray-300 p-4 text-center text-gray-500 italic">No opening stocks configured yet.</td></tr>
                 )}
               </tbody>
             </table>

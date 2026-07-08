@@ -178,14 +178,16 @@ export function DataTable({ initialAssets }: { initialAssets: any[] }) {
           </button>
           
           {selectedIds.length > 0 && (
-            <Link 
-              href={`/dashboard/assets/print-qr?ids=${selectedIds.join(',')}`}
-              target="_blank"
+            <button 
+              onClick={() => {
+                sessionStorage.setItem('printQrIds', JSON.stringify(selectedIds));
+                window.open('/dashboard/assets/print-qr', '_blank');
+              }}
               className="flex items-center justify-center px-4 py-2 text-sm font-bold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-sm"
             >
               <Printer className="h-4 w-4 mr-2" />
               Print QRs ({selectedIds.length})
-            </Link>
+            </button>
           )}
         </div>
       </div>

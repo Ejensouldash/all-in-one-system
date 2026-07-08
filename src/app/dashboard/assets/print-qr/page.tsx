@@ -1,32 +1,58 @@
-import { prisma } from "@/lib/prisma"
-import { notFound } from "next/navigation"
-import PrintButton from "./PrintButton"
-import { AssetQRSticker } from "@/components/assets/AssetQRSticker"
+"use client"
 
-export default async function PrintQRPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ ids?: string }>
-}) {
-  const resolvedSearchParams = await searchParams;
-  
-  if (!resolvedSearchParams.ids) {
-    return <div className="p-10 text-center font-bold text-red-500">No assets selected for printing.</div>
+import React, { useEffect, useState } from "react"
+import { AssetQRSticker } from "@/components/assets/AssetQRSticker"
+import PrintButton from "./PrintButton"
+import { Loader2 } from "lucide-react"
+
+export default function PrintQRPage() {
+  const [assets, setAssets] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    const fetchAssets = async () => {
+      try {
+        const storedIds = sessionStorage.getItem('printQrIds')
+        if (!storedIds) {
+          setError("No assets selected for printing.")
+          setLoading(false)
+          return
+        }
+
+        const ids = JSON.parse(storedIds)
+        if (!ids || ids.length === 0) {
+          setError("No assets selected for printing.")
+          setLoading(false)
+          return
+        }
+
+        const res = await fetch('/api/assets/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids })
+        })
+
+        if (!res.ok) throw new Error("Failed to fetch assets")
+        
+        const data = await res.json()
+        setAssets(data)
+      } catch (err: any) {
+        setError(err.message || "An error occurred")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchAssets()
+  }, [])
+
+  if (loading) {
+    return <div className="p-10 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-teal-600" /></div>
   }
 
-  const ids = resolvedSearchParams.ids.split(',')
-  
-  const assets = await prisma.asset.findMany({
-    where: {
-      id: { in: ids }
-    },
-    include: {
-      department: true
-    }
-  })
-
-  if (assets.length === 0) {
-    notFound()
+  if (error || assets.length === 0) {
+    return <div className="p-10 text-center font-bold text-red-500">{error || "No assets found."}</div>
   }
 
   return (

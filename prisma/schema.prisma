@@ -73,11 +73,20 @@ enum AssetType {
   FURNITURE
   SAFETY
   OTHER
+  // New standardized categories
+  ICT_EQUIPMENT
+  OFFICE_EQUIPMENT
+  EVENT_EQUIPMENT
+  TOOLS
+  SAFETY_EQUIPMENT
+  MACHINE
+  ELECTRICAL_EQUIPMENT
 }
 
 model Department {
   id        String   @id @default(uuid())
   name      String   @unique
+  code      String?  @unique
   assets    Asset[]
 }
 

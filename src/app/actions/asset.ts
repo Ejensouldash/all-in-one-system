@@ -4,6 +4,72 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { AssetStatus, AssetType } from "@prisma/client"
 
+const ASSET_TYPE_CODES: Record<string, string> = {
+  'ICT_EQUIPMENT': 'ICT',
+  'FURNITURE': 'FUR',
+  'OFFICE_EQUIPMENT': 'OFF',
+  'EVENT_EQUIPMENT': 'EVT',
+  'VEHICLE': 'VEH',
+  'TOOLS': 'TOL',
+  'SAFETY_EQUIPMENT': 'SAF',
+  'MACHINE': 'MCH',
+  'ELECTRICAL_EQUIPMENT': 'ELE',
+  'OTHER': 'OTH',
+};
+
+export async function generateAssetTag(departmentId: string | null, assetType: string) {
+  try {
+    let deptCode = null;
+    
+    if (departmentId) {
+      const dept = await prisma.department.findUnique({
+        where: { id: departmentId }
+      });
+      deptCode = dept?.code;
+    }
+
+    const typeCode = ASSET_TYPE_CODES[assetType] || 'OTH';
+
+    let prefix = '';
+    if (deptCode && deptCode !== 'FUR') {
+      prefix = `${deptCode}-${typeCode}`;
+    } else {
+      // Missing department or Furniture shared
+      prefix = typeCode;
+      if (deptCode === 'FUR') {
+        prefix = 'FUR';
+      }
+    }
+
+    // Find latest tag with this prefix
+    const latestAsset = await prisma.asset.findFirst({
+      where: {
+        assetTag: {
+          startsWith: `${prefix}-`
+        }
+      },
+      orderBy: {
+        assetTag: 'desc'
+      }
+    });
+
+    let nextNumber = 1;
+    if (latestAsset) {
+      const parts = latestAsset.assetTag.split('-');
+      const lastPart = parts[parts.length - 1];
+      const parsedNum = parseInt(lastPart, 10);
+      if (!isNaN(parsedNum)) {
+        nextNumber = parsedNum + 1;
+      }
+    }
+
+    const runningNo = String(nextNumber).padStart(4, '0');
+    return { success: true, tag: `${prefix}-${runningNo}` };
+  } catch (error: any) {
+    console.error("Failed to generate asset tag:", error);
+    return { success: false, error: "Failed to generate tag" };
+  }
+}
 export async function createAsset(data: any) {
   try {
     const asset = await prisma.asset.create({

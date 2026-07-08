@@ -3,20 +3,34 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { useRouter } from "next/navigation"
-import { createAsset } from "@/app/actions/asset"
-import { Save, ArrowLeft, Loader2 } from "lucide-react"
+import { createAsset, generateAssetTag } from "@/app/actions/asset"
+import { Save, ArrowLeft, Loader2, Sparkles } from "lucide-react"
 import Link from "next/link"
 
 export function AssetForm({ departments, locations }: { departments: any[], locations: any[] }) {
   const router = useRouter()
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<any>({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<any>({
     defaultValues: {
       status: "AVAILABLE",
-      type: "IT_EQUIPMENT"
+      type: "ICT_EQUIPMENT"
     }
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+  
   const watchType = watch("type")
+  const watchDept = watch("departmentId")
+
+  const handleGenerateTag = async () => {
+    setIsGenerating(true)
+    const res = await generateAssetTag(watchDept || null, watchType || "OTHER")
+    if (res.success && res.tag) {
+      setValue("assetTag", res.tag, { shouldValidate: true, shouldDirty: true })
+    } else {
+      alert("Failed to generate tag: " + res.error)
+    }
+    setIsGenerating(false)
+  }
 
   const onSubmit = async (data: any) => {
     setIsSubmitting(true)
@@ -48,12 +62,24 @@ export function AssetForm({ departments, locations }: { departments: any[], loca
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-2">Asset Tag / QR Code <span className="text-red-500">*</span></label>
-            <input 
-              type="text" 
-              placeholder="e.g. BBL-IT-001"
-              {...register("assetTag", { required: true })} 
-              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 font-bold uppercase"
-            />
+            <div className="flex space-x-2">
+              <input 
+                type="text" 
+                placeholder="e.g. HRD-ICT-0001"
+                {...register("assetTag", { required: true })} 
+                className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 font-bold uppercase"
+              />
+              <button
+                type="button"
+                onClick={handleGenerateTag}
+                disabled={isGenerating}
+                className="flex-shrink-0 px-3 py-2 bg-teal-50 text-teal-700 border border-teal-200 rounded-lg hover:bg-teal-100 transition flex items-center justify-center font-medium"
+              >
+                {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
+                Auto
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Select Department and Type before clicking Auto to get the correct prefix.</p>
           </div>
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-2">Asset Name <span className="text-red-500">*</span></label>
@@ -71,12 +97,17 @@ export function AssetForm({ departments, locations }: { departments: any[], loca
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-2">Asset Type</label>
             <select {...register("type")} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white">
-              <option value="IT_EQUIPMENT">IT Equipment (Laptop, PC, Phone)</option>
-              <option value="VEHICLE">Vehicle (Lorry, Van, Car)</option>
-              <option value="MACHINERY">Machinery (Factory Equipment)</option>
+              <option value="ICT_EQUIPMENT">ICT Equipment</option>
+              <option value="OFFICE_EQUIPMENT">Office Equipment</option>
+              <option value="EVENT_EQUIPMENT">Event Equipment (Khemah, etc.)</option>
+              <option value="TOOLS">Tools (Drill, Grinder, etc.)</option>
+              <option value="SAFETY_EQUIPMENT">Safety Equipment</option>
+              <option value="MACHINE">Machine / Compressor</option>
+              <option value="ELECTRICAL_EQUIPMENT">Electrical Equipment</option>
               <option value="FURNITURE">Furniture (Desk, Chair)</option>
-              <option value="SAFETY">Safety (Fire Extinguisher, First Aid)</option>
+              <option value="VEHICLE">Vehicle (Lorry, Van, Car)</option>
               <option value="OTHER">Other</option>
+
             </select>
           </div>
           <div>

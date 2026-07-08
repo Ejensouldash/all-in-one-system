@@ -76,7 +76,8 @@ export function TransferInHistoryClient({
             </button>
           </th>
           <th scope="col" className="w-32 px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Date</th>
-          <th scope="col" className="w-32 px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Time</th>
+          <th scope="col" className="w-24 px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Time</th>
+          <th scope="col" className="w-24 px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Shift</th>
           <th scope="col" className="w-48 px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider">DO Number</th>
           <th scope="col" className="w-48 px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Receiver Name</th>
           <th scope="col" className="w-32 px-6 py-4 text-right text-xs font-black text-gray-500 uppercase tracking-wider">Actions</th>
@@ -100,14 +101,19 @@ export function TransferInHistoryClient({
                   )}
                 </button>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 truncate">
-                {new Date(t.receiveDate).toLocaleDateString('en-GB')}
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm font-bold text-gray-900">{new Date(t.receiveDate).toLocaleDateString()}</div>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 truncate">
-                {t.receiveTime}
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm text-gray-500">{t.receiveTime}</div>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-600 truncate">
-                {t.doNumber}
+              <td className="px-6 py-4 whitespace-nowrap">
+                <span className={`px-2 py-1 inline-flex text-xs leading-5 font-bold rounded-full ${t.shift === 'AM' ? 'bg-blue-100 text-blue-800' : 'bg-indigo-100 text-indigo-800'}`}>
+                  {t.shift || "AM"}
+                </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm font-black text-emerald-600">{t.doNumber}</div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate">
                 {t.receiverName}

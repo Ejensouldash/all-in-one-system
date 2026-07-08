@@ -198,6 +198,7 @@ model TransferIn {
   id           String           @id @default(uuid())
   receiveDate  DateTime         @db.Date
   receiveTime  String
+  shift        String           @default("AM")
   doNumber     String
   receiverName String
   createdAt    DateTime         @default(now())

@@ -14,6 +14,7 @@ export async function createTransferIn(data: any) {
       data: {
         receiveDate: new Date(data.receiveDate),
         receiveTime: data.receiveTime,
+        shift: data.shift || "AM",
         doNumber: data.doNumber,
         receiverName: data.receiverName,
         items: {
@@ -79,6 +80,7 @@ export async function updateTransferIn(id: string, data: any) {
       data: {
         receiveDate: new Date(data.receiveDate),
         receiveTime: data.receiveTime,
+        shift: data.shift || "AM",
         doNumber: data.doNumber,
         receiverName: data.receiverName,
         items: {

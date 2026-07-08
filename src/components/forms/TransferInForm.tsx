@@ -33,6 +33,7 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
     } : {
       receiveDate: new Date().toISOString().split('T')[0],
       receiveTime: new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric" }),
+      shift: new Date().getHours() >= 19 || new Date().getHours() < 7 ? "PM" : "AM",
       receiverName: userName || "",
       doNumber: "",
       
@@ -204,7 +205,13 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
           </div>
           <div id="field-receiveTime">
             <label className="block text-xs font-black uppercase tracking-wider mb-2">Receive Time</label>
-            <input type="time" {...register("receiveTime")} className="w-full border-2 border-black p-3 font-bold focus:outline-none focus:ring-2 focus:ring-black bg-white" />
+            <div className="flex space-x-2">
+              <input type="time" {...register("receiveTime")} className="w-full border-2 border-black p-3 font-bold focus:outline-none focus:ring-2 focus:ring-black bg-white" />
+              <select {...register("shift")} className="border-2 border-black p-3 font-bold focus:outline-none focus:ring-2 focus:ring-black bg-white cursor-pointer">
+                <option value="AM">AM</option>
+                <option value="PM">PM</option>
+              </select>
+            </div>
           </div>
           <div id="field-doNumber">
             <label className="block text-xs font-black uppercase tracking-wider mb-2">DO Number</label>

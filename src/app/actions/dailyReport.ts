@@ -211,13 +211,20 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
     // Helper: was this Transfer In item RECEIVED TODAY (on the report date) and does it match the shift?
     const isReceivedToday = (item: any) => {
       if (toMalaysiaDateStr(item.transferIn.receiveDate) !== reportDateString) return false
-      // Filter by shift if provided (assuming PM shift starts at 19:00 / 7:00 PM)
-      if (shift && item.transferIn.receiveTime) {
-        const hour = parseInt(item.transferIn.receiveTime.split(':')[0], 10)
-        if (!isNaN(hour)) {
-          const isPM = hour >= 19
-          if (shift === "AM" && isPM) return false
-          if (shift === "PM" && !isPM) return false
+      
+      // Filter by shift if provided
+      if (shift) {
+        if (item.transferIn.shift) {
+          // New DOs with explicit shift
+          if (shift !== item.transferIn.shift) return false
+        } else if (item.transferIn.receiveTime) {
+          // Fallback for old DOs without explicit shift (assume >= 19:00 is PM)
+          const hour = parseInt(item.transferIn.receiveTime.split(':')[0], 10)
+          if (!isNaN(hour)) {
+            const isPM = hour >= 19
+            if (shift === "AM" && isPM) return false
+            if (shift === "PM" && !isPM) return false
+          }
         }
       }
       return true

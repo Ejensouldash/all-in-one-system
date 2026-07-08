@@ -199,13 +199,13 @@ export function DataTable({ initialAssets }: { initialAssets: any[] }) {
                 <input 
                   type="checkbox" 
                   className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                  checked={paginatedAssets.length > 0 && paginatedAssets.every(a => selectedIds.includes(a.id))}
+                  checked={filteredAssets.length > 0 && filteredAssets.every(a => selectedIds.includes(a.id))}
                   onChange={(e) => {
                     if (e.target.checked) {
-                      const newIds = new Set([...selectedIds, ...paginatedAssets.map(a => a.id)])
+                      const newIds = new Set([...selectedIds, ...filteredAssets.map(a => a.id)])
                       setSelectedIds(Array.from(newIds))
                     } else {
-                      setSelectedIds(selectedIds.filter(id => !paginatedAssets.find(a => a.id === id)))
+                      setSelectedIds(selectedIds.filter(id => !filteredAssets.find(a => a.id === id)))
                     }
                   }}
                 />

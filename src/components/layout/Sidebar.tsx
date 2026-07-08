@@ -49,6 +49,8 @@ const staffLinks: NavLink[] = [
       { name: "Warehouse", href: "/forms/warehouse/dashboard", module: "WAREHOUSE", restrictToWarehouseUnit: true },
     ]
   },
+  { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
+  { name: "Assets", href: "/dashboard/assets", icon: Package, module: "ASSETS" },
 ]
 
 const adminLinks: NavLink[] = [
@@ -63,7 +65,7 @@ const adminLinks: NavLink[] = [
     ]
   },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
-  { name: "Assets", href: "/dashboard/assets", icon: Package, module: "WAREHOUSE" }, // Warehouse/Assets
+  { name: "Assets", href: "/dashboard/assets", icon: Package, module: "ASSETS" },
   { name: "Users", href: "/users", icon: Users, module: "USERS" },
   { 
     name: "Organization", 

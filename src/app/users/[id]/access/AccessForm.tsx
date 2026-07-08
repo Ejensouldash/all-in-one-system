@@ -18,6 +18,7 @@ const AVAILABLE_MODULES = [
   { id: "DATABASE_MANAGER", name: "Production Database", description: "Manage raw database records for production." },
   { id: "PRODUCTION_STOCK", name: "Production Stock", description: "View and manage production stock balances." },
   { id: "TRANSFER_IN_HISTORY", name: "Transfer In History", description: "View, edit, and delete transfer in historical records." },
+  { id: "ASSETS", name: "Company Assets", description: "Manage, track, and print QR for company assets and equipment." },
 ]
 
 export function AccessForm({ userId, initialModules }: { userId: string, initialModules: string[] }) {

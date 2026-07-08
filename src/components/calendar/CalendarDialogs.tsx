@@ -115,7 +115,8 @@ function GuestInviter({ allUsers, guests, setGuests, excludeId }) {
         !selectedIds.has(u.id) &&
         (!q ||
           (u.name || "").toLowerCase().includes(q) ||
-          (u.email || "").toLowerCase().includes(q))
+          (u.email || "").toLowerCase().includes(q) ||
+          (u.googleEmail || "").toLowerCase().includes(q))
     )
     .slice(0, 6)
 

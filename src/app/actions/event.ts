@@ -14,6 +14,7 @@ export async function createEvent(formData: FormData) {
   const startDateStr = formData.get("startDateTime") as string
   const endDateStr = formData.get("endDateTime") as string
   const assigneeId = formData.get("assigneeId") as string
+  const attendeeIds = formData.getAll("attendeeIds") as string[]
 
   if (!title || !startDateStr || !endDateStr) {
     return { success: false, error: "Missing required fields" }
@@ -40,6 +41,17 @@ export async function createEvent(formData: FormData) {
       if (assignee?.googleEmail) attendeeEmails.push(assignee.googleEmail)
     }
 
+    // Add additional attendees from form
+    if (attendeeIds.length > 0) {
+      const attendeesData = await prisma.user.findMany({
+        where: { id: { in: attendeeIds } },
+        select: { googleEmail: true }
+      })
+      attendeesData.forEach(user => {
+        if (user.googleEmail) attendeeEmails.push(user.googleEmail)
+      })
+    }
+
     // 1. Sync with Google Calendar
     const googleEventId = await createGoogleEvent({
       title,
@@ -58,7 +70,10 @@ export async function createEvent(formData: FormData) {
         endDateTime,
         assigneeId: assigneeId || null,
         createdById: session.user.id,
-        googleEventId: googleEventId
+        googleEventId: googleEventId,
+        attendees: {
+          create: attendeeIds.map(id => ({ userId: id }))
+        }
       }
     })
     

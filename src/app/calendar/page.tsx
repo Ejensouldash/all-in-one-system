@@ -26,9 +26,8 @@ export default async function EventCalendarPage() {
     select: { id: true, name: true },
   })
 
-  // Everyone can be invited as a guest (Google-Calendar style)
   const allUsers = await prisma.user.findMany({
-    select: { id: true, name: true, email: true, role: true },
+    select: { id: true, name: true, email: true, googleEmail: true, role: true },
     orderBy: { name: "asc" },
   })
 

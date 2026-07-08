@@ -142,11 +142,14 @@ export async function POST(request: NextRequest) {
       
       let locationId = null;
       if (locationName) {
-        const loc = await prisma.location.upsert({
-          where: { name: locationName },
-          update: {},
-          create: { name: locationName }
+        let loc = await prisma.location.findFirst({
+          where: { name: locationName }
         });
+        if (!loc) {
+          loc = await prisma.location.create({
+            data: { name: locationName }
+          });
+        }
         locationId = loc.id;
       }
 

@@ -18,6 +18,7 @@ import {
   Upload,
   Loader2
 } from "lucide-react"
+import { SmartImportModal } from "@/components/forms/SmartImportModal"
 
 function getPaginationItems(currentPage: number, totalPages: number) {
   const items = [];
@@ -43,6 +44,10 @@ export function DataTable({ initialAssets }: { initialAssets: any[] }) {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [isUploading, setIsUploading] = useState(false)
+  const [isSmartImportOpen, setIsSmartImportOpen] = useState(false)
+  const [isAiProcessing, setIsAiProcessing] = useState(false)
+  const [isConfirming, setIsConfirming] = useState(false)
+  const [previewData, setPreviewData] = useState<any[]>([])
   const itemsPerPage = 15
 
   // Filtering
@@ -75,6 +80,10 @@ export function DataTable({ initialAssets }: { initialAssets: any[] }) {
     if (!file) return
 
     setIsUploading(true)
+    setIsSmartImportOpen(true)
+    setIsAiProcessing(true)
+    setPreviewData([])
+    
     const formData = new FormData()
     formData.append('file', file)
 
@@ -82,6 +91,32 @@ export function DataTable({ initialAssets }: { initialAssets: any[] }) {
       const res = await fetch('/api/import-upload', {
         method: 'POST',
         body: formData
+      })
+      const data = await res.json()
+      
+      if (res.ok) {
+        setPreviewData(data.previewData || [])
+      } else {
+        alert(`AI Processing failed: ${data.error}`)
+        setIsSmartImportOpen(false)
+      }
+    } catch (err) {
+      alert(`Upload failed: ${err}`)
+      setIsSmartImportOpen(false)
+    } finally {
+      setIsAiProcessing(false)
+      setIsUploading(false)
+      if (e.target) e.target.value = ''
+    }
+  }
+
+  const handleConfirmImport = async () => {
+    setIsConfirming(true)
+    try {
+      const res = await fetch('/api/import-upload/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assets: previewData })
       })
       const data = await res.json()
       
@@ -94,9 +129,8 @@ export function DataTable({ initialAssets }: { initialAssets: any[] }) {
     } catch (err) {
       alert(`Import failed: ${err}`)
     } finally {
-      setIsUploading(false)
-      // Reset input
-      if (e.target) e.target.value = ''
+      setIsConfirming(false)
+      setIsSmartImportOpen(false)
     }
   }
 
@@ -354,6 +388,15 @@ export function DataTable({ initialAssets }: { initialAssets: any[] }) {
           </div>
         </div>
       </div>
+      
+      <SmartImportModal 
+        isOpen={isSmartImportOpen}
+        isProcessing={isAiProcessing}
+        isConfirming={isConfirming}
+        previewData={previewData}
+        onConfirm={handleConfirmImport}
+        onCancel={() => setIsSmartImportOpen(false)}
+      />
     </div>
   )
 }

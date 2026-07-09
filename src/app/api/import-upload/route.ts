@@ -73,7 +73,12 @@ export async function POST(request: NextRequest) {
 
     // Ensure departments exist
     const departmentsCache: Record<string, any> = {};
+    const seenCodes = new Set<string>();
+
     for (const [name, code] of Object.entries(DEPT_MAP)) {
+      if (seenCodes.has(code)) continue;
+      seenCodes.add(code);
+
       const dept = await prisma.department.upsert({
         where: { name },
         update: { code },

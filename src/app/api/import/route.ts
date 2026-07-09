@@ -53,7 +53,12 @@ export async function GET() {
     const data = xlsx.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]) as any[];
 
     const departmentsCache: Record<string, any> = {};
+    const seenCodes = new Set<string>();
+
     for (const [name, code] of Object.entries(DEPT_MAP)) {
+      if (seenCodes.has(code)) continue;
+      seenCodes.add(code);
+
       const dept = await prisma.department.upsert({
         where: { name },
         update: { code },

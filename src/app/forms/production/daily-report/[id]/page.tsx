@@ -330,14 +330,10 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                       const is425 = report.line.includes("425");
                       const allowedBottleMults = is800 ? [225] : is425 ? [181, 162] : [];
                       
-                      // 1. Hide boxes that were not ticked in Production or don't belong to this line
+                      // 1. Hide boxes that don't belong to this line
                       if (key.startsWith('BOX_')) {
                         if (is800 && !key.includes('800')) return null;
                         if (is425 && !key.includes('425')) return null;
-                        
-                        const prodType = key.replace('BOX_', '');
-                        const isProduced = report.productions.some((p: any) => p.productType === prodType);
-                        if (!isProduced) return null;
                       }
 
                       const inv = getInventoryForSection(key)

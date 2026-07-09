@@ -259,6 +259,10 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       const key = `${item.category}|${item.batchNo}|${item.mult}`
       if (!batchInfo[key]) {
         batchInfo[key] = { totalBalance: 0, todayItems: [], mult: item.mult, category: item.category, batchNo: item.batchNo, transferInId: item.transferIn.id, doNumber: item.transferIn.doNumber }
+      } else {
+        if (!batchInfo[key].doNumber.includes(item.transferIn.doNumber)) {
+          batchInfo[key].doNumber += `, ${item.transferIn.doNumber}`
+        }
       }
       if (isReceivedToday(item)) {
         batchInfo[key].todayItems.push(item)

@@ -11,6 +11,7 @@ import {
   testGoogleCalendar,
   type GoogleDiagnostic,
 } from "@/lib/google-calendar"
+import { sendEmail, generateIcs, generateEventEmailHtml } from "@/lib/mailer"
 
 type ActionResult = { success: boolean; error?: string; warning?: string }
 
@@ -116,6 +117,33 @@ export async function addEvent(data: FormData): Promise<ActionResult> {
         if (gid) await prisma.event.update({ where: { id: created.id }, data: { googleEventId: gid } })
       } catch (e: any) {
         warning = `Event saved, but Google Calendar sync failed: ${e?.message || "unknown error"}`
+      }
+    }
+
+    // Send email invites to attendees via custom SMTP
+    if (attendeeIds.length > 0) {
+      const attendeeEmails = await getAttendeeEmails(attendeeIds)
+      if (attendeeEmails.length > 0) {
+        const emailHtml = generateEventEmailHtml({
+          title: parsed.values.title,
+          description: parsed.values.description,
+          startDateTime: parsed.values.startDateTime,
+          endDateTime: parsed.values.endDateTime,
+          creatorName: session.user.name || "Admin",
+        })
+        const icsContent = generateIcs({
+          title: parsed.values.title,
+          description: parsed.values.description,
+          startDateTime: parsed.values.startDateTime,
+          endDateTime: parsed.values.endDateTime,
+          attendees: attendeeEmails,
+        })
+        await sendEmail({
+          to: attendeeEmails,
+          subject: `Invitation: ${parsed.values.title}`,
+          html: emailHtml,
+          icsContent: icsContent || undefined,
+        })
       }
     }
 

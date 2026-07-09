@@ -190,10 +190,10 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       include: { transferIn: true }
     })
     
-    // 2. Fetch ALL Usages, Holds, Reuses ever (Globally) up to the target date
+    // 2. Fetch ALL Usages, Holds, Reuses, and Storeroom ever (Globally) up to the target date
     const allLogs = await prisma.inventoryLog.findMany({
       where: { 
-        type: { in: ["Usage", "Hold", "Reuse"] },
+        type: { in: ["Usage", "Hold", "Reuse", "Storeroom"] },
         report: { date: { lte: targetDate } }
       },
       include: { report: true }
@@ -246,31 +246,70 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       doNumber: string
     }> = {}
 
+    const getTimePoint = (d: Date, s: string | null) => {
+      const dateStr = toMalaysiaDateStr(d)
+      let score = new Date(dateStr).getTime()
+      if (s === "AM") score += 1
+      else if (s === "PM") score += 2
+      else score += 1
+      return score
+    }
+
     allDOItems.forEach(item => {
       const key = `${item.category}|${item.batchNo}|${item.mult}`
       if (!batchInfo[key]) {
         batchInfo[key] = { totalBalance: 0, todayItems: [], mult: item.mult, category: item.category, batchNo: item.batchNo, transferInId: item.transferIn.id, doNumber: item.transferIn.doNumber }
       }
-      batchInfo[key].totalBalance += item.bags
       if (isReceivedToday(item)) {
         batchInfo[key].todayItems.push(item)
       }
     })
 
-    allLogs.forEach(log => {
-      // Ignore logs from the report being edited so we don't double-deduct them
-      if (excludeReportId && log.reportId === excludeReportId) return;
+    // Process events chronologically per batch
+    Object.keys(batchInfo).forEach(batchKey => {
+      const info = batchInfo[batchKey]
+      
+      const batchDOs = allDOItems.filter(item => `${item.category}|${item.batchNo}|${item.mult}` === batchKey)
+      const batchLogs = allLogs.filter(log => {
+        if (excludeReportId && log.reportId === excludeReportId) return false
+        return batchKey.endsWith(`|${log.batchNo}|${log.mult}`)
+      })
 
-      // Find matching batch by batchNo and mult
-      const matchingKeys = Object.keys(batchInfo).filter(k => k.endsWith(`|${log.batchNo}|${log.mult}`))
-      if (matchingKeys.length > 0) {
-        const key = matchingKeys[0] // Deduct from the first matching category
-        if (log.type === "Usage" || log.type === "Hold") {
-          batchInfo[key].totalBalance -= log.bags
+      const eventsByTp: Record<number, { transferIns: number, storeroom: number | null, usage: number }> = {}
+
+      batchDOs.forEach(item => {
+        const tp = getTimePoint(item.transferIn.receiveDate, item.transferIn.shift)
+        if (!eventsByTp[tp]) eventsByTp[tp] = { transferIns: 0, storeroom: null, usage: 0 }
+        eventsByTp[tp].transferIns += item.bags
+      })
+
+      batchLogs.forEach(log => {
+        const tp = getTimePoint(log.report.date, log.report.shift)
+        if (!eventsByTp[tp]) eventsByTp[tp] = { transferIns: 0, storeroom: null, usage: 0 }
+        
+        if (log.type === "Storeroom") {
+          eventsByTp[tp].storeroom = (eventsByTp[tp].storeroom || 0) + log.bags
+        } else if (log.type === "Usage" || log.type === "Hold") {
+          eventsByTp[tp].usage += log.bags
         } else if (log.type === "Reuse") {
-          batchInfo[key].totalBalance += log.bags
+          eventsByTp[tp].usage -= log.bags
         }
-      }
+      })
+
+      const sortedTps = Object.keys(eventsByTp).map(Number).sort((a, b) => a - b)
+      let runningBalance = 0
+
+      sortedTps.forEach(tp => {
+        const ev = eventsByTp[tp]
+        // Manual storeroom entry acts as the absolute balance override BEFORE adding same-day transfer ins
+        if (ev.storeroom !== null) {
+          runningBalance = ev.storeroom
+        }
+        runningBalance += ev.transferIns
+        runningBalance -= ev.usage
+      })
+
+      info.totalBalance = runningBalance
     })
 
     const todayDOs: any[] = []

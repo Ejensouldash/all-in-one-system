@@ -23,23 +23,36 @@ export async function sendEmail({ to, subject, html, icsContent }: EmailOptions)
     return false
   }
 
-  const mailOptions: nodemailer.SendMailOptions = {
-    from: `"BubblesO2 AIO System" <${process.env.SMTP_EMAIL}>`,
-    to: to.join(", "),
-    subject,
-    html,
-  }
-
-  if (icsContent) {
-    mailOptions.icalEvent = {
-      filename: "invite.ics",
-      method: "request",
-      content: icsContent,
-    }
-  }
-
   try {
-    await transporter.sendMail(mailOptions)
+    // Send emails individually so Gmail recognizes each recipient directly in the 'To' header.
+    // This is crucial for Gmail to display the native RSVP "Yes/No/Maybe" buttons.
+    const promises = to.map(async (email) => {
+      const mailOptions: nodemailer.SendMailOptions = {
+        from: `"Sistem Kalendar BubblesO2" <${process.env.SMTP_EMAIL}>`,
+        to: email,
+        subject,
+        html,
+        attachments: [
+          {
+            filename: 'BubblesO2_Logo.png',
+            path: 'public/assets/BubblesO2_Logo.png',
+            cid: 'bubbleso2_logo' // used in html img src="cid:bubbleso2_logo"
+          }
+        ]
+      }
+
+      if (icsContent) {
+        mailOptions.icalEvent = {
+          filename: "invite.ics",
+          method: "request",
+          content: icsContent,
+        }
+      }
+
+      return transporter.sendMail(mailOptions)
+    })
+
+    await Promise.all(promises)
     return true
   } catch (error) {
     console.error("Error sending email:", error)
@@ -86,7 +99,7 @@ export function generateIcs(event: {
     end,
     endInputType: "utc",
     attendees,
-    organizer: { name: "BubblesO2 AIO System", email: process.env.SMTP_EMAIL || "admin@bubbleso2.com" },
+    organizer: { name: "BubblesO2 AIO System", email: process.env.SMTP_EMAIL || "admin.it.bubbleso2@gmail.com" },
     status: "CONFIRMED",
     busyStatus: "BUSY",
   })
@@ -111,38 +124,77 @@ export function generateEventEmailHtml(event: {
   const endTimeStr = format(event.endDateTime, "h:mm a")
 
   return `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-      <div style="background-color: #2563eb; padding: 24px; text-align: center;">
-        <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Event Invitation</h1>
-        <p style="color: #bfdbfe; margin: 8px 0 0 0; font-size: 14px;">BubblesO2 AIO System</p>
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 650px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);">
+      
+      <!-- Header -->
+      <div style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); padding: 32px 24px; text-align: center;">
+        <img src="cid:bubbleso2_logo" alt="BubblesO2 Logo" style="height: 50px; margin-bottom: 16px; drop-shadow: 0 2px 4px rgba(0,0,0,0.2);" />
+        <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700; letter-spacing: 0.5px;">Jemputan Mesyuarat / Event Invitation</h1>
+        <p style="color: #bfdbfe; margin: 8px 0 0 0; font-size: 15px;">Sistem AIO BubblesO2</p>
       </div>
-      <div style="padding: 32px; background-color: #ffffff;">
-        <p style="font-size: 16px; color: #374151; margin-top: 0;">Hi there,</p>
-        <p style="font-size: 16px; color: #374151;">You have been invited to an event by <strong>${event.creatorName}</strong>.</p>
+
+      <!-- Content -->
+      <div style="padding: 40px 32px; background-color: #ffffff;">
+        <p style="font-size: 16px; color: #374151; margin-top: 0; line-height: 1.6;">
+          Salam sejahtera,<br/><br/>
+          Anda telah dijemput untuk menghadiri sebuah acara/mesyuarat rasmi yang telah dijadualkan oleh <strong>${event.creatorName}</strong>. Sila rujuk butiran di bawah:
+        </p>
         
-        <div style="margin: 32px 0; padding: 24px; background-color: #f3f4f6; border-radius: 8px;">
-          <h2 style="margin: 0 0 16px 0; color: #111827; font-size: 20px;">${event.title}</h2>
+        <p style="font-size: 15px; color: #6b7280; font-style: italic; margin-bottom: 32px;">
+          (Greetings, you have been invited to an official event/meeting scheduled by <strong>${event.creatorName}</strong>. Please refer to the details below:)
+        </p>
+        
+        <!-- Event Card -->
+        <div style="margin: 32px 0; padding: 28px; background-color: #f8fafc; border-radius: 12px; border-left: 5px solid #3b82f6; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+          <h2 style="margin: 0 0 20px 0; color: #0f172a; font-size: 22px;">${event.title}</h2>
           
-          <div style="margin-bottom: 12px;">
-            <strong style="color: #4b5563; font-size: 14px; text-transform: uppercase;">Date</strong><br/>
-            <span style="color: #1f2937; font-size: 16px;">${dateStr}</span>
-          </div>
-          
-          <div style="margin-bottom: 12px;">
-            <strong style="color: #4b5563; font-size: 14px; text-transform: uppercase;">Time</strong><br/>
-            <span style="color: #1f2937; font-size: 16px;">${startTimeStr} - ${endTimeStr}</span>
-          </div>
-          
-          ${event.description ? `
-          <div>
-            <strong style="color: #4b5563; font-size: 14px; text-transform: uppercase;">Description</strong><br/>
-            <span style="color: #1f2937; font-size: 16px;">${event.description}</span>
-          </div>
-          ` : ''}
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px 0; width: 120px; vertical-align: top;">
+                <strong style="color: #64748b; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Tarikh (Date)</strong>
+              </td>
+              <td style="padding: 8px 0;">
+                <span style="color: #0f172a; font-size: 16px; font-weight: 500;">${dateStr}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; vertical-align: top;">
+                <strong style="color: #64748b; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Masa (Time)</strong>
+              </td>
+              <td style="padding: 8px 0;">
+                <span style="color: #0f172a; font-size: 16px; font-weight: 500;">${startTimeStr} - ${endTimeStr}</span>
+              </td>
+            </tr>
+            ${event.description ? `
+            <tr>
+              <td style="padding: 16px 0 8px 0; vertical-align: top;">
+                <strong style="color: #64748b; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Agenda</strong>
+              </td>
+              <td style="padding: 16px 0 8px 0;">
+                <span style="color: #334155; font-size: 15px; line-height: 1.6; white-space: pre-wrap;">${event.description}</span>
+              </td>
+            </tr>
+            ` : ''}
+          </table>
         </div>
         
-        <p style="font-size: 14px; color: #6b7280; text-align: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
-          This is an automated invitation from the AIO System. Please use the calendar options in your email client to RSVP.
+        <!-- Manual RSVP Reminder -->
+        <div style="text-align: center; margin-top: 40px; padding: 24px; background-color: #eff6ff; border-radius: 12px;">
+          <p style="font-size: 15px; color: #1e40af; margin: 0 0 12px 0; font-weight: 600;">
+            Sahkan Kehadiran Anda (RSVP)
+          </p>
+          <p style="font-size: 14px; color: #3b82f6; margin: 0; line-height: 1.5;">
+            Sila gunakan butang <strong>Yes / No / Maybe</strong> yang terdapat pada bahagian atas e-mel ini (atau kalendar anda) untuk mengesahkan kehadiran.
+          </p>
+        </div>
+
+      </div>
+      
+      <!-- Footer -->
+      <div style="background-color: #f1f5f9; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+        <p style="font-size: 12px; color: #64748b; margin: 0; line-height: 1.6;">
+          E-mel ini dijana secara automatik oleh <strong>Sistem AIO BubblesO2</strong>.<br/>
+          Harap maklum bahawa ini adalah e-mel rasmi syarikat.
         </p>
       </div>
     </div>

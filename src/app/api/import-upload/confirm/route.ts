@@ -31,34 +31,69 @@ export async function POST(request: NextRequest) {
       return `${prefix}-${runningNo}`;
     }
 
+    const departmentsCache: Record<string, any> = {};
+    const locationsCache: Record<string, any> = {};
+
     let successCount = 0;
 
     for (const row of assets) {
       let deptId = null;
       if (row.departmentCode) {
-        // Find or create department
-        let dept = await prisma.department.findUnique({
-          where: { code: row.departmentCode }
-        });
-        if (!dept && row.departmentName) {
-           dept = await prisma.department.create({
-             data: { name: row.departmentName, code: row.departmentCode }
-           });
+        if (departmentsCache[row.departmentCode]) {
+          deptId = departmentsCache[row.departmentCode].id;
+        } else {
+          // Find or create department safely
+          let dept = await prisma.department.findFirst({
+            where: {
+              OR: [
+                { code: row.departmentCode },
+                { name: row.departmentName }
+              ]
+            }
+          });
+          if (!dept && row.departmentName) {
+            try {
+              dept = await prisma.department.create({
+                data: { name: row.departmentName, code: row.departmentCode }
+              });
+            } catch (err: any) {
+              // If concurrent creation happened, just find it
+              dept = await prisma.department.findFirst({
+                where: { name: row.departmentName }
+              });
+            }
+          }
+          if (dept) {
+            departmentsCache[row.departmentCode] = dept;
+            deptId = dept.id;
+          }
         }
-        if (dept) deptId = dept.id;
       }
 
       let locationId = null;
       if (row.location) {
-        let loc = await prisma.location.findFirst({
-          where: { name: row.location }
-        });
-        if (!loc) {
-          loc = await prisma.location.create({
-            data: { name: row.location }
+        if (locationsCache[row.location]) {
+          locationId = locationsCache[row.location].id;
+        } else {
+          let loc = await prisma.location.findFirst({
+            where: { name: row.location }
           });
+          if (!loc) {
+            try {
+              loc = await prisma.location.create({
+                data: { name: row.location }
+              });
+            } catch (err: any) {
+              loc = await prisma.location.findFirst({
+                where: { name: row.location }
+              });
+            }
+          }
+          if (loc) {
+            locationsCache[row.location] = loc;
+            locationId = loc.id;
+          }
         }
-        locationId = loc.id;
       }
 
       let prefix = '';

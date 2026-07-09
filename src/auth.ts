@@ -24,6 +24,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         })
 
         if (!user || !user.password) {
+          // Synthetic delay to thwart timing attacks and brute force
+          await new Promise(r => setTimeout(r, 2000))
           return null
         }
 
@@ -33,6 +35,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         )
 
         if (!isPasswordValid) {
+          // Synthetic delay to thwart timing attacks and brute force
+          await new Promise(r => setTimeout(r, 2000))
           return null
         }
         

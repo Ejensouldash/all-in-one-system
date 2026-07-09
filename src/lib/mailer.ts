@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer"
 import * as ics from "ics"
 import { format } from "date-fns"
+import path from "path"
 
 interface EmailOptions {
   to: string[]
@@ -32,13 +33,6 @@ export async function sendEmail({ to, subject, html, icsContent }: EmailOptions)
         to: email,
         subject,
         html,
-        attachments: [
-          {
-            filename: 'BubblesO2_Logo.png',
-            path: 'public/assets/BubblesO2_Logo.png',
-            cid: 'bubbleso2_logo' // used in html img src="cid:bubbleso2_logo"
-          }
-        ]
       }
 
       if (icsContent) {
@@ -122,13 +116,17 @@ export function generateEventEmailHtml(event: {
   const dateStr = format(event.startDateTime, "EEEE, d MMMM yyyy")
   const startTimeStr = format(event.startDateTime, "h:mm a")
   const endTimeStr = format(event.endDateTime, "h:mm a")
+  
+  // Construct absolute URL for the logo. In Vercel, VERCEL_URL is available.
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? \`https://\${process.env.VERCEL_URL}\` : "http://localhost:3000")
+  const logoUrl = \`\${baseUrl}/assets/BubblesO2_Logo.png\`
 
   return `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 650px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);">
       
       <!-- Header -->
       <div style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); padding: 32px 24px; text-align: center;">
-        <img src="cid:bubbleso2_logo" alt="BubblesO2 Logo" style="height: 50px; margin-bottom: 16px; drop-shadow: 0 2px 4px rgba(0,0,0,0.2);" />
+        <img src="${logoUrl}" alt="BubblesO2 Logo" style="height: 50px; margin-bottom: 16px; drop-shadow: 0 2px 4px rgba(0,0,0,0.2);" />
         <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700; letter-spacing: 0.5px;">Jemputan Mesyuarat / Event Invitation</h1>
         <p style="color: #bfdbfe; margin: 8px 0 0 0; font-size: 15px;">Sistem AIO BubblesO2</p>
       </div>

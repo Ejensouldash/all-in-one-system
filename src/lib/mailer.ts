@@ -70,12 +70,12 @@ export function generateIcs(event: {
     event.endDateTime.getUTCMinutes(),
   ] as [number, number, number, number, number]
 
-  const attendees = event.attendees.map((email) => ({
+  const attendees: ics.Attendee[] = event.attendees.map((email) => ({
     name: email.split("@")[0],
     email,
     rsvp: true,
-    partstat: "NEEDS-ACTION",
-    role: "REQ-PARTICIPANT",
+    partstat: "NEEDS-ACTION" as const,
+    role: "REQ-PARTICIPANT" as const,
   }))
 
   const { error, value } = ics.createEvent({

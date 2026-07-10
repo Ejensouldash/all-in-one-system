@@ -238,12 +238,17 @@ export function FormsAnalyticsClient({
 
 function KPICard({ title, value, subtitle, icon, colorClass, children }: { title: string, value: string, subtitle: string, icon: React.ReactNode, colorClass: string, children?: React.ReactNode }) {
   return (
-    <div className={`bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col justify-between hover:border-gray-300 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5`}>
-      <div>
+    <div className={`group bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col hover:border-gray-300 transition-all duration-500 hover:shadow-md hover:-translate-y-1 overflow-hidden ${children ? 'max-h-[175px] hover:max-h-[400px] cursor-pointer' : 'h-[175px]'}`}>
+      <div className="flex-1">
         <div className="flex justify-between items-center mb-4">
           <div className={`p-3 rounded-lg border ${colorClass}`}>
             {icon}
           </div>
+          {children && (
+            <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded transition-all duration-300 group-hover:opacity-0 group-hover:scale-95">
+              Hover to Expand
+            </span>
+          )}
         </div>
         <div>
           <h4 className="text-3.5xl font-black text-slate-900 tracking-tight leading-none">{value}</h4>
@@ -252,7 +257,7 @@ function KPICard({ title, value, subtitle, icon, colorClass, children }: { title
         </div>
       </div>
       {children && (
-        <div className="mt-4 pt-4 border-t border-slate-100">
+        <div className="mt-4 pt-4 border-t border-slate-100 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out">
           {children}
         </div>
       )}

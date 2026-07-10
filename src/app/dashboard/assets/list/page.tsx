@@ -5,7 +5,7 @@ import { DataTable } from "./data-table"
 
 export default async function AssetsListPage() {
   const session = await auth()
-  if (!session) redirect("/login")
+  // if (!session) redirect("/login")
   
   // Fetch all assets for the master list
   // In a massive production system (10,000+ rows), this should use server-side pagination, 

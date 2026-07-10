@@ -243,7 +243,11 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
               <section className="print:break-inside-avoid">
                 <h2 className="text-lg print:text-[12pt] font-black uppercase tracking-tight border-b-2 border-black print:border-black pb-1 mb-3 print:mb-1 print:break-after-avoid">2. Production Output</h2>
                 <div className="space-y-3 print:space-y-1">
-                {report.productions.filter((prod: any) => prod.totalBox > 0).map((prod: any) => (
+                {report.noProduction ? (
+                  <div className="p-4 border-2 border-dashed border-gray-400 bg-gray-50 text-center font-bold uppercase text-gray-500 rounded print:border print:bg-transparent print:text-black">
+                    No Production Run For This Shift
+                  </div>
+                ) : report.productions.filter((prod: any) => prod.totalBox > 0).map((prod: any) => (
                   <div key={prod.id} className="border-2 print:border border-black print:border-black bg-white print:bg-transparent print:break-inside-avoid">
                     <div className="bg-gray-100 print:bg-transparent border-b-2 print:border-b border-black print:border-black p-3 print:py-0.5 print:px-2 font-black uppercase flex justify-between items-center text-sm print:text-[10pt]">
                       <span>{prod.productType.replace('p800_', '800ml x ').replace('p425_', '425ml x ')}</span>

@@ -54,6 +54,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       rejectsReturn: { cap: {before:0,after:0}, bottle: {before:0,after:0}, label: {before:0,after:0}, box: {before:0,after:0} },
       breakdowns: [{ section: "autoscrambler", downtime: "", reason: "" }],
       noRejects: false,
+      noProduction: false,
 
       // INVENTORY STATE STRUCTURE - V4.0 (Everything tracked in Bags)
       inventory: {
@@ -86,6 +87,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
   })
 
   const watchLine = watch("line")
+  const watchNoProduction = watch("noProduction")
   const productionCheckboxes = watch("production")
   const watchRejectsScrap = useWatch({ control, name: "rejectsScrap" });
   const watchRejectsReturn = useWatch({ control, name: "rejectsReturn" });
@@ -184,6 +186,68 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       fetchInventory()
     }
   }, [watchDate, watchShift, reportId])
+
+  // Auto-populate / disable fields when noProduction is checked
+  useEffect(() => {
+    if (watchNoProduction) {
+      // Uncheck all production lines for current config
+      const config = PRODUCTION_CONFIG[watchLine as keyof typeof PRODUCTION_CONFIG] || []
+      config.forEach(prod => {
+        setValue(`production.${prod.id}.checked`, false)
+        setValue(`production.${prod.id}.qty`, 0)
+        setValue(`production.${prod.id}.batches`, [{ batchNo: "", qty: 0, type: "Standard", otherType: "" }])
+      })
+      
+      // Auto-set rejects to Tiada Rejects
+      setValue("noRejects", true)
+      
+      // Clear rejects data
+      const items = ["cap", "bottle", "label", "box"]
+      items.forEach(k => {
+        setValue(`rejectsScrap.${k}.before`, 0)
+        setValue(`rejectsScrap.${k}.after`, 0)
+        setValue(`rejectsReturn.${k}.before`, 0)
+        setValue(`rejectsReturn.${k}.after`, 0)
+      })
+
+      // Auto-populate availableCarryForward to inventory.sources and clear usages/holds
+      const updatedInventory = { ...getValues("inventory") }
+      Object.keys(updatedInventory).forEach(sectionKey => {
+        const sectionAvailableBatches = availableCarryForward.filter((d: any) => {
+          if (d.category) {
+            if (sectionKey === "BOTTLE" && d.category.includes("BOTTLE")) return true
+            if (sectionKey === "CAP" && d.category.includes("CAP")) return true
+            if (sectionKey === "LABEL" && d.category.includes("LABEL")) return true
+            if (sectionKey.startsWith("BOX_")) {
+              const size = sectionKey.replace("BOX_p", "").split("_")[0];
+              const pack = sectionKey.split("_")[2];
+              if (d.category.includes(size) && d.category.includes(pack)) return true
+              return false
+            }
+          }
+          if (sectionKey === "BOTTLE") return d.mult === 225 || d.mult === 181 || d.mult === 162
+          if (sectionKey === "CAP") return d.mult === 4000
+          if (sectionKey === "LABEL") return d.mult === 1
+          return false
+        })
+
+        // Map them
+        if (sectionAvailableBatches.length > 0) {
+          updatedInventory[sectionKey].sources = sectionAvailableBatches.map((b: any) => ({
+            batchNo: `${b.batchNo}|${b.mult}`,
+            bags: b.bags,
+            mult: b.mult,
+            labelType: b.labelType || "Standard Front"
+          }))
+        } else {
+          updatedInventory[sectionKey].sources = [{ batchNo: "", bags: 0, mult: 1 }]
+        }
+        updatedInventory[sectionKey].usages = [{ period: "Before", batchNo: "", bags: 0 }]
+        updatedInventory[sectionKey].holds = []
+      })
+      setValue("inventory", updatedInventory)
+    }
+  }, [watchNoProduction, watchLine, availableCarryForward, setValue, getValues])
 
   const showErrorAndScroll = (elementId: string, message: string) => {
     alert(message)
@@ -463,13 +527,29 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
         </section>
 
         <section>
-          <div className="flex items-center mb-6 border-b-[3px] border-black pb-2">
-            <span className="bg-black text-white px-3 py-1 font-black text-lg mr-3">2</span>
-            <h2 className="text-2xl font-black uppercase tracking-tight">Production Output & Distribution</h2>
+          <div className="flex items-center mb-6 border-b-[3px] border-black pb-2 justify-between">
+            <div className="flex items-center">
+              <span className="bg-black text-white px-3 py-1 font-black text-lg mr-3">2</span>
+              <h2 className="text-2xl font-black uppercase tracking-tight">Production Output & Distribution</h2>
+            </div>
+            <label className="flex items-center cursor-pointer bg-white border-2 border-black p-1.5 px-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-none transition-all">
+              <input type="checkbox" {...register("noProduction")} className="w-5 h-5 accent-black border-2 border-black mr-2" />
+              <span className="font-black uppercase tracking-widest text-xs text-black">No Production</span>
+            </label>
           </div>
-          <div className="space-y-6">
-            {PRODUCTION_CONFIG[watchLine as keyof typeof PRODUCTION_CONFIG]?.map(prod => renderProductionRow(prod.id, prod.label))}
-          </div>
+          {watchNoProduction ? (
+            <div className="p-8 border-4 border-dashed border-gray-300 bg-gray-50 text-center rounded-lg">
+              <Info className="w-12 h-12 text-gray-400 mx-auto mb-3 animate-pulse" />
+              <h3 className="text-lg font-black uppercase text-gray-600">No Production Run For This Shift</h3>
+              <p className="text-xs text-gray-500 font-bold max-w-sm mx-auto mt-1">
+                All production quantities are set to 0. Available stock balances will automatically carry forward to the next shift.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {PRODUCTION_CONFIG[watchLine as keyof typeof PRODUCTION_CONFIG]?.map(prod => renderProductionRow(prod.id, prod.label))}
+            </div>
+          )}
         </section>
 
         <section id="section-rejects">

@@ -251,6 +251,7 @@ model DailyReport {
   remarks             String?
   createdAt           DateTime             @default(now())
   status              String               @default("PENDING")
+  noProduction        Boolean              @default(false)
   preparedSignature   String?
   verifiedSignature   String?
   time                String?

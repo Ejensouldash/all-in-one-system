@@ -28,6 +28,7 @@ export async function createDailyReport(data: any) {
         totalManpower: Number(data.totalManpower) || null,
         maxTotalManpower: Number(data.maxTotalManpower) || null,
         createdById: session.user.id,
+        noProduction: data.noProduction || false,
         
         // Productions
         productions: {
@@ -493,6 +494,7 @@ export async function updateDailyReport(id: string, data: any) {
           remarks: data.remarks,
           totalManpower: Number(data.totalManpower) || null,
           maxTotalManpower: Number(data.maxTotalManpower) || null,
+          noProduction: data.noProduction || false,
           
           productions: {
             create: Object.keys(data.production || {}).filter(k => {

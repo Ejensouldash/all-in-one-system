@@ -80,6 +80,24 @@ export function Chatbot() {
     }
   }
 
+  const getFullBodyAnimation = () => {
+    switch(avatarState) {
+      case "thinking": return 'ariaSway 2s ease-in-out infinite'
+      case "excited": return 'ariaBounce 0.6s ease-in-out 3'
+      case "idle":
+      default: return 'ariaFloat 4s ease-in-out infinite'
+    }
+  }
+
+  const getMoodBadge = () => {
+    switch(avatarState) {
+      case "thinking": return { emoji: "💭", label: "Thinking..." }
+      case "excited": return { emoji: "✨", label: "Got it!" }
+      case "idle":
+      default: return null
+    }
+  }
+
   const quickActions = [
     "Laptop saya slow",
     "Tak boleh print",
@@ -87,12 +105,46 @@ export function Chatbot() {
     "Password reset"
   ]
 
+  const moodBadge = getMoodBadge()
+
   return (
     <div className="fixed bottom-6 right-6 z-50">
       {isOpen ? (
+        <div className="flex items-end gap-0" style={{ animation: 'chatSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+          
+          {/* ── Full-Body Aria Peek ── */}
+          <div className="hidden sm:flex flex-col items-center mb-2 relative" style={{ marginRight: '-12px', zIndex: 10 }}>
+            {/* Mood Badge */}
+            {moodBadge && (
+              <div 
+                className="bg-white border border-slate-200 shadow-lg rounded-full px-3 py-1 mb-1 flex items-center gap-1.5"
+                style={{ animation: 'moodPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+              >
+                <span className="text-sm">{moodBadge.emoji}</span>
+                <span className="text-[10px] font-bold text-slate-600 tracking-wide">{moodBadge.label}</span>
+              </div>
+            )}
+            {/* Full-Body Figure */}
+            <div 
+              className="relative w-[120px] h-[280px] drop-shadow-xl" 
+              style={{ animation: getFullBodyAnimation(), filter: avatarState === 'thinking' ? 'brightness(0.95)' : 'brightness(1)' }}
+            >
+              <Image 
+                src="/avatars/aria_fullbody_blazer.png" 
+                alt="Aria Full Body" 
+                fill 
+                className="object-contain object-bottom" 
+                sizes="120px"
+                unoptimized={true}
+                priority
+              />
+            </div>
+            {/* Shadow underneath */}
+            <div className="w-16 h-2 bg-black/10 rounded-full blur-sm mt-[-4px]" style={{ animation: avatarState === 'thinking' ? 'shadowPulse 2s ease-in-out infinite' : 'none' }} />
+          </div>
+
         <div 
-          className="bg-white rounded-2xl shadow-2xl w-[360px] sm:w-[420px] overflow-hidden border border-slate-200/80 flex flex-col h-[640px] max-h-[85vh]"
-          style={{ animation: 'chatSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}
+          className="bg-white rounded-2xl shadow-2xl w-[360px] sm:w-[420px] overflow-hidden border border-slate-200/80 flex flex-col h-[640px] max-h-[85vh] relative z-20"
         >
           
           {/* ── Compact Header ── */}
@@ -242,6 +294,7 @@ export function Chatbot() {
           </div>
 
         </div>
+        </div>
       ) : (
         <button 
           onClick={() => setIsOpen(true)}
@@ -272,6 +325,28 @@ export function Chatbot() {
         @keyframes shimmer {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }
+        }
+        @keyframes ariaFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-8px); }
+        }
+        @keyframes ariaSway {
+          0%, 100% { transform: rotate(0deg) translateY(0); }
+          25% { transform: rotate(-2deg) translateY(-3px); }
+          75% { transform: rotate(2deg) translateY(-3px); }
+        }
+        @keyframes ariaBounce {
+          0%, 100% { transform: translateY(0); }
+          40% { transform: translateY(-16px); }
+          60% { transform: translateY(-4px); }
+        }
+        @keyframes moodPop {
+          0% { opacity: 0; transform: scale(0.5) translateY(8px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes shadowPulse {
+          0%, 100% { transform: scaleX(1); opacity: 0.1; }
+          50% { transform: scaleX(0.8); opacity: 0.05; }
         }
 
         /* ── Aria Markdown Theme ── */

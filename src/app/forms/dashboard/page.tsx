@@ -83,10 +83,57 @@ export default async function FormsDashboardPage() {
     bags: incomingTrendMap[date]
   }))
 
-  // KPI calculations
-  const overallRejectRate = totalBoxesProduced > 0 ? ((totalRejects / (totalBoxesProduced * 20)) * 100).toFixed(2) : "0.00" // Assuming avg 20 bottles per box for rough calculation. Wait, reject rate is usually total rejects / total bottles. Let's just do total rejects / (total rejects + total good).
-  // Actually, standard is (Total Rejects) / (Total Good + Total Rejects). 
-  // Let's pass the raw numbers to the client for clear labeling.
+  // 4. Calculate detailed rejects and reject rates per category (BOTTLE, CAP, LABEL, BOX)
+  const categoryStats: Record<string, { usage: number, rejects: number, rate: number }> = {
+    BOTTLE: { usage: 0, rejects: 0, rate: 0 },
+    CAP: { usage: 0, rejects: 0, rate: 0 },
+    LABEL: { usage: 0, rejects: 0, rate: 0 },
+    BOX: { usage: 0, rejects: 0, rate: 0 }
+  }
+
+  reports.forEach(report => {
+    // Accumulate usages
+    report.inventory.forEach(inv => {
+      if (inv.type === "Usage") {
+        let cat = "";
+        if (inv.sectionKey === "BOTTLE") cat = "BOTTLE";
+        else if (inv.sectionKey === "CAP") cat = "CAP";
+        else if (inv.sectionKey === "LABEL") cat = "LABEL";
+        else if (inv.sectionKey.startsWith("BOX_")) cat = "BOX";
+        
+        if (cat) {
+          categoryStats[cat].usage += (inv.bags * inv.mult);
+        }
+      }
+    });
+
+    // Accumulate rejects
+    report.rejects.forEach(rej => {
+      const rejectSum = rej.before + rej.after;
+      let cat = "";
+      if (rej.item === "BOTTLE") cat = "BOTTLE";
+      else if (rej.item === "CAP") cat = "CAP";
+      else if (rej.item === "LABEL") cat = "LABEL";
+      else if (rej.item.startsWith("BOX")) cat = "BOX";
+      
+      if (cat) {
+        categoryStats[cat].rejects += rejectSum;
+      }
+    });
+  });
+
+  // Calculate rate for each category
+  Object.keys(categoryStats).forEach(cat => {
+    const usage = categoryStats[cat].usage;
+    const rejects = categoryStats[cat].rejects;
+    categoryStats[cat].rate = (usage + rejects) > 0 ? (rejects / (usage + rejects)) * 100 : 0;
+  });
+
+  // Overall reject rate based on total rejects / total inputs (usages + rejects)
+  const totalUsages = Object.values(categoryStats).reduce((sum, item) => sum + item.usage, 0);
+  const overallRejectRate = (totalUsages + totalRejects) > 0 
+    ? ((totalRejects / (totalUsages + totalRejects)) * 100).toFixed(2)
+    : "0.00";
 
   // Fetch Latest Inventory Balances (From the most recently created report)
   let latestInventory: any[] = []
@@ -123,6 +170,8 @@ export default async function FormsDashboardPage() {
         totalRejects={totalRejects}
         totalTransferBags={totalTransferBags}
         latestInventory={latestInventory}
+        categoryStats={categoryStats}
+        overallRejectRate={overallRejectRate}
       />
     </div>
   )

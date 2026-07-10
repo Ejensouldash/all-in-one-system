@@ -15,7 +15,9 @@ export function FormsAnalyticsClient({
   totalBoxesProduced,
   totalRejects,
   totalTransferBags,
-  latestInventory
+  latestInventory,
+  categoryStats,
+  overallRejectRate
 }: {
   productionTrendData: any[]
   rejectData: any[]
@@ -24,15 +26,10 @@ export function FormsAnalyticsClient({
   totalRejects: number
   totalTransferBags: number
   latestInventory: any[]
+  categoryStats: Record<string, { usage: number, rejects: number, rate: number }>
+  overallRejectRate: string
 }) {
   
-  // Calculate a rough rejection rate based on an average of 20 bottles per box
-  // This is a business logic simplification for the visual dashboard
-  const estimatedTotalBottles = totalBoxesProduced * 20
-  const rejectRate = estimatedTotalBottles > 0 
-    ? ((totalRejects / (estimatedTotalBottles + totalRejects)) * 100).toFixed(2) 
-    : "0.00"
-
   // Aggregate storeroom balance (Group by category)
   const inventorySummary: Record<string, number> = {}
   latestInventory.forEach(inv => {
@@ -64,14 +61,45 @@ export function FormsAnalyticsClient({
           subtitle="Items Defective" 
           icon={<AlertOctagon className="h-6 w-6 text-red-500" />}
           colorClass="border-red-100 bg-red-50/30"
-        />
+        >
+          <div className="space-y-2 mt-2">
+            {Object.entries(categoryStats).map(([cat, stats]) => {
+              const ratio = totalRejects > 0 ? (stats.rejects / totalRejects) * 100 : 0;
+              return (
+                <div key={cat} className="space-y-1">
+                  <div className="flex justify-between text-[10px] font-black uppercase text-slate-500 tracking-wider">
+                    <span>{cat}</span>
+                    <span>{stats.rejects.toLocaleString()}</span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-1 overflow-hidden">
+                    <div 
+                      className="bg-red-500 h-1 rounded-full transition-all duration-500" 
+                      style={{ width: `${ratio}%` }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </KPICard>
         <KPICard 
           title="Overall Reject Rate" 
-          value={`${rejectRate}%`} 
+          value={`${overallRejectRate}%`} 
           subtitle="Rejects / Total Volume" 
           icon={<Activity className="h-6 w-6 text-amber-500" />}
           colorClass="border-amber-100 bg-amber-50/30"
-        />
+        >
+          <div className="space-y-2 mt-2">
+            {Object.entries(categoryStats).map(([cat, stats]) => (
+              <div key={cat} className="flex justify-between items-center text-[10px] font-black uppercase text-slate-500 tracking-wider">
+                <span>{cat}</span>
+                <span className={`px-2 py-0.5 rounded text-[9px] font-black ${stats.rate > 5 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                  {stats.rate.toFixed(2)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </KPICard>
         <KPICard 
           title="Incoming Deliveries" 
           value={totalTransferBags.toLocaleString()} 
@@ -208,19 +236,26 @@ export function FormsAnalyticsClient({
   )
 }
 
-function KPICard({ title, value, subtitle, icon, colorClass }: { title: string, value: string, subtitle: string, icon: React.ReactNode, colorClass: string }) {
+function KPICard({ title, value, subtitle, icon, colorClass, children }: { title: string, value: string, subtitle: string, icon: React.ReactNode, colorClass: string, children?: React.ReactNode }) {
   return (
-    <div className={`bg-white rounded-xl border shadow-sm p-6 flex flex-col ${colorClass.replace('bg-', 'hover:bg-').replace('/30', '/10')} transition-colors`}>
-      <div className="flex justify-between items-start mb-4">
-        <div className={`p-3 rounded-lg border ${colorClass}`}>
-          {icon}
+    <div className={`bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col justify-between hover:border-gray-300 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5`}>
+      <div>
+        <div className="flex justify-between items-center mb-4">
+          <div className={`p-3 rounded-lg border ${colorClass}`}>
+            {icon}
+          </div>
+        </div>
+        <div>
+          <h4 className="text-3.5xl font-black text-slate-900 tracking-tight leading-none">{value}</h4>
+          <p className="text-sm font-black text-slate-800 uppercase tracking-wider mt-2.5">{title}</p>
+          <p className="text-xs font-bold text-slate-400 mt-1">{subtitle}</p>
         </div>
       </div>
-      <div>
-        <h4 className="text-3xl font-black text-gray-900 tracking-tight">{value}</h4>
-        <p className="text-sm font-bold text-gray-600 uppercase tracking-wider mt-1">{title}</p>
-        <p className="text-xs font-medium text-gray-400 mt-2">{subtitle}</p>
-      </div>
+      {children && (
+        <div className="mt-4 pt-4 border-t border-slate-100">
+          {children}
+        </div>
+      )}
     </div>
   )
 }

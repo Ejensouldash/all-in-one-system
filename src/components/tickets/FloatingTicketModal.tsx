@@ -1,10 +1,14 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { usePathname } from "next/navigation"
 import { createTicket, getTicketModalData, getAssetByTag } from "@/app/actions/ticket"
 import { Plus, X, Laptop, Send, Loader2, AlertCircle, Ticket, CheckCircle2, Search, Cpu } from "lucide-react"
 
 export function FloatingTicketModal() {
+  const pathname = usePathname()
+  const isTicketPage = pathname?.startsWith("/tickets")
+  
   const [isOpen, setIsOpen] = useState(false)
   const [isLoadingData, setIsLoadingData] = useState(false)
   const [data, setData] = useState<{ user: any, branches: any[] } | null>(null)
@@ -89,7 +93,7 @@ export function FloatingTicketModal() {
     <>
       <button 
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-[5.5rem] right-6 z-50 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white p-4 rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all hover:scale-110 group flex items-center justify-center"
+        className={`fixed bottom-[5.5rem] right-6 z-50 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white p-4 rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 group flex items-center justify-center ${isTicketPage ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-75 pointer-events-none'}`}
       >
         <Plus className="h-6 w-6 group-hover:rotate-90 transition-transform duration-300" />
       </button>

@@ -18,23 +18,23 @@ export function ProfileForm({ user }: { user: any }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+    <form onSubmit={handleSubmit} className="space-y-5 max-w-md">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-        <input type="text" name="name" defaultValue={user.name} required className="w-full px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-blue-500" />
+        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Full Name</label>
+        <input type="text" name="name" defaultValue={user.name} required className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200/80 rounded-lg text-sm outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-zinc-950/20 focus:border-zinc-950 text-zinc-800 placeholder:text-zinc-400" />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Email (Cannot be changed)</label>
-        <input type="email" value={user.email} disabled className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-500 rounded-md" />
+        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Email (Cannot be changed)</label>
+        <input type="email" value={user.email} disabled className="w-full px-3.5 py-2.5 bg-zinc-100 border border-zinc-200 text-zinc-400 rounded-lg text-sm cursor-not-allowed" />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">New Password (leave blank to keep current)</label>
-        <input type="password" name="password" placeholder="Enter new password" className="w-full px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-blue-500" />
+        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">New Password (leave blank to keep current)</label>
+        <input type="password" name="password" placeholder="••••••••" className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200/80 rounded-lg text-sm outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-zinc-950/20 focus:border-zinc-950 text-zinc-800 placeholder:text-zinc-400" />
       </div>
-      <button type="submit" className="bg-gray-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors flex items-center">
+      <button type="submit" className="bg-zinc-900 hover:bg-zinc-800 text-white shadow-sm hover:shadow active:scale-[0.98] transition-all px-4.5 py-2.5 rounded-lg text-sm font-bold flex items-center">
         <Save className="h-4 w-4 mr-2" /> Save Profile
       </button>
-      {status && <p className={`text-sm ${status.includes("Error") ? "text-red-500" : "text-green-600"} font-medium mt-2`}>{status}</p>}
+      {status && <p className={`text-sm ${status.includes("Error") ? "text-red-500" : "text-emerald-600"} font-semibold mt-2`}>{status}</p>}
     </form>
   )
 }
@@ -51,19 +51,19 @@ export function GlobalSettingsForm({ settingsMap }: { settingsMap: Record<string
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+    <form onSubmit={handleSubmit} className="space-y-5 max-w-md">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
-        <input type="text" name="COMPANY_NAME" defaultValue={settingsMap["COMPANY_NAME"] || ""} placeholder="e.g. Acme Corp" className="w-full px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-blue-500" />
+        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Company Name</label>
+        <input type="text" name="COMPANY_NAME" defaultValue={settingsMap["COMPANY_NAME"] || ""} placeholder="e.g. Acme Corp" className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200/80 rounded-lg text-sm outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-zinc-950/20 focus:border-zinc-950 text-zinc-800 placeholder:text-zinc-400" />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Support Email</label>
-        <input type="email" name="SUPPORT_EMAIL" defaultValue={settingsMap["SUPPORT_EMAIL"] || ""} placeholder="e.g. it@acme.com" className="w-full px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-blue-500" />
+        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Support Email</label>
+        <input type="email" name="SUPPORT_EMAIL" defaultValue={settingsMap["SUPPORT_EMAIL"] || ""} placeholder="e.g. it@acme.com" className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200/80 rounded-lg text-sm outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-zinc-950/20 focus:border-zinc-950 text-zinc-800 placeholder:text-zinc-400" />
       </div>
-      <button type="submit" className="bg-gray-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors flex items-center">
+      <button type="submit" className="bg-zinc-900 hover:bg-zinc-800 text-white shadow-sm hover:shadow active:scale-[0.98] transition-all px-4.5 py-2.5 rounded-lg text-sm font-bold flex items-center">
         <Save className="h-4 w-4 mr-2" /> Save Configuration
       </button>
-      {status && <p className={`text-sm ${status.includes("Error") ? "text-red-500" : "text-green-600"} font-medium mt-2`}>{status}</p>}
+      {status && <p className={`text-sm ${status.includes("Error") ? "text-red-500" : "text-emerald-600"} font-semibold mt-2`}>{status}</p>}
     </form>
   )
 }

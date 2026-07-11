@@ -596,8 +596,9 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             {/* Table 1: Scrap / Disposal */}
             <div>
               <h3 className="font-black uppercase tracking-widest mb-3 bg-red-600 text-white px-4 py-2 inline-block">REJECT</h3>
-              <table className={`w-full border-[3px] border-black text-base transition-opacity ${watchNoRejects ? 'opacity-50 pointer-events-none' : ''}`}>
-                <thead className="bg-gray-100 border-b-[3px] border-black">
+              <div className="overflow-x-auto w-full">
+                <table className={`w-full min-w-[500px] border-[3px] border-black text-base transition-opacity ${watchNoRejects ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <thead className="bg-gray-100 border-b-[3px] border-black">
                   <tr>
                     <th className="p-2 text-left border-r-[3px] border-black uppercase tracking-wider font-black text-xs">Item</th>
                     <th className="p-2 text-center border-r-[3px] border-black uppercase tracking-wider font-black text-xs">Before</th>
@@ -638,6 +639,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
                   })()}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         </section>
@@ -1463,8 +1465,9 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
             <span className="bg-yellow-900 text-white px-2 py-0.5 mr-2">4</span> Summary Carry Forward
           </h3>
           
-          <table className="w-full text-sm text-black border-collapse bg-white border border-gray-300">
-            <thead className="bg-gray-100 border-b border-gray-300">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full min-w-[500px] text-sm text-black border-collapse bg-white border border-gray-300">
+              <thead className="bg-gray-100 border-b border-gray-300">
               <tr>
                 <th className="p-2 text-left border-r border-gray-300 uppercase font-black text-xs">Batch No</th>
                 <th className="p-2 text-center border-r border-gray-300 uppercase font-black text-xs w-16">Avail</th>
@@ -1490,6 +1493,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
               )}
             </tbody>
           </table>
+          </div>
         </div>
 
       </div>

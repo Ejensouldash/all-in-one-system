@@ -527,12 +527,12 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
         </section>
 
         <section>
-          <div className="flex items-center mb-6 border-b-[3px] border-black pb-2 justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center mb-6 border-b-[3px] border-black pb-2 justify-between gap-4">
             <div className="flex items-center">
               <span className="bg-black text-white px-3 py-1 font-black text-lg mr-3">2</span>
               <h2 className="text-2xl font-black uppercase tracking-tight">Production Output & Distribution</h2>
             </div>
-            <label className="flex items-center cursor-pointer bg-white border-2 border-black p-1.5 px-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-none transition-all">
+            <label className="flex items-center cursor-pointer bg-white border-2 border-black p-1.5 px-3 pr-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-none transition-all whitespace-normal break-words shrink-0">
               <input type="checkbox" {...register("noProduction")} className="w-5 h-5 accent-black border-2 border-black mr-2" />
               <span className="font-black uppercase tracking-widest text-xs text-black">No Production</span>
             </label>
@@ -553,7 +553,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
         </section>
 
         <section id="section-rejects">
-          <div className="flex items-center mb-4 border-b-[3px] border-black pb-2 justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center mb-4 border-b-[3px] border-black pb-2 justify-between gap-4">
             <div className="flex items-center">
               <span className="bg-black text-white px-3 py-1 font-black text-lg mr-3">3</span>
               <h2 className="text-2xl font-black uppercase tracking-tight">Reject Tracking</h2>
@@ -564,7 +564,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             <p className="text-sm font-black uppercase text-red-600 tracking-wider">
               * Please fill in the box for reject product (Wajib Isi)
             </p>
-            <label className="flex items-center cursor-pointer bg-white border-2 border-black p-2 px-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-none transition-all">
+            <label className="flex items-center cursor-pointer bg-white border-2 border-black p-2 px-4 pr-6 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-none transition-all whitespace-normal break-words shrink-0">
               <input type="checkbox" {...register("noRejects")} className="w-5 h-5 accent-black border-2 border-black mr-3" />
               <span className="font-black uppercase tracking-widest text-sm text-black">Tiada Barang Reject</span>
             </label>
@@ -1122,7 +1122,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                 const calculatedPcs = bags * mult
 
                 return (
-                  <div key={field.id} className="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-gray-50 p-2 border border-gray-300">
+                  <div key={field.id} className="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-gray-50 p-3 px-4 border border-gray-300">
                     {isLabel && (
                       <select {...register(`inventory.${sectionKey}.sources.${index}.labelType`)} className="w-full sm:w-32 p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-black uppercase">
                         <option value="Standard Front">Standard Front</option>
@@ -1171,8 +1171,8 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                       </select>
                     </div>
                     
-                    <div className="flex-1 flex justify-end">
-                      <div className="flex items-center space-x-1">
+                    <div className="flex-1 flex justify-end w-full sm:w-auto">
+                      <div className="flex items-center gap-2 sm:gap-3">
                         <input type="number" placeholder={unit} min="0" {...register(`inventory.${sectionKey}.sources.${index}.bags`)} className="w-16 p-2 border border-gray-300 text-center text-xs font-bold outline-none focus:border-black" />
                         <span className="text-xs font-bold text-gray-500">×</span>
                         {isCap ? (
@@ -1182,7 +1182,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                           {multipliers.map((m: number) => <option key={m} value={m}>{m}</option>)}
                         </select>
    )}
-                        <span className="text-xs font-black text-indigo-700 ml-2 w-16 text-right">{calculatedPcs} Pcs</span>
+                        <span className="text-xs font-black text-indigo-700 ml-2 min-w-[4.5rem] text-right">{calculatedPcs} {isLabel ? 'Rolls' : 'Pcs'}</span>
                       </div>
                     </div>
                     <button type="button" onClick={() => removeSource(index)} className="text-red-500 p-2 hover:bg-red-100"><Trash2 className="w-4 h-4" /></button>
@@ -1191,8 +1191,8 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
               })}
             </div>
             {watchSources.length > 0 && (
-              <div className="mt-2 flex justify-end">
-                <div className="bg-emerald-100 px-4 py-2 border-2 border-emerald-200 font-black text-sm flex items-center gap-3">
+              <div className="mt-2 flex justify-end w-full">
+                <div className="bg-emerald-100 p-3 sm:px-4 sm:py-2 border-2 border-emerald-200 font-black text-xs sm:text-sm flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
                   <span className="text-gray-600 uppercase tracking-widest text-xs">Total Storeroom</span>
                   {isLabel ? (
                     <div className="flex flex-col text-xs space-y-1">
@@ -1247,7 +1247,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
 
                 return (
                   <div key={field.id} className="flex flex-col bg-white border border-blue-200 shadow-sm">
-                    <div className="flex flex-wrap gap-2 items-center p-2">
+                    <div className="flex flex-wrap gap-2 items-center p-3 px-4">
                       <select {...register(`inventory.${sectionKey}.usages.${index}.period`)} className="w-28 p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-blue-500">
                         <option value="Before">Before</option>
                         <option value="After">After</option>
@@ -1333,8 +1333,8 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
               })}
             </div>
             {watchUsages.length > 0 && (
-              <div className="mt-2 flex justify-end">
-                <div className="bg-blue-100 px-4 py-2 border-2 border-blue-200 font-black text-sm flex items-center gap-3">
+              <div className="mt-2 flex justify-end w-full">
+                <div className="bg-blue-100 p-3 sm:px-4 sm:py-2 border-2 border-blue-200 font-black text-xs sm:text-sm flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
                   <span className="text-gray-600 uppercase tracking-widest text-xs">Total Usage</span>
                   {isLabel ? (
                     <div className="flex flex-col text-xs space-y-1">

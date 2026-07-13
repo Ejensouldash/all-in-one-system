@@ -18,7 +18,7 @@ export async function submitChemicalControlForm(formData: FormData) {
       return { success: false, error: "Please fill in all required fields (Date, Chemical Code, Time Taken, Taken By)." }
     }
 
-    await prisma.maintenanceChemicalControl.create({
+    await prisma.maintenanceChemical.create({
       data: {
         date: new Date(dateStr),
         chemicalCode,

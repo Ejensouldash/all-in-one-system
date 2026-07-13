@@ -91,34 +91,6 @@ export function Chatbot() {
     <div className="fixed bottom-6 right-6 z-50 flex items-end">
       {isOpen ? (
         <div className="flex items-end gap-2">
-          {/* Full-Body Aria Peek */}
-          <div 
-            className="relative hidden sm:block w-[180px] h-[340px] -mr-8 z-10 transition-all duration-500 ease-out origin-bottom"
-            style={{ 
-              transform: avatarState === "thinking" 
-                ? 'rotate(-2deg) scale(1.02)' 
-                : avatarState === "excited" 
-                  ? 'rotate(2deg) scale(1.05) translateY(-5px)' 
-                  : 'rotate(0deg) scale(1) translateY(0px)',
-              filter: 'drop-shadow(0 10px 25px rgba(0,0,0,0.15))',
-              animation: 'chatSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)'
-            }}
-          >
-            <Image
-              src="/avatars/Aria Full.png"
-              alt="Aria Full Body"
-              fill
-              className="object-contain object-bottom drop-shadow-2xl"
-              unoptimized
-            />
-            {/* Contextual Emoji Badge */}
-            {avatarState === "thinking" && (
-              <div className="absolute top-8 right-6 text-2xl animate-bounce" style={{ animationDuration: '2s' }}>💭</div>
-            )}
-            {avatarState === "excited" && (
-              <div className="absolute top-8 right-6 text-2xl animate-bounce">✨</div>
-            )}
-          </div>
 
           <div 
             className="bg-white rounded-2xl shadow-2xl w-[360px] sm:w-[420px] overflow-hidden border border-slate-200/80 flex flex-col h-[640px] max-h-[85vh] relative z-20"

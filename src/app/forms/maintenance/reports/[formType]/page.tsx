@@ -109,7 +109,11 @@ export default function MaintenanceMonthlyReportPage() {
 
   const handlePrint = () => {
     const originalTitle = document.title
-    const formattedDate = `${monthNames[month - 1].toUpperCase()} ${year}`
+    const today = new Date()
+    const dd = String(today.getDate()).padStart(2, '0')
+    const mm = String(today.getMonth() + 1).padStart(2, '0')
+    const yyyy = today.getFullYear()
+    const formattedDate = `${dd}-${mm}-${yyyy}`
     document.title = `${meta.title} ${formattedDate}`
     window.print()
     document.title = originalTitle

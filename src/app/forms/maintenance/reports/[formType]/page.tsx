@@ -107,6 +107,14 @@ export default function MaintenanceMonthlyReportPage() {
 
   const yearsArray = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i)
 
+  const handlePrint = () => {
+    const originalTitle = document.title
+    const formattedDate = `${monthNames[month - 1].toUpperCase()} ${year}`
+    document.title = `${meta.title} ${formattedDate}`
+    window.print()
+    document.title = originalTitle
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8 print:py-0 print:bg-white print:min-h-0">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 print:p-0 print:max-w-none">
@@ -139,7 +147,7 @@ export default function MaintenanceMonthlyReportPage() {
             </select>
 
             <button
-              onClick={() => window.print()}
+              onClick={handlePrint}
               disabled={loading}
               className="flex items-center px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-black uppercase tracking-wider transition-colors shadow-md disabled:opacity-50"
             >

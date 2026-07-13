@@ -105,7 +105,7 @@ export function Chatbot() {
             }}
           >
             <Image
-              src="/avatars/aria_fullbody_blazer.png"
+              src="/avatars/Aria Full.png"
               alt="Aria Full Body"
               fill
               className="object-contain object-bottom drop-shadow-2xl"

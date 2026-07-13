@@ -40,24 +40,24 @@ export default function MaintenanceMonthlyReportPage() {
           title: "LIGHTING INSPECTION RECORD",
           recNo: "SGMP/02/LIR",
           issueNo: "1/10/2022",
-          revNo: "1",
-          effectiveDate: "15/2/2023"
+          revNo: "2",
+          effectiveDate: "20/7/2026"
         }
       case "finished-goods":
         return {
           title: "FINISHED GOODS INSPECTION RECORD",
           recNo: "SGMP/21/FIR",
           issueNo: "1/10/2022",
-          revNo: "1",
-          effectiveDate: "15/2/2023"
+          revNo: "2",
+          effectiveDate: "20/7/2026"
         }
       case "waste-management":
         return {
           title: "WASTE MANAGEMENT DISPOSAL RECORDS",
           recNo: "SGMP/07/WMDR",
           issueNo: "1/10/2022",
-          revNo: "2",
-          effectiveDate: "15/2/2023"
+          revNo: "3",
+          effectiveDate: "20/7/2026"
         }
       case "waste-disposal":
         return {
@@ -65,23 +65,23 @@ export default function MaintenanceMonthlyReportPage() {
           recNo: "SGMP/07/WDIR",
           issueNo: "1/10/2022",
           revNo: "2",
-          effectiveDate: "15/2/2023"
+          effectiveDate: "20/7/2026"
         }
       case "food-handler":
         return {
           title: "FOOD HANDLER DAILY INSPECTION RECORDS",
-          recNo: "SGMP/05/FHDR",
+          recNo: "SGMP/09/FHDIR",
           issueNo: "1/10/2022",
-          revNo: "3",
-          effectiveDate: "1/8/2024"
+          revNo: "4",
+          effectiveDate: "20/7/2026"
         }
       case "chemical-control":
         return {
           title: "CHEMICAL CONTROL RECORDS",
           recNo: "SGMP/17/CCR",
           issueNo: "1/10/2022",
-          revNo: "3",
-          effectiveDate: "1/1/2025"
+          revNo: "4",
+          effectiveDate: "20/7/2026"
         }
       default:
         return {

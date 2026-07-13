@@ -41,7 +41,21 @@ body {
   }
 
   /* Keep signature section with the table */
-  table {
+  .sig-box, .sig-section {
     break-inside: avoid !important;
+  }
+
+  /* Compact table styling to fit 31 days on a single page */
+  .print-compact-table {
+    width: 100% !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  .print-compact-table th,
+  .print-compact-table td {
+    padding: 2px 3px !important;
+    font-size: 8px !important;
+    line-height: 1.1 !important;
   }
 }

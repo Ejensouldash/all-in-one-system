@@ -173,7 +173,7 @@ export default function MaintenanceMonthlyReportPage() {
           ) : (
             <div className="w-full">
               {/* Conditional Table based on Form Type */}
-              <table className="w-full border-collapse border-2 border-black text-[10px] text-black font-sans bg-white leading-normal">
+              <table className="w-full border-collapse border-2 border-black text-[10px] text-black font-sans bg-white leading-normal print-compact-table">
                 
                 {/* 1. LIGHTING INSPECTION */}
                 {formType === "lighting" && (

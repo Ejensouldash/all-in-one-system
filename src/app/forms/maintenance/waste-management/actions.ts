@@ -1,0 +1,65 @@
+"use server"
+
+import { prisma } from "@/lib/prisma"
+import { revalidatePath } from "next/cache"
+
+export async function submitWasteManagementForm(formData: FormData) {
+  try {
+    const dateStr = formData.get("date") as string
+    const checkedBy = formData.get("checkedBy") as string
+
+    if (!dateStr || !checkedBy) {
+      return { success: false, error: "Please fill in Date and Checked By fields." }
+    }
+
+    // Recycle fields
+    const recyclePlasticBottle = formData.get("recyclePlasticBottle") as string
+    const recycleCap = formData.get("recycleCap") as string
+    const recycleCartonBox = formData.get("recycleCartonBox") as string
+    const recycleLabel = formData.get("recycleLabel") as string
+    const recycleOthers = formData.get("recycleOthers") as string
+
+    // Disposal fields
+    const disposalPlasticBottle = formData.get("disposalPlasticBottle") as string
+    const disposalCap = formData.get("disposalCap") as string
+    const disposalCartonBox = formData.get("disposalCartonBox") as string
+    const disposalLabel = formData.get("disposalLabel") as string
+    const disposalOthers = formData.get("disposalOthers") as string
+
+    // Check if at least one field has data
+    const hasData = [
+      recyclePlasticBottle, recycleCap, recycleCartonBox, recycleLabel, recycleOthers,
+      disposalPlasticBottle, disposalCap, disposalCartonBox, disposalLabel, disposalOthers
+    ].some(val => val && val.trim() !== "")
+
+    if (!hasData) {
+      return { success: false, error: "Please enter data in at least one category (Recycle or Disposal)." }
+    }
+
+    await prisma.maintenanceWasteManagement.create({
+      data: {
+        date: new Date(dateStr),
+        recyclePlasticBottle: recyclePlasticBottle || null,
+        recycleCap: recycleCap || null,
+        recycleCartonBox: recycleCartonBox || null,
+        recycleLabel: recycleLabel || null,
+        recycleOthers: recycleOthers || null,
+        
+        disposalPlasticBottle: disposalPlasticBottle || null,
+        disposalCap: disposalCap || null,
+        disposalCartonBox: disposalCartonBox || null,
+        disposalLabel: disposalLabel || null,
+        disposalOthers: disposalOthers || null,
+        
+        checkedBy,
+        verifiedBy: null, // Verifier will sign this later
+      }
+    })
+
+    revalidatePath("/forms/maintenance/waste-management")
+    return { success: true }
+  } catch (error: any) {
+    console.error("Failed to submit waste management form:", error)
+    return { success: false, error: error.message || "Failed to submit form." }
+  }
+}

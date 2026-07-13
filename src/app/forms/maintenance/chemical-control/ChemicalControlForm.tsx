@@ -63,6 +63,30 @@ export function ChemicalControlForm({ userName }: { userName: string }) {
           />
         </div>
 
+        {/* Section: Chemical Reference Table */}
+        <div className="md:col-span-2 mt-2 mb-2">
+          <div className="bg-purple-50 border border-purple-100 rounded-xl p-5 shadow-sm">
+            <h4 className="font-bold text-purple-900 mb-3 text-sm uppercase tracking-wide">Chemical Codes Reference</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="flex items-center justify-between bg-white px-4 py-2 rounded-lg border border-purple-100">
+                <span className="text-sm font-medium text-gray-700">Alkaline all purpose</span>
+                <span className="font-mono font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded">01</span>
+              </div>
+              <div className="flex items-center justify-between bg-white px-4 py-2 rounded-lg border border-purple-100">
+                <span className="text-sm font-medium text-gray-700">Disinfectant</span>
+                <span className="font-mono font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded">02</span>
+              </div>
+              <div className="flex items-center justify-between bg-white px-4 py-2 rounded-lg border border-purple-100">
+                <span className="text-sm font-medium text-gray-700">Antibacterial handwash</span>
+                <span className="font-mono font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded">03</span>
+              </div>
+            </div>
+            <p className="text-xs text-purple-600 mt-3 font-medium">
+              * Enter the corresponding Code Name (e.g., 01, 02) into the form below. You can also enter new codes if applicable.
+            </p>
+          </div>
+        </div>
+
         {/* Section: Taking Chemical */}
         <div className="md:col-span-2 mt-4">
           <h3 className="text-sm font-black uppercase tracking-widest text-purple-800 bg-purple-100 px-4 py-2 inline-block rounded-t-lg border-b-2 border-purple-500 mb-4 flex items-center w-fit">

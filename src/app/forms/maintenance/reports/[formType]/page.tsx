@@ -107,6 +107,10 @@ export default function MaintenanceMonthlyReportPage() {
 
   const yearsArray = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i)
 
+  const getDayLabel = (dayNum: number) => {
+    return `${String(dayNum).padStart(2, '0')}/${String(month).padStart(2, '0')}`
+  }
+
   const handlePrint = () => {
     const originalTitle = document.title
     const today = new Date()
@@ -207,7 +211,7 @@ export default function MaintenanceMonthlyReportPage() {
                         if (dayRecords.length === 0) {
                           return (
                             <tr key={day} className="text-center h-6">
-                              <td className="border-2 border-black p-1 font-bold">{day}</td>
+                              <td className="border-2 border-black p-1 font-bold">{getDayLabel(day)}</td>
                               <td className="border-2 border-black p-1"></td>
                               <td className="border-2 border-black p-1"></td>
                               <td className="border-2 border-black p-1"></td>
@@ -220,7 +224,7 @@ export default function MaintenanceMonthlyReportPage() {
                         return dayRecords.map((rec, idx) => (
                           <tr key={`${day}-${idx}`} className="text-center">
                             {idx === 0 && (
-                              <td className="border-2 border-black p-1 font-bold align-middle" rowSpan={dayRecords.length}>{day}</td>
+                              <td className="border-2 border-black p-1 font-bold align-middle" rowSpan={dayRecords.length}>{getDayLabel(day)}</td>
                             )}
                             <td className="border-2 border-black p-1 text-left">{rec.coverageArea}</td>
                             <td className="border-2 border-black p-1 text-left">{rec.results}</td>
@@ -261,7 +265,7 @@ export default function MaintenanceMonthlyReportPage() {
                         if (dayRecords.length === 0) {
                           return (
                             <tr key={day} className="text-center h-6">
-                              <td className="border-2 border-black p-1 font-bold">{day}</td>
+                              <td className="border-2 border-black p-1 font-bold">{getDayLabel(day)}</td>
                               <td className="border-2 border-black p-1"></td>
                               <td className="border-2 border-black p-1"></td>
                               <td className="border-2 border-black p-1"></td>
@@ -277,7 +281,7 @@ export default function MaintenanceMonthlyReportPage() {
                         return dayRecords.map((rec, idx) => (
                           <tr key={`${day}-${idx}`} className="text-center">
                             {idx === 0 && (
-                              <td className="border-2 border-black p-1 font-bold align-middle" rowSpan={dayRecords.length}>{day}</td>
+                              <td className="border-2 border-black p-1 font-bold align-middle" rowSpan={dayRecords.length}>{getDayLabel(day)}</td>
                             )}
                             <td className="border-2 border-black p-1 font-bold text-red-700">{rec.qtyDamage425x24 || "-"}</td>
                             <td className="border-2 border-black p-1 font-bold text-red-700">{rec.qtyDamage425x6 || "-"}</td>
@@ -328,7 +332,7 @@ export default function MaintenanceMonthlyReportPage() {
                         if (dayRecords.length === 0) {
                           return (
                             <tr key={day} className="text-center h-6">
-                              <td className="border-2 border-black p-1 font-bold">{day}</td>
+                              <td className="border-2 border-black p-1 font-bold">{getDayLabel(day)}</td>
                               <td className="border-2 border-black p-1" colSpan={10}></td>
                               <td className="border-2 border-black p-1"></td>
                               <td className="border-2 border-black p-1"></td>
@@ -339,7 +343,7 @@ export default function MaintenanceMonthlyReportPage() {
                         return dayRecords.map((rec, idx) => (
                           <tr key={`${day}-${idx}`} className="text-center text-[9px]">
                             {idx === 0 && (
-                              <td className="border-2 border-black p-1 font-bold align-middle text-[10px]" rowSpan={dayRecords.length}>{day}</td>
+                              <td className="border-2 border-black p-1 font-bold align-middle text-[10px]" rowSpan={dayRecords.length}>{getDayLabel(day)}</td>
                             )}
                             <td className="border-2 border-black p-0.5">{rec.recyclePlasticBottle || "-"}</td>
                             <td className="border-2 border-black p-0.5">{rec.recycleCap || "-"}</td>
@@ -386,7 +390,7 @@ export default function MaintenanceMonthlyReportPage() {
                         if (dayRecords.length === 0) {
                           return (
                             <tr key={day} className="text-center h-6">
-                              <td className="border-2 border-black p-1 font-bold">{day}</td>
+                              <td className="border-2 border-black p-1 font-bold">{getDayLabel(day)}</td>
                               <td className="border-2 border-black p-1"></td>
                               <td className="border-2 border-black p-1"></td>
                               <td className="border-2 border-black p-1"></td>
@@ -402,7 +406,7 @@ export default function MaintenanceMonthlyReportPage() {
                         return dayRecords.map((rec, idx) => (
                           <tr key={`${day}-${idx}`} className="text-center">
                             {idx === 0 && (
-                              <td className="border-2 border-black p-1 font-bold align-middle" rowSpan={dayRecords.length}>{day}</td>
+                              <td className="border-2 border-black p-1 font-bold align-middle" rowSpan={dayRecords.length}>{getDayLabel(day)}</td>
                             )}
                             <td className="border-2 border-black p-1 font-mono">{rec.inspectionTime}</td>
                             <td className="border-2 border-black p-1 font-bold text-[12px] text-teal-800">{rec.feederArea ? "✓" : "-"}</td>
@@ -444,7 +448,7 @@ export default function MaintenanceMonthlyReportPage() {
                         if (dayRecords.length === 0) {
                           return (
                             <tr key={day} className="text-center h-6">
-                              <td className="border-2 border-black p-1 font-bold">{day}</td>
+                              <td className="border-2 border-black p-1 font-bold">{getDayLabel(day)}</td>
                               <td className="border-2 border-black p-1"></td>
                               <td className="border-2 border-black p-1"></td>
                               <td className="border-2 border-black p-1"></td>
@@ -462,7 +466,7 @@ export default function MaintenanceMonthlyReportPage() {
                         return dayRecords.map((rec, idx) => (
                           <tr key={`${day}-${idx}`} className="text-center">
                             {idx === 0 && (
-                              <td className="border-2 border-black p-1 font-bold align-middle" rowSpan={dayRecords.length}>{day}</td>
+                              <td className="border-2 border-black p-1 font-bold align-middle" rowSpan={dayRecords.length}>{getDayLabel(day)}</td>
                             )}
                             <td className="border-2 border-black p-1 text-left font-bold">{rec.employeeName}</td>
                             <td className="border-2 border-black p-1 text-orange-700 font-bold">{rec.hairnet ? "✓" : "✗"}</td>
@@ -502,7 +506,7 @@ export default function MaintenanceMonthlyReportPage() {
                         if (dayRecords.length === 0) {
                           return (
                             <tr key={day} className="text-center h-6">
-                              <td className="border-2 border-black p-1 font-bold">{day}</td>
+                              <td className="border-2 border-black p-1 font-bold">{getDayLabel(day)}</td>
                               <td className="border-2 border-black p-1"></td>
                               <td className="border-2 border-black p-1"></td>
                               <td className="border-2 border-black p-1"></td>
@@ -516,7 +520,7 @@ export default function MaintenanceMonthlyReportPage() {
                         return dayRecords.map((rec, idx) => (
                           <tr key={`${day}-${idx}`} className="text-center">
                             {idx === 0 && (
-                              <td className="border-2 border-black p-1 font-bold align-middle" rowSpan={dayRecords.length}>{day}</td>
+                              <td className="border-2 border-black p-1 font-bold align-middle" rowSpan={dayRecords.length}>{getDayLabel(day)}</td>
                             )}
                             <td className="border-2 border-black p-1 font-mono font-bold text-purple-700">{rec.chemicalCode}</td>
                             <td className="border-2 border-black p-1 font-mono">{rec.timeTaken}</td>

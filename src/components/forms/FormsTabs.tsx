@@ -39,18 +39,6 @@ export function FormsTabs({ role, hasDatabaseAccess }: { role: string, hasDataba
           <History className="w-5 h-5 mr-2" />
           Production Stock
         </Link>
-
-        <Link 
-          href="/forms/maintenance"
-          className={`flex items-center pb-4 text-sm font-black uppercase tracking-wider border-b-4 transition-colors ${
-            pathname.startsWith("/forms/maintenance")
-              ? "border-blue-500 text-blue-700" 
-              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-          }`}
-        >
-          <ClipboardList className="w-5 h-5 mr-2" />
-          Maintenance
-        </Link>
         
         <Link 
           href="/forms/dashboard"

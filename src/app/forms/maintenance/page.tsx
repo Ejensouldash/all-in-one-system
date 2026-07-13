@@ -2,7 +2,6 @@ import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { ClipboardList, Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical } from "lucide-react"
-import { FormsTabs } from "@/components/forms/FormsTabs"
 
 export const metadata = {
   title: "Maintenance Forms",
@@ -81,8 +80,6 @@ export default async function MaintenanceDashboard() {
             </div>
           </div>
         </div>
-
-        <FormsTabs role={role} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
           {forms.map((form, index) => (

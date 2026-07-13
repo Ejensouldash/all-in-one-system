@@ -53,6 +53,12 @@ export async function getMonthlyMaintenanceReport(formType: string, month: numbe
           orderBy: { date: "asc" }
         })
         break
+      case "cleaning":
+        data = await prisma.maintenanceCleaning.findMany({
+          where: dateQuery,
+          orderBy: { date: "asc" }
+        })
+        break
       default:
         return { success: false, error: "Invalid form type" }
     }

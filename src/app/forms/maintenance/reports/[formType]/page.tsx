@@ -6,6 +6,32 @@ import Link from "next/link"
 import { getMonthlyMaintenanceReport } from "@/app/actions/maintenance-reports"
 import { MaintenanceHeader } from "@/components/forms/MaintenanceHeader"
 import { ArrowLeft, Printer, RefreshCw } from "lucide-react"
+import { SECTION_TASKS } from "../../cleaning/CleaningForm"
+
+const getCleaningMetadata = (sec: string) => {
+  switch (sec) {
+    case "meeting-changing":
+      return { recNo: "SGMP/05/CMCA", revNo: "3", effectiveDate: "1/8/2024" }
+    case "filtration-uv":
+      return { recNo: "SGMP/05/FUVS", revNo: "3", effectiveDate: "1/8/2024" }
+    case "labelling":
+      return { recNo: "SGMP/05/CIL", revNo: "4", effectiveDate: "09/09/2025" }
+    case "raw-material":
+      return { recNo: "SGMP/05/CIRMA", revNo: "0", effectiveDate: "1/8/2024" }
+    case "packing":
+      return { recNo: "SGMP/05/CIP", revNo: "3", effectiveDate: "1/8/2024" }
+    case "machine-3in1":
+      return { recNo: "SGMP/05/CIM", revNo: "3", effectiveDate: "1/8/2024" }
+    case "finishing":
+      return { recNo: "SGMP/05/CIFA", revNo: "3", effectiveDate: "1/8/2024" }
+    case "blower-buffer":
+      return { recNo: "SGMP/05/CIBBA", revNo: "0", effectiveDate: "1/8/2024" }
+    case "auto-scrambler":
+      return { recNo: "SGMP/05/CIAS", revNo: "3", effectiveDate: "1/8/2024" }
+    default:
+      return { recNo: "SGMP/05/CMCA", revNo: "3", effectiveDate: "1/8/2024" }
+  }
+}
 
 export default function MaintenanceMonthlyReportPage() {
   const params = useParams()
@@ -16,6 +42,9 @@ export default function MaintenanceMonthlyReportPage() {
   const [year, setYear] = useState(new Date().getFullYear())
   const [reportData, setReportData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+
+  const [selectedSection, setSelectedSection] = useState("meeting-changing")
+  const [selectedLine, setSelectedLine] = useState("Line 1")
 
   useEffect(() => {
     if (formType) {
@@ -35,6 +64,16 @@ export default function MaintenanceMonthlyReportPage() {
   // Get metadata based on form type
   const getFormMetadata = () => {
     switch (formType) {
+      case "cleaning": {
+        const cleaningMeta = getCleaningMetadata(selectedSection)
+        return {
+          title: "CLEANING INSPECTION RECORD",
+          recNo: cleaningMeta.recNo,
+          issueNo: "1/10/2022",
+          revNo: cleaningMeta.revNo,
+          effectiveDate: cleaningMeta.effectiveDate
+        }
+      }
       case "lighting":
         return {
           title: "LIGHTING INSPECTION RECORD",
@@ -134,6 +173,37 @@ export default function MaintenanceMonthlyReportPage() {
           </Link>
           
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            {formType === "cleaning" && (
+              <>
+                <select
+                  value={selectedSection}
+                  onChange={(e) => setSelectedSection(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold outline-none"
+                >
+                  <option value="meeting-changing">Meeting & Changing Area</option>
+                  <option value="filtration-uv">Filtration & UV System Area</option>
+                  <option value="labelling">Labelling Area</option>
+                  <option value="raw-material">Raw Material Area</option>
+                  <option value="packing">Packing Area</option>
+                  <option value="machine-3in1">3 In 1 Machine Area</option>
+                  <option value="finishing">Finishing Area</option>
+                  <option value="blower-buffer">Blower & Buffer Area</option>
+                  <option value="auto-scrambler">Auto Scrambler Area</option>
+                </select>
+
+                {selectedSection !== "meeting-changing" && selectedSection !== "filtration-uv" && (
+                  <select
+                    value={selectedLine}
+                    onChange={(e) => setSelectedLine(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold outline-none"
+                  >
+                    <option value="Line 1">Line 1</option>
+                    <option value="Line 2">Line 2</option>
+                  </select>
+                )}
+              </>
+            )}
+
             <select
               value={month}
               onChange={(e) => setMonth(parseInt(e.target.value))}
@@ -177,7 +247,14 @@ export default function MaintenanceMonthlyReportPage() {
           />
 
           <div className="flex justify-between items-center mb-4 text-xs font-bold text-black font-sans uppercase">
-            <div>MONTH: <span className="underline ml-1 px-4">{monthNames[month - 1]}</span></div>
+            <div>
+              MONTH: <span className="underline ml-1 px-4">{monthNames[month - 1]}</span>
+              {formType === "cleaning" && (
+                <span className="ml-6">
+                  KAWASAN / AREA: <span className="underline ml-1 px-4">{selectedSection.replace('-', ' ').toUpperCase()} {selectedSection !== "meeting-changing" && selectedSection !== "filtration-uv" ? `(${selectedLine.toUpperCase()})` : ""}</span>
+                </span>
+              )}
+            </div>
             <div>YEAR: <span className="underline ml-1 px-4">{year}</span></div>
           </div>
 
@@ -534,6 +611,125 @@ export default function MaintenanceMonthlyReportPage() {
                     </tbody>
                   </>
                 )}
+
+                {/* 7. CLEANING INSPECTION RECORDS */}
+                {formType === "cleaning" && (() => {
+                  const tasks = SECTION_TASKS[selectedSection] || []
+                  const isLineApplicable = selectedSection !== "meeting-changing" && selectedSection !== "filtration-uv"
+                  const filteredData = reportData.filter(r => r.section === selectedSection && (!isLineApplicable || r.line === selectedLine))
+
+                  return (
+                    <>
+                      <thead>
+                        <tr className="bg-gray-100 font-bold text-center border-b-2 border-black">
+                          <th className="border-2 border-black p-1 w-[8%]" rowSpan={2}>DATE</th>
+                          <th className="border-2 border-black p-1 w-[6%]" rowSpan={2}>SHIFT</th>
+                          {tasks.map(task => (
+                            <th key={task.key} className="border-2 border-black p-1 text-[8px]" colSpan={2}>
+                              {task.label}<br />
+                              <span className="text-[7px] font-normal font-sans">
+                                {task.taskName} ({task.equipment})
+                              </span>
+                            </th>
+                          ))}
+                          <th className="border-2 border-black p-1 w-[12%]" rowSpan={2}>CHECKED BY</th>
+                          <th className="border-2 border-black p-1 w-[12%]" rowSpan={2}>VERIFIED BY</th>
+                        </tr>
+                        <tr className="bg-gray-100 font-bold text-center border-b-2 border-black text-[7px]">
+                          {tasks.map(task => (
+                            <React.Fragment key={`${task.key}-sub`}>
+                              <th className="border-2 border-black p-0.5">STATUS</th>
+                              <th className="border-2 border-black p-0.5">CLEANER & QTY</th>
+                            </React.Fragment>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {daysArray.map((day) => {
+                          const dayLabel = getDayLabel(day)
+                          const morningRec = filteredData.find(r => new Date(r.date).getDate() === day && r.shift === "AM")
+                          const eveningRec = filteredData.find(r => new Date(r.date).getDate() === day && r.shift === "PM")
+
+                          const hasAnyRec = morningRec || eveningRec
+
+                          if (!hasAnyRec) {
+                            return (
+                              <React.Fragment key={day}>
+                                <tr className="text-center h-5">
+                                  <td className="border-2 border-black p-1 font-bold align-middle" rowSpan={2}>{dayLabel}</td>
+                                  <td className="border-2 border-black p-0.5 font-bold">Pagi</td>
+                                  {tasks.map(task => (
+                                    <React.Fragment key={task.key}>
+                                      <td className="border-2 border-black p-0.5"></td>
+                                      <td className="border-2 border-black p-0.5"></td>
+                                    </React.Fragment>
+                                  ))}
+                                  <td className="border-2 border-black p-0.5"></td>
+                                  <td className="border-2 border-black p-0.5"></td>
+                                </tr>
+                                <tr className="text-center h-5">
+                                  <td className="border-2 border-black p-0.5 font-bold">Petang</td>
+                                  {tasks.map(task => (
+                                    <React.Fragment key={task.key}>
+                                      <td className="border-2 border-black p-0.5"></td>
+                                      <td className="border-2 border-black p-0.5"></td>
+                                    </React.Fragment>
+                                  ))}
+                                  <td className="border-2 border-black p-0.5"></td>
+                                  <td className="border-2 border-black p-0.5"></td>
+                                </tr>
+                              </React.Fragment>
+                            )
+                          }
+
+                          return (
+                            <React.Fragment key={day}>
+                              <tr className="text-center h-5">
+                                <td className="border-2 border-black p-1 font-bold align-middle" rowSpan={2}>{dayLabel}</td>
+                                <td className="border-2 border-black p-0.5 font-bold">Pagi</td>
+                                {tasks.map(task => {
+                                  const isOk = morningRec ? morningRec[`${task.key}Ok`] : null
+                                  const cleaner = morningRec ? morningRec[`${task.key}Cleaner`] : null
+                                  return (
+                                    <React.Fragment key={task.key}>
+                                      <td className={`border-2 border-black p-0.5 font-bold text-[9px] ${isOk ? "text-green-700" : isOk === false ? "text-red-700" : ""}`}>
+                                        {isOk ? "✓" : isOk === false ? "✗" : ""}
+                                      </td>
+                                      <td className="border-2 border-black p-0.5 text-[8px] font-sans truncate max-w-[80px]" title={cleaner || ""}>
+                                        {cleaner || "-"}
+                                      </td>
+                                    </React.Fragment>
+                                  )
+                                })}
+                                <td className="border-2 border-black p-0.5 uppercase text-[8px]">{morningRec?.checkedBy || "-"}</td>
+                                <td className="border-2 border-black p-0.5 uppercase text-[8px]">{morningRec?.verifiedBy || "-"}</td>
+                              </tr>
+                              <tr className="text-center h-5">
+                                <td className="border-2 border-black p-0.5 font-bold">Petang</td>
+                                {tasks.map(task => {
+                                  const isOk = eveningRec ? eveningRec[`${task.key}Ok`] : null
+                                  const cleaner = eveningRec ? eveningRec[`${task.key}Cleaner`] : null
+                                  return (
+                                    <React.Fragment key={task.key}>
+                                      <td className={`border-2 border-black p-0.5 font-bold text-[9px] ${isOk ? "text-green-700" : isOk === false ? "text-red-700" : ""}`}>
+                                        {isOk ? "✓" : isOk === false ? "✗" : ""}
+                                      </td>
+                                      <td className="border-2 border-black p-0.5 text-[8px] font-sans truncate max-w-[80px]" title={cleaner || ""}>
+                                        {cleaner || "-"}
+                                      </td>
+                                    </React.Fragment>
+                                  )
+                                })}
+                                <td className="border-2 border-black p-0.5 uppercase text-[8px]">{eveningRec?.checkedBy || "-"}</td>
+                                <td className="border-2 border-black p-0.5 uppercase text-[8px]">{eveningRec?.verifiedBy || "-"}</td>
+                              </tr>
+                            </React.Fragment>
+                          )
+                        })}
+                      </tbody>
+                    </>
+                  )
+                })()}
 
               </table>
 

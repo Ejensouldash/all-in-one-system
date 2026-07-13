@@ -660,3 +660,35 @@ model MaintenanceChemical {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
+
+model MaintenanceCleaning {
+  id              String   @id @default(uuid())
+  date            DateTime
+  shift           String   // AM (Sesi Pagi) | PM (Sesi Petang)
+  section         String   // meeting-changing | filtration-uv | labelling | raw-material | packing | machine-3in1 | finishing | blower-buffer | auto-scrambler
+  line            String?  // Line 1 | Line 2 (null for meeting-changing and filtration-uv)
+  
+  // Cleaner type & quantity
+  floorCleaner    String?
+  platformCleaner String?
+  trashCleaner    String?
+  mirrorCleaner   String?
+  ceilingCleaner  String?
+  machineCleaner  String?
+  shutterCleaner  String?
+
+  // Checklist values
+  floorOk         Boolean  @default(false)
+  platformOk      Boolean  @default(false)
+  trashOk         Boolean  @default(false)
+  mirrorOk        Boolean  @default(false)
+  ceilingOk       Boolean  @default(false)
+  machineOk       Boolean  @default(false)
+  shutterOk       Boolean  @default(false)
+
+  checkedBy       String
+  verifiedBy      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+

@@ -1,7 +1,7 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { ClipboardList, Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical } from "lucide-react"
+import { ClipboardList, Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, Brush } from "lucide-react"
 import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
 
 export const metadata = {
@@ -62,6 +62,14 @@ export default async function MaintenanceDashboard() {
       href: "/forms/maintenance/chemical-control",
       gradient: "from-purple-900 via-purple-800 to-fuchsia-900",
       accent: "bg-purple-400"
+    },
+    {
+      title: "Cleaning Inspection",
+      description: "Daily checklist for production floor cleaning across sections and lines.",
+      icon: <Brush className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/cleaning",
+      gradient: "from-slate-900 via-slate-800 to-slate-900",
+      accent: "bg-slate-400"
     }
   ]
 

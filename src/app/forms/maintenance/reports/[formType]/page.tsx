@@ -161,7 +161,7 @@ export default function MaintenanceMonthlyReportPage() {
         </div>
 
         {/* Paper Sheet */}
-        <div className="bg-white p-6 sm:p-10 rounded-2xl shadow-xl border border-gray-100 print:shadow-none print:border-none print:p-0 overflow-x-auto">
+        <div className="bg-white p-6 sm:p-10 rounded-2xl shadow-xl border border-gray-100 print:shadow-none print:border-none print:p-0 print:rounded-none print:overflow-visible overflow-x-auto">
           
           {/* Header Component */}
           <MaintenanceHeader 
@@ -185,7 +185,7 @@ export default function MaintenanceMonthlyReportPage() {
           ) : (
             <div className="w-full">
               {/* Conditional Table based on Form Type */}
-              <table className="w-full border-collapse border-2 border-black text-[10px] text-black font-sans bg-white leading-normal print-compact-table">
+              <table className="w-full border-collapse border-2 border-black text-[10px] text-black font-sans bg-white leading-normal print-compact-table rounded-none">
                 
                 {/* 1. LIGHTING INSPECTION */}
                 {formType === "lighting" && (

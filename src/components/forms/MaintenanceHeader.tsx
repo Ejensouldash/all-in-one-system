@@ -17,7 +17,7 @@ export function MaintenanceHeader({
 }: MaintenanceHeaderProps) {
   return (
     <div className="w-full bg-white mb-6 font-sans text-black">
-      <table className="w-full border-collapse border-2 border-black text-[11px]">
+      <table className="w-full border-collapse border-2 border-black text-[11px] rounded-none">
         <tbody>
           <tr>
             <td className="border-2 border-black p-3 text-center w-[20%] align-middle" rowSpan={4}>

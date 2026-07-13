@@ -2,6 +2,7 @@ import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { ClipboardList, Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical } from "lucide-react"
+import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
 
 export const metadata = {
   title: "Maintenance Forms",
@@ -65,9 +66,9 @@ export default async function MaintenanceDashboard() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        <div className="mb-10">
+    <div className="bg-gray-50 pb-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+        <div className="mb-6">
           <div className="flex items-center space-x-4 mb-2">
             <Wrench className="h-10 w-10 text-blue-700" />
             <div>
@@ -80,6 +81,8 @@ export default async function MaintenanceDashboard() {
             </div>
           </div>
         </div>
+
+        <MaintenanceTabs />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
           {forms.map((form, index) => (

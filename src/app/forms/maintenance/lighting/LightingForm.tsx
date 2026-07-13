@@ -8,6 +8,7 @@ export function LightingForm({ userName }: { userName: string }) {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
+  const [isOthers, setIsOthers] = useState(false)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -74,7 +75,8 @@ export function LightingForm({ userName }: { userName: string }) {
         <div className="space-y-2">
           <label className="text-sm font-bold text-gray-700 uppercase tracking-wide">Results <span className="text-red-500">*</span></label>
           <select 
-            name="results" 
+            name={isOthers ? undefined : "results"}
+            onChange={(e) => setIsOthers(e.target.value === "Others")}
             required
             className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition-all bg-white"
           >
@@ -83,7 +85,17 @@ export function LightingForm({ userName }: { userName: string }) {
             <option value="NOT OK - Faulty/Flickering">NOT OK - Faulty/Flickering</option>
             <option value="NOT OK - Missing bulb">NOT OK - Missing bulb</option>
             <option value="NOT OK - Broken casing">NOT OK - Broken casing</option>
+            <option value="Others">Others (Please specify)</option>
           </select>
+          {isOthers && (
+            <input 
+              type="text" 
+              name="results" 
+              required
+              placeholder="Please specify..."
+              className="w-full mt-2 px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition-all"
+            />
+          )}
         </div>
 
         <div className="space-y-2">

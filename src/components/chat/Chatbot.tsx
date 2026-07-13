@@ -88,12 +88,42 @@ export function Chatbot() {
   ]
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-6 right-6 z-50 flex items-end">
       {isOpen ? (
-        <div 
-          className="bg-white rounded-2xl shadow-2xl w-[360px] sm:w-[420px] overflow-hidden border border-slate-200/80 flex flex-col h-[640px] max-h-[85vh]"
-          style={{ animation: 'chatSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}
-        >
+        <div className="flex items-end gap-2">
+          {/* Full-Body Aria Peek */}
+          <div 
+            className="relative hidden sm:block w-[180px] h-[340px] -mr-8 z-10 transition-all duration-500 ease-out origin-bottom"
+            style={{ 
+              transform: avatarState === "thinking" 
+                ? 'rotate(-2deg) scale(1.02)' 
+                : avatarState === "excited" 
+                  ? 'rotate(2deg) scale(1.05) translateY(-5px)' 
+                  : 'rotate(0deg) scale(1) translateY(0px)',
+              filter: 'drop-shadow(0 10px 25px rgba(0,0,0,0.15))',
+              animation: 'chatSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)'
+            }}
+          >
+            <Image
+              src="/avatars/aria_fullbody_blazer.png"
+              alt="Aria Full Body"
+              fill
+              className="object-contain object-bottom drop-shadow-2xl"
+              unoptimized
+            />
+            {/* Contextual Emoji Badge */}
+            {avatarState === "thinking" && (
+              <div className="absolute top-8 right-6 text-2xl animate-bounce" style={{ animationDuration: '2s' }}>💭</div>
+            )}
+            {avatarState === "excited" && (
+              <div className="absolute top-8 right-6 text-2xl animate-bounce">✨</div>
+            )}
+          </div>
+
+          <div 
+            className="bg-white rounded-2xl shadow-2xl w-[360px] sm:w-[420px] overflow-hidden border border-slate-200/80 flex flex-col h-[640px] max-h-[85vh] relative z-20"
+            style={{ animation: 'chatSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}
+          >
           
           {/* ── Compact Header ── */}
           <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 px-4 py-3 flex items-center gap-3 shrink-0 relative overflow-hidden">
@@ -240,7 +270,7 @@ export function Chatbot() {
             </form>
             <p className="text-center text-[9px] text-slate-300 font-medium mt-2 tracking-wide">Powered by Gemini AI · BubblesO2 2026</p>
           </div>
-
+          </div>
         </div>
       ) : (
         <button 

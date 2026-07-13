@@ -1,0 +1,127 @@
+"use client"
+
+import { useState } from "react"
+import { submitLightingInspection } from "./actions"
+import { Loader2, CheckCircle2 } from "lucide-react"
+
+export function LightingForm({ userName }: { userName: string }) {
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState("")
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setLoading(true)
+    setError("")
+    
+    const formData = new FormData(e.currentTarget)
+    const res = await submitLightingInspection(formData)
+    
+    if (res.success) {
+      setSuccess(true)
+      ;(e.target as HTMLFormElement).reset()
+      setTimeout(() => setSuccess(false), 5000)
+    } else {
+      setError(res.error || "Something went wrong")
+    }
+    setLoading(false)
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {success && (
+        <div className="bg-green-50 text-green-800 p-4 rounded-xl border border-green-200 flex items-center font-medium">
+          <CheckCircle2 className="w-5 h-5 mr-3 text-green-500" />
+          Lighting Inspection Record submitted successfully!
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-50 text-red-800 p-4 rounded-xl border border-red-200 font-medium">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-gray-700 uppercase tracking-wide">Date of Inspection <span className="text-red-500">*</span></label>
+          <input 
+            type="date" 
+            name="date" 
+            required
+            defaultValue={new Date().toISOString().split('T')[0]}
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition-all"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-gray-700 uppercase tracking-wide">Coverage Area <span className="text-red-500">*</span></label>
+          <select 
+            name="coverageArea" 
+            required
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition-all bg-white"
+          >
+            <option value="">Select Area</option>
+            <option value="Production Area">Production Area</option>
+            <option value="Warehouse A">Warehouse A</option>
+            <option value="Warehouse B">Warehouse B</option>
+            <option value="Office Area">Office Area</option>
+            <option value="Outside Compound">Outside Compound</option>
+            <option value="Toilet/Changing Room">Toilet/Changing Room</option>
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-gray-700 uppercase tracking-wide">Results <span className="text-red-500">*</span></label>
+          <select 
+            name="results" 
+            required
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition-all bg-white"
+          >
+            <option value="">Select Result</option>
+            <option value="OK - All lights functioning">OK - All lights functioning</option>
+            <option value="NOT OK - Faulty/Flickering">NOT OK - Faulty/Flickering</option>
+            <option value="NOT OK - Missing bulb">NOT OK - Missing bulb</option>
+            <option value="NOT OK - Broken casing">NOT OK - Broken casing</option>
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-gray-700 uppercase tracking-wide">Action Taken</label>
+          <input 
+            type="text" 
+            name="action" 
+            placeholder="e.g. Changed tube, reported to wireman..."
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition-all"
+          />
+        </div>
+
+        <div className="space-y-2 md:col-span-2">
+          <label className="text-sm font-bold text-gray-700 uppercase tracking-wide">Performed By <span className="text-red-500">*</span></label>
+          <input 
+            type="text" 
+            name="performedBy" 
+            required
+            defaultValue={userName}
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition-all"
+          />
+          <p className="text-xs text-gray-500 mt-1">This will be recorded as your signature.</p>
+        </div>
+      </div>
+
+      <div className="pt-6 border-t border-gray-100">
+        <button 
+          type="submit" 
+          disabled={loading}
+          className="w-full sm:w-auto px-8 py-4 bg-yellow-500 hover:bg-yellow-600 text-yellow-950 font-black uppercase tracking-wider rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center disabled:opacity-70"
+        >
+          {loading ? (
+            <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Submitting...</>
+          ) : (
+            "Submit Record"
+          )}
+        </button>
+      </div>
+    </form>
+  )
+}

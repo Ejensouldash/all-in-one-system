@@ -10,9 +10,14 @@ export const metadata = {
 export default async function Page() {
   const session = await auth()
   if (!session) redirect("/login")
-  const user = session.user as any
-  const role = user.trueRole || user.role
-  const userModules = user.modules || []
+
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true, modules: true }
+  })
+
+  const role = dbUser?.role || (session.user as any).trueRole || session.user.role
+  const userModules = dbUser?.modules || []
   const isSuperAdmin = role === "SUPERADMIN"
 
   if (!isSuperAdmin && !userModules.includes("MAINTENANCE_DASHBOARD")) {

@@ -1,12 +1,18 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
+import { prisma } from "@/lib/prisma"
 
 export default async function ReportsLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
   if (!session) redirect("/login")
 
-  const role = (session.user as any).trueRole || session.user.role
-  const userModules = (session.user as any).modules || []
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true, modules: true }
+  })
+
+  const role = dbUser?.role || (session.user as any).trueRole || session.user.role
+  const userModules = dbUser?.modules || []
   const isSuperAdmin = role === "SUPERADMIN"
 
   if (!isSuperAdmin && !userModules.includes("MAINTENANCE_REPORTS")) {

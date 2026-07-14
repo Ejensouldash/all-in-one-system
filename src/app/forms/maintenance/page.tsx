@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import { ClipboardList, Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, Brush } from "lucide-react"
 import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
+import { prisma } from "@/lib/prisma"
 
 export const metadata = {
   title: "Maintenance Forms",
@@ -12,8 +13,13 @@ export default async function MaintenanceDashboard() {
   const session = await auth()
   if (!session) redirect("/login")
 
-  const role = (session.user as any).trueRole || session.user.role
-  const userModules = (session.user as any).modules || []
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true, modules: true }
+  })
+
+  const role = dbUser?.role || (session.user as any).trueRole || session.user.role
+  const userModules = dbUser?.modules || []
   const isSuperAdmin = role === "SUPERADMIN"
 
   if (!isSuperAdmin && !userModules.includes("MAINTENANCE_FORMS")) {

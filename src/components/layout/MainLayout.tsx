@@ -15,9 +15,20 @@ export async function MainLayout({ children }: { children: React.ReactNode }) {
     return <>{children}</>
   }
 
-  const activeNotices = await getActiveNotices((session.user as any).unitId)
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { unitId: true, modules: true, role: true }
+  })
+  const activeNotices = await getActiveNotices(user?.unitId)
   
   const isViewOnly = session.user.email === "viewonly@bubbleso2.com"
+
+  const freshUser = {
+    ...session.user,
+    modules: user?.modules || [],
+    role: user?.role || session.user.role,
+    trueRole: user?.role || (session.user as any).trueRole
+  }
 
   return (
     <>
@@ -27,8 +38,8 @@ export async function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
       )}
       <MobileLayoutWrapper
-        role={session.user.role}
-        user={session.user}
+        role={freshUser.role}
+        user={freshUser}
         notices={activeNotices.length > 0 ? <NoticeBanner notices={activeNotices} /> : null}
         modals={
           <>

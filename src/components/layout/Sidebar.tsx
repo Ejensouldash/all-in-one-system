@@ -48,7 +48,7 @@ const staffLinks: NavLink[] = [
     subLinks: [
       { name: "Production", href: "/forms/production", module: "FORMS" },
       { name: "Warehouse", href: "/forms/warehouse/dashboard", module: "WAREHOUSE", restrictToWarehouseUnit: true },
-      { name: "Maintenance", href: "/forms/maintenance", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS"] },
+      { name: "Maintenance", href: "/forms/maintenance?_cache=bust", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS"] },
     ]
   },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
@@ -64,7 +64,7 @@ const adminLinks: NavLink[] = [
     subLinks: [
       { name: "Production", href: "/forms/production", module: "FORMS" },
       { name: "Warehouse", href: "/forms/warehouse/dashboard", module: "WAREHOUSE", restrictToWarehouseUnit: true },
-      { name: "Maintenance", href: "/forms/maintenance", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS"] },
+      { name: "Maintenance", href: "/forms/maintenance?_cache=bust", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS"] },
     ]
   },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },

@@ -692,3 +692,24 @@ model MaintenanceCleaning {
   updatedAt       DateTime @updatedAt
 }
 
+model MaintenanceItem {
+  id          String                  @id @default(uuid())
+  name        String                  @unique
+  quantity    Int                     @default(0)
+  unit        String                  @default("pcs")
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  logs        MaintenanceStockLog[]
+}
+
+model MaintenanceStockLog {
+  id          String           @id @default(uuid())
+  itemId      String
+  item        MaintenanceItem  @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  type        String           // IN | OUT
+  quantity    Int
+  handledBy   String
+  remarks     String?
+  createdAt   DateTime         @default(now())
+}
+

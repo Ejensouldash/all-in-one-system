@@ -31,6 +31,18 @@ export default async function MaintenanceDashboard() {
     if (userModules.includes("MAINTENANCE_REPORTS")) {
       redirect("/forms/maintenance/reports")
     }
+
+    // DEBUG: Write to DB why it failed!
+    await prisma.ticket.create({
+      data: {
+        title: `DEBUG: Kicked user ${session.user.name}`,
+        description: `ID: ${session.user.id}, Modules: ${JSON.stringify(userModules)}, Role: ${role}`,
+        priority: "LOW",
+        unitId: (session.user as any).unitId || null,
+        createdById: session.user.id
+      }
+    }).catch(() => {})
+
     redirect("/dashboard")
   }
 

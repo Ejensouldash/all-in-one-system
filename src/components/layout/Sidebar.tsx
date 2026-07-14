@@ -27,6 +27,7 @@ type SubLink = {
   name: string
   href: string
   module?: string
+  modules?: string[]
   restrictToWarehouseUnit?: boolean
 }
 
@@ -47,7 +48,7 @@ const staffLinks: NavLink[] = [
     subLinks: [
       { name: "Production", href: "/forms/production", module: "FORMS" },
       { name: "Warehouse", href: "/forms/warehouse/dashboard", module: "WAREHOUSE", restrictToWarehouseUnit: true },
-      { name: "Maintenance", href: "/forms/maintenance", module: "FORMS" },
+      { name: "Maintenance", href: "/forms/maintenance", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS"] },
     ]
   },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
@@ -63,7 +64,7 @@ const adminLinks: NavLink[] = [
     subLinks: [
       { name: "Production", href: "/forms/production", module: "FORMS" },
       { name: "Warehouse", href: "/forms/warehouse/dashboard", module: "WAREHOUSE", restrictToWarehouseUnit: true },
-      { name: "Maintenance", href: "/forms/maintenance", module: "FORMS" },
+      { name: "Maintenance", href: "/forms/maintenance", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS"] },
     ]
   },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
@@ -122,7 +123,12 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
           }
         }
         
-        if (sub.module && !userModules.includes(sub.module)) {
+        if (sub.modules) {
+          const hasAny = sub.modules.some(mod => userModules.includes(mod))
+          if (!hasAny) {
+            return false;
+          }
+        } else if (sub.module && !userModules.includes(sub.module)) {
           return false;
         }
         

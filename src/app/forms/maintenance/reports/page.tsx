@@ -7,11 +7,7 @@ import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
 export const metadata = {
   title: "Maintenance Reports",
 }
-
 export default async function MaintenanceReportsDashboard() {
-  const session = await auth()
-  if (!session) redirect("/login")
-
   const reports = [
     {
       title: "Lighting Inspection Reports",

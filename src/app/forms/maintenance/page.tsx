@@ -13,6 +13,18 @@ export default async function MaintenanceDashboard() {
   if (!session) redirect("/login")
 
   const role = (session.user as any).trueRole || session.user.role
+  const userModules = (session.user as any).modules || []
+  const isSuperAdmin = role === "SUPERADMIN"
+
+  if (!isSuperAdmin && !userModules.includes("MAINTENANCE_FORMS")) {
+    if (userModules.includes("MAINTENANCE_DASHBOARD")) {
+      redirect("/forms/maintenance/dashboard")
+    }
+    if (userModules.includes("MAINTENANCE_REPORTS")) {
+      redirect("/forms/maintenance/reports")
+    }
+    redirect("/dashboard")
+  }
 
   const forms = [
     {

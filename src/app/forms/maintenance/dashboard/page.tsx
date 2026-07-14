@@ -10,6 +10,20 @@ export const metadata = {
 export default async function Page() {
   const session = await auth()
   if (!session) redirect("/login")
+  const user = session.user as any
+  const role = user.trueRole || user.role
+  const userModules = user.modules || []
+  const isSuperAdmin = role === "SUPERADMIN"
+
+  if (!isSuperAdmin && !userModules.includes("MAINTENANCE_DASHBOARD")) {
+    if (userModules.includes("MAINTENANCE_FORMS")) {
+      redirect("/forms/maintenance")
+    }
+    if (userModules.includes("MAINTENANCE_REPORTS")) {
+      redirect("/forms/maintenance/reports")
+    }
+    redirect("/dashboard")
+  }
 
   const items = await prisma.maintenanceItem.findMany({
     orderBy: { name: "asc" }

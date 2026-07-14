@@ -10,6 +10,7 @@ import {
   CalendarDays, Megaphone, QrCode,
   Users, Activity, Settings,
   Workflow, Factory, Building2, ShieldCheck,
+  LayoutDashboard, FileSpreadsheet,
   type LucideIcon,
 } from "lucide-react"
 
@@ -26,6 +27,17 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "TICKETS", name: "IT Resolution Workspace (Tickets)", description: "Manage and resolve IT issues.", icon: Wrench },
       { id: "FORMS", name: "Digital Operations (Forms)", description: "Submit and approve daily production reports.", icon: ClipboardList },
       { id: "HANDOVER", name: "Production Handover Form", description: "Access to generate and send production handover forms.", icon: ArrowRightLeft },
+    ],
+  },
+  {
+    id: "MAINTENANCE",
+    name: "Maintenance & Inventory",
+    icon: Wrench,
+    iconClass: "bg-cyan-50 text-cyan-600 border-cyan-100",
+    modules: [
+      { id: "MAINTENANCE_FORMS", name: "Maintenance Forms", description: "Access to view and submit daily maintenance checklists.", icon: ClipboardList },
+      { id: "MAINTENANCE_DASHBOARD", name: "Maintenance Stock Dashboard", description: "Log stock check-ins, check-outs, and manage assets.", icon: LayoutDashboard },
+      { id: "MAINTENANCE_REPORTS", name: "Maintenance Reports", description: "Access to generate and print monthly maintenance reports.", icon: FileSpreadsheet },
     ],
   },
   {

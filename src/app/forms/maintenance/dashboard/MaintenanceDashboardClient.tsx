@@ -266,16 +266,16 @@ export function MaintenanceDashboardClient({ initialItems, initialLogs, userName
               <p className="text-xs font-bold text-gray-500">Printed Date: {new Date().toLocaleDateString("en-GB")}</p>
             </div>
           </div>
-          <table className="w-full border-collapse border border-gray-400 text-xs">
+          <table className="w-full border-collapse border border-gray-400 text-xs table-fixed">
             <thead>
               <tr className="bg-gray-100">
-                <th className="border border-gray-400 p-2 text-left font-bold uppercase">Date & Time</th>
-                <th className="border border-gray-400 p-2 text-left font-bold uppercase">Item Name</th>
-                <th className="border border-gray-400 p-2 text-center font-bold uppercase">Type</th>
-                <th className="border border-gray-400 p-2 text-right font-bold uppercase">Quantity</th>
-                <th className="border border-gray-400 p-2 text-left font-bold uppercase">Unit</th>
-                <th className="border border-gray-400 p-2 text-left font-bold uppercase">Handled By</th>
-                <th className="border border-gray-400 p-2 text-left font-bold uppercase">Remarks</th>
+                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[18%]">Date & Time</th>
+                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[20%]">Item Name</th>
+                <th className="border border-gray-400 p-2 text-center font-bold uppercase w-[8%]">Type</th>
+                <th className="border border-gray-400 p-2 text-right font-bold uppercase w-[10%]">Quantity</th>
+                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[8%]">Unit</th>
+                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[22%]">Handled By</th>
+                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[14%]">Remarks</th>
               </tr>
             </thead>
             <tbody>
@@ -288,19 +288,19 @@ export function MaintenanceDashboardClient({ initialItems, initialLogs, userName
               ) : (
                 reportLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-gray-50/50">
-                    <td className="border border-gray-400 p-2">{new Date(log.createdAt).toLocaleString("en-GB")}</td>
-                    <td className="border border-gray-400 p-2 font-semibold">{log.item?.name}</td>
-                    <td className="border border-gray-400 p-2 text-center">
+                    <td className="border border-gray-400 p-2 break-words whitespace-normal">{new Date(log.createdAt).toLocaleString("en-GB")}</td>
+                    <td className="border border-gray-400 p-2 font-semibold break-words whitespace-normal">{log.item?.name}</td>
+                    <td className="border border-gray-400 p-2 text-center break-words whitespace-normal">
                       <span className={`px-2 py-0.5 rounded font-black ${
                         log.type === "IN" ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"
                       }`}>
                         {log.type}
                       </span>
                     </td>
-                    <td className="border border-gray-400 p-2 text-right font-semibold">{log.quantity}</td>
-                    <td className="border border-gray-400 p-2">{log.item?.unit}</td>
-                    <td className="border border-gray-400 p-2 font-medium">{log.handledBy}</td>
-                    <td className="border border-gray-400 p-2">{log.remarks || "-"}</td>
+                    <td className="border border-gray-400 p-2 text-right font-semibold break-words whitespace-normal">{log.quantity}</td>
+                    <td className="border border-gray-400 p-2 break-words whitespace-normal">{log.item?.unit}</td>
+                    <td className="border border-gray-400 p-2 font-medium break-words whitespace-normal">{log.handledBy}</td>
+                    <td className="border border-gray-400 p-2 break-words whitespace-normal">{log.remarks || "-"}</td>
                   </tr>
                 ))
               )}

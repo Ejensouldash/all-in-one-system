@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+import { auth } from '@/auth';
+
 export async function POST(request: NextRequest) {
+  const session = await auth();
+  if (!session || session.user.role !== 'SUPERADMIN') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { assets } = await request.json();
     if (!assets || !Array.isArray(assets)) {

@@ -45,7 +45,13 @@ function guessCategory(item: string, desc: string) {
   return { type: 'OTHER', code: 'OTH' };
 }
 
+import { auth } from '@/auth';
+
 export async function GET() {
+  const session = await auth();
+  if (!session || session.user.role !== 'SUPERADMIN') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const filePath = path.join(process.cwd(), 'public', 'assets', 'Master List Aset bubblesO2.xlsx');
     const fileBuffer = fs.readFileSync(filePath);

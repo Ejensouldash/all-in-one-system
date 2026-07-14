@@ -1,7 +1,13 @@
 import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
 
+import { auth } from "@/auth"
+
 export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { id } = await context.params
     const doOrder = await prisma.distributionOrder.findUnique({

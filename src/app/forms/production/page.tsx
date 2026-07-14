@@ -13,20 +13,31 @@ export default async function ProductionDashboard() {
   const session = await auth()
   if (!session) redirect("/login")
 
+  // Check module access (Superadmin gets all by default)
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { modules: true, role: true }
+  })
+
+  const trueRole = (session.user as any).trueRole || user?.role
+  const userModules = user?.modules || []
+  const isSuperAdmin = trueRole === "SUPERADMIN"
+
+  if (!isSuperAdmin && !userModules.includes("FORMS")) {
+    if (userModules.includes("WAREHOUSE")) redirect("/forms/warehouse/dashboard")
+    if (userModules.includes("MAINTENANCE_FORMS")) redirect("/forms/maintenance")
+    if (userModules.includes("MAINTENANCE_DASHBOARD")) redirect("/forms/maintenance/dashboard")
+    if (userModules.includes("MAINTENANCE_REPORTS")) redirect("/forms/maintenance/reports")
+    redirect("/dashboard")
+  }
+
+  const hasHandoverAccess = isSuperAdmin || userModules.includes("HANDOVER")
+
   // Fetch recent reports for the table
   const reports = await prisma.dailyReport.findMany({
     orderBy: { createdAt: 'desc' },
     take: 10,
   })
-
-  // Check if user has HANDOVER module access (Superadmin gets all by default, or specific check)
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { modules: true, role: true }
-  })
-  
-  const trueRole = (session.user as any).trueRole || user?.role
-  const hasHandoverAccess = trueRole === "SUPERADMIN" || user?.modules.includes("HANDOVER") || false
 
   return (
     <div className="min-h-screen bg-gray-50">

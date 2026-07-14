@@ -16,10 +16,18 @@ export default async function DashboardPage() {
 
   // Redirect Rantau users to their specific modules instead of the dashboard
   if (isRantau) {
-    if (userModules.includes("FORMS")) redirect("/forms")
+    if (userModules.includes("FORMS")) redirect("/forms/production")
+    if (userModules.includes("WAREHOUSE")) redirect("/forms/warehouse/dashboard")
+    if (userModules.includes("MAINTENANCE_FORMS")) redirect("/forms/maintenance")
+    if (userModules.includes("MAINTENANCE_DASHBOARD")) redirect("/forms/maintenance/dashboard")
+    if (userModules.includes("MAINTENANCE_REPORTS")) redirect("/forms/maintenance/reports")
+    if (userModules.includes("PRODUCTION_STOCK")) redirect("/forms/production/stock")
+    if (userModules.includes("TRANSFER_IN_HISTORY")) redirect("/forms/production/transfer-in/history")
+    if (userModules.includes("DATABASE_MANAGER")) redirect("/forms/database")
     if (userModules.includes("TICKETS")) redirect("/tickets")
-    if (userModules.includes("WAREHOUSE")) redirect("/dashboard/assets")
-    
+    if (userModules.includes("ASSETS")) redirect("/dashboard/assets")
+    if (userModules.includes("EVENTS")) redirect("/calendar")
+
     // If they have no modules, show a restricted message instead of the IT dashboard
     return (
       <div className="flex items-center justify-center h-[70vh]">

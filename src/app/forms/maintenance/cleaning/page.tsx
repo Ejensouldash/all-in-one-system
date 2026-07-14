@@ -4,9 +4,17 @@ import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
 import { CleaningForm } from "./CleaningForm"
 import { Brush } from "lucide-react"
 
+import { prisma } from "@/lib/prisma"
+
 export default async function CleaningInspectionPage() {
   const session = await auth()
   if (!session) redirect("/login")
+
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { modules: true }
+  })
+  const userModules = dbUser?.modules || []
 
   const userName = session.user?.name || ""
 
@@ -24,7 +32,7 @@ export default async function CleaningInspectionPage() {
         </div>
       </div>
 
-      <MaintenanceTabs />
+      <MaintenanceTabs userModules={userModules} />
 
       <div className="bg-slate-50 border border-slate-200/60 p-6 rounded-3xl">
         <CleaningForm userName={userName} />

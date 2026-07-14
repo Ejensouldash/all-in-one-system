@@ -53,6 +53,7 @@ export default async function Page() {
       initialItems={items}
       initialLogs={recentLogs}
       userName={session.user.name || "Unknown"}
+      userModules={userModules}
     />
   )
 }

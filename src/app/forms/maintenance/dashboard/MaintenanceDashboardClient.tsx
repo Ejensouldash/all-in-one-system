@@ -42,7 +42,12 @@ type Props = {
   userName: string
 }
 
-export function MaintenanceDashboardClient({ initialItems, initialLogs, userName }: Props) {
+export function MaintenanceDashboardClient({ 
+  initialItems, 
+  initialLogs, 
+  userName,
+  userModules = []
+}: Props & { userModules?: string[] }) {
   const [items, setItems] = useState<Item[]>(initialItems)
   const [logs, setLogs] = useState<StockLog[]>(initialLogs as any)
   const [searchTerm, setSearchTerm] = useState("")
@@ -233,7 +238,7 @@ export function MaintenanceDashboardClient({ initialItems, initialLogs, userName
 
         {/* Navigation Tabs - Hidden in Print */}
         <div className="print:hidden">
-          <MaintenanceTabs />
+          <MaintenanceTabs userModules={userModules} />
         </div>
 
         {/* Global Notifications */}

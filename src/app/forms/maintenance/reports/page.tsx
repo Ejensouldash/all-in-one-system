@@ -4,10 +4,34 @@ import Link from "next/link"
 import { Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, ClipboardList, FileSpreadsheet, Brush } from "lucide-react"
 import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
 
+import { prisma } from "@/lib/prisma"
+
 export const metadata = {
   title: "Maintenance Reports",
 }
+
 export default async function MaintenanceReportsDashboard() {
+  const session = await auth()
+  if (!session) redirect("/login")
+
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true, modules: true }
+  })
+
+  const role = dbUser?.role || (session.user as any).trueRole || session.user.role
+  const userModules = dbUser?.modules || []
+  const isSuperAdmin = role === "SUPERADMIN"
+
+  if (!isSuperAdmin && !userModules.includes("MAINTENANCE_REPORTS")) {
+    if (userModules.includes("MAINTENANCE_FORMS")) {
+      redirect("/forms/maintenance")
+    }
+    if (userModules.includes("MAINTENANCE_DASHBOARD")) {
+      redirect("/forms/maintenance/dashboard")
+    }
+    redirect("/dashboard")
+  }
   const reports = [
     {
       title: "Lighting Inspection Reports",
@@ -84,7 +108,7 @@ export default async function MaintenanceReportsDashboard() {
           </div>
         </div>
 
-        <MaintenanceTabs />
+        <MaintenanceTabs userModules={userModules} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
           {reports.map((report, index) => (

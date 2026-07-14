@@ -10,9 +10,15 @@ export default async function FormsDashboardPage() {
   if (!session) redirect("/login")
   const user = session.user as any
 
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
   // 1. Fetch Production Outputs
   const reports = await prisma.dailyReport.findMany({
-    where: { status: "APPROVED" }, // Only count approved data for analytics
+    where: { 
+      status: "APPROVED",
+      date: { gte: thirtyDaysAgo }
+    }, // Only count approved data for analytics
     include: {
       productions: { include: { batches: true } },
       rejects: true,
@@ -23,6 +29,9 @@ export default async function FormsDashboardPage() {
 
   // 2. Fetch Transfer Ins
   const transferIns = await prisma.transferIn.findMany({
+    where: {
+      receiveDate: { gte: thirtyDaysAgo }
+    },
     include: { items: true },
     orderBy: { receiveDate: 'asc' }
   })

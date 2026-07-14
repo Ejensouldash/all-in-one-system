@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { revalidatePath } from "next/cache"
+import { revalidatePath, unstable_cache, revalidateTag } from "next/cache"
 
 export async function createNotice(formData: FormData) {
   const session = await auth()
@@ -24,6 +24,7 @@ export async function createNotice(formData: FormData) {
     }
   })
 
+  revalidateTag("notices", "max")
   revalidatePath("/", "layout")
 }
 
@@ -36,6 +37,7 @@ export async function toggleNotice(id: string, isActive: boolean) {
     data: { isActive }
   })
 
+  revalidateTag("notices", "max")
   revalidatePath("/", "layout")
 }
 
@@ -47,21 +49,29 @@ export async function deleteNotice(id: string) {
     where: { id }
   })
 
+  revalidateTag("notices", "max")
   revalidatePath("/", "layout")
 }
 
-export async function getActiveNotices(userUnitId?: string | null) {
-  // Fetch notices that are active and either target ALL or the user's specific unit
-  const conditions: any[] = [{ targetAudience: "ALL" }]
-  if (userUnitId) {
-    conditions.push({ targetAudience: userUnitId })
-  }
+const getCachedActiveNotices = unstable_cache(
+  async (userUnitId?: string | null) => {
+    const conditions: any[] = [{ targetAudience: "ALL" }]
+    if (userUnitId) {
+      conditions.push({ targetAudience: userUnitId })
+    }
 
-  return await prisma.notice.findMany({
-    where: {
-      isActive: true,
-      OR: conditions
-    },
-    orderBy: { createdAt: 'desc' }
-  })
+    return await prisma.notice.findMany({
+      where: {
+        isActive: true,
+        OR: conditions
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+  },
+  ["active-notices-cache"],
+  { revalidate: 300, tags: ["notices"] }
+)
+
+export async function getActiveNotices(userUnitId?: string | null) {
+  return getCachedActiveNotices(userUnitId)
 }

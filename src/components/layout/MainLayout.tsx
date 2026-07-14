@@ -15,8 +15,7 @@ export async function MainLayout({ children }: { children: React.ReactNode }) {
     return <>{children}</>
   }
 
-  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { unitId: true }})
-  const activeNotices = await getActiveNotices(user?.unitId)
+  const activeNotices = await getActiveNotices((session.user as any).unitId)
   
   const isViewOnly = session.user.email === "viewonly@bubbleso2.com"
 

@@ -1,5 +1,6 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
+import { prisma } from "@/lib/prisma"
 import { FormsTabs } from "@/components/forms/FormsTabs"
 import { getActiveInventory } from "@/app/actions/dailyReport"
 import { ProductionStockClient } from "@/components/forms/ProductionStockClient"
@@ -13,9 +14,13 @@ export default async function ProductionStockPage() {
   const session = await auth()
   if (!session) redirect("/login")
 
-  const user = session.user as any
-  const role = user.trueRole || user.role
-  const modules = user.modules || []
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true, modules: true }
+  })
+
+  const role = dbUser?.role || (session.user as any).trueRole || session.user.role
+  const modules = dbUser?.modules || []
 
   if (role !== "SUPERADMIN" && !modules.includes("PRODUCTION_STOCK")) {
     redirect("/dashboard")
@@ -34,7 +39,7 @@ export default async function ProductionStockPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 animate-in fade-in duration-500 pb-12">
-      <FormsTabs role={role} hasDatabaseAccess={role === "SUPERADMIN" || (user.modules || []).includes("DATABASE_MANAGER")} />
+      <FormsTabs role={role} hasDatabaseAccess={role === "SUPERADMIN" || modules.includes("DATABASE_MANAGER")} />
 
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>

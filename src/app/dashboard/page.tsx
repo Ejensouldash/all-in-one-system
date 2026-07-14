@@ -11,8 +11,13 @@ export default async function DashboardPage() {
   const session = await auth()
   if (!session) return null
 
-  const userModules = (session.user as any).modules || []
-  const isRantau = (session.user as any).branchName === "BubblesO2 Rantau"
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { modules: true, branch: { select: { name: true } } }
+  })
+
+  const userModules = dbUser?.modules || []
+  const isRantau = (dbUser?.branch?.name || (session.user as any).branchName) === "BubblesO2 Rantau"
 
   // Redirect Rantau users to their specific modules instead of the dashboard
   if (isRantau) {

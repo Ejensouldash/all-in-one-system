@@ -9,6 +9,8 @@ export const metadata = {
   title: "Maintenance Forms",
 }
 
+export const dynamic = "force-dynamic"
+
 export default async function MaintenanceDashboard() {
   const session = await auth()
   if (!session) redirect("/login")

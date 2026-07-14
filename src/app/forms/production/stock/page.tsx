@@ -1,30 +1,25 @@
-import { auth } from "@/auth"
 import { redirect } from "next/navigation"
-import { prisma } from "@/lib/prisma"
 import { FormsTabs } from "@/components/forms/FormsTabs"
 import { getActiveInventory } from "@/app/actions/dailyReport"
 import { ProductionStockClient } from "@/components/forms/ProductionStockClient"
 import { Package } from "lucide-react"
+import { getAccessInfo, hasAnyModule } from "@/lib/access"
 
 export const metadata = {
   title: "Production Stock",
 }
 
 export default async function ProductionStockPage() {
-  const session = await auth()
-  if (!session) redirect("/login")
+  const access = await getAccessInfo()
+  if (!access) redirect("/login")
 
-  const dbUser = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true, modules: true }
-  })
-
-  const role = dbUser?.role || (session.user as any).trueRole || session.user.role
-  const modules = dbUser?.modules || []
-
-  if (role !== "SUPERADMIN" && !modules.includes("PRODUCTION_STOCK")) {
-    redirect("/dashboard")
+  if (!hasAnyModule(access, ["PRODUCTION_STOCK"])) {
+    // /forms re-routes the user to whichever section they DO have access to
+    redirect("/forms")
   }
+
+  const role = access.isSuperAdmin ? "SUPERADMIN" : access.role
+  const modules = access.modules
 
   // Fetch the active inventory from the server
   const inventory = await getActiveInventory()

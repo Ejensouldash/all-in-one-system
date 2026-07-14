@@ -1,21 +1,25 @@
-import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { getTransferInHistory } from "@/app/actions/transferIn"
 import Link from "next/link"
 import { ClipboardList, Eye, PackagePlus, History } from "lucide-react"
 import { TransferInHistoryClient } from "@/components/forms/TransferInHistoryClient"
+import { getAccessInfo, hasAnyModule } from "@/lib/access"
 
 export default async function TransferInHistoryPage({
   searchParams,
 }: {
   searchParams: Promise<{ page?: string }>
 }) {
-  const session = await auth()
-  if (!session) redirect("/login")
-  
-  const user = session.user as any
-  const role = user.trueRole || user.role
-  const modules = user.modules || []
+  const access = await getAccessInfo()
+  if (!access) redirect("/login")
+
+  if (!hasAnyModule(access, ["FORMS", "TRANSFER_IN_HISTORY"])) {
+    // /forms re-routes the user to whichever section they DO have access to
+    redirect("/forms")
+  }
+
+  const role = access.isSuperAdmin ? "SUPERADMIN" : access.role
+  const modules = access.modules
 
   const resolvedParams = await searchParams
   const page = resolvedParams.page ? parseInt(resolvedParams.page) : 1

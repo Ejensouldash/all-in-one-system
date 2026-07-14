@@ -14,11 +14,15 @@ import {
   Printer
 } from "lucide-react"
 import { DashboardCharts } from "./DashboardCharts"
+import { getAccessInfo, hasAnyModule } from "@/lib/access"
 
 export default async function AssetsDashboard() {
   const session = await auth()
   if (!session) redirect("/login")
-  
+
+  const access = await getAccessInfo()
+  if (!access || !hasAnyModule(access, ["ASSETS"])) redirect("/dashboard")
+
   // 1. Fetch KPI Stats
   const totalAssets = await prisma.asset.count()
   const availableAssets = await prisma.asset.count({ where: { status: "AVAILABLE" } })

@@ -1,29 +1,16 @@
-import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Package, Truck, AlertOctagon } from "lucide-react"
 import { WarehouseTabs } from "@/components/warehouse/WarehouseTabs"
-import { prisma } from "@/lib/prisma"
+import { getAccessInfo, hasAnyModule } from "@/lib/access"
 
 export default async function WarehouseLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth()
-  if (!session) redirect("/login")
+  const access = await getAccessInfo()
+  if (!access) redirect("/login")
 
-  const dbUser = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true, modules: true }
-  })
-
-  const role = dbUser?.role || (session.user as any).trueRole || session.user.role
-  const userModules = dbUser?.modules || []
-  const isSuperAdmin = role === "SUPERADMIN"
-
-  if (!isSuperAdmin && !userModules.includes("WAREHOUSE")) {
-    if (userModules.includes("FORMS")) redirect("/forms/production")
-    if (userModules.includes("MAINTENANCE_FORMS")) redirect("/forms/maintenance")
-    if (userModules.includes("MAINTENANCE_DASHBOARD")) redirect("/forms/maintenance/dashboard")
-    if (userModules.includes("MAINTENANCE_REPORTS")) redirect("/forms/maintenance/reports")
-    redirect("/dashboard")
+  if (!hasAnyModule(access, ["WAREHOUSE"])) {
+    // /forms re-routes the user to whichever section they DO have access to
+    redirect("/forms")
   }
 
   return (

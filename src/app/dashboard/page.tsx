@@ -6,21 +6,22 @@ import Link from "next/link"
 import { DashboardTicketButton } from "./DashboardTicketButton"
 import { AnalyticsCharts } from "@/components/dashboard/AnalyticsCharts"
 import { getDashboardStats } from "@/lib/cache/dashboard"
+import { getAccessInfo } from "@/lib/access"
 
 export default async function DashboardPage() {
   const session = await auth()
   if (!session) return null
 
-  const dbUser = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { modules: true, branch: { select: { name: true } } }
-  })
+  const access = await getAccessInfo()
+  if (!access) return null
 
-  const userModules = dbUser?.modules || []
-  const isRantau = (dbUser?.branch?.name || (session.user as any).branchName) === "BubblesO2 Rantau"
+  const userModules = access.modules
+  const isRantau = access.branchName === "BubblesO2 Rantau"
 
-  // Redirect Rantau users to their specific modules instead of the dashboard
-  if (isRantau) {
+  // Redirect Rantau users to their specific modules instead of the dashboard.
+  // Every target here must admit the module that sent the user to it,
+  // otherwise the two pages redirect at each other in an infinite loop.
+  if (isRantau && !access.isSuperAdmin) {
     if (userModules.includes("FORMS")) redirect("/forms/production")
     if (userModules.includes("WAREHOUSE")) redirect("/forms/warehouse/dashboard")
     if (userModules.includes("MAINTENANCE_FORMS")) redirect("/forms/maintenance")
@@ -29,9 +30,9 @@ export default async function DashboardPage() {
     if (userModules.includes("PRODUCTION_STOCK")) redirect("/forms/production/stock")
     if (userModules.includes("TRANSFER_IN_HISTORY")) redirect("/forms/production/transfer-in/history")
     if (userModules.includes("DATABASE_MANAGER")) redirect("/forms/database")
+    if (userModules.includes("HANDOVER")) redirect("/forms/production/handover/new")
     if (userModules.includes("TICKETS")) redirect("/tickets")
     if (userModules.includes("ASSETS")) redirect("/dashboard/assets")
-    if (userModules.includes("EVENTS")) redirect("/calendar")
 
     // If they have no modules, show a restricted message instead of the IT dashboard
     return (

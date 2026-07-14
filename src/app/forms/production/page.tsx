@@ -1,37 +1,25 @@
-import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { ClipboardList, PackagePlus, Eye } from "lucide-react"
 import { FormsTabs } from "@/components/forms/FormsTabs"
 import { prisma } from "@/lib/prisma"
+import { getAccessInfo, hasAnyModule } from "@/lib/access"
 
 export const metadata = {
   title: "Production Dashboard",
 }
 
 export default async function ProductionDashboard() {
-  const session = await auth()
-  if (!session) redirect("/login")
+  // Check module access with live DB data (Superadmin gets all by default)
+  const access = await getAccessInfo()
+  if (!access) redirect("/login")
 
-  // Check module access (Superadmin gets all by default)
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { modules: true, role: true }
-  })
-
-  const trueRole = (session.user as any).trueRole || user?.role
-  const userModules = user?.modules || []
-  const isSuperAdmin = trueRole === "SUPERADMIN"
-
-  if (!isSuperAdmin && !userModules.includes("FORMS")) {
-    if (userModules.includes("WAREHOUSE")) redirect("/forms/warehouse/dashboard")
-    if (userModules.includes("MAINTENANCE_FORMS")) redirect("/forms/maintenance")
-    if (userModules.includes("MAINTENANCE_DASHBOARD")) redirect("/forms/maintenance/dashboard")
-    if (userModules.includes("MAINTENANCE_REPORTS")) redirect("/forms/maintenance/reports")
-    redirect("/dashboard")
+  if (!hasAnyModule(access, ["FORMS"])) {
+    // /forms re-routes the user to whichever section they DO have access to
+    redirect("/forms")
   }
 
-  const hasHandoverAccess = isSuperAdmin || userModules.includes("HANDOVER")
+  const hasHandoverAccess = hasAnyModule(access, ["HANDOVER"])
 
   // Fetch recent reports for the table
   const reports = await prisma.dailyReport.findMany({
@@ -56,7 +44,7 @@ export default async function ProductionDashboard() {
           </div>
         </div>
 
-        <FormsTabs role={(session.user as any).trueRole || session.user.role} />
+        <FormsTabs role={access.isSuperAdmin ? "SUPERADMIN" : access.role} />
 
         {/* Module CTAs */}
         <div className={`grid grid-cols-1 ${hasHandoverAccess ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-8 mb-12`}>

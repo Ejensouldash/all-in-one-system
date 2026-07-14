@@ -1,9 +1,8 @@
-import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { ClipboardList, Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, Brush } from "lucide-react"
 import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
-import { prisma } from "@/lib/prisma"
+import { getAccessInfo, hasAnyModule } from "@/lib/access"
 
 export const metadata = {
   title: "Maintenance Forms",
@@ -12,27 +11,19 @@ export const metadata = {
 export const dynamic = "force-dynamic"
 
 export default async function MaintenanceDashboard() {
-  const session = await auth()
-  if (!session) redirect("/login")
+  const access = await getAccessInfo()
+  if (!access) redirect("/login")
 
-  const dbUser = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true, modules: true }
-  })
-
-  const role = dbUser?.role || (session.user as any).trueRole || session.user.role
-  const userModules = dbUser?.modules || []
-  const isSuperAdmin = role === "SUPERADMIN"
-
-  if (!isSuperAdmin && !userModules.includes("MAINTENANCE_FORMS")) {
-    if (userModules.includes("MAINTENANCE_DASHBOARD")) {
+  if (!hasAnyModule(access, ["MAINTENANCE_FORMS"])) {
+    if (access.modules.includes("MAINTENANCE_DASHBOARD")) {
       redirect("/forms/maintenance/dashboard")
     }
-    if (userModules.includes("MAINTENANCE_REPORTS")) {
+    if (access.modules.includes("MAINTENANCE_REPORTS")) {
       redirect("/forms/maintenance/reports")
     }
 
-    redirect("/dashboard")
+    // /forms re-routes the user to whichever section they DO have access to
+    redirect("/forms")
   }
 
   const forms = [
@@ -111,7 +102,7 @@ export default async function MaintenanceDashboard() {
           </div>
         </div>
 
-        <MaintenanceTabs userModules={userModules} />
+        <MaintenanceTabs userModules={access.isSuperAdmin ? undefined : access.modules} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
           {forms.map((form, index) => (

@@ -1,11 +1,13 @@
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Clock, CheckCircle2, AlertCircle, Eye, Edit3 } from "lucide-react"
 import { NewTicketButton } from "./NewTicketButton"
 import { TicketTable } from "@/components/tickets/TicketTable"
 import { SearchInput } from "@/components/ui/SearchInput"
 import { Pagination } from "@/components/ui/Pagination"
+import { getAccessInfo, hasAnyModule } from "@/lib/access"
 
 export default async function TicketsPage(props: { searchParams?: Promise<{ query?: string; page?: string }> }) {
   const searchParams = await props.searchParams
@@ -16,7 +18,10 @@ export default async function TicketsPage(props: { searchParams?: Promise<{ quer
   const session = await auth()
   if (!session) return null
 
-  const isSuperAdmin = session.user.role === "SUPERADMIN"
+  const access = await getAccessInfo()
+  if (!access || !hasAnyModule(access, ["TICKETS"])) redirect("/dashboard")
+
+  const isSuperAdmin = access.isSuperAdmin
 
   const baseWhere = isSuperAdmin 
     ? {} 

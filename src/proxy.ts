@@ -33,31 +33,11 @@ export default auth((req) => {
     )
   }
 
-  // Map routes to required modules
-  let requiredModules: string[] = []
-  if (nextUrl.pathname.startsWith("/forms/warehouse")) {
-    requiredModules = ["WAREHOUSE"]
-  } else if (nextUrl.pathname.startsWith("/forms")) {
-    requiredModules = ["FORMS"]
-  } else if (nextUrl.pathname.startsWith("/tickets")) {
-    requiredModules = ["TICKETS"]
-  } else if (nextUrl.pathname.startsWith("/calendar")) {
-    requiredModules = ["EVENTS"]
-  } else if (nextUrl.pathname.startsWith("/dashboard/assets")) {
-    requiredModules = ["WAREHOUSE"]
-  } else if (nextUrl.pathname.startsWith("/users") || nextUrl.pathname.startsWith("/organization")) {
-    requiredModules = ["USERS"]
-  } else if (nextUrl.pathname.startsWith("/settings")) {
-    requiredModules = ["SETTINGS"]
-  }
-
-  if (requiredModules.length > 0 && req.auth?.user?.role !== "SUPERADMIN") {
-    const userModules = (req.auth?.user as any)?.modules || []
-    const hasAccess = requiredModules.some(m => userModules.includes(m))
-    if (!hasAccess) {
-      return NextResponse.redirect(new URL("/dashboard", nextUrl))
-    }
-  }
+  // Module-level authorization is NOT enforced here. The JWT's "modules"
+  // array is a snapshot from login time and goes stale as soon as an admin
+  // edits a user's access, which caused users to be kicked from pages they
+  // were just granted. Every route family is gated in its server
+  // component/layout with live DB data instead (see src/lib/access.ts).
 
   // Legacy RBAC for admin routes
   if (nextUrl.pathname.startsWith("/admin") && req.auth?.user.role !== "SUPERADMIN") {

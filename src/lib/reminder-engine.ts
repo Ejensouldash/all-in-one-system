@@ -46,6 +46,7 @@ type ReminderRow = {
   targetModules: string[]
   actionLinks: unknown
   createdById: string
+  enabled: boolean
   recipients: { userId: string }[]
 }
 

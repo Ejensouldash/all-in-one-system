@@ -9,6 +9,7 @@ import {
   Package, 
   FileText, 
   Calendar,
+  BellRing,
   Settings,
   Users,
   Building2,
@@ -52,6 +53,7 @@ const staffLinks: NavLink[] = [
     ]
   },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
+  { name: "Reminders", href: "/reminders", icon: BellRing, module: "REMINDERS" },
   { name: "Assets", href: "/dashboard/assets", icon: Package, module: "ASSETS" },
 ]
 
@@ -68,6 +70,7 @@ const adminLinks: NavLink[] = [
     ]
   },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
+  { name: "Reminders", href: "/reminders", icon: BellRing, module: "REMINDERS" },
   { name: "Assets", href: "/dashboard/assets", icon: Package, module: "ASSETS" },
   { name: "Users", href: "/users", icon: Users, module: "USERS" },
   { 

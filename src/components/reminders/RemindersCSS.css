@@ -1,0 +1,160 @@
+/* ============================================================
+   Reminder Calendar - custom styles & animations
+   (fully custom UI; reduced-motion safe)
+   ============================================================ */
+
+/* ---------- Scrollbar ---------- */
+.reminder-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+  scroll-behavior: smooth;
+}
+.reminder-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.reminder-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.reminder-scroll::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* ---------- Keyframes ---------- */
+@keyframes reminder-pop-in {
+  0% { opacity: 0; transform: translateY(16px) scale(0.96); }
+  60% { transform: translateY(-2px) scale(1.005); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes reminder-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes reminder-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes reminder-in-fade {
+  from { opacity: 0; transform: translateY(10px) scale(0.992); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes reminder-list-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes reminder-chip-in {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes reminder-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+@keyframes reminder-today-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.35); }
+  50% { box-shadow: 0 0 0 4px rgba(99, 102, 241, 0); }
+}
+@keyframes reminder-glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(139, 92, 246, 0); }
+}
+@keyframes reminder-shine {
+  from { transform: translateX(-120%) skewX(-20deg); }
+  to { transform: translateX(220%) skewX(-20deg); }
+}
+@keyframes reminder-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes reminder-ring {
+  0%, 100% { transform: rotate(0deg); }
+  10% { transform: rotate(14deg); }
+  20% { transform: rotate(-12deg); }
+  30% { transform: rotate(9deg); }
+  40% { transform: rotate(-7deg); }
+  50% { transform: rotate(4deg); }
+  60% { transform: rotate(0deg); }
+}
+
+/* ---------- Applied classes ---------- */
+.reminder-pop { animation: reminder-pop-in 0.34s cubic-bezier(0.16, 1, 0.3, 1); }
+.reminder-backdrop { animation: reminder-backdrop-in 0.2s ease-out; }
+.reminder-fade-up { animation: reminder-fade-up 0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.reminder-in-fade { animation: reminder-in-fade 0.32s cubic-bezier(0.16, 1, 0.3, 1); }
+.reminder-list-in { animation: reminder-list-in 0.3s ease-out both; }
+.reminder-chip-in { animation: reminder-chip-in 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
+.reminder-shake { animation: reminder-shake 0.4s ease-in-out; }
+.reminder-today-badge { animation: reminder-today-pulse 2.4s ease-in-out infinite; }
+.reminder-next-glow { animation: reminder-glow-pulse 2.2s ease-in-out infinite; }
+.reminder-float { animation: reminder-float 3s ease-in-out infinite; }
+
+/* Bell wiggle on hover */
+.reminder-bell:hover svg { animation: reminder-ring 0.9s ease-in-out; transform-origin: top center; }
+
+/* Reminder pills: smooth hover lift */
+.reminder-pill {
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease, filter 0.15s ease;
+  will-change: transform;
+}
+.reminder-pill:hover {
+  transform: translateY(-1px) scale(1.015);
+  filter: brightness(1.04);
+  z-index: 30;
+}
+
+/* Primary button shine sweep on hover */
+.reminder-btn-glow { position: relative; overflow: hidden; }
+.reminder-btn-glow::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: translateX(-120%) skewX(-20deg);
+  pointer-events: none;
+}
+.reminder-btn-glow:hover::after { animation: reminder-shine 0.75s ease; }
+
+/* Day cell hover reveal for the + affordance */
+.reminder-daycell .reminder-add-hint { opacity: 0; transform: scale(0.6); transition: all 0.15s ease; }
+.reminder-daycell:hover .reminder-add-hint { opacity: 1; transform: scale(1); }
+
+/* Staggered list entrance */
+.reminder-stagger > * { animation: reminder-fade-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.reminder-stagger > *:nth-child(1) { animation-delay: 0.02s; }
+.reminder-stagger > *:nth-child(2) { animation-delay: 0.06s; }
+.reminder-stagger > *:nth-child(3) { animation-delay: 0.1s; }
+.reminder-stagger > *:nth-child(4) { animation-delay: 0.14s; }
+.reminder-stagger > *:nth-child(5) { animation-delay: 0.18s; }
+.reminder-stagger > *:nth-child(6) { animation-delay: 0.22s; }
+.reminder-stagger > *:nth-child(7) { animation-delay: 0.26s; }
+.reminder-stagger > *:nth-child(8) { animation-delay: 0.3s; }
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .reminder-pop,
+  .reminder-backdrop,
+  .reminder-fade-up,
+  .reminder-in-fade,
+  .reminder-list-in,
+  .reminder-chip-in,
+  .reminder-shake,
+  .reminder-today-badge,
+  .reminder-next-glow,
+  .reminder-float,
+  .reminder-stagger > * {
+    animation: none !important;
+  }
+  .reminder-pill:hover { transform: none; }
+  .reminder-scroll { scroll-behavior: auto; }
+  .reminder-btn-glow:hover::after { animation: none; }
+  .reminder-bell:hover svg { animation: none; }
+}

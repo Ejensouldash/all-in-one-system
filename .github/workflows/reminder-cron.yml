@@ -1,0 +1,19 @@
+name: Hourly Reminder Dispatch
+
+# Backup trigger for the reminder engine (primary: cron-job.org at minute 0).
+# Runs at minute 20 so an on-time primary already claimed every occurrence —
+# the endpoint's occurrenceKey dedupe makes the overlap a no-op.
+on:
+  schedule:
+    - cron: "20 * * * *"
+  workflow_dispatch:
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call reminder cron endpoint
+        run: |
+          curl -fsS --max-time 60 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/reminders"

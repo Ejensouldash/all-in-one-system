@@ -10,7 +10,7 @@ import {
   CalendarDays, Megaphone, QrCode,
   Users, Activity, Settings,
   Workflow, Factory, Building2, ShieldCheck,
-  LayoutDashboard, FileSpreadsheet,
+  LayoutDashboard, FileSpreadsheet, BellRing,
   type LucideIcon,
 } from "lucide-react"
 
@@ -59,6 +59,7 @@ const MODULE_CATEGORIES: CategoryDef[] = [
     iconClass: "bg-violet-50 text-violet-600 border-violet-100",
     modules: [
       { id: "EVENTS", name: "Events & Facilities", description: "Manage company events and calendar.", icon: CalendarDays },
+      { id: "REMINDERS", name: "Reminder Calendar", description: "Create scheduled email reminders (one-off or recurring) for yourself, users, or units.", icon: BellRing },
       { id: "NOTICES", name: "Internal Notices", description: "Post and read company-wide announcements.", icon: Megaphone },
       { id: "ASSETS", name: "Company Assets", description: "Manage, track, and print QR for company assets and equipment.", icon: QrCode },
     ],

@@ -37,6 +37,8 @@ model User {
   openingStocks     WarehouseOpeningStock[] @relation("OpeningStockSetter")
   auditLogs         AuditLog[]
   assetAssignments  AssetAssignment[]
+  createdReminders  Reminder[]              @relation("ReminderCreator")
+  reminderTargets   ReminderRecipient[]     @relation("ReminderTargetUser")
 }
 
 model Branch {
@@ -58,6 +60,7 @@ model Unit {
   tickets   Ticket[]
   branch    Branch   @relation(fields: [branchId], references: [id])
   users     User[]
+  reminders Reminder[]
 }
 
 enum AssetStatus {
@@ -713,3 +716,66 @@ model MaintenanceStockLog {
   createdAt   DateTime         @default(now())
 }
 
+
+// ============================================================
+// Reminder Calendar (scheduled email reminders)
+// ============================================================
+
+enum ReminderFrequency {
+  ONCE
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+model Reminder {
+  id            String            @id @default(uuid())
+  title         String
+  description   String?           @db.Text
+  category      String            @default("general")
+  frequency     ReminderFrequency @default(ONCE)
+  onceAt        DateTime?
+  timeOfDay     String?
+  daysOfWeek    Int[]             @default([])
+  dayOfMonth    Int?
+  enabled       Boolean           @default(true)
+  targetSelf    Boolean           @default(true)
+  targetUnitId  String?
+  targetModules String[]          @default([])
+  actionLinks   Json?
+  seedKey       String?           @unique
+  createdById   String
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  targetUnit    Unit?             @relation(fields: [targetUnitId], references: [id], onDelete: SetNull)
+  createdBy     User              @relation("ReminderCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  recipients    ReminderRecipient[]
+  deliveries    ReminderDelivery[]
+
+  @@index([enabled, frequency])
+}
+
+model ReminderRecipient {
+  id         String   @id @default(uuid())
+  reminderId String
+  userId     String
+  createdAt  DateTime @default(now())
+  reminder   Reminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  user       User     @relation("ReminderTargetUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reminderId, userId])
+}
+
+model ReminderDelivery {
+  id             String   @id @default(uuid())
+  reminderId     String
+  occurrenceKey  String
+  status         String   @default("SENDING") // SENDING | SENT | PARTIAL | FAILED | SKIPPED_EMPTY
+  recipientCount Int      @default(0)
+  detail         String?  @db.Text
+  sentAt         DateTime @default(now())
+  reminder       Reminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+
+  @@unique([reminderId, occurrenceKey])
+  @@index([reminderId, sentAt])
+}

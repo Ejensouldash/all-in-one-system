@@ -118,7 +118,7 @@ export function generateEventEmailHtml(event: {
   const endTimeStr = format(event.endDateTime, "h:mm a")
   
   // Construct absolute URL for the logo. In Vercel, VERCEL_URL is available.
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? "https://bubbleso2-aio.vercel.app" : "http://localhost:3000")
   const logoUrl = `${baseUrl}/assets/BubblesO2_Logo.png`
 
   return `

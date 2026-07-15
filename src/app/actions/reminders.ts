@@ -9,6 +9,7 @@ import {
   buildFrequencyLabel,
   type ReminderActionLink,
 } from "@/lib/reminder-email"
+import { dispatchReminderImmediately } from "@/lib/reminder-engine"
 
 type ActionResult = { success: boolean; error?: string; warning?: string }
 
@@ -187,7 +188,7 @@ export async function createReminder(data: FormData): Promise<ActionResult> {
   if (!parsed.ok) return { success: false, error: parsed.error }
 
   try {
-    await prisma.reminder.create({
+    const newReminder = await prisma.reminder.create({
       data: {
         ...toReminderData(parsed.values),
         createdById: access.userId,
@@ -196,6 +197,12 @@ export async function createReminder(data: FormData): Promise<ActionResult> {
           : undefined,
       },
     })
+    
+    // Blast an immediate first email/calendar invite regardless of the schedule
+    dispatchReminderImmediately(newReminder.id).catch((err) => {
+      console.error("Failed to dispatch immediate reminder:", err)
+    })
+
     revalidatePath("/reminders")
     return { success: true }
   } catch (error: any) {

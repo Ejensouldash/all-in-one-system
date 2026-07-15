@@ -259,3 +259,102 @@ export async function runReminderDispatch(nowUtc: Date): Promise<DispatchSummary
 
   return summary
 }
+
+/**
+ * Dispatches a specific reminder immediately, ignoring its schedule.
+ * Used when a user first creates a reminder and wants an instant initial blast.
+ */
+export async function dispatchReminderImmediately(reminderId: string, nowUtc: Date = new Date()): Promise<void> {
+  const reminder = (await prisma.reminder.findUnique({
+    where: { id: reminderId },
+    include: { recipients: { select: { userId: true } } },
+  })) as unknown as ReminderRow | null
+
+  if (!reminder || !reminder.enabled) return
+
+  const occurrenceKey = `IMMEDIATE_${nowUtc.toISOString()}`
+  let deliveryId: string
+  try {
+    const delivery = await prisma.reminderDelivery.create({
+      data: { reminderId: reminder.id, occurrenceKey, status: "SENDING" },
+    })
+    deliveryId = delivery.id
+  } catch (e) {
+    return // Already sent an immediate blast for this exact millisecond? Unlikely, but skip.
+  }
+
+  try {
+    const where = resolveRecipientWhere(reminder)
+    const users = where ? await prisma.user.findMany({ where, select: { email: true } }) : []
+
+    const seen = new Set<string>()
+    const emails: string[] = []
+    for (const u of users) {
+      const email = (u.email || "").trim()
+      const key = email.toLowerCase()
+      if (!email || seen.has(key)) continue
+      seen.add(key)
+      emails.push(email)
+      if (emails.length >= MAX_RECIPIENTS) break
+    }
+
+    if (!emails.length) {
+      await prisma.reminderDelivery.update({
+        where: { id: deliveryId },
+        data: { status: "SKIPPED_EMPTY", detail: "No valid recipient emails resolved." },
+      })
+      return
+    }
+
+    const mytNowHour = toMyt(nowUtc).getUTCHours()
+    const html = buildReminderEmailHtml({
+      title: reminder.title,
+      description: reminder.description,
+      actionLinks: parseActionLinks(reminder.actionLinks),
+      mytHour: mytNowHour,
+      frequencyLabel: buildFrequencyLabel(
+        reminder.frequency,
+        reminder.timeOfDay,
+        reminder.onceAt ? toMyt(reminder.onceAt) : null
+      ),
+    })
+
+    const icsContent = generateIcs({
+      title: `Peringatan: ${reminder.title}`,
+      description: reminder.description || "Peringatan automatik sistem.",
+      startDateTime: nowUtc,
+      endDateTime: new Date(nowUtc.getTime() + 30 * 60000), // 30 mins block
+      attendees: emails,
+    }) || undefined
+
+    let okChunks = 0
+    let failChunks = 0
+    for (const group of chunk(emails, SEND_CHUNK_SIZE)) {
+      const ok = await sendEmail({
+        to: group,
+        subject: `⏰ Peringatan: ${reminder.title}`,
+        html,
+        icsContent,
+      })
+      if (ok) okChunks++
+      else failChunks++
+    }
+
+    const status = failChunks === 0 ? "SENT" : okChunks === 0 ? "FAILED" : "PARTIAL"
+    await prisma.reminderDelivery.update({
+      where: { id: deliveryId },
+      data: {
+        status,
+        recipientCount: emails.length,
+        detail: failChunks ? `${failChunks} chunk(s) failed to send via SMTP.` : null,
+      },
+    })
+  } catch (e: any) {
+    await prisma.reminderDelivery
+      .update({
+        where: { id: deliveryId },
+        data: { status: "FAILED", detail: e?.message || "Unexpected dispatch error." },
+      })
+      .catch(() => {})
+  }
+}

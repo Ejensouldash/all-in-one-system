@@ -1,0 +1,17 @@
+name: Hourly Reminders Cron
+
+on:
+  schedule:
+    # Runs every hour at minute 0 (e.g., 8:00, 9:00, etc.)
+    - cron: '0 * * * *'
+  # Allows triggering manually from the GitHub Actions tab for testing
+  workflow_dispatch:
+
+jobs:
+  trigger-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Vercel Cron Endpoint
+        run: |
+          curl -X GET "https://bubbleso2-aio.vercel.app/api/cron/reminders" \
+               -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

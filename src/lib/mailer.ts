@@ -10,19 +10,20 @@ interface EmailOptions {
   icsContent?: string
 }
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.SMTP_EMAIL,
-    pass: process.env.SMTP_PASSWORD,
-  },
-})
-
 export async function sendEmail({ to, subject, html, icsContent }: EmailOptions) {
   if (!process.env.SMTP_EMAIL || !process.env.SMTP_PASSWORD) {
     console.warn("SMTP credentials not configured. Skipping email send.")
     return false
   }
+
+  // Instantiate transporter inside the function to avoid stale sockets in serverless environments
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.SMTP_EMAIL,
+      pass: process.env.SMTP_PASSWORD,
+    },
+  })
 
   try {
     // Send emails individually so Gmail recognizes each recipient directly in the 'To' header.
@@ -47,6 +48,7 @@ export async function sendEmail({ to, subject, html, icsContent }: EmailOptions)
     })
 
     await Promise.all(promises)
+    transporter.close() // Close the connection pool explicitly
     return true
   } catch (error) {
     console.error("Error sending email:", error)

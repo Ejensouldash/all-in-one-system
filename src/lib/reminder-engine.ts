@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma"
-import { sendEmail } from "@/lib/mailer"
+import { sendEmail, generateIcs } from "@/lib/mailer"
 import { buildReminderEmailHtml, buildFrequencyLabel, type ReminderActionLink } from "@/lib/reminder-email"
 
 /**
@@ -208,6 +208,14 @@ export async function runReminderDispatch(nowUtc: Date): Promise<DispatchSummary
         ),
       })
 
+      const icsContent = generateIcs({
+        title: `Peringatan: ${reminder.title}`,
+        description: reminder.description || "Peringatan automatik sistem.",
+        startDateTime: nowUtc,
+        endDateTime: new Date(nowUtc.getTime() + 30 * 60000), // 30 mins block
+        attendees: emails,
+      }) || undefined
+
       let okChunks = 0
       let failChunks = 0
       for (const group of chunk(emails, SEND_CHUNK_SIZE)) {
@@ -215,6 +223,7 @@ export async function runReminderDispatch(nowUtc: Date): Promise<DispatchSummary
           to: group,
           subject: `⏰ Peringatan: ${reminder.title}`,
           html,
+          icsContent,
         })
         if (ok) okChunks++
         else failChunks++

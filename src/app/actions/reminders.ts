@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getAccessInfo, hasAnyModule, type AccessInfo } from "@/lib/access"
-import { sendEmail } from "@/lib/mailer"
+import { sendEmail, generateIcs } from "@/lib/mailer"
 import {
   buildReminderEmailHtml,
   buildFrequencyLabel,
@@ -321,10 +321,20 @@ export async function sendTestReminder(id: string): Promise<ActionResult> {
       ),
     })
 
+    const nowUtc = new Date()
+    const icsContent = generateIcs({
+      title: `[UJIAN] Peringatan: ${reminder.title}`,
+      description: reminder.description || "Peringatan automatik sistem.",
+      startDateTime: nowUtc,
+      endDateTime: new Date(nowUtc.getTime() + 30 * 60000), // 30 mins block
+      attendees: [me.email],
+    }) || undefined
+
     const ok = await sendEmail({
       to: [me.email],
       subject: `⏰ [UJIAN] Peringatan: ${reminder.title}`,
       html,
+      icsContent,
     })
     if (!ok) return { success: false, error: "SMTP gagal menghantar e-mel. Semak konfigurasi SMTP." }
     return { success: true }

@@ -137,6 +137,7 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
                 key={asset.id}
                 assetTag={asset.assetTag}
                 qrValue={`${BASE_URL}/dashboard/assets/${asset.id}`}
+                bleed
               />
             ))}
           </div>
@@ -326,6 +327,7 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
                     key={asset.id}
                     assetTag={asset.assetTag}
                     qrValue={`${BASE_URL}/dashboard/assets/${asset.id}`}
+                    bleed
                   />
                 ))}
                 {selectedAssets.length > 6 && (

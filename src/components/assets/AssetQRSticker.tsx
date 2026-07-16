@@ -5,10 +5,12 @@ import { QRCodeSVG } from "qrcode.react"
 interface AssetQRStickerProps {
   assetTag: string
   qrValue: string
+  /** Offset-print mode: adds 2mm bleed around the 70x30mm die line plus a dashed magenta cut guide */
+  bleed?: boolean
 }
 
-export function AssetQRSticker({ assetTag, qrValue }: AssetQRStickerProps) {
-  return (
+export function AssetQRSticker({ assetTag, qrValue, bleed = false }: AssetQRStickerProps) {
+  const sticker = (
     <div
       className="asset-qr-sticker"
       style={{
@@ -21,7 +23,8 @@ export function AssetQRSticker({ assetTag, qrValue }: AssetQRStickerProps) {
         alignItems: "stretch",
         overflow: "hidden",
         fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
-        position: "relative",
+        position: bleed ? "absolute" : "relative",
+        ...(bleed ? { top: "2mm", left: "2mm" } : {}),
         pageBreakInside: "avoid",
         breakInside: "avoid",
       }}
@@ -163,6 +166,37 @@ export function AssetQRSticker({ assetTag, qrValue }: AssetQRStickerProps) {
           />
         </div>
       </div>
+    </div>
+  )
+
+  if (!bleed) return sticker
+
+  // Full bleed 74x34mm: background extends 2mm past the die line so no white
+  // edge shows after cutting; corners stay square because they get trimmed off.
+  return (
+    <div
+      className="asset-qr-sticker-bleed"
+      style={{
+        width: "74mm",
+        height: "34mm",
+        backgroundColor: "#111827",
+        position: "relative",
+        pageBreakInside: "avoid",
+        breakInside: "avoid",
+      }}
+    >
+      {sticker}
+      {/* Die line (cut guide) at 70x30mm for the vendor */}
+      <div
+        style={{
+          position: "absolute",
+          inset: "2mm",
+          border: "0.35mm dashed magenta",
+          borderRadius: "3mm",
+          pointerEvents: "none",
+          zIndex: 10,
+        }}
+      />
     </div>
   )
 }

@@ -73,10 +73,11 @@ export default function PrintQRPage() {
             const qrUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://bubbleso2-aio.vercel.app'}/public/asset/${asset.id}`
 
             return (
-              <AssetQRSticker 
-                key={asset.id} 
-                assetTag={asset.assetTag} 
-                qrValue={qrUrl} 
+              <AssetQRSticker
+                key={asset.id}
+                assetTag={asset.assetTag}
+                qrValue={qrUrl}
+                bleed
               />
             )
           })}

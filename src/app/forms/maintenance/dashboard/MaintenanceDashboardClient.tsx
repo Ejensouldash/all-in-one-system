@@ -34,6 +34,7 @@ type StockLog = {
   item: {
     name: string
     unit: string
+    location: string
   }
 }
 

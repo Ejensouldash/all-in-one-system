@@ -127,8 +127,8 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
             style={{
               display: "flex",
               flexWrap: "wrap",
-              gap: "3mm",
-              justifyContent: "flex-start",
+              gap: "6mm",
+              justifyContent: "center",
               alignContent: "flex-start",
             }}
           >

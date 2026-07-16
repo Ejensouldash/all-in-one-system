@@ -68,7 +68,7 @@ export default function PrintQRPage() {
 
       {/* A4 Print Layout */}
       <div className="max-w-[210mm] mx-auto p-[10mm] print:p-0 print:max-w-none print:m-0">
-        <div className="flex flex-wrap gap-4 print:gap-2 justify-center print:justify-start">
+        <div className="flex flex-wrap gap-4 print:gap-[6mm] justify-center">
           {assets.map((asset) => {
             const qrUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://bubbleso2-aio.vercel.app'}/public/asset/${asset.id}`
 

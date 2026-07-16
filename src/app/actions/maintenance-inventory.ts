@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { logUserAction } from "./audit"
 
 export async function getMaintenanceItems() {
   try {
@@ -22,6 +23,7 @@ export async function addMaintenanceStock(data: {
   unit: string
   handledBy: string
   remarks?: string
+  location?: string
 }) {
   try {
     if (data.quantity <= 0) {
@@ -30,6 +32,7 @@ export async function addMaintenanceStock(data: {
 
     const result = await prisma.$transaction(async (tx) => {
       let item;
+      let isNew = false;
 
       if (data.itemId) {
         // Increment existing item
@@ -42,21 +45,29 @@ export async function addMaintenanceStock(data: {
       } else {
         // Create new item (check uniqueness first)
         const normalizedName = data.name.trim()
+        const locationVal = data.location || "Pedas"
         const existing = await tx.maintenanceItem.findUnique({
-          where: { name: normalizedName }
+          where: {
+            name_location: {
+              name: normalizedName,
+              location: locationVal
+            }
+          }
         })
 
         if (existing) {
-          throw new Error(`Item with name "${normalizedName}" already exists. Please select it from the list instead.`)
+          throw new Error(`Item with name "${normalizedName}" already exists in location "${locationVal}". Please select it from the list instead.`)
         }
 
         item = await tx.maintenanceItem.create({
           data: {
             name: normalizedName,
+            location: locationVal,
             quantity: data.quantity,
             unit: data.unit || "pcs"
           }
         })
+        isNew = true;
       }
 
       // Create Stock Log
@@ -70,11 +81,25 @@ export async function addMaintenanceStock(data: {
         }
       })
 
-      return item
+      return { item, isNew }
     })
 
     revalidatePath("/forms/maintenance/dashboard")
-    return { success: true, data: result }
+
+    // Log the user activity
+    if (result.isNew) {
+      await logUserAction(
+        "Registered Maintenance Item",
+        `Created new item: ${result.item.name} (${result.item.location}) with initial quantity of ${data.quantity} ${result.item.unit}. Handled by: ${data.handledBy}. Remarks: ${data.remarks || "-"}`
+      )
+    } else {
+      await logUserAction(
+        "Added Maintenance Stock",
+        `Added ${data.quantity} ${result.item.unit} to item: ${result.item.name} (${result.item.location}). Handled by: ${data.handledBy}. Remarks: ${data.remarks || "-"}`
+      )
+    }
+
+    return { success: true, data: result.item }
   } catch (error: any) {
     console.error("Failed to add maintenance stock:", error)
     return { success: false, error: error.message }
@@ -128,6 +153,13 @@ export async function withdrawMaintenanceStock(data: {
     })
 
     revalidatePath("/forms/maintenance/dashboard")
+
+    // Log the user activity
+    await logUserAction(
+      "Withdrew Maintenance Stock",
+      `Withdrew ${data.quantity} ${result.unit} from item: ${result.name} (${result.location}). Handled by: ${data.handledBy}. Remarks: ${data.remarks || "-"}`
+    )
+
     return { success: true, data: result }
   } catch (error: any) {
     console.error("Failed to withdraw maintenance stock:", error)
@@ -172,10 +204,26 @@ export async function getMaintenanceStockReport(filters: {
 
 export async function deleteMaintenanceItem(itemId: string) {
   try {
+    const item = await prisma.maintenanceItem.findUnique({
+      where: { id: itemId }
+    })
+
+    if (!item) {
+      return { success: false, error: "Item not found." }
+    }
+
     await prisma.maintenanceItem.delete({
       where: { id: itemId }
     })
+
     revalidatePath("/forms/maintenance/dashboard")
+
+    // Log the user activity
+    await logUserAction(
+      "Deleted Maintenance Item",
+      `Deleted item: ${item.name} (${item.location}).`
+    )
+
     return { success: true }
   } catch (error: any) {
     console.error("Failed to delete maintenance item:", error)

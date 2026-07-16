@@ -16,6 +16,7 @@ import {
 type Item = {
   id: string
   name: string
+  location: string
   quantity: number
   unit: string
   createdAt: Date
@@ -59,6 +60,7 @@ export function MaintenanceDashboardClient({
   const [newItemName, setNewItemName] = useState("")
   const [addQty, setAddQty] = useState(1)
   const [addUnit, setAddUnit] = useState("pcs")
+  const [addLocation, setAddLocation] = useState("Pedas")
   const [addHandledBy, setAddHandledBy] = useState(userName)
   const [addRemarks, setAddRemarks] = useState("")
   
@@ -117,7 +119,8 @@ export function MaintenanceDashboardClient({
       quantity: Number(addQty),
       unit: isNewItem ? addUnit : "",
       handledBy: addHandledBy,
-      remarks: addRemarks
+      remarks: addRemarks,
+      location: isNewItem ? addLocation : undefined
     }
 
     if (!isNewItem && !selectedAddItemId) {
@@ -257,36 +260,74 @@ export function MaintenanceDashboardClient({
 
         {/* Printable Report View (Visible only during printing) */}
         <div className="hidden print:block font-sans text-black">
-          <div className="flex items-center justify-between border-b-2 border-gray-900 pb-4 mb-6">
-            <div>
-              <h1 className="text-2xl font-black tracking-tight">BUBBLESO2 SDN BHD</h1>
-              <p className="text-sm font-bold text-gray-600 uppercase tracking-wider">Maintenance Stock Movement Report</p>
-              {(reportStartDate || reportEndDate) && (
-                <p className="text-xs text-gray-500 font-semibold mt-1">
-                  Period: {reportStartDate ? new Date(reportStartDate).toLocaleDateString("en-GB") : "Beginning"} - {reportEndDate ? new Date(reportEndDate).toLocaleDateString("en-GB") : "Today"}
-                </p>
-              )}
-            </div>
-            <div className="text-right">
-              <p className="text-xs font-bold text-gray-500">Printed Date: {new Date().toLocaleDateString("en-GB")}</p>
-            </div>
+          <div className="w-full bg-white mb-6">
+            <table className="w-full border-collapse border-2 border-black text-[11px] text-black font-sans bg-white">
+              <tbody>
+                <tr>
+                  <td className="border-2 border-black p-2 text-center w-[20%] align-middle" rowSpan={2}>
+                    <img src="/assets/BubblesO2_Logo.png" alt="BubblesO2 Logo" className="h-10 mx-auto object-contain" />
+                    <div className="text-[9px] mt-2 font-medium text-gray-700">
+                      Co. No. 201601013208<br />(1184139-H)
+                    </div>
+                  </td>
+                  <td className="border-2 border-black p-2 text-center font-bold w-[30%]">
+                    Document Type: Level 4<br />SUPPORTING DOCUMENTATION
+                  </td>
+                  <td className="border-2 border-black p-2 text-center font-bold w-[25%] uppercase">
+                    Document Title:<br />SPARE PART INVENTORY
+                  </td>
+                  <td className="border-2 border-black p-2 text-center font-bold w-[25%]">
+                    Document Number:<br />BOSB-MNT-P-850-001-QR02
+                  </td>
+                </tr>
+                <tr>
+                  <td colSpan={2} className="border-2 border-black p-2 text-center font-bold uppercase align-middle">
+                    HEAD OF MAINTENANCE DEPARTMENT<br />
+                    BUBBLES O2 SDN BHD (BOSB)
+                  </td>
+                  <td className="border-2 border-black p-0 align-top">
+                    <table className="w-full h-full border-collapse">
+                      <tbody>
+                        <tr>
+                          <td className="p-1 pl-2 font-bold border-b border-black">Page: <span className="font-normal ml-1">1 of 1</span></td>
+                        </tr>
+                        <tr>
+                          <td className="p-1 pl-2 font-bold border-b border-black">Issue: <span className="font-normal ml-1">03</span></td>
+                        </tr>
+                        <tr>
+                          <td className="p-1 pl-2 font-bold">Date: <span className="font-normal ml-1">16/07/2026</span></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
+
+          {/* Period info if filtered */}
+          {(reportStartDate || reportEndDate) && (
+            <div className="mb-4 text-xs font-bold text-gray-700">
+              Report Period: {reportStartDate ? new Date(reportStartDate).toLocaleDateString("en-GB") : "Beginning"} - {reportEndDate ? new Date(reportEndDate).toLocaleDateString("en-GB") : "Today"}
+            </div>
+          )}
           <table className="w-full border-collapse border border-gray-400 text-xs table-fixed">
             <thead>
               <tr className="bg-gray-100">
-                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[18%]">Date & Time</th>
-                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[20%]">Item Name</th>
-                <th className="border border-gray-400 p-2 text-center font-bold uppercase w-[8%]">Type</th>
+                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[15%]">Date & Time</th>
+                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[18%]">Item Name</th>
+                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[12%]">Location</th>
+                <th className="border border-gray-400 p-2 text-center font-bold uppercase w-[7%]">Type</th>
                 <th className="border border-gray-400 p-2 text-right font-bold uppercase w-[10%]">Quantity</th>
                 <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[8%]">Unit</th>
-                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[22%]">Handled By</th>
-                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[14%]">Remarks</th>
+                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[18%]">Handled By</th>
+                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[12%]">Remarks</th>
               </tr>
             </thead>
             <tbody>
               {reportLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="border border-gray-400 p-4 text-center font-medium text-gray-500">
+                  <td colSpan={8} className="border border-gray-400 p-4 text-center font-medium text-gray-500">
                     No stock logs recorded for the selected period.
                   </td>
                 </tr>
@@ -295,6 +336,7 @@ export function MaintenanceDashboardClient({
                   <tr key={log.id} className="hover:bg-gray-50/50">
                     <td className="border border-gray-400 p-2 break-words whitespace-normal">{new Date(log.createdAt).toLocaleString("en-GB")}</td>
                     <td className="border border-gray-400 p-2 font-semibold break-words whitespace-normal">{log.item?.name}</td>
+                    <td className="border border-gray-400 p-2 font-semibold break-words whitespace-normal">{log.item?.location}</td>
                     <td className="border border-gray-400 p-2 text-center break-words whitespace-normal">
                       <span className={`px-2 py-0.5 rounded font-black ${
                         log.type === "IN" ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"
@@ -376,6 +418,7 @@ export function MaintenanceDashboardClient({
                 setSelectedAddItemId("")
                 setNewItemName("")
                 setAddQty(1)
+                setAddLocation("Pedas")
                 setAddRemarks("")
               }}
               className="flex items-center px-4 py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-sm font-black uppercase tracking-wider transition-colors shadow-md hover:shadow-lg"
@@ -468,6 +511,7 @@ export function MaintenanceDashboardClient({
                       <tr>
                         <th className="px-6 py-3">Date & Time</th>
                         <th className="px-6 py-3">Item Name</th>
+                        <th className="px-6 py-3">Location</th>
                         <th className="px-6 py-3 text-center">Type</th>
                         <th className="px-6 py-3 text-right">Quantity</th>
                         <th className="px-6 py-3">Unit</th>
@@ -483,6 +527,9 @@ export function MaintenanceDashboardClient({
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900">
                             {log.item?.name}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap font-semibold text-gray-700">
+                            {log.item?.location}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-center">
                             <span className={`px-2.5 py-1 rounded-full text-xs font-black tracking-wide uppercase ${
@@ -536,6 +583,7 @@ export function MaintenanceDashboardClient({
                 <thead className="bg-gray-50 border-b border-gray-100 text-xs font-black uppercase tracking-wider text-gray-500">
                   <tr>
                     <th className="px-6 py-3.5">Item Name</th>
+                    <th className="px-6 py-3.5">Location</th>
                     <th className="px-6 py-3.5 text-right">Current Stock</th>
                     <th className="px-6 py-3.5">Unit</th>
                     <th className="px-6 py-3.5">Last Updated</th>
@@ -545,7 +593,7 @@ export function MaintenanceDashboardClient({
                 <tbody className="divide-y divide-gray-100 font-medium">
                   {filteredItems.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-10 text-center text-gray-500 font-medium bg-gray-50/20">
+                      <td colSpan={6} className="px-6 py-10 text-center text-gray-500 font-medium bg-gray-50/20">
                         No inventory items found. Add stock to register items.
                       </td>
                     </tr>
@@ -554,6 +602,9 @@ export function MaintenanceDashboardClient({
                       <tr key={item.id} className="hover:bg-gray-50/20">
                         <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900">
                           {item.name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-gray-700 font-semibold">
+                          {item.location}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right font-black text-gray-900">
                           <span className={`${item.quantity === 0 ? 'text-red-600 bg-red-50 px-2 py-1 rounded' : ''}`}>
@@ -623,21 +674,35 @@ export function MaintenanceDashboardClient({
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold outline-none focus:border-blue-500"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Unit</label>
-                      <select
-                        value={addUnit}
-                        onChange={(e) => setAddUnit(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold outline-none focus:border-blue-500"
-                      >
-                        <option value="pcs">pcs</option>
-                        <option value="set">set</option>
-                        <option value="pack">pack</option>
-                        <option value="bottle">bottle</option>
-                        <option value="kg">kg</option>
-                        <option value="litre">litre</option>
-                        <option value="roll">roll</option>
-                      </select>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Unit</label>
+                        <select
+                          value={addUnit}
+                          onChange={(e) => setAddUnit(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold outline-none focus:border-blue-500"
+                        >
+                          <option value="pcs">pcs</option>
+                          <option value="set">set</option>
+                          <option value="pack">pack</option>
+                          <option value="bottle">bottle</option>
+                          <option value="kg">kg</option>
+                          <option value="litre">litre</option>
+                          <option value="roll">roll</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Location</label>
+                        <select
+                          value={addLocation}
+                          onChange={(e) => setAddLocation(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold outline-none focus:border-blue-500"
+                        >
+                          <option value="Pedas">Pedas</option>
+                          <option value="Rantau">Rantau</option>
+                          <option value="Gambang">Gambang</option>
+                        </select>
+                      </div>
                     </div>
                   </>
                 ) : (
@@ -651,7 +716,7 @@ export function MaintenanceDashboardClient({
                       <option value="">-- Choose Item --</option>
                       {items.map(item => (
                         <option key={item.id} value={item.id}>
-                          {item.name} ({item.quantity} {item.unit} available)
+                          {item.name} ({item.location}) ({item.quantity} {item.unit} available)
                         </option>
                       ))}
                     </select>
@@ -742,7 +807,7 @@ export function MaintenanceDashboardClient({
                     <option value="">-- Choose Item --</option>
                     {items.map(item => (
                       <option key={item.id} value={item.id} disabled={item.quantity === 0}>
-                        {item.name} ({item.quantity} {item.unit} available) {item.quantity === 0 ? "(OUT OF STOCK)" : ""}
+                        {item.name} ({item.location}) ({item.quantity} {item.unit} available) {item.quantity === 0 ? "(OUT OF STOCK)" : ""}
                       </option>
                     ))}
                   </select>

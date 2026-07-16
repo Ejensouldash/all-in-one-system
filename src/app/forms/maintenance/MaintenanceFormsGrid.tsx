@@ -53,7 +53,14 @@ export function MaintenanceFormsGrid({ forms }: { forms: MaintenanceForm[] }) {
 
       {qrForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 print:bg-white print:p-0 print:static print:backdrop-blur-none">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl relative flex flex-col items-center print:shadow-none print:rounded-none">
+          <style>{`
+            @media print {
+              body * { visibility: hidden; }
+              #qr-print-modal, #qr-print-modal * { visibility: visible; }
+              #qr-print-modal { position: fixed; inset: 0; margin: auto; box-shadow: none !important; }
+            }
+          `}</style>
+          <div id="qr-print-modal" className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl relative flex flex-col items-center print:shadow-none print:rounded-none">
             <button
               onClick={() => setQrForm(null)}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 p-1 rounded-full hover:bg-gray-100 print:hidden"
@@ -64,7 +71,8 @@ export function MaintenanceFormsGrid({ forms }: { forms: MaintenanceForm[] }) {
             <h2 className="text-lg font-black uppercase tracking-tight mb-1 text-center">{qrForm.title}</h2>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 text-center">Scan to Fill</p>
 
-            <div className="border-4 border-gray-900 p-4 bg-white">
+            <div className="border-4 border-gray-900 p-4 bg-white flex flex-col items-center">
+              <p className="text-sm font-black uppercase tracking-wide text-center mb-3">{qrForm.title}</p>
               <QRCodeSVG value={qrUrl} size={220} level="H" includeMargin={false} />
             </div>
 

@@ -52,27 +52,22 @@ export function MaintenanceFormsGrid({ forms }: { forms: MaintenanceForm[] }) {
       </div>
 
       {qrForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 print:bg-white print:p-0 print:static print:backdrop-blur-none">
-          <style>{`
-            @media print {
-              body * { visibility: hidden; }
-              #qr-print-modal, #qr-print-modal * { visibility: visible; }
-              #qr-print-modal { position: fixed; inset: 0; margin: auto; box-shadow: none !important; }
-            }
-          `}</style>
-          <div id="qr-print-modal" className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl relative flex flex-col items-center print:shadow-none print:rounded-none">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 print:hidden">
+          {/* Screen preview modal */}
+          <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl relative flex flex-col items-center">
             <button
               onClick={() => setQrForm(null)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 p-1 rounded-full hover:bg-gray-100 print:hidden"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 p-1 rounded-full hover:bg-gray-100"
             >
               <X className="w-5 h-5" />
             </button>
 
+            <img src="/assets/BubblesO2_Logo.png" alt="BubblesO2" className="h-10 object-contain mb-4" />
+
             <h2 className="text-lg font-black uppercase tracking-tight mb-1 text-center">{qrForm.title}</h2>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 text-center">Scan to Fill</p>
 
-            <div className="border-4 border-gray-900 p-4 bg-white flex flex-col items-center">
-              <p className="text-sm font-black uppercase tracking-wide text-center mb-3">{qrForm.title}</p>
+            <div className="border-4 border-gray-900 p-4 bg-white">
               <QRCodeSVG value={qrUrl} size={220} level="H" includeMargin={false} />
             </div>
 
@@ -80,12 +75,67 @@ export function MaintenanceFormsGrid({ forms }: { forms: MaintenanceForm[] }) {
 
             <button
               onClick={() => window.print()}
-              className="mt-6 w-full flex items-center justify-center px-5 py-3 bg-blue-700 hover:bg-blue-800 text-white rounded-xl font-black uppercase tracking-wider text-sm transition-colors shadow-md print:hidden"
+              className="mt-6 w-full flex items-center justify-center px-5 py-3 bg-blue-700 hover:bg-blue-800 text-white rounded-xl font-black uppercase tracking-wider text-sm transition-colors shadow-md"
             >
-              <Printer className="w-4 h-4 mr-2" /> Print QR Code
+              <Printer className="w-4 h-4 mr-2" /> Print A4 QR Poster
             </button>
           </div>
         </div>
+      )}
+
+      {qrForm && (
+        <>
+          <style>{`
+            @media print {
+              @page { size: A4 portrait; margin: 0; }
+              body * { visibility: hidden; }
+              #qr-a4-poster, #qr-a4-poster * { visibility: visible; }
+              #qr-a4-poster {
+                position: fixed;
+                inset: 0;
+                margin: 0;
+                width: 210mm;
+                height: 297mm;
+              }
+            }
+          `}</style>
+          {/* Print-only A4 poster */}
+          <div
+            id="qr-a4-poster"
+            className="hidden print:flex flex-col items-center justify-between bg-white text-black"
+            style={{ padding: "22mm 18mm" }}
+          >
+            <div className="w-full flex flex-col items-center">
+              <img src="/assets/BubblesO2_Logo.png" alt="BubblesO2" style={{ height: "22mm" }} className="object-contain mb-3" />
+              <p className="text-[13px] font-black uppercase tracking-widest text-center">BubblesO2 Sdn Bhd</p>
+              <p className="text-[9px] text-gray-500 uppercase tracking-wide text-center mt-1">
+                Kompleks Al-Ammar, Kg Kanchong, 71200 Rantau, Negeri Sembilan
+              </p>
+            </div>
+
+            <div className="w-full flex flex-col items-center">
+              <div className="w-full border-t-2 border-black mb-8" />
+              <p className="text-[11px] font-black uppercase tracking-[0.3em] text-gray-500 mb-2">Maintenance Form QR Access</p>
+              <h1 className="text-4xl font-black uppercase tracking-tight text-center mb-3">{qrForm.title}</h1>
+              <p className="text-sm font-medium text-gray-600 text-center mb-10 max-w-md">
+                Scan the QR code below with your phone camera to open this inspection form directly.
+              </p>
+
+              <div className="border-[6px] border-black p-6 bg-white">
+                <QRCodeSVG value={qrUrl} size={420} level="H" includeMargin={false} />
+              </div>
+
+              <p className="text-xs text-gray-500 mt-8 break-all text-center font-mono">{qrUrl}</p>
+            </div>
+
+            <div className="w-full flex flex-col items-center">
+              <div className="w-full border-t-2 border-black mb-3" />
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest text-center">
+                Please log in before scanning &middot; Digitalized Forms &amp; Records &middot; Bubbles O2 Marketing
+              </p>
+            </div>
+          </div>
+        </>
       )}
     </>
   )

@@ -8,9 +8,10 @@ export async function submitWasteDisposalForm(formData: FormData) {
     const dateStr = formData.get("date") as string
     const inspectionTime = formData.get("inspectionTime") as string
     const checkedBy = formData.get("checkedBy") as string
+    const performedSignature = formData.get("performedSignature") as string
 
-    if (!dateStr || !inspectionTime || !checkedBy) {
-      return { success: false, error: "Please fill in all required fields." }
+    if (!dateStr || !inspectionTime || !checkedBy || !performedSignature) {
+      return { success: false, error: "Please fill in all required fields and provide signature." }
     }
 
     // Checkboxes (FormData only includes them if they are checked, usually as "on")
@@ -30,7 +31,9 @@ export async function submitWasteDisposalForm(formData: FormData) {
         packagingArea,
         changingRoom,
         checkedBy,
+        performedSignature,
         verifiedBy: null,
+        verifiedSignature: null,
       }
     })
 

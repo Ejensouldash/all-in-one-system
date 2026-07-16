@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
-import Link from "next/link"
 import { ClipboardList, Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, Brush } from "lucide-react"
 import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
+import { MaintenanceFormsGrid } from "./MaintenanceFormsGrid"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
 
 export const metadata = {
@@ -104,25 +104,7 @@ export default async function MaintenanceDashboard() {
 
         <MaintenanceTabs userModules={access.isSuperAdmin ? undefined : access.modules} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
-          {forms.map((form, index) => (
-            <div key={index} className={`bg-gradient-to-br ${form.gradient} rounded-2xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden flex flex-col justify-between border border-white/10 hover:-translate-y-1 transition-transform`}>
-              <div className="relative z-10 mb-8">
-                <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-black/20 border border-white/10 text-white/90 text-xs font-bold uppercase tracking-widest mb-6 shadow-sm">
-                  <span className={`w-2.5 h-2.5 rounded-full ${form.accent} mr-2 animate-pulse`}></span>
-                  Maintenance Form
-                </div>
-                <h2 className="text-2xl font-black tracking-tight mb-2">{form.title}</h2>
-                <p className="text-white/70 text-sm font-medium">
-                  {form.description}
-                </p>
-              </div>
-              <Link href={form.href} className="group flex items-center justify-center w-full bg-white text-gray-900 px-6 py-3 rounded-xl font-black text-sm hover:bg-gray-50 transition-colors shadow-lg uppercase tracking-wider">
-                {form.icon} Open Form
-              </Link>
-            </div>
-          ))}
-        </div>
+        <MaintenanceFormsGrid forms={forms} />
       </div>
     </div>
   )

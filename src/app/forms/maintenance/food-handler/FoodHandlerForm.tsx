@@ -2,30 +2,14 @@
 
 import { useState } from "react"
 import { submitFoodHandlerForm } from "./actions"
-import { Loader2, CheckCircle2, UserCheck } from "lucide-react"
+import { Loader2, CheckCircle2 } from "lucide-react"
+import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
 
 export function FoodHandlerForm({ userName }: { userName: string }) {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setLoading(true)
-    setError("")
-    
-    const formData = new FormData(e.currentTarget)
-    const res = await submitFoodHandlerForm(formData)
-    
-    if (res.success) {
-      setSuccess(true)
-      ;(e.target as HTMLFormElement).reset()
-      setTimeout(() => setSuccess(false), 5000)
-    } else {
-      setError(res.error || "Something went wrong")
-    }
-    setLoading(false)
-  }
+  const [signature, setSignature] = useState<string | null>(null)
 
   const checklistItems = [
     { name: "hairnet", label: "Hairnet" },
@@ -36,6 +20,30 @@ export function FoodHandlerForm({ userName }: { userName: string }) {
     { name: "fingernails", label: "Short/Clean Fingernails" },
     { name: "noJewellery", label: "No Jewellery/Accessories" },
   ]
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!signature) {
+      setError("Sila tandatangan borang sebelum menghantar.")
+      return
+    }
+    setLoading(true)
+    setError("")
+    
+    const formData = new FormData(e.currentTarget)
+    formData.append("performedSignature", signature)
+    const res = await submitFoodHandlerForm(formData)
+    
+    if (res.success) {
+      setSuccess(true)
+      setSignature(null)
+      ;(e.target as HTMLFormElement).reset()
+      setTimeout(() => setSuccess(false), 5000)
+    } else {
+      setError(res.error || "Something went wrong")
+    }
+    setLoading(false)
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
@@ -84,7 +92,6 @@ export function FoodHandlerForm({ userName }: { userName: string }) {
             <p className="text-sm text-gray-500 mb-6 font-medium">
               Check the boxes if the employee is wearing proper protective clothing or meets the criteria.
             </p>
-            
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {checklistItems.map((item) => (
                 <label 
@@ -122,7 +129,13 @@ export function FoodHandlerForm({ userName }: { userName: string }) {
             defaultValue={userName}
             className="w-full md:w-1/2 px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all"
           />
-          <p className="text-xs text-gray-500 mt-1">Recorded as your signature.</p>
+        </div>
+
+        <div className="space-y-2 md:col-span-2 border-t border-gray-200 pt-6">
+          <SignaturePadClient 
+            onSave={setSignature}
+            label="Staff Signature (Tandatangan Kakitangan) *"
+          />
         </div>
       </div>
 

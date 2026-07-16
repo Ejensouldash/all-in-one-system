@@ -3,23 +3,31 @@
 import { useState } from "react"
 import { submitWasteManagementForm } from "./actions"
 import { Loader2, CheckCircle2, Recycle, Trash } from "lucide-react"
+import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
 
 export function WasteManagementForm({ userName }: { userName: string }) {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
   const [activeTab, setActiveTab] = useState<"recycle" | "disposal">("recycle")
+  const [signature, setSignature] = useState<string | null>(null)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    if (!signature) {
+      setError("Sila tandatangan borang sebelum menghantar.")
+      return
+    }
     setLoading(true)
     setError("")
     
     const formData = new FormData(e.currentTarget)
+    formData.append("performedSignature", signature)
     const res = await submitWasteManagementForm(formData)
     
     if (res.success) {
       setSuccess(true)
+      setSignature(null)
       ;(e.target as HTMLFormElement).reset()
       setTimeout(() => setSuccess(false), 5000)
     } else {
@@ -143,7 +151,13 @@ export function WasteManagementForm({ userName }: { userName: string }) {
           defaultValue={userName}
           className="w-full md:w-1/2 px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
         />
-        <p className="text-xs text-gray-500 mt-1">Recorded as your signature.</p>
+      </div>
+
+      <div className="space-y-2 border-t border-gray-200 pt-6">
+        <SignaturePadClient 
+          onSave={setSignature}
+          label="Staff Signature (Tandatangan Kakitangan) *"
+        />
       </div>
 
       <div className="pt-6 border-t border-gray-100">

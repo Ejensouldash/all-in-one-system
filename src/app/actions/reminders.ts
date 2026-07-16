@@ -392,7 +392,7 @@ export async function seedMaintenanceReminders(): Promise<ActionResult> {
           enabled: true,
           targetSelf: false,
           targetUnitId: maintenanceUnit?.id || null,
-          targetModules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS"],
+          targetModules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS", "MAINTENANCE_SUMMARY"],
           actionLinks: MAINTENANCE_ACTION_LINKS as unknown as object,
           createdById: access.userId,
         },

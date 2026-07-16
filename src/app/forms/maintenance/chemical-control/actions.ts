@@ -13,9 +13,10 @@ export async function submitChemicalControlForm(formData: FormData) {
     // Optional return fields
     const timeReturn = formData.get("timeReturn") as string
     const returnBy = formData.get("returnBy") as string
+    const performedSignature = formData.get("performedSignature") as string
 
-    if (!dateStr || !chemicalCode || !timeTaken || !takenBy) {
-      return { success: false, error: "Please fill in all required fields (Date, Chemical Code, Time Taken, Taken By)." }
+    if (!dateStr || !chemicalCode || !timeTaken || !takenBy || !performedSignature) {
+      return { success: false, error: "Please fill in all required fields and provide signature." }
     }
 
     await prisma.maintenanceChemical.create({
@@ -24,9 +25,11 @@ export async function submitChemicalControlForm(formData: FormData) {
         chemicalCode,
         timeTaken,
         takenBy,
+        performedSignature,
         timeReturn: timeReturn || null,
         returnBy: returnBy || null,
         verifiedBy: null,
+        verifiedSignature: null,
       }
     })
 

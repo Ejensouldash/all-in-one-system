@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { submitCleaningInspectionForm } from "./actions"
 import { Loader2, CheckCircle2, ClipboardCheck, Brush, RefreshCw } from "lucide-react"
+import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
 
 // Section task definitions
 interface TaskDef {
@@ -77,6 +78,7 @@ export function CleaningForm({ userName }: { userName: string }) {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
+  const [signature, setSignature] = useState<string | null>(null)
 
   const [selectedSection, setSelectedSection] = useState("meeting-changing")
   const [isLineApplicable, setIsLineApplicable] = useState(false)
@@ -106,10 +108,15 @@ export function CleaningForm({ userName }: { userName: string }) {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    if (!signature) {
+      setError("Sila tandatangan borang sebelum menghantar.")
+      return
+    }
     setLoading(true)
     setError("")
 
     const formData = new FormData(e.currentTarget)
+    formData.append("performedSignature", signature)
     
     // Append checklist boolean values explicitly
     Object.keys(checklist).forEach(key => {
@@ -120,6 +127,7 @@ export function CleaningForm({ userName }: { userName: string }) {
 
     if (res.success) {
       setSuccess(true)
+      setSignature(null)
       ;(e.target as HTMLFormElement).reset()
       // Reset checklist state
       const resetChecklist = { ...checklist }
@@ -302,6 +310,13 @@ export function CleaningForm({ userName }: { userName: string }) {
             className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-bold"
           />
         </div>
+      </div>
+
+      <div className="space-y-2 border-t border-gray-200 pt-6">
+        <SignaturePadClient 
+          onSave={setSignature}
+          label="Staff Signature (Tandatangan Kakitangan) *"
+        />
       </div>
 
       {/* Action Buttons */}

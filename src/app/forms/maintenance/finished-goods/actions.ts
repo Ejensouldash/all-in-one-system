@@ -14,9 +14,10 @@ export async function submitFinishedGoodsInspection(formData: FormData) {
     const actionTaken = formData.get("actionTaken") as string
     const performedBy = formData.get("performedBy") as string
     const remarks = formData.get("remarks") as string
+    const performedSignature = formData.get("performedSignature") as string
 
-    if (!dateStr || !performedBy) {
-      return { success: false, error: "Please fill in all required fields (Date and Performed By)." }
+    if (!dateStr || !performedBy || !performedSignature) {
+      return { success: false, error: "Please fill in all required fields and provide signature." }
     }
 
     if (qtyDamage425x24 === 0 && qtyDamage425x6 === 0 && qtyDamage800x12 === 0 && qtyDamage800x20 === 0) {
@@ -32,8 +33,10 @@ export async function submitFinishedGoodsInspection(formData: FormData) {
         qtyDamage800x20,
         actionTaken: actionTaken || null,
         performedBy,
+        performedSignature,
         remarks: remarks || null,
-        verifiedBy: null, // To be verified later by supervisor
+        verifiedBy: null,
+        verifiedSignature: null,
       }
     })
 

@@ -8,9 +8,10 @@ export async function submitFoodHandlerForm(formData: FormData) {
     const dateStr = formData.get("date") as string
     const employeeName = formData.get("employeeName") as string
     const checkedBy = formData.get("checkedBy") as string
+    const performedSignature = formData.get("performedSignature") as string
 
-    if (!dateStr || !employeeName || !checkedBy) {
-      return { success: false, error: "Please fill in all required fields (Date, Employee Name, Checked By)." }
+    if (!dateStr || !employeeName || !checkedBy || !performedSignature) {
+      return { success: false, error: "Please fill in all required fields and provide signature." }
     }
 
     // Checkboxes
@@ -34,7 +35,9 @@ export async function submitFoodHandlerForm(formData: FormData) {
         fingernails,
         noJewellery,
         checkedBy,
+        performedSignature,
         verifiedBy: null,
+        verifiedSignature: null,
       }
     })
 

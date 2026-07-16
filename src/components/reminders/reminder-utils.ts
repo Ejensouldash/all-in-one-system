@@ -150,6 +150,7 @@ export const MODULE_TARGET_OPTIONS: { id: string; label: string }[] = [
   { id: "MAINTENANCE_FORMS", label: "Maintenance Forms" },
   { id: "MAINTENANCE_DASHBOARD", label: "Maintenance Dashboard" },
   { id: "MAINTENANCE_REPORTS", label: "Maintenance Reports" },
+  { id: "MAINTENANCE_SUMMARY", label: "Maintenance Summary" },
   { id: "FORMS", label: "Production Forms" },
   { id: "WAREHOUSE", label: "Warehouse" },
   { id: "TICKETS", label: "Tickets" },

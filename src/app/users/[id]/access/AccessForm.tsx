@@ -38,6 +38,7 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "MAINTENANCE_FORMS", name: "Maintenance Forms", description: "Access to view and submit daily maintenance checklists.", icon: ClipboardList },
       { id: "MAINTENANCE_DASHBOARD", name: "Maintenance Stock Dashboard", description: "Log stock check-ins, check-outs, and manage assets.", icon: LayoutDashboard },
       { id: "MAINTENANCE_REPORTS", name: "Maintenance Reports", description: "Access to generate and print monthly maintenance reports.", icon: FileSpreadsheet },
+      { id: "MAINTENANCE_SUMMARY", name: "Maintenance Summary", description: "Access to view, edit, delete, and sign all submitted maintenance checklists.", icon: FileSpreadsheet },
     ],
   },
   {

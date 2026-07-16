@@ -7,9 +7,10 @@ export async function submitWasteManagementForm(formData: FormData) {
   try {
     const dateStr = formData.get("date") as string
     const checkedBy = formData.get("checkedBy") as string
+    const performedSignature = formData.get("performedSignature") as string
 
-    if (!dateStr || !checkedBy) {
-      return { success: false, error: "Please fill in Date and Checked By fields." }
+    if (!dateStr || !checkedBy || !performedSignature) {
+      return { success: false, error: "Please fill in all required fields and provide signature." }
     }
 
     // Recycle fields
@@ -52,7 +53,9 @@ export async function submitWasteManagementForm(formData: FormData) {
         disposalOthers: disposalOthers || null,
         
         checkedBy,
-        verifiedBy: null, // Verifier will sign this later
+        performedSignature,
+        verifiedBy: null,
+        verifiedSignature: null,
       }
     })
 

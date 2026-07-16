@@ -10,9 +10,10 @@ export async function submitCleaningInspectionForm(formData: FormData) {
     const section = formData.get("section") as string
     const line = formData.get("line") as string || null
     const checkedBy = formData.get("checkedBy") as string
+    const performedSignature = formData.get("performedSignature") as string
 
-    if (!dateStr || !shift || !section || !checkedBy) {
-      return { success: false, error: "Please fill in all required fields (Date, Shift, Section, Checked By)." }
+    if (!dateStr || !shift || !section || !checkedBy || !performedSignature) {
+      return { success: false, error: "Please fill in all required fields and provide signature." }
     }
 
     const date = new Date(dateStr)
@@ -56,7 +57,9 @@ export async function submitCleaningInspectionForm(formData: FormData) {
         machineCleaner,
         shutterCleaner,
         checkedBy,
-        verifiedBy: null
+        performedSignature,
+        verifiedBy: null,
+        verifiedSignature: null,
       }
     })
 

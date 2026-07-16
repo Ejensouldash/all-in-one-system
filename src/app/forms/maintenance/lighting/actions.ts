@@ -10,9 +10,10 @@ export async function submitLightingInspection(formData: FormData) {
     const results = formData.get("results") as string
     const action = formData.get("action") as string
     const performedBy = formData.get("performedBy") as string
+    const performedSignature = formData.get("performedSignature") as string
 
-    if (!dateStr || !coverageArea || !results || !performedBy) {
-      return { success: false, error: "Please fill in all required fields." }
+    if (!dateStr || !coverageArea || !results || !performedBy || !performedSignature) {
+      return { success: false, error: "Please fill in all required fields and provide signature." }
     }
 
     await prisma.maintenanceLighting.create({
@@ -22,7 +23,9 @@ export async function submitLightingInspection(formData: FormData) {
         results,
         action: action || null,
         performedBy,
-        verifiedBy: null, // Verifier will sign this later
+        performedSignature,
+        verifiedBy: null,
+        verifiedSignature: null,
       }
     })
 

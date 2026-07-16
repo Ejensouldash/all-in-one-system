@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react"
 import { submitChemicalControlForm } from "./actions"
 import { Loader2, CheckCircle2, FlaskConical, Clock } from "lucide-react"
+import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
 
 export function ChemicalControlForm({ userName }: { userName: string }) {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
+  const [signature, setSignature] = useState<string | null>(null)
   
   // Auto-set current time
   const [currentTime, setCurrentTime] = useState("")
@@ -20,14 +22,20 @@ export function ChemicalControlForm({ userName }: { userName: string }) {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    if (!signature) {
+      setError("Sila tandatangan borang sebelum menghantar.")
+      return
+    }
     setLoading(true)
     setError("")
     
     const formData = new FormData(e.currentTarget)
+    formData.append("performedSignature", signature)
     const res = await submitChemicalControlForm(formData)
     
     if (res.success) {
       setSuccess(true)
+      setSignature(null)
       ;(e.target as HTMLFormElement).reset()
       setTimeout(() => setSuccess(false), 5000)
     } else {
@@ -160,6 +168,13 @@ export function ChemicalControlForm({ userName }: { userName: string }) {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="space-y-2 border-t border-gray-200 pt-6">
+        <SignaturePadClient 
+          onSave={setSignature}
+          label="Staff Signature (Tandatangan Kakitangan) *"
+        />
       </div>
 
       <div className="pt-6 border-t border-gray-100">

@@ -569,35 +569,39 @@ model AuditLog {
 // ==========================================
 
 model MaintenanceLighting {
-  id              String   @id @default(uuid())
-  date            DateTime
-  coverageArea    String
-  results         String
-  action          String?
-  performedBy     String
-  verifiedBy      String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  date               DateTime
+  coverageArea       String
+  results            String
+  action             String?
+  performedBy        String
+  performedSignature String?
+  verifiedBy         String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model MaintenanceFinishedGoods {
-  id              String   @id @default(uuid())
-  date            DateTime
-  qtyDamage425x24 Int      @default(0)
-  qtyDamage425x6  Int      @default(0)
-  qtyDamage800x12 Int      @default(0)
-  qtyDamage800x20 Int      @default(0)
-  actionTaken     String?
-  performedBy     String
-  verifiedBy      String?
-  remarks         String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  date               DateTime
+  qtyDamage425x24    Int      @default(0)
+  qtyDamage425x6     Int      @default(0)
+  qtyDamage800x12    Int      @default(0)
+  qtyDamage800x20    Int      @default(0)
+  actionTaken        String?
+  performedBy        String
+  performedSignature String?
+  verifiedBy         String?
+  verifiedSignature  String?
+  remarks            String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model MaintenanceWasteManagement {
-  id              String   @id @default(uuid())
-  date            DateTime
+  id                 String   @id @default(uuid())
+  date               DateTime
   
   // RECYCLE
   recyclePlasticBottle String?
@@ -613,86 +617,96 @@ model MaintenanceWasteManagement {
   disposalLabel         String?
   disposalOthers        String?
 
-  checkedBy       String
-  verifiedBy      String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  checkedBy          String
+  performedSignature String?
+  verifiedBy         String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model MaintenanceWasteDisposal {
-  id              String   @id @default(uuid())
-  date            DateTime
-  inspectionTime  String
-  feederArea      Boolean  @default(false)
-  labelArea       Boolean  @default(false)
-  fillingArea     Boolean  @default(false)
-  packagingArea   Boolean  @default(false)
-  changingRoom    Boolean  @default(false)
-  checkedBy       String
-  verifiedBy      String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  date               DateTime
+  inspectionTime     String
+  feederArea         Boolean  @default(false)
+  labelArea          Boolean  @default(false)
+  fillingArea        Boolean  @default(false)
+  packagingArea      Boolean  @default(false)
+  changingRoom       Boolean  @default(false)
+  checkedBy          String
+  performedSignature String?
+  verifiedBy         String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model MaintenanceFoodHandler {
-  id              String   @id @default(uuid())
-  date            DateTime
-  employeeName    String
-  hairnet         Boolean  @default(false)
-  facemask        Boolean  @default(false)
-  cleanUniform    Boolean  @default(false)
-  shoes           Boolean  @default(false)
-  glove           Boolean  @default(false)
-  fingernails     Boolean  @default(false)
-  noJewellery     Boolean  @default(false)
-  checkedBy       String
-  verifiedBy      String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  date               DateTime
+  employeeName       String
+  hairnet            Boolean  @default(false)
+  facemask           Boolean  @default(false)
+  cleanUniform       Boolean  @default(false)
+  shoes              Boolean  @default(false)
+  glove              Boolean  @default(false)
+  fingernails        Boolean  @default(false)
+  noJewellery        Boolean  @default(false)
+  checkedBy          String
+  performedSignature String?
+  verifiedBy         String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model MaintenanceChemical {
-  id              String   @id @default(uuid())
-  date            DateTime
-  chemicalCode    String
-  timeTaken       String
-  takenBy         String
-  timeReturn      String?
-  returnBy        String?
-  verifiedBy      String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  date               DateTime
+  chemicalCode       String
+  timeTaken          String
+  takenBy            String
+  performedSignature String?
+  timeReturn         String?
+  returnBy           String?
+  verifiedBy         String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model MaintenanceCleaning {
-  id              String   @id @default(uuid())
-  date            DateTime
-  shift           String   // AM (Sesi Pagi) | PM (Sesi Petang)
-  section         String   // meeting-changing | filtration-uv | labelling | raw-material | packing | machine-3in1 | finishing | blower-buffer | auto-scrambler
-  line            String?  // Line 1 | Line 2 (null for meeting-changing and filtration-uv)
+  id                 String   @id @default(uuid())
+  date               DateTime
+  shift              String   // AM (Sesi Pagi) | PM (Sesi Petang)
+  section            String   // meeting-changing | filtration-uv | labelling | raw-material | packing | machine-3in1 | finishing | blower-buffer | auto-scrambler
+  line               String?  // Line 1 | Line 2 (null for meeting-changing and filtration-uv)
   
   // Cleaner type & quantity
-  floorCleaner    String?
-  platformCleaner String?
-  trashCleaner    String?
-  mirrorCleaner   String?
-  ceilingCleaner  String?
-  machineCleaner  String?
-  shutterCleaner  String?
+  floorCleaner       String?
+  platformCleaner    String?
+  trashCleaner       String?
+  mirrorCleaner      String?
+  ceilingCleaner     String?
+  machineCleaner     String?
+  shutterCleaner     String?
 
   // Checklist values
-  floorOk         Boolean  @default(false)
-  platformOk      Boolean  @default(false)
-  trashOk         Boolean  @default(false)
-  mirrorOk        Boolean  @default(false)
-  ceilingOk       Boolean  @default(false)
-  machineOk       Boolean  @default(false)
-  shutterOk       Boolean  @default(false)
+  floorOk            Boolean  @default(false)
+  platformOk         Boolean  @default(false)
+  trashOk            Boolean  @default(false)
+  mirrorOk           Boolean  @default(false)
+  ceilingOk          Boolean  @default(false)
+  machineOk          Boolean  @default(false)
+  shutterOk          Boolean  @default(false)
 
-  checkedBy       String
-  verifiedBy      String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  checkedBy          String
+  performedSignature String?
+  verifiedBy         String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model MaintenanceItem {

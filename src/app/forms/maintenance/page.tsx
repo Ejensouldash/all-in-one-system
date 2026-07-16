@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic"
 
 export default async function MaintenanceDashboard() {
   const access = await getAccessInfo()
-  if (!access) redirect("/login")
+  if (!access) redirect("/login?callbackUrl=/forms/maintenance")
 
   if (!hasAnyModule(access, ["MAINTENANCE_FORMS"])) {
     if (access.modules.includes("MAINTENANCE_DASHBOARD")) {

@@ -3,7 +3,7 @@ import { getAccessInfo, hasAnyModule } from "@/lib/access"
 
 export default async function ReportsLayout({ children }: { children: React.ReactNode }) {
   const access = await getAccessInfo()
-  if (!access) redirect("/login")
+  if (!access) redirect("/login?callbackUrl=/forms/maintenance/reports")
 
   if (!hasAnyModule(access, ["MAINTENANCE_REPORTS"])) {
     if (access.modules.includes("MAINTENANCE_FORMS")) {

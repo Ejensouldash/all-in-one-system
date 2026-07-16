@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma"
 
 export default async function CleaningInspectionPage() {
   const session = await auth()
-  if (!session) redirect("/login")
+  if (!session) redirect("/login?callbackUrl=/forms/maintenance/cleaning")
 
   const dbUser = await prisma.user.findUnique({
     where: { id: session.user.id },

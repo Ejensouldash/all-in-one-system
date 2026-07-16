@@ -1,10 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { loginWithCredentials } from "@/app/actions/auth"
 import { CheckCircle2, Loader2 } from "lucide-react"
 
-export default function LoginPage() {
+function isSafeCallbackUrl(url: string | null): url is string {
+  return !!url && url.startsWith("/") && !url.startsWith("//")
+}
+
+function LoginForm() {
+  const searchParams = useSearchParams()
+  const callbackUrlParam = searchParams.get("callbackUrl")
+  const callbackUrl = isSafeCallbackUrl(callbackUrlParam) ? callbackUrlParam : "/dashboard"
+
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
@@ -32,7 +41,7 @@ export default function LoginPage() {
         setIsSuccess(true)
         // Let the animation play for 1.5 seconds, then let Next.js handle the actual redirect via window location.
         setTimeout(() => {
-          window.location.href = "/dashboard"
+          window.location.href = callbackUrl
         }, 1500)
       } else {
         setError("An unexpected error occurred.")
@@ -75,6 +84,7 @@ export default function LoginPage() {
         </div>
         
         <form className="mt-8 space-y-6" onSubmit={clientSubmit}>
+          <input type="hidden" name="callbackUrl" value={callbackUrl} />
           <div className="space-y-4 rounded-md shadow-sm">
             <div>
               <label htmlFor="email-address" className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
@@ -124,5 +134,13 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   )
 }

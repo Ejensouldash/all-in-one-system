@@ -3,9 +3,14 @@
 import { signIn } from "@/auth"
 import { AuthError } from "next-auth"
 
+function isSafeCallbackUrl(url: string | null): url is string {
+  return !!url && url.startsWith("/") && !url.startsWith("//")
+}
+
 export async function loginWithCredentials(formData: FormData) {
   const email = formData.get("email") as string
   const password = formData.get("password") as string
+  const callbackUrl = formData.get("callbackUrl") as string | null
 
   try {
     // This will throw a redirect error on success, which Next.js expects!
@@ -13,7 +18,7 @@ export async function loginWithCredentials(formData: FormData) {
       email,
       password,
       redirect: true,
-      redirectTo: "/dashboard"
+      redirectTo: isSafeCallbackUrl(callbackUrl) ? callbackUrl : "/dashboard"
     })
     return { success: true }
   } catch (error) {

@@ -10,7 +10,7 @@ export const metadata = {
 
 export default async function LightingInspectionPage() {
   const session = await auth()
-  if (!session) redirect("/login")
+  if (!session) redirect("/login?callbackUrl=/forms/maintenance/lighting")
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">

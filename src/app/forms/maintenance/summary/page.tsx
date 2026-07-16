@@ -12,7 +12,7 @@ export const metadata = {
 
 export default async function MaintenanceSummaryPage() {
   const session = await auth()
-  if (!session) redirect("/login")
+  if (!session) redirect("/login?callbackUrl=/forms/maintenance/summary")
 
   const dbUser = await prisma.user.findUnique({
     where: { id: session.user.id },

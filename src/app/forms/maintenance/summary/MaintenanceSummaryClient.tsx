@@ -26,6 +26,10 @@ const FORM_TYPES: { value: string; label: string }[] = [
   { value: "food-handler", label: "Food Handler" },
   { value: "chemical-control", label: "Chemical Control" },
   { value: "cleaning", label: "Cleaning" },
+  { value: "maintenance-record", label: "Maintenance Equipment" },
+  { value: "pmir", label: "PMIR Checklist" },
+  { value: "pmr", label: "PMR Checklist" },
+  { value: "fbsr", label: "Filtration Backwash" },
 ]
 
 const FIELD_CONFIG: Record<string, FieldConfig[]> = {
@@ -90,6 +94,21 @@ const FIELD_CONFIG: Record<string, FieldConfig[]> = {
     { key: "line", label: "Line", type: "text" },
     { key: "checkedBy", label: "Checked By", type: "text" },
   ],
+  "maintenance-record": [
+    { key: "remarks", label: "Remarks", type: "text" },
+    { key: "checkedBy", label: "Checked By", type: "text" },
+  ],
+  "pmir": [
+    { key: "time", label: "Time", type: "text" },
+    { key: "checkedBy", label: "Checked By", type: "text" },
+  ],
+  "pmr": [
+    { key: "line", label: "Line", type: "text" },
+    { key: "checkedBy", label: "Checked By", type: "text" },
+  ],
+  "fbsr": [
+    { key: "doneBy", label: "Done By", type: "text" },
+  ]
 }
 
 function formatDate(d: string | Date) {

@@ -94,6 +94,38 @@ export default async function MaintenanceReportsDashboard() {
       href: "/forms/maintenance/reports/lighting",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-yellow-400"
+    },
+    {
+      title: "Maintenance Equipment Reports",
+      description: "SGMP-04: View and print maintenance equipment records.",
+      icon: <Wrench className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/maintenance-record",
+      gradient: "from-slate-900 via-slate-800 to-zinc-900",
+      accent: "bg-blue-400"
+    },
+    {
+      title: "PMIR Reports",
+      description: "SGMP-03: View and print preventive maintenance inspection records.",
+      icon: <ShieldAlert className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/pmir",
+      gradient: "from-slate-900 via-slate-800 to-zinc-900",
+      accent: "bg-indigo-400"
+    },
+    {
+      title: "PMR Reports",
+      description: "SGMP-03: View and print preventive maintenance records.",
+      icon: <ShieldAlert className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/pmr",
+      gradient: "from-slate-900 via-slate-800 to-zinc-900",
+      accent: "bg-violet-400"
+    },
+    {
+      title: "Filtration Backwash Reports",
+      description: "SGMP-19: View and print filtration backwash system records.",
+      icon: <ClipboardList className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/fbsr",
+      gradient: "from-slate-900 via-slate-800 to-zinc-900",
+      accent: "bg-cyan-400"
     }
   ]
 

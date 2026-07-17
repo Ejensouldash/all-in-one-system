@@ -733,6 +733,104 @@ model MaintenanceStockLog {
   createdAt   DateTime         @default(now())
 }
 
+model MaintenanceEquipmentRecord {
+  id                 String   @id @default(uuid())
+  date               DateTime
+  activities         Json     
+  checkedBy          String
+  performedSignature String?
+  verifiedBy         String?
+  verifiedSignature  String?
+  remarks            String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model MaintenancePreventiveInspection {
+  id                 String   @id @default(uuid())
+  date               DateTime
+  time               String
+  
+  autoScrambler      Boolean  @default(false)
+  threeInOne         Boolean  @default(false)
+  blower             Boolean  @default(false)
+  label              Boolean  @default(false)
+  printer            Boolean  @default(false)
+  steamGenerator     Boolean  @default(false)
+  weighing           Boolean  @default(false)
+  sealer             Boolean  @default(false)
+  roboticArm         Boolean  @default(false)
+  wrapping           Boolean  @default(false)
+  sandFilter         Boolean  @default(false)
+  carbonFilter       Boolean  @default(false)
+  hollowMembrane     Boolean  @default(false)
+  uvMachine          Boolean  @default(false)
+  airCompressor      Boolean  @default(false)
+  rawWaterPump       Boolean  @default(false)
+  rawTank            Boolean  @default(false)
+  filteredTank       Boolean  @default(false)
+  well               Boolean  @default(false)
+  
+  checkedBy          String
+  performedSignature String?
+  verifiedBy         String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model MaintenancePreventiveRecord {
+  id                 String   @id @default(uuid())
+  date               DateTime
+  line               String   
+  
+  autoScrambler      Boolean  @default(false)
+  threeInOne         Boolean  @default(false)
+  blower             Boolean  @default(false)
+  label              Boolean  @default(false)
+  laserPrinting      Boolean  @default(false)
+  weighing           Boolean  @default(false)
+  sealer             Boolean  @default(false)
+  roboticArm         Boolean  @default(false)
+  wrapping           Boolean  @default(false)
+  sandFilter         Boolean  @default(false)
+  carbonFilter       Boolean  @default(false)
+  hollowMembrane     Boolean  @default(false)
+  uvMachine          Boolean  @default(false)
+  airCompressor      Boolean  @default(false)
+  rawWaterPump       Boolean  @default(false)
+  rawTank            Boolean  @default(false)
+  filteredTank       Boolean  @default(false)
+
+  checkedBy          String
+  performedSignature String?
+  verifiedBy         String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model MaintenanceFiltrationBackwash {
+  id                 String   @id @default(uuid())
+  date               DateTime
+  
+  quartzStart        String?
+  quartzStop         String?
+  
+  carbonStart        String?
+  carbonStop         String?
+  
+  membraneStart      String?
+  membraneStop       String?
+  
+  doneBy             String
+  performedSignature String?
+  verifiedBy         String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
 
 // ============================================================
 // Reminder Calendar (scheduled email reminders)

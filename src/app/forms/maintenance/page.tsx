@@ -88,6 +88,38 @@ export default async function MaintenanceDashboard() {
       href: "/forms/maintenance/lighting",
       gradient: "from-yellow-900 via-yellow-800 to-amber-900",
       accent: "bg-yellow-400"
+    },
+    {
+      title: "Maintenance Equipment",
+      description: "SGMP-04: Daily checklist for maintenance equipment statuses.",
+      icon: <Wrench className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/maintenance-record",
+      gradient: "from-blue-900 via-blue-800 to-indigo-900",
+      accent: "bg-blue-400"
+    },
+    {
+      title: "PMIR",
+      description: "SGMP-03: Preventive Maintenance Inspection Records.",
+      icon: <ShieldAlert className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/pmir",
+      gradient: "from-indigo-900 via-indigo-800 to-violet-900",
+      accent: "bg-indigo-400"
+    },
+    {
+      title: "PMR",
+      description: "SGMP-03: Preventive Maintenance Records.",
+      icon: <ShieldAlert className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/pmr",
+      gradient: "from-violet-900 via-violet-800 to-purple-900",
+      accent: "bg-violet-400"
+    },
+    {
+      title: "Filtration Backwash",
+      description: "SGMP-19: Filtration Backwash System Records.",
+      icon: <ClipboardList className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/fbsr",
+      gradient: "from-cyan-900 via-cyan-800 to-teal-900",
+      accent: "bg-cyan-400"
     }
   ]
 

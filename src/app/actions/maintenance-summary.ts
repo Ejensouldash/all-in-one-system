@@ -40,6 +40,18 @@ export async function getMaintenanceSummaryRecords(
       case "cleaning":
         data = await prisma.maintenanceCleaning.findMany({ where, orderBy: { date: "desc" } })
         break
+      case "maintenance-record":
+        data = await prisma.maintenanceEquipmentRecord.findMany({ where, orderBy: { date: "desc" } })
+        break
+      case "pmir":
+        data = await prisma.maintenancePreventiveInspection.findMany({ where, orderBy: { date: "desc" } })
+        break
+      case "pmr":
+        data = await prisma.maintenancePreventiveRecord.findMany({ where, orderBy: { date: "desc" } })
+        break
+      case "fbsr":
+        data = await prisma.maintenanceFiltrationBackwash.findMany({ where, orderBy: { date: "desc" } })
+        break
       default:
         return { success: false, error: "Invalid form type" }
     }
@@ -75,6 +87,18 @@ export async function updateMaintenanceRecord(formType: string, id: string, data
       case "cleaning":
         await prisma.maintenanceCleaning.update({ where: { id }, data })
         break
+      case "maintenance-record":
+        await prisma.maintenanceEquipmentRecord.update({ where: { id }, data })
+        break
+      case "pmir":
+        await prisma.maintenancePreventiveInspection.update({ where: { id }, data })
+        break
+      case "pmr":
+        await prisma.maintenancePreventiveRecord.update({ where: { id }, data })
+        break
+      case "fbsr":
+        await prisma.maintenanceFiltrationBackwash.update({ where: { id }, data })
+        break
       default:
         return { success: false, error: "Invalid form type" }
     }
@@ -109,6 +133,18 @@ export async function deleteMaintenanceRecord(formType: string, id: string) {
         break
       case "cleaning":
         await prisma.maintenanceCleaning.delete({ where: { id } })
+        break
+      case "maintenance-record":
+        await prisma.maintenanceEquipmentRecord.delete({ where: { id } })
+        break
+      case "pmir":
+        await prisma.maintenancePreventiveInspection.delete({ where: { id } })
+        break
+      case "pmr":
+        await prisma.maintenancePreventiveRecord.delete({ where: { id } })
+        break
+      case "fbsr":
+        await prisma.maintenanceFiltrationBackwash.delete({ where: { id } })
         break
       default:
         return { success: false, error: "Invalid form type" }
@@ -151,6 +187,18 @@ export async function verifyMaintenanceRecord(
         break
       case "cleaning":
         await prisma.maintenanceCleaning.update({ where: { id }, data })
+        break
+      case "maintenance-record":
+        await prisma.maintenanceEquipmentRecord.update({ where: { id }, data })
+        break
+      case "pmir":
+        await prisma.maintenancePreventiveInspection.update({ where: { id }, data })
+        break
+      case "pmr":
+        await prisma.maintenancePreventiveRecord.update({ where: { id }, data })
+        break
+      case "fbsr":
+        await prisma.maintenanceFiltrationBackwash.update({ where: { id }, data })
         break
       default:
         return { success: false, error: "Invalid form type" }

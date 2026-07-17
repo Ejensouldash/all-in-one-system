@@ -1,0 +1,33 @@
+import { auth } from "@/auth"
+import { redirect } from "next/navigation"
+import { MaintenancePMIRReportClient } from "./MaintenancePMIRReportClient"
+import { prisma } from "@/lib/prisma"
+
+export const metadata = {
+  title: "Preventive Maintenance Inspection Reports",
+}
+
+export default async function PMIRReportsPage() {
+  const session = await auth()
+  if (!session) redirect("/login?callbackUrl=/forms/maintenance/reports")
+
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true, modules: true }
+  })
+  const role = dbUser?.role || session.user.role
+  const userModules = dbUser?.modules || []
+  const isSuperAdmin = role === "SUPERADMIN"
+
+  if (!isSuperAdmin && !userModules.includes("MAINTENANCE_REPORTS")) {
+    redirect("/dashboard")
+  }
+
+  return (
+    <div className="bg-gray-50 min-h-screen pt-8 pb-24">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+        <MaintenancePMIRReportClient />
+      </div>
+    </div>
+  )
+}

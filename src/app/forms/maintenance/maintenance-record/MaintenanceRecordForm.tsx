@@ -99,14 +99,21 @@ export function MaintenanceRecordForm({ userName }: { userName: string }) {
     <div className="max-w-6xl mx-auto">
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
         {/* Header */}
-        <div className="bg-slate-900 p-6 sm:p-10 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative overflow-hidden">
+        <div className="bg-slate-900 p-6 sm:p-10 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-          <div className="relative z-10">
-            <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-500/20 text-blue-200 text-xs font-bold uppercase tracking-widest mb-4 backdrop-blur-sm border border-blue-400/20">
-              <Wrench className="w-3.5 h-3.5 mr-2" /> SGMP-04
+          <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <Link href="/forms/maintenance" className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg backdrop-blur-sm border border-white/10 transition-colors">
+                  <ChevronLeft className="w-4 h-4 text-white" />
+                </Link>
+                <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-500/20 text-blue-200 text-xs font-bold uppercase tracking-widest backdrop-blur-sm border border-blue-400/20">
+                  <Wrench className="w-3.5 h-3.5 mr-2" /> SGMP-04
+                </div>
+              </div>
+              <h1 className="text-2xl sm:text-4xl font-black tracking-tight mb-2 uppercase">Maintenance Record</h1>
+              <p className="text-slate-400 font-medium">Fill in maintenance equipment statuses by production line.</p>
             </div>
-            <h1 className="text-2xl sm:text-4xl font-black tracking-tight mb-2 uppercase">Maintenance Record</h1>
-            <p className="text-slate-400 font-medium">Fill in maintenance equipment statuses by production line.</p>
           </div>
         </div>
 

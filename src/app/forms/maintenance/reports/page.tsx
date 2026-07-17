@@ -32,15 +32,7 @@ export default async function MaintenanceReportsDashboard() {
     }
     redirect("/dashboard")
   }
-  const reports = [
-    {
-      title: "Lighting Inspection Reports",
-      description: "View and print lighting inspection logs by date.",
-      icon: <Lightbulb className="h-6 w-6 mr-3" />,
-      href: "/forms/maintenance/reports/lighting",
-      gradient: "from-slate-900 via-slate-800 to-zinc-900",
-      accent: "bg-yellow-400"
-    },
+  const qcReports = [
     {
       title: "Finished Goods Reports",
       description: "View and print damage logs for finished goods packaging.",
@@ -49,6 +41,17 @@ export default async function MaintenanceReportsDashboard() {
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-red-400"
     },
+    {
+      title: "Chemical Control Logs",
+      description: "View and print logs for chemical collections and returns.",
+      icon: <FlaskConical className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/chemical-control",
+      gradient: "from-slate-900 via-slate-800 to-zinc-900",
+      accent: "bg-purple-400"
+    }
+  ]
+
+  const productionReports = [
     {
       title: "Waste Management Reports",
       description: "View and print recycling and disposal records.",
@@ -74,14 +77,6 @@ export default async function MaintenanceReportsDashboard() {
       accent: "bg-orange-400"
     },
     {
-      title: "Chemical Control Logs",
-      description: "View and print logs for chemical collections and returns.",
-      icon: <FlaskConical className="h-6 w-6 mr-3" />,
-      href: "/forms/maintenance/reports/chemical-control",
-      gradient: "from-slate-900 via-slate-800 to-zinc-900",
-      accent: "bg-purple-400"
-    },
-    {
       title: "Cleaning Inspection Reports",
       description: "View and print floor cleaning checklist records.",
       icon: <Brush className="h-6 w-6 mr-3" />,
@@ -90,6 +85,39 @@ export default async function MaintenanceReportsDashboard() {
       accent: "bg-slate-400"
     }
   ]
+
+  const maintenanceReports = [
+    {
+      title: "Lighting Inspection Reports",
+      description: "View and print lighting inspection logs by date.",
+      icon: <Lightbulb className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/lighting",
+      gradient: "from-slate-900 via-slate-800 to-zinc-900",
+      accent: "bg-yellow-400"
+    }
+  ]
+
+  const ReportGrid = ({ reports }: { reports: any[] }) => (
+    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
+      {reports.map((report, index) => (
+        <div key={index} className="bg-white rounded-2xl p-6 sm:p-8 shadow-md border border-gray-100 flex flex-col justify-between hover:shadow-lg transition-shadow">
+          <div className="mb-6">
+            <div className="inline-flex items-center px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-bold uppercase tracking-widest mb-4">
+              <span className={`w-2.5 h-2.5 rounded-full ${report.accent} mr-2`}></span>
+              Report Section
+            </div>
+            <h2 className="text-xl font-black text-gray-900 tracking-tight mb-2">{report.title}</h2>
+            <p className="text-gray-500 text-sm font-medium">
+              {report.description}
+            </p>
+          </div>
+          <Link href={report.href} className="group flex items-center justify-center w-full bg-slate-900 text-white px-6 py-3 rounded-xl font-black text-sm hover:bg-slate-800 transition-colors shadow-md uppercase tracking-wider">
+            <FileSpreadsheet className="w-4 h-4 mr-2" /> View Reports
+          </Link>
+        </div>
+      ))}
+    </div>
+  )
 
   return (
     <div className="bg-gray-50 pb-12 min-h-screen">
@@ -110,24 +138,36 @@ export default async function MaintenanceReportsDashboard() {
 
         <MaintenanceTabs userModules={userModules} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
-          {reports.map((report, index) => (
-            <div key={index} className="bg-white rounded-2xl p-6 sm:p-8 shadow-md border border-gray-100 flex flex-col justify-between hover:shadow-lg transition-shadow">
-              <div className="mb-6">
-                <div className="inline-flex items-center px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-bold uppercase tracking-widest mb-4">
-                  <span className={`w-2.5 h-2.5 rounded-full ${report.accent} mr-2`}></span>
-                  Report Section
-                </div>
-                <h2 className="text-xl font-black text-gray-900 tracking-tight mb-2">{report.title}</h2>
-                <p className="text-gray-500 text-sm font-medium">
-                  {report.description}
-                </p>
-              </div>
-              <Link href={report.href} className="group flex items-center justify-center w-full bg-slate-900 text-white px-6 py-3 rounded-xl font-black text-sm hover:bg-slate-800 transition-colors shadow-md uppercase tracking-wider">
-                <FileSpreadsheet className="w-4 h-4 mr-2" /> View Reports
-              </Link>
+        <div className="space-y-12">
+          {/* QC Section */}
+          <section>
+            <div className="mb-6 border-b-2 border-gray-200 pb-2 flex items-center justify-between">
+              <h2 className="text-2xl font-black uppercase tracking-widest text-gray-800">
+                Quality Control (QC)
+              </h2>
             </div>
-          ))}
+            <ReportGrid reports={qcReports} />
+          </section>
+
+          {/* Production Section */}
+          <section>
+            <div className="mb-6 border-b-2 border-gray-200 pb-2 flex items-center justify-between">
+              <h2 className="text-2xl font-black uppercase tracking-widest text-gray-800">
+                Production
+              </h2>
+            </div>
+            <ReportGrid reports={productionReports} />
+          </section>
+
+          {/* Maintenance Section */}
+          <section>
+            <div className="mb-6 border-b-2 border-gray-200 pb-2 flex items-center justify-between">
+              <h2 className="text-2xl font-black uppercase tracking-widest text-gray-800">
+                Maintenance
+              </h2>
+            </div>
+            <ReportGrid reports={maintenanceReports} />
+          </section>
         </div>
       </div>
     </div>

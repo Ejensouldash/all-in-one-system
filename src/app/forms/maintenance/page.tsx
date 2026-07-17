@@ -26,15 +26,7 @@ export default async function MaintenanceDashboard() {
     redirect("/forms")
   }
 
-  const forms = [
-    {
-      title: "Lighting Inspection",
-      description: "Log daily or weekly lighting inspection records across all coverage areas.",
-      icon: <Lightbulb className="h-6 w-6 mr-3" />,
-      href: "/forms/maintenance/lighting",
-      gradient: "from-yellow-900 via-yellow-800 to-amber-900",
-      accent: "bg-yellow-400"
-    },
+  const qcForms = [
     {
       title: "Finished Goods Inspection",
       description: "Record damaged boxes for 425ML and 800ML finished goods.",
@@ -43,6 +35,17 @@ export default async function MaintenanceDashboard() {
       gradient: "from-red-900 via-red-800 to-rose-900",
       accent: "bg-red-400"
     },
+    {
+      title: "Chemical Control",
+      description: "Log chemical usage, code names, and return times.",
+      icon: <FlaskConical className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/chemical-control",
+      gradient: "from-purple-900 via-purple-800 to-fuchsia-900",
+      accent: "bg-purple-400"
+    }
+  ]
+
+  const productionForms = [
     {
       title: "Waste Management",
       description: "Record weights and disposal actions for recycle and disposal materials.",
@@ -68,20 +71,23 @@ export default async function MaintenanceDashboard() {
       accent: "bg-orange-400"
     },
     {
-      title: "Chemical Control",
-      description: "Log chemical usage, code names, and return times.",
-      icon: <FlaskConical className="h-6 w-6 mr-3" />,
-      href: "/forms/maintenance/chemical-control",
-      gradient: "from-purple-900 via-purple-800 to-fuchsia-900",
-      accent: "bg-purple-400"
-    },
-    {
       title: "Cleaning Inspection",
       description: "Daily checklist for production floor cleaning across sections and lines.",
       icon: <Brush className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/cleaning",
       gradient: "from-slate-900 via-slate-800 to-slate-900",
       accent: "bg-slate-400"
+    }
+  ]
+
+  const maintenanceForms = [
+    {
+      title: "Lighting Inspection",
+      description: "Log daily or weekly lighting inspection records across all coverage areas.",
+      icon: <Lightbulb className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/lighting",
+      gradient: "from-yellow-900 via-yellow-800 to-amber-900",
+      accent: "bg-yellow-400"
     }
   ]
 
@@ -104,7 +110,37 @@ export default async function MaintenanceDashboard() {
 
         <MaintenanceTabs userModules={access.isSuperAdmin ? undefined : access.modules} />
 
-        <MaintenanceFormsGrid forms={forms} />
+        <div className="space-y-12">
+          {/* QC Section */}
+          <section>
+            <div className="mb-6 border-b-2 border-gray-200 pb-2 flex items-center justify-between">
+              <h2 className="text-2xl font-black uppercase tracking-widest text-gray-800">
+                Quality Control (QC)
+              </h2>
+            </div>
+            <MaintenanceFormsGrid forms={qcForms} />
+          </section>
+
+          {/* Production Section */}
+          <section>
+            <div className="mb-6 border-b-2 border-gray-200 pb-2 flex items-center justify-between">
+              <h2 className="text-2xl font-black uppercase tracking-widest text-gray-800">
+                Production
+              </h2>
+            </div>
+            <MaintenanceFormsGrid forms={productionForms} />
+          </section>
+
+          {/* Maintenance Section */}
+          <section>
+            <div className="mb-6 border-b-2 border-gray-200 pb-2 flex items-center justify-between">
+              <h2 className="text-2xl font-black uppercase tracking-widest text-gray-800">
+                Maintenance
+              </h2>
+            </div>
+            <MaintenanceFormsGrid forms={maintenanceForms} />
+          </section>
+        </div>
       </div>
     </div>
   )

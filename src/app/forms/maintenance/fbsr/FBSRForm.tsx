@@ -21,6 +21,7 @@ export function FBSRForm({ userName }: { userName: string }) {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
   const [signature, setSignature] = useState<string | null>(null)
+  const [doneBy, setDoneBy] = useState(userName)
 
   function handleTimeChange(key: keyof typeof times, value: string) {
     setTimes(prev => ({ ...prev, [key]: value }))
@@ -38,7 +39,7 @@ export function FBSRForm({ userName }: { userName: string }) {
     const data = {
       date: new Date(date),
       ...times,
-      doneBy: userName,
+      doneBy: doneBy,
       performedSignature: signature,
     }
 
@@ -111,9 +112,9 @@ export function FBSRForm({ userName }: { userName: string }) {
               <label className="text-xs font-black uppercase tracking-wider text-gray-500">Done By</label>
               <input
                 type="text"
-                value={userName}
-                disabled
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-100 text-gray-500 font-bold uppercase cursor-not-allowed"
+                value={doneBy}
+                onChange={(e) => setDoneBy(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 text-gray-900 font-bold uppercase focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
               />
             </div>
           </div>

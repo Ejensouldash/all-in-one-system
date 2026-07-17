@@ -832,6 +832,114 @@ model MaintenanceFiltrationBackwash {
 }
 
 
+// ==========================================
+// PRODUCTION FORMS MODELS
+// ==========================================
+
+model ProductionLightingFixture {
+  id                 String   @id @default(uuid())
+  date               DateTime
+  cleaningLocation   String
+  activityPerformed  String
+  condition          String   // GOOD | NOT_GOOD
+  nextCourseOfAction String?
+  supervisedBy       String
+  checkedBy          String
+  verifiedBy         String?
+  performedSignature String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model ProductionGlassLog {
+  id                 String   @id @default(uuid())
+  inspectionMonth    String
+  inspectionArea     String
+  conditionOfGlass   String
+  remarks            String?
+  checkedBy          String
+  verifiedBy         String?
+  performedSignature String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model ProductionGlassBreakage {
+  id                 String   @id @default(uuid())
+  inspectionMonth    String
+  areaOfInterest     String
+  causedBy           String
+  nextCourseOfAction String?
+  remarks            String?
+  checkedBy          String
+  verifiedBy         String?
+  performedSignature String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model ProductionWoodLog {
+  id                 String   @id @default(uuid())
+  inspectionMonth    String
+  inspectionArea     String
+  conditionOfWood    String
+  remarks            String?
+  checkedBy          String
+  verifiedBy         String?
+  performedSignature String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model ProductionWoodBreakage {
+  id                 String   @id @default(uuid())
+  inspectionMonth    String
+  areaOfInterest     String
+  causedBy           String
+  nextCourseOfAction String?
+  remarks            String?
+  checkedBy          String
+  verifiedBy         String?
+  performedSignature String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model ProductionPlasticLog {
+  id                 String   @id @default(uuid())
+  inspectionMonth    String
+  inspectionArea     String
+  conditionOfPlastic String
+  remarks            String?
+  checkedBy          String
+  verifiedBy         String?
+  performedSignature String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model ProductionPlasticBreakage {
+  id                 String   @id @default(uuid())
+  inspectionMonth    String
+  areaOfInterest     String
+  causedBy           String
+  nextCourseOfAction String?
+  remarks            String?
+  checkedBy          String
+  verifiedBy         String?
+  performedSignature String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+
 // ============================================================
 // Reminder Calendar (scheduled email reminders)
 // ============================================================

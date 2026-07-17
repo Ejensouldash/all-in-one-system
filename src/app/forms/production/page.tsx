@@ -100,6 +100,86 @@ export default async function ProductionDashboard() {
           )}
         </div>
 
+        {/* New Production Forms Grid */}
+        <div className="mb-6 flex items-center justify-between mt-12">
+          <h2 className="text-2xl font-black uppercase tracking-tight text-gray-900 flex items-center">
+            <ClipboardList className="w-6 h-6 mr-3 text-cyan-600" />
+            Production Checklists & Logs
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-12">
+          <Link href="/forms/production/lfcr" className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all hover:border-cyan-300 group flex items-start gap-4">
+            <div className="p-3 bg-cyan-50 text-cyan-600 rounded-lg group-hover:bg-cyan-600 group-hover:text-white transition-colors">
+              <ClipboardList className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 text-sm">SGMP-08 LFCR</h3>
+              <p className="text-xs text-gray-500 mt-1 font-medium">Lighting Fixtures Cleaning Record</p>
+            </div>
+          </Link>
+
+          <Link href="/forms/production/mgl" className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all hover:border-cyan-300 group flex items-start gap-4">
+            <div className="p-3 bg-cyan-50 text-cyan-600 rounded-lg group-hover:bg-cyan-600 group-hover:text-white transition-colors">
+              <ClipboardList className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 text-sm">SGMP-12 MGL</h3>
+              <p className="text-xs text-gray-500 mt-1 font-medium">Monthly Glass Log Records</p>
+            </div>
+          </Link>
+
+          <Link href="/forms/production/mgb" className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all hover:border-red-300 group flex items-start gap-4">
+            <div className="p-3 bg-red-50 text-red-600 rounded-lg group-hover:bg-red-600 group-hover:text-white transition-colors">
+              <ClipboardList className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 text-sm">SGMP-12 MGB</h3>
+              <p className="text-xs text-gray-500 mt-1 font-medium">Monthly Glass Breakage Records</p>
+            </div>
+          </Link>
+
+          <Link href="/forms/production/mwl" className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all hover:border-cyan-300 group flex items-start gap-4">
+            <div className="p-3 bg-cyan-50 text-cyan-600 rounded-lg group-hover:bg-cyan-600 group-hover:text-white transition-colors">
+              <ClipboardList className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 text-sm">SGMP-13 MWL</h3>
+              <p className="text-xs text-gray-500 mt-1 font-medium">Monthly Wood Log Records</p>
+            </div>
+          </Link>
+
+          <Link href="/forms/production/mwb" className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all hover:border-red-300 group flex items-start gap-4">
+            <div className="p-3 bg-red-50 text-red-600 rounded-lg group-hover:bg-red-600 group-hover:text-white transition-colors">
+              <ClipboardList className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 text-sm">SGMP-13 MWB</h3>
+              <p className="text-xs text-gray-500 mt-1 font-medium">Monthly Wood Breakage Records</p>
+            </div>
+          </Link>
+
+          <Link href="/forms/production/mpl" className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all hover:border-cyan-300 group flex items-start gap-4">
+            <div className="p-3 bg-cyan-50 text-cyan-600 rounded-lg group-hover:bg-cyan-600 group-hover:text-white transition-colors">
+              <ClipboardList className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 text-sm">SGMP-13 MPL</h3>
+              <p className="text-xs text-gray-500 mt-1 font-medium">Monthly Plastic Log Records</p>
+            </div>
+          </Link>
+
+          <Link href="/forms/production/mpb" className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all hover:border-red-300 group flex items-start gap-4">
+            <div className="p-3 bg-red-50 text-red-600 rounded-lg group-hover:bg-red-600 group-hover:text-white transition-colors">
+              <ClipboardList className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 text-sm">SGMP-13 MPB</h3>
+              <p className="text-xs text-gray-500 mt-1 font-medium">Monthly Plastic Breakage Records</p>
+            </div>
+          </Link>
+        </div>
+
         <div className="mb-6 flex items-center justify-between mt-12">
           <h2 className="text-2xl font-black uppercase tracking-tight text-gray-900 flex items-center">
             <ClipboardList className="w-6 h-6 mr-3 text-indigo-600" />

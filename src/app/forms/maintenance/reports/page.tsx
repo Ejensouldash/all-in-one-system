@@ -83,6 +83,62 @@ export default async function MaintenanceReportsDashboard() {
       href: "/forms/maintenance/reports/cleaning",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-slate-400"
+    },
+    {
+      title: "LFCR Reports",
+      description: "View and print lighting fixtures cleaning records.",
+      icon: <ClipboardList className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/lfcr",
+      gradient: "from-cyan-900 via-cyan-800 to-sky-900",
+      accent: "bg-cyan-400"
+    },
+    {
+      title: "MGL Reports",
+      description: "View and print monthly glass log records.",
+      icon: <ClipboardList className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/mgl",
+      gradient: "from-cyan-900 via-cyan-800 to-sky-900",
+      accent: "bg-cyan-400"
+    },
+    {
+      title: "MGB Reports",
+      description: "View and print monthly glass breakage records.",
+      icon: <ClipboardList className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/mgb",
+      gradient: "from-red-900 via-red-800 to-rose-900",
+      accent: "bg-red-400"
+    },
+    {
+      title: "MWL Reports",
+      description: "View and print monthly wood log records.",
+      icon: <ClipboardList className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/mwl",
+      gradient: "from-cyan-900 via-cyan-800 to-sky-900",
+      accent: "bg-cyan-400"
+    },
+    {
+      title: "MWB Reports",
+      description: "View and print monthly wood breakage records.",
+      icon: <ClipboardList className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/mwb",
+      gradient: "from-red-900 via-red-800 to-rose-900",
+      accent: "bg-red-400"
+    },
+    {
+      title: "MPL Reports",
+      description: "View and print monthly plastic log records.",
+      icon: <ClipboardList className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/mpl",
+      gradient: "from-cyan-900 via-cyan-800 to-sky-900",
+      accent: "bg-cyan-400"
+    },
+    {
+      title: "MPB Reports",
+      description: "View and print monthly plastic breakage records.",
+      icon: <ClipboardList className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/mpb",
+      gradient: "from-red-900 via-red-800 to-rose-900",
+      accent: "bg-red-400"
     }
   ]
 

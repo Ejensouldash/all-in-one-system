@@ -77,6 +77,62 @@ export default async function MaintenanceDashboard() {
       href: "/forms/maintenance/cleaning",
       gradient: "from-slate-900 via-slate-800 to-slate-900",
       accent: "bg-slate-400"
+    },
+    {
+      title: "SGMP-08 LFCR",
+      description: "Lighting Fixtures Cleaning Record",
+      icon: <ClipboardList className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/lfcr",
+      gradient: "from-cyan-900 via-cyan-800 to-sky-900",
+      accent: "bg-cyan-400"
+    },
+    {
+      title: "SGMP-12 MGL",
+      description: "Monthly Glass Log Records",
+      icon: <ClipboardList className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/mgl",
+      gradient: "from-cyan-900 via-cyan-800 to-sky-900",
+      accent: "bg-cyan-400"
+    },
+    {
+      title: "SGMP-12 MGB",
+      description: "Monthly Glass Breakage Records",
+      icon: <ClipboardList className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/mgb",
+      gradient: "from-red-900 via-red-800 to-rose-900",
+      accent: "bg-red-400"
+    },
+    {
+      title: "SGMP-13 MWL",
+      description: "Monthly Wood Log Records",
+      icon: <ClipboardList className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/mwl",
+      gradient: "from-cyan-900 via-cyan-800 to-sky-900",
+      accent: "bg-cyan-400"
+    },
+    {
+      title: "SGMP-13 MWB",
+      description: "Monthly Wood Breakage Records",
+      icon: <ClipboardList className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/mwb",
+      gradient: "from-red-900 via-red-800 to-rose-900",
+      accent: "bg-red-400"
+    },
+    {
+      title: "SGMP-13 MPL",
+      description: "Monthly Plastic Log Records",
+      icon: <ClipboardList className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/mpl",
+      gradient: "from-cyan-900 via-cyan-800 to-sky-900",
+      accent: "bg-cyan-400"
+    },
+    {
+      title: "SGMP-13 MPB",
+      description: "Monthly Plastic Breakage Records",
+      icon: <ClipboardList className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/mpb",
+      gradient: "from-red-900 via-red-800 to-rose-900",
+      accent: "bg-red-400"
     }
   ]
 

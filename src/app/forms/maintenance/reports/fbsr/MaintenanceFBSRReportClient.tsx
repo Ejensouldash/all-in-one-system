@@ -127,7 +127,7 @@ export function MaintenanceFBSRReportClient() {
             </div>
 
             {/* Data Table */}
-            <table className="w-full text-[11px] border-collapse border border-black text-center">
+            <table className="w-full text-[11px] border-collapse border border-black text-center print-compact-table">
               <thead>
                 <tr className="bg-gray-200 print:bg-gray-200">
                   <th rowSpan={2} className="border border-black p-2 w-16 align-middle">DATE</th>

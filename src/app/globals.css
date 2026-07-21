@@ -58,4 +58,15 @@ body {
     font-size: 8px !important;
     line-height: 1.1 !important;
   }
+
+  /* Compact data rows so monthly tables fit on one A4 page */
+  .print-compact-table tbody tr {
+    height: 24px !important;
+  }
+
+  /* Force a page break between printed records */
+  .page-break {
+    break-after: page;
+    page-break-after: always;
+  }
 }

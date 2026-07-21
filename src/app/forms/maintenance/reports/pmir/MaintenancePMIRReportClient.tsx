@@ -132,6 +132,7 @@ export function MaintenancePMIRReportClient() {
         </div>
       ) : (
         <div ref={printRef} className="print-layout landscape">
+          <style>{`@page { size: A4 landscape; margin: 8mm 10mm; }`}</style>
           <div className="print-page bg-white p-8 shadow-sm border border-gray-100 mb-8 rounded-2xl print:shadow-none print:border-none print:p-0 print:m-0 print:rounded-none">
             
             {/* Header */}
@@ -159,19 +160,19 @@ export function MaintenancePMIRReportClient() {
                 </tr>
                 <tr className="bg-gray-200 print:bg-gray-200 h-32">
                   {MACHINE_KEYS.map((m, i) => (
-                    <th key={i} className="border border-black p-1 font-bold whitespace-nowrap overflow-hidden align-bottom">
-                      <div className="origin-bottom-left -rotate-90 -translate-x-3 translate-y-3 w-4 h-4 text-left ml-4 leading-none inline-block">
+                    <th key={i} className="border border-black p-1 font-bold align-middle">
+                      <div className="mx-auto max-h-28 leading-tight" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
                         {m.label}
                       </div>
                     </th>
                   ))}
-                  <th className="border border-black p-1 font-bold whitespace-nowrap overflow-hidden align-bottom w-12">
-                      <div className="origin-bottom-left -rotate-90 -translate-x-3 translate-y-3 w-4 h-4 text-left ml-4 leading-none inline-block">
+                  <th className="border border-black p-1 font-bold align-middle w-12">
+                      <div className="mx-auto max-h-28 leading-tight" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
                         CHECKED BY
                       </div>
                   </th>
-                  <th className="border border-black p-1 font-bold whitespace-nowrap overflow-hidden align-bottom w-12">
-                      <div className="origin-bottom-left -rotate-90 -translate-x-3 translate-y-3 w-4 h-4 text-left ml-4 leading-none inline-block">
+                  <th className="border border-black p-1 font-bold align-middle w-12">
+                      <div className="mx-auto max-h-28 leading-tight" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
                         VERIFIED BY
                       </div>
                   </th>

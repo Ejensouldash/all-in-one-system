@@ -175,6 +175,9 @@ export default function MaintenanceMonthlyReportPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 print:py-0 print:bg-white print:min-h-0">
+      {formType === "cleaning" && (
+        <style>{`@page { size: A4 landscape; margin: 8mm 10mm; }`}</style>
+      )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 print:p-0 print:max-w-none">
         
         {/* Controls - Hidden in print */}

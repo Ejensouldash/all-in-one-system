@@ -39,6 +39,8 @@ const FORM_TYPES: { value: string; label: string }[] = [
   { value: "lfcr", label: "SGMP-08 LFCR" },
   { value: "ivvi", label: "SGMP-14 IVVI" },
   { value: "vchif", label: "SGMP-14 VCHIF" },
+  { value: "dqip", label: "SGMP-18 DQIP" },
+  { value: "qcdr", label: "SGMP-18 QCDR" },
 ]
 
 const FIELD_CONFIG: Record<string, FieldConfig[]> = {
@@ -186,6 +188,12 @@ const FIELD_CONFIG: Record<string, FieldConfig[]> = {
     { key: "vehicleType", label: "Vehicle Type", type: "text" },
     { key: "driverName", label: "Driver", type: "text" },
     { key: "inspectorName", label: "Inspector", type: "text" },
+  ],
+  dqip: [
+    { key: "checkedBy", label: "Checked By", type: "text" },
+  ],
+  qcdr: [
+    { key: "checkedBy", label: "Prepared By", type: "text" },
   ]
 }
 

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { ClipboardList, Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, Brush } from "lucide-react"
+import { ClipboardList, Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, Brush, ClipboardCheck } from "lucide-react"
 import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
 import { MaintenanceFormsGrid } from "./MaintenanceFormsGrid"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
@@ -42,6 +42,22 @@ export default async function MaintenanceDashboard() {
       href: "/forms/maintenance/chemical-control",
       gradient: "from-purple-900 via-purple-800 to-fuchsia-900",
       accent: "bg-purple-400"
+    },
+    {
+      title: "Daily Quality In-Process",
+      description: "SGMP-18: Record in-process weight, condition, and sensory sample checks.",
+      icon: <FlaskConical className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/dqip",
+      gradient: "from-violet-900 via-violet-800 to-purple-900",
+      accent: "bg-violet-400"
+    },
+    {
+      title: "QC Daily Report",
+      description: "SGMP-18: Log daily quality control activities and corrective actions.",
+      icon: <ClipboardCheck className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/qcdr",
+      gradient: "from-emerald-900 via-emerald-800 to-teal-900",
+      accent: "bg-emerald-400"
     }
   ]
 

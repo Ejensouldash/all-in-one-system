@@ -85,6 +85,12 @@ export async function getMaintenanceSummaryRecords(
       case "vchif":
         data = await prisma.securityVehicleHygiene.findMany({ where, orderBy: { date: "desc" } })
         break
+      case "dqip":
+        data = await prisma.maintenanceDQIP.findMany({ where, orderBy: { date: "desc" } })
+        break
+      case "qcdr":
+        data = await prisma.maintenanceQCDR.findMany({ where, orderBy: { date: "desc" } })
+        break
       default:
         return { success: false, error: "Invalid form type" }
     }
@@ -159,6 +165,12 @@ export async function updateMaintenanceRecord(formType: string, id: string, data
       case "vchif":
         await prisma.securityVehicleHygiene.update({ where: { id }, data })
         break
+      case "dqip":
+        await prisma.maintenanceDQIP.update({ where: { id }, data })
+        break
+      case "qcdr":
+        await prisma.maintenanceQCDR.update({ where: { id }, data })
+        break
       default:
         return { success: false, error: "Invalid form type" }
     }
@@ -232,6 +244,12 @@ export async function deleteMaintenanceRecord(formType: string, id: string) {
         break
       case "vchif":
         await prisma.securityVehicleHygiene.delete({ where: { id } })
+        break
+      case "dqip":
+        await prisma.maintenanceDQIP.delete({ where: { id } })
+        break
+      case "qcdr":
+        await prisma.maintenanceQCDR.delete({ where: { id } })
         break
       default:
         return { success: false, error: "Invalid form type" }
@@ -313,6 +331,12 @@ export async function verifyMaintenanceRecord(
         break
       case "vchif":
         await prisma.securityVehicleHygiene.update({ where: { id }, data })
+        break
+      case "dqip":
+        await prisma.maintenanceDQIP.update({ where: { id }, data })
+        break
+      case "qcdr":
+        await prisma.maintenanceQCDR.update({ where: { id }, data })
         break
       default:
         return { success: false, error: "Invalid form type" }

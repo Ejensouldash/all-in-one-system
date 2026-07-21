@@ -1055,7 +1055,31 @@ model SecurityVehicleHygiene {
   
   driverSignature    String?
   inspectorSignature String?
-  
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model MaintenanceDQIP {
+  id                 String   @id @default(uuid())
+  date               DateTime
+  entries            Json     // { cap1881, emptyBottle425, emptyBottle800, filledBottle425, filledBottle800, taste, smell, particle }
+  checkedBy          String
+  performedSignature String?
+  verifiedBy         String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model MaintenanceQCDR {
+  id                 String   @id @default(uuid())
+  date               DateTime
+  rows               Json     // [{ description, results, conclusion, correctiveAction }]
+  checkedBy          String
+  performedSignature String?
+  verifiedBy         String?
+  verifiedSignature  String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }

@@ -179,6 +179,25 @@ export default async function MaintenanceDashboard() {
     }
   ]
 
+  const securityForms = [
+    {
+      title: "SGMP-14 IVVI",
+      description: "Incoming Vehicle Visual Inspection Records",
+      icon: <ShieldAlert className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/ivvi",
+      gradient: "from-slate-900 via-gray-800 to-zinc-900",
+      accent: "bg-slate-400"
+    },
+    {
+      title: "SGMP-14 VCHIF",
+      description: "Vehicle Cleaning & Hygiene Inspection Form",
+      icon: <ShieldAlert className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/vchif",
+      gradient: "from-slate-900 via-gray-800 to-zinc-900",
+      accent: "bg-slate-400"
+    }
+  ]
+
   return (
     <div className="bg-gray-50 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
@@ -227,6 +246,16 @@ export default async function MaintenanceDashboard() {
               </h2>
             </div>
             <MaintenanceFormsGrid forms={maintenanceForms} />
+          </section>
+
+          {/* Security Section */}
+          <section>
+            <div className="mb-6 border-b-2 border-gray-200 pb-2 flex items-center justify-between">
+              <h2 className="text-2xl font-black uppercase tracking-widest text-gray-800">
+                Security
+              </h2>
+            </div>
+            <MaintenanceFormsGrid forms={securityForms} />
           </section>
         </div>
       </div>

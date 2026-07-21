@@ -1002,3 +1002,60 @@ model ReminderDelivery {
   @@unique([reminderId, occurrenceKey])
   @@index([reminderId, sentAt])
 }
+
+// ==========================================
+// SECURITY FORMS MODELS
+// ==========================================
+
+model SecurityIncomingVehicle {
+  id                 String   @id @default(uuid())
+  date               DateTime
+  vehicleNo          String
+  companyName        String
+  purpose            String   // Receive / Deliver
+  product            String   // Bottle / Box / Label / Finished Good
+  visualInspection   Boolean  @default(true) // OK(true) / NOT OK(false)
+  reason             String?  // If NOT OK
+  furtherAction      String?
+  checkedBy          String
+  verifiedBy         String?
+  performedSignature String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model SecurityVehicleHygiene {
+  id                 String   @id @default(uuid())
+  date               DateTime
+  companyName        String
+  vehicleNo          String
+  vehicleType        String
+  driverName         String
+  inspectorName      String
+  
+  // Checklist (Yes=true, No=false)
+  extClean           Boolean  @default(false)
+  intClean           Boolean  @default(false)
+  noTrash            Boolean  @default(false)
+  seatsClean         Boolean  @default(false)
+  floorClean         Boolean  @default(false)
+  noOdor             Boolean  @default(false)
+  windowsClean       Boolean  @default(false)
+  noSpills           Boolean  @default(false)
+  wasteBinEmpty      Boolean  @default(false)
+  noPests            Boolean  @default(false)
+  noChemicals        Boolean  @default(false)
+  suitableCondition  Boolean  @default(false)
+  noHazardous        Boolean  @default(false)
+  noIllegal          Boolean  @default(false)
+  
+  issues             String?
+  correctiveAction   String?
+  
+  driverSignature    String?
+  inspectorSignature String?
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}

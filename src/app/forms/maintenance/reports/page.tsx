@@ -185,6 +185,25 @@ export default async function MaintenanceReportsDashboard() {
     }
   ]
 
+  const securityReports = [
+    {
+      title: "IVVI Reports",
+      description: "SGMP-14: View and print incoming vehicle visual inspection records.",
+      icon: <ShieldAlert className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/ivvi",
+      gradient: "from-slate-900 via-slate-800 to-zinc-900",
+      accent: "bg-slate-400"
+    },
+    {
+      title: "VCHIF Reports",
+      description: "SGMP-14: View and print vehicle cleaning & hygiene inspection records.",
+      icon: <ShieldAlert className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/vchif",
+      gradient: "from-slate-900 via-slate-800 to-zinc-900",
+      accent: "bg-slate-400"
+    }
+  ]
+
   const ReportGrid = ({ reports }: { reports: any[] }) => (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
       {reports.map((report, index) => (
@@ -255,6 +274,16 @@ export default async function MaintenanceReportsDashboard() {
               </h2>
             </div>
             <ReportGrid reports={maintenanceReports} />
+          </section>
+
+          {/* Security Section */}
+          <section>
+            <div className="mb-6 border-b-2 border-gray-200 pb-2 flex items-center justify-between">
+              <h2 className="text-2xl font-black uppercase tracking-widest text-gray-800">
+                Security
+              </h2>
+            </div>
+            <ReportGrid reports={securityReports} />
           </section>
         </div>
       </div>

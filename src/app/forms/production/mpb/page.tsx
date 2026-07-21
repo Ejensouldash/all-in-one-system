@@ -1,9 +1,10 @@
 import MPBForm from "./MPBForm"
-import { getUser } from "@/lib/auth"
+import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 
 export default async function MPBPage() {
-  const user = await getUser()
+  const session = await auth()
+  const user = session?.user
   if (!user) redirect("/login")
 
   return (

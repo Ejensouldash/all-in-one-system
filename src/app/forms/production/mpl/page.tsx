@@ -1,9 +1,10 @@
 import MPLForm from "./MPLForm"
-import { getUser } from "@/lib/auth"
+import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 
 export default async function MPLPage() {
-  const user = await getUser()
+  const session = await auth()
+  const user = session?.user
   if (!user) redirect("/login")
 
   return (

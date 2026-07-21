@@ -1,9 +1,10 @@
 import LFCRForm from "./LFCRForm"
-import { getUser } from "@/lib/auth"
+import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 
 export default async function LFCRPage() {
-  const user = await getUser()
+  const session = await auth()
+  const user = session?.user
   if (!user) redirect("/login")
 
   return (

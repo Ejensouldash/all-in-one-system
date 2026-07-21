@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { createMonthlyPlasticBreakage } from "./actions"
 import { ChevronLeft, Save, AlertTriangle, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
-import SignaturePadClient from "@/components/ui/SignaturePadClient"
+import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
 
 export default function MPBForm({ userName }: { userName: string }) {
   const router = useRouter()
@@ -167,7 +167,7 @@ export default function MPBForm({ userName }: { userName: string }) {
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
                 <label className="text-xs font-black uppercase tracking-wider text-gray-500 mb-4 block">Digital Signature (Checked By)</label>
-                <SignaturePadClient onSignatureChange={setSignature} />
+                <SignaturePadClient onSave={setSignature} />
               </div>
               <div>
                 <label className="text-xs font-black uppercase tracking-wider text-gray-500 block mb-2">Checked By</label>

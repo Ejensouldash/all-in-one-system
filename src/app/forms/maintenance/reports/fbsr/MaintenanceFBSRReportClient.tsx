@@ -110,7 +110,7 @@ export function MaintenanceFBSRReportClient() {
         </div>
       ) : (
         <div ref={printRef} className="print-layout">
-          <div className="print-page bg-white p-8 sm:p-12 shadow-sm border border-gray-100 mb-8 rounded-2xl print:shadow-none print:border-none print:p-0 print:m-0 print:rounded-none">
+          <div className="print-page bg-white p-8 sm:p-12 shadow-sm border border-gray-100 mb-8 rounded-2xl print:shadow-none print:border-none print:p-0 print:m-0 print:rounded-none overflow-x-auto print:overflow-visible">
             
             {/* Header */}
             <MaintenanceHeader

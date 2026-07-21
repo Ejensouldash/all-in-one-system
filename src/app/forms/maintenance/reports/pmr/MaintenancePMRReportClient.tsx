@@ -131,7 +131,7 @@ export function MaintenancePMRReportClient() {
       ) : (
         <div ref={printRef} className="print-layout landscape">
           <style>{`@page { size: A4 landscape; margin: 8mm 10mm; }`}</style>
-          <div className="print-page bg-white p-8 shadow-sm border border-gray-100 mb-8 rounded-2xl print:shadow-none print:border-none print:p-0 print:m-0 print:rounded-none">
+          <div className="print-page bg-white p-8 shadow-sm border border-gray-100 mb-8 rounded-2xl print:shadow-none print:border-none print:p-0 print:m-0 print:rounded-none overflow-x-auto print:overflow-visible">
             
             {/* Header */}
             <MaintenanceHeader
@@ -148,7 +148,7 @@ export function MaintenancePMRReportClient() {
             </div>
 
             {/* Data Table */}
-            <table className="w-full text-[9px] border-collapse border border-black text-center print-compact-table">
+            <table className="w-full text-[9px] border-collapse border border-black text-center print-compact-table min-w-[900px] print:min-w-0">
               <thead>
                 <tr className="bg-gray-200 print:bg-gray-200">
                   <th rowSpan={2} className="border border-black p-1 w-12 align-middle">DATE</th>
@@ -156,21 +156,21 @@ export function MaintenancePMRReportClient() {
                   <th colSpan={MACHINE_KEYS.length} className="border border-black p-1">MAINTENANCE ACTIVITY</th>
                   <th colSpan={2} className="border border-black p-1">VERIFICATION</th>
                 </tr>
-                <tr className="bg-gray-200 print:bg-gray-200 h-36">
+                <tr className="bg-gray-200 print:bg-gray-200 h-44">
                   {MACHINE_KEYS.map((m, i) => (
-                    <th key={i} className="border border-black p-1 font-bold align-middle w-12">
-                      <div className="mx-auto max-h-28 leading-tight" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+                    <th key={i} className="border border-black p-1 font-bold align-bottom min-w-[28px]">
+                      <div className="mx-auto whitespace-nowrap text-[8.5px] font-bold tracking-tighter leading-none" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
                         {m.label}
                       </div>
                     </th>
                   ))}
-                  <th className="border border-black p-1 font-bold align-middle w-12">
-                      <div className="mx-auto max-h-28 leading-tight" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+                  <th className="border border-black p-1 font-bold align-bottom min-w-[32px]">
+                      <div className="mx-auto whitespace-nowrap text-[8.5px] font-bold tracking-tighter leading-none" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
                         CHECKED BY
                       </div>
                   </th>
-                  <th className="border border-black p-1 font-bold align-middle w-12">
-                      <div className="mx-auto max-h-28 leading-tight" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+                  <th className="border border-black p-1 font-bold align-bottom min-w-[32px]">
+                      <div className="mx-auto whitespace-nowrap text-[8.5px] font-bold tracking-tighter leading-none" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
                         VERIFIED BY
                       </div>
                   </th>

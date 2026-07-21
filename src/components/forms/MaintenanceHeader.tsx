@@ -13,7 +13,7 @@ export function MaintenanceHeader({
   recNo,
   issueNo = "1/10/2022",
   revNo = "1",
-  effectiveDate = "15/2/2023"
+  effectiveDate = "1/7/2026"
 }: MaintenanceHeaderProps) {
   return (
     <div className="w-full bg-white mb-6 font-sans text-black">

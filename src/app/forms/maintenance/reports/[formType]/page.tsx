@@ -11,25 +11,25 @@ import { SECTION_TASKS } from "../../cleaning/CleaningForm"
 const getCleaningMetadata = (sec: string) => {
   switch (sec) {
     case "meeting-changing":
-      return { recNo: "SGMP/05/CMCA", revNo: "3", effectiveDate: "1/8/2024" }
+      return { recNo: "SGMP/05/CMCA", revNo: "3", effectiveDate: "1/7/2026" }
     case "filtration-uv":
-      return { recNo: "SGMP/05/FUVS", revNo: "3", effectiveDate: "1/8/2024" }
+      return { recNo: "SGMP/05/FUVS", revNo: "3", effectiveDate: "1/7/2026" }
     case "labelling":
-      return { recNo: "SGMP/05/CIL", revNo: "4", effectiveDate: "09/09/2025" }
+      return { recNo: "SGMP/05/CIL", revNo: "4", effectiveDate: "1/7/2026" }
     case "raw-material":
-      return { recNo: "SGMP/05/CIRMA", revNo: "0", effectiveDate: "1/8/2024" }
+      return { recNo: "SGMP/05/CIRMA", revNo: "0", effectiveDate: "1/7/2026" }
     case "packing":
-      return { recNo: "SGMP/05/CIP", revNo: "3", effectiveDate: "1/8/2024" }
+      return { recNo: "SGMP/05/CIP", revNo: "3", effectiveDate: "1/7/2026" }
     case "machine-3in1":
-      return { recNo: "SGMP/05/CIM", revNo: "3", effectiveDate: "1/8/2024" }
+      return { recNo: "SGMP/05/CIM", revNo: "3", effectiveDate: "1/7/2026" }
     case "finishing":
-      return { recNo: "SGMP/05/CIFA", revNo: "3", effectiveDate: "1/8/2024" }
+      return { recNo: "SGMP/05/CIFA", revNo: "3", effectiveDate: "1/7/2026" }
     case "blower-buffer":
-      return { recNo: "SGMP/05/CIBBA", revNo: "0", effectiveDate: "1/8/2024" }
+      return { recNo: "SGMP/05/CIBBA", revNo: "0", effectiveDate: "1/7/2026" }
     case "auto-scrambler":
-      return { recNo: "SGMP/05/CIAS", revNo: "3", effectiveDate: "1/8/2024" }
+      return { recNo: "SGMP/05/CIAS", revNo: "3", effectiveDate: "1/7/2026" }
     default:
-      return { recNo: "SGMP/05/CMCA", revNo: "3", effectiveDate: "1/8/2024" }
+      return { recNo: "SGMP/05/CMCA", revNo: "3", effectiveDate: "1/7/2026" }
   }
 }
 
@@ -80,7 +80,7 @@ export default function MaintenanceMonthlyReportPage() {
           recNo: "SGMP/02/LIR",
           issueNo: "1/10/2022",
           revNo: "2",
-          effectiveDate: "20/7/2026"
+          effectiveDate: "1/7/2026"
         }
       case "finished-goods":
         return {
@@ -88,7 +88,7 @@ export default function MaintenanceMonthlyReportPage() {
           recNo: "SGMP/21/FIR",
           issueNo: "1/10/2022",
           revNo: "2",
-          effectiveDate: "20/7/2026"
+          effectiveDate: "1/7/2026"
         }
       case "waste-management":
         return {
@@ -96,7 +96,7 @@ export default function MaintenanceMonthlyReportPage() {
           recNo: "SGMP/07/WMDR",
           issueNo: "1/10/2022",
           revNo: "3",
-          effectiveDate: "20/7/2026"
+          effectiveDate: "1/7/2026"
         }
       case "waste-disposal":
         return {
@@ -104,7 +104,7 @@ export default function MaintenanceMonthlyReportPage() {
           recNo: "SGMP/07/WDIR",
           issueNo: "1/10/2022",
           revNo: "2",
-          effectiveDate: "20/7/2026"
+          effectiveDate: "1/7/2026"
         }
       case "food-handler":
         return {
@@ -112,7 +112,7 @@ export default function MaintenanceMonthlyReportPage() {
           recNo: "SGMP/09/FHDIR",
           issueNo: "1/10/2022",
           revNo: "4",
-          effectiveDate: "20/7/2026"
+          effectiveDate: "1/7/2026"
         }
       case "chemical-control":
         return {
@@ -120,7 +120,7 @@ export default function MaintenanceMonthlyReportPage() {
           recNo: "SGMP/17/CCR",
           issueNo: "1/10/2022",
           revNo: "4",
-          effectiveDate: "20/7/2026"
+          effectiveDate: "1/7/2026"
         }
       default:
         return {
@@ -128,7 +128,7 @@ export default function MaintenanceMonthlyReportPage() {
           recNo: "SGMP/XX/MR",
           issueNo: "1/10/2022",
           revNo: "1",
-          effectiveDate: "15/2/2023"
+          effectiveDate: "1/7/2026"
         }
     }
   }

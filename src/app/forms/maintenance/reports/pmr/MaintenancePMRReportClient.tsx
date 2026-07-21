@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Printer, Calendar, FileSpreadsheet, ChevronLeft } from "lucide-react"
 import Link from "next/link"
-import Image from "next/image"
+import { MaintenanceHeader } from "@/components/forms/MaintenanceHeader"
 import { getPreventiveMaintenanceRecords } from "../../pmr/actions"
 
 function formatSignatureDate(d: string | Date | null) {
@@ -132,43 +132,23 @@ export function MaintenancePMRReportClient() {
         <div ref={printRef} className="print-layout landscape">
           <div className="print-page bg-white p-8 shadow-sm border border-gray-100 mb-8 rounded-2xl print:shadow-none print:border-none print:p-0 print:m-0 print:rounded-none">
             
-            {/* Header - Matches SGMP-03 PMR exactly */}
-            <table className="w-[800px] text-[10px] font-bold border-collapse border border-black mb-6">
-              <tbody>
-                <tr>
-                  <td rowSpan={4} className="border border-black p-4 w-1/4 text-center align-middle">
-                    <Image 
-                      src="/assets/BubblesO2_Logo.png" 
-                      alt="BubblesO2 Logo" 
-                      width={120} 
-                      height={40} 
-                      className="mx-auto" 
-                    />
-                  </td>
-                  <td colSpan={2} className="border border-black p-1 px-2 font-black">BUBBLES O2 SDN BHD</td>
-                </tr>
-                <tr>
-                  <td className="border border-black p-1 px-2">KOMPLEKS AL AMMAR<br/>KG KANCHONG<br/>71200, RANTAU<br/>NEGERI SEMBILAN</td>
-                  <td className="border border-black p-0 align-top">
-                    <table className="w-full h-full">
-                      <tbody>
-                        <tr><td className="p-1 px-2 border-b border-black w-24">Rec.No</td><td className="p-1 px-2 border-b border-l border-black">: SGMP/03/PMR</td></tr>
-                        <tr><td className="p-1 px-2 border-b border-black">Issue No</td><td className="p-1 px-2 border-b border-l border-black">: 1/10/2022</td></tr>
-                        <tr><td className="p-1 px-2 border-b border-black">Rev No</td><td className="p-1 px-2 border-b border-l border-black">: 3</td></tr>
-                        <tr><td className="p-1 px-2">Effective date</td><td className="p-1 px-2 border-l border-black">: 09/09/2025</td></tr>
-                      </tbody>
-                    </table>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            {/* Header */}
+            <MaintenanceHeader
+              title="PREVENTIVE MAINTENANCE RECORDS"
+              recNo="SGMP/03/PMR"
+              issueNo="1/10/2022"
+              revNo="3"
+              effectiveDate="1/7/2026"
+            />
+
+            <div className="flex justify-between items-center mb-4 text-xs font-bold text-black font-sans uppercase">
+              <div>MONTH: <span className="underline ml-1 px-4">{monthNames[month - 1]}</span></div>
+              <div>YEAR: <span className="underline ml-1 px-4">{year}</span></div>
+            </div>
 
             {/* Data Table */}
             <table className="w-full text-[9px] border-collapse border border-black text-center print-compact-table">
               <thead>
-                <tr className="bg-[#b4c6e7] print:bg-[#b4c6e7]">
-                  <th colSpan={MACHINE_KEYS.length + 4} className="border border-black p-2 text-xs font-black uppercase">PREVENTIVE MAINTENANCE RECORDS</th>
-                </tr>
                 <tr className="bg-gray-200 print:bg-gray-200">
                   <th rowSpan={2} className="border border-black p-1 w-12 align-middle">DATE</th>
                   <th rowSpan={2} className="border border-black p-1 w-12 align-middle">LINE</th>

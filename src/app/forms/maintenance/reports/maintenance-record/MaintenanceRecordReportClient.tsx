@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Printer, Calendar, FileSpreadsheet, ChevronLeft } from "lucide-react"
 import Link from "next/link"
-import Image from "next/image"
+import { MaintenanceHeader } from "@/components/forms/MaintenanceHeader"
 import { getMaintenanceEquipmentRecords } from "../../maintenance-record/actions"
 
 function formatSignatureDate(d: string | Date | null) {
@@ -113,48 +113,23 @@ export function MaintenanceRecordReportClient() {
           {records.map((record, index) => (
             <div key={record.id} className="print-page bg-white p-8 sm:p-12 shadow-sm border border-gray-100 mb-8 rounded-2xl print:shadow-none print:border-none print:p-0 print:m-0 print:rounded-none">
               
-              {/* Header - Matches SGMP-04 exactly */}
-              <table className="w-full text-xs font-bold border-collapse border border-black mb-6">
-                <tbody>
-                  <tr>
-                    <td rowSpan={4} className="border border-black p-4 w-1/3 text-center align-middle">
-                      <Image 
-                        src="/assets/BubblesO2_Logo.png" 
-                        alt="BubblesO2 Logo" 
-                        width={150} 
-                        height={50} 
-                        className="mx-auto" 
-                      />
-                    </td>
-                    <td colSpan={2} className="border border-black p-1 px-2 font-black">BUBBLES O2 SDN BHD</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-black p-1 px-2">KOMPLEKS AL AMMAR<br/>KG KANCHONG<br/>71200, RANTAU<br/>NEGERI SEMBILAN</td>
-                    <td className="border border-black p-0 align-top">
-                      <table className="w-full h-full">
-                        <tbody>
-                          <tr><td className="p-1 px-2 border-b border-black w-32">Rec. No</td><td className="p-1 px-2 border-b border-l border-black">: SGMP/04/MR</td></tr>
-                          <tr><td className="p-1 px-2 border-b border-black">Issue No</td><td className="p-1 px-2 border-b border-l border-black">: 1/10/2022</td></tr>
-                          <tr><td className="p-1 px-2 border-b border-black">Rev No</td><td className="p-1 px-2 border-b border-l border-black">: 3</td></tr>
-                          <tr><td className="p-1 px-2">Effective date</td><td className="p-1 px-2 border-l border-black">: 09/09/2025</td></tr>
-                        </tbody>
-                      </table>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              {/* Header */}
+              <MaintenanceHeader
+                title="MAINTENANCE RECORDS"
+                recNo="SGMP/04/MR"
+                issueNo="1/10/2022"
+                revNo="3"
+                effectiveDate="1/7/2026"
+              />
 
-              <div className="flex justify-between items-center mb-2 font-bold text-sm">
-                <div>MONTH: <span className="border-b border-black px-4">{monthNames[new Date(record.date).getMonth()].toUpperCase()}</span></div>
-                <div>DATE: <span className="border-b border-black px-4">{formatSignatureDate(record.date)}</span></div>
+              <div className="flex justify-between items-center mb-4 text-xs font-bold text-black font-sans uppercase">
+                <div>MONTH: <span className="underline ml-1 px-4">{monthNames[new Date(record.date).getMonth()]}</span></div>
+                <div>DATE: <span className="underline ml-1 px-4">{formatSignatureDate(record.date)}</span></div>
               </div>
 
               {/* Data Table */}
               <table className="w-full text-xs border-collapse border border-black text-center print-compact-table">
                 <thead>
-                  <tr className="bg-gray-200 print:bg-gray-200">
-                    <th colSpan={5} className="border border-black p-1">MAINTENANCE RECORDS</th>
-                  </tr>
                   <tr className="bg-gray-200 print:bg-gray-200">
                     <th rowSpan={2} className="border border-black p-1 w-1/4 align-middle">MAINTENANCE ACTIVITY</th>
                     <th colSpan={4} className="border border-black p-1">PRODUCTION LINE</th>

@@ -30,6 +30,15 @@ const FORM_TYPES: { value: string; label: string }[] = [
   { value: "pmir", label: "PMIR Checklist" },
   { value: "pmr", label: "PMR Checklist" },
   { value: "fbsr", label: "Filtration Backwash" },
+  { value: "mgl", label: "SGMP-12 MGL" },
+  { value: "mgb", label: "SGMP-12 MGB" },
+  { value: "mwl", label: "SGMP-13 MWL" },
+  { value: "mwb", label: "SGMP-13 MWB" },
+  { value: "mpl", label: "SGMP-13 MPL" },
+  { value: "mpb", label: "SGMP-13 MPB" },
+  { value: "lfcr", label: "SGMP-08 LFCR" },
+  { value: "ivvi", label: "SGMP-14 IVVI" },
+  { value: "vchif", label: "SGMP-14 VCHIF" },
 ]
 
 const FIELD_CONFIG: Record<string, FieldConfig[]> = {
@@ -108,6 +117,75 @@ const FIELD_CONFIG: Record<string, FieldConfig[]> = {
   ],
   "fbsr": [
     { key: "doneBy", label: "Done By", type: "text" },
+  ],
+  mgl: [
+    { key: "inspectionMonth", label: "Month", type: "text" },
+    { key: "inspectionArea", label: "Area", type: "text" },
+    { key: "conditionOfGlass", label: "Condition", type: "text" },
+    { key: "remarks", label: "Remarks", type: "text" },
+    { key: "checkedBy", label: "Checked By", type: "text" },
+  ],
+  mgb: [
+    { key: "inspectionMonth", label: "Month", type: "text" },
+    { key: "areaOfInterest", label: "Area", type: "text" },
+    { key: "causedBy", label: "Caused By", type: "text" },
+    { key: "nextCourseOfAction", label: "Action", type: "text" },
+    { key: "remarks", label: "Remarks", type: "text" },
+    { key: "checkedBy", label: "Checked By", type: "text" },
+  ],
+  mwl: [
+    { key: "inspectionMonth", label: "Month", type: "text" },
+    { key: "inspectionArea", label: "Area", type: "text" },
+    { key: "conditionOfWood", label: "Condition", type: "text" },
+    { key: "remarks", label: "Remarks", type: "text" },
+    { key: "checkedBy", label: "Checked By", type: "text" },
+  ],
+  mwb: [
+    { key: "inspectionMonth", label: "Month", type: "text" },
+    { key: "areaOfInterest", label: "Area", type: "text" },
+    { key: "causedBy", label: "Caused By", type: "text" },
+    { key: "nextCourseOfAction", label: "Action", type: "text" },
+    { key: "remarks", label: "Remarks", type: "text" },
+    { key: "checkedBy", label: "Checked By", type: "text" },
+  ],
+  mpl: [
+    { key: "inspectionMonth", label: "Month", type: "text" },
+    { key: "inspectionArea", label: "Area", type: "text" },
+    { key: "conditionOfPlastic", label: "Condition", type: "text" },
+    { key: "remarks", label: "Remarks", type: "text" },
+    { key: "checkedBy", label: "Checked By", type: "text" },
+  ],
+  mpb: [
+    { key: "inspectionMonth", label: "Month", type: "text" },
+    { key: "areaOfInterest", label: "Area", type: "text" },
+    { key: "causedBy", label: "Caused By", type: "text" },
+    { key: "nextCourseOfAction", label: "Action", type: "text" },
+    { key: "remarks", label: "Remarks", type: "text" },
+    { key: "checkedBy", label: "Checked By", type: "text" },
+  ],
+  lfcr: [
+    { key: "cleaningLocation", label: "Location", type: "text" },
+    { key: "activityPerformed", label: "Activity", type: "text" },
+    { key: "condition", label: "Condition", type: "text" },
+    { key: "nextCourseOfAction", label: "Action", type: "text" },
+    { key: "supervisedBy", label: "Supervised By", type: "text" },
+    { key: "checkedBy", label: "Checked By", type: "text" },
+  ],
+  ivvi: [
+    { key: "vehicleNo", label: "Vehicle No", type: "text" },
+    { key: "companyName", label: "Company", type: "text" },
+    { key: "purpose", label: "Purpose", type: "text" },
+    { key: "product", label: "Product", type: "text" },
+    { key: "visualInspection", label: "Visual Insp.", type: "checkbox" },
+    { key: "reason", label: "Reason", type: "text" },
+    { key: "checkedBy", label: "Checked By", type: "text" },
+  ],
+  vchif: [
+    { key: "companyName", label: "Company", type: "text" },
+    { key: "vehicleNo", label: "Vehicle No", type: "text" },
+    { key: "vehicleType", label: "Vehicle Type", type: "text" },
+    { key: "driverName", label: "Driver", type: "text" },
+    { key: "inspectorName", label: "Inspector", type: "text" },
   ]
 }
 

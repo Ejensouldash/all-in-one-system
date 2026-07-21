@@ -52,6 +52,39 @@ export async function getMaintenanceSummaryRecords(
       case "fbsr":
         data = await prisma.maintenanceFiltrationBackwash.findMany({ where, orderBy: { date: "desc" } })
         break
+      case "mgl":
+        data = await prisma.productionGlassLog.findMany({ orderBy: { createdAt: "desc" } })
+        data = data.map(d => ({ ...d, date: d.createdAt }))
+        break
+      case "mgb":
+        data = await prisma.productionGlassBreakage.findMany({ orderBy: { createdAt: "desc" } })
+        data = data.map(d => ({ ...d, date: d.createdAt }))
+        break
+      case "mwl":
+        data = await prisma.productionWoodLog.findMany({ orderBy: { createdAt: "desc" } })
+        data = data.map(d => ({ ...d, date: d.createdAt }))
+        break
+      case "mwb":
+        data = await prisma.productionWoodBreakage.findMany({ orderBy: { createdAt: "desc" } })
+        data = data.map(d => ({ ...d, date: d.createdAt }))
+        break
+      case "mpl":
+        data = await prisma.productionPlasticLog.findMany({ orderBy: { createdAt: "desc" } })
+        data = data.map(d => ({ ...d, date: d.createdAt }))
+        break
+      case "mpb":
+        data = await prisma.productionPlasticBreakage.findMany({ orderBy: { createdAt: "desc" } })
+        data = data.map(d => ({ ...d, date: d.createdAt }))
+        break
+      case "lfcr":
+        data = await prisma.productionLightingFixture.findMany({ where, orderBy: { date: "desc" } })
+        break
+      case "ivvi":
+        data = await prisma.securityIncomingVehicle.findMany({ where, orderBy: { date: "desc" } })
+        break
+      case "vchif":
+        data = await prisma.securityVehicleHygiene.findMany({ where, orderBy: { date: "desc" } })
+        break
       default:
         return { success: false, error: "Invalid form type" }
     }
@@ -99,6 +132,33 @@ export async function updateMaintenanceRecord(formType: string, id: string, data
       case "fbsr":
         await prisma.maintenanceFiltrationBackwash.update({ where: { id }, data })
         break
+      case "mgl":
+        await prisma.productionGlassLog.update({ where: { id }, data })
+        break
+      case "mgb":
+        await prisma.productionGlassBreakage.update({ where: { id }, data })
+        break
+      case "mwl":
+        await prisma.productionWoodLog.update({ where: { id }, data })
+        break
+      case "mwb":
+        await prisma.productionWoodBreakage.update({ where: { id }, data })
+        break
+      case "mpl":
+        await prisma.productionPlasticLog.update({ where: { id }, data })
+        break
+      case "mpb":
+        await prisma.productionPlasticBreakage.update({ where: { id }, data })
+        break
+      case "lfcr":
+        await prisma.productionLightingFixture.update({ where: { id }, data })
+        break
+      case "ivvi":
+        await prisma.securityIncomingVehicle.update({ where: { id }, data })
+        break
+      case "vchif":
+        await prisma.securityVehicleHygiene.update({ where: { id }, data })
+        break
       default:
         return { success: false, error: "Invalid form type" }
     }
@@ -145,6 +205,33 @@ export async function deleteMaintenanceRecord(formType: string, id: string) {
         break
       case "fbsr":
         await prisma.maintenanceFiltrationBackwash.delete({ where: { id } })
+        break
+      case "mgl":
+        await prisma.productionGlassLog.delete({ where: { id } })
+        break
+      case "mgb":
+        await prisma.productionGlassBreakage.delete({ where: { id } })
+        break
+      case "mwl":
+        await prisma.productionWoodLog.delete({ where: { id } })
+        break
+      case "mwb":
+        await prisma.productionWoodBreakage.delete({ where: { id } })
+        break
+      case "mpl":
+        await prisma.productionPlasticLog.delete({ where: { id } })
+        break
+      case "mpb":
+        await prisma.productionPlasticBreakage.delete({ where: { id } })
+        break
+      case "lfcr":
+        await prisma.productionLightingFixture.delete({ where: { id } })
+        break
+      case "ivvi":
+        await prisma.securityIncomingVehicle.delete({ where: { id } })
+        break
+      case "vchif":
+        await prisma.securityVehicleHygiene.delete({ where: { id } })
         break
       default:
         return { success: false, error: "Invalid form type" }
@@ -199,6 +286,33 @@ export async function verifyMaintenanceRecord(
         break
       case "fbsr":
         await prisma.maintenanceFiltrationBackwash.update({ where: { id }, data })
+        break
+      case "mgl":
+        await prisma.productionGlassLog.update({ where: { id }, data })
+        break
+      case "mgb":
+        await prisma.productionGlassBreakage.update({ where: { id }, data })
+        break
+      case "mwl":
+        await prisma.productionWoodLog.update({ where: { id }, data })
+        break
+      case "mwb":
+        await prisma.productionWoodBreakage.update({ where: { id }, data })
+        break
+      case "mpl":
+        await prisma.productionPlasticLog.update({ where: { id }, data })
+        break
+      case "mpb":
+        await prisma.productionPlasticBreakage.update({ where: { id }, data })
+        break
+      case "lfcr":
+        await prisma.productionLightingFixture.update({ where: { id }, data })
+        break
+      case "ivvi":
+        await prisma.securityIncomingVehicle.update({ where: { id }, data })
+        break
+      case "vchif":
+        await prisma.securityVehicleHygiene.update({ where: { id }, data })
         break
       default:
         return { success: false, error: "Invalid form type" }

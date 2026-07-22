@@ -122,6 +122,22 @@ export default function MaintenanceMonthlyReportPage() {
           revNo: "4",
           effectiveDate: "1/7/2026"
         }
+      case "pcdm":
+        return {
+          title: "PEST CONTROL DAILY MONITORING RECORDS",
+          recNo: "SGMP/06/PCDM",
+          issueNo: "1/10/2022",
+          revNo: "1",
+          effectiveDate: "1/7/2026"
+        }
+      case "ftdm":
+        return {
+          title: "FLY TRAP DAILY MONITORING RECORDS",
+          recNo: "SGMP/06/FTDM",
+          issueNo: "1/10/2022",
+          revNo: "1",
+          effectiveDate: "1/7/2026"
+        }
       default:
         return {
           title: "MAINTENANCE RECORD",
@@ -136,7 +152,7 @@ export default function MaintenanceMonthlyReportPage() {
   const meta = getFormMetadata()
 
   // Latest submitted record in range - used for the printed sign-off block
-  const performedByKey = formType === "waste-management" || formType === "waste-disposal" || formType === "food-handler" || formType === "cleaning"
+  const performedByKey = formType === "waste-management" || formType === "waste-disposal" || formType === "food-handler" || formType === "cleaning" || formType === "pcdm" || formType === "ftdm"
     ? "checkedBy"
     : formType === "chemical-control"
       ? "takenBy"
@@ -175,7 +191,7 @@ export default function MaintenanceMonthlyReportPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 print:py-0 print:bg-white print:min-h-0">
-      {formType === "cleaning" && (
+      {(formType === "cleaning" || formType === "pcdm") && (
         <style>{`@page { size: A4 landscape; margin: 8mm 10mm; }`}</style>
       )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 print:p-0 print:max-w-none">
@@ -618,6 +634,110 @@ export default function MaintenanceMonthlyReportPage() {
                             <td className="border-2 border-black p-1 uppercase">{rec.takenBy}</td>
                             <td className="border-2 border-black p-1 font-mono">{rec.timeReturn || "-"}</td>
                             <td className="border-2 border-black p-1 uppercase">{rec.returnBy || "-"}</td>
+                            <td className="border-2 border-black p-1 uppercase">{rec.verifiedBy || "-"}</td>
+                          </tr>
+                        ))
+                      })}
+                    </tbody>
+                  </>
+                )}
+
+                {/* 8. PEST CONTROL DAILY MONITORING */}
+                {formType === "pcdm" && (
+                  <>
+                    <thead>
+                      <tr className="bg-gray-100 font-bold text-center border-b-2 border-black">
+                        <th className="border-2 border-black p-1 w-[6%] align-middle" rowSpan={2}>DATE</th>
+                        <th className="border-2 border-black p-1" colSpan={14}>PEST CONTROL STATIONS</th>
+                        <th className="border-2 border-black p-1 w-[8%] align-middle" rowSpan={2}>CHECKED BY</th>
+                        <th className="border-2 border-black p-1 w-[8%] align-middle" rowSpan={2}>VERIFIED BY</th>
+                      </tr>
+                      <tr className="bg-gray-100 font-bold text-center border-b-2 border-black">
+                        {Array.from({ length: 14 }, (_, i) => (
+                          <th key={i} className="border-2 border-black p-0.5">S{i + 1}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {daysArray.map((day) => {
+                        const dayRecords = reportData.filter(r => new Date(r.date).getDate() === day)
+
+                        if (dayRecords.length === 0) {
+                          return (
+                            <tr key={day} className="text-center h-6">
+                              <td className="border-2 border-black p-1 font-bold">{getDayLabel(day)}</td>
+                              {Array.from({ length: 14 }, (_, i) => (
+                                <td key={i} className="border-2 border-black p-1"></td>
+                              ))}
+                              <td className="border-2 border-black p-1"></td>
+                              <td className="border-2 border-black p-1"></td>
+                            </tr>
+                          )
+                        }
+
+                        return dayRecords.map((rec, idx) => (
+                          <tr key={`${day}-${idx}`} className="text-center">
+                            {idx === 0 && (
+                              <td className="border-2 border-black p-1 font-bold align-middle" rowSpan={dayRecords.length}>{getDayLabel(day)}</td>
+                            )}
+                            {Array.from({ length: 14 }, (_, i) => (
+                              <td key={i} className="border-2 border-black p-1 font-bold text-[12px] text-lime-800">
+                                {rec[`station${i + 1}`] ? "✓" : "✗"}
+                              </td>
+                            ))}
+                            <td className="border-2 border-black p-1 uppercase">{rec.checkedBy}</td>
+                            <td className="border-2 border-black p-1 uppercase">{rec.verifiedBy || "-"}</td>
+                          </tr>
+                        ))
+                      })}
+                    </tbody>
+                  </>
+                )}
+
+                {/* 9. FLY TRAP DAILY MONITORING */}
+                {formType === "ftdm" && (
+                  <>
+                    <thead>
+                      <tr className="bg-gray-100 font-bold text-center border-b-2 border-black">
+                        <th className="border-2 border-black p-1 w-[10%] align-middle" rowSpan={2}>DATE</th>
+                        <th className="border-2 border-black p-1" colSpan={4}>FLY TRAP STATIONS</th>
+                        <th className="border-2 border-black p-1 w-[15%] align-middle" rowSpan={2}>CHECKED BY</th>
+                        <th className="border-2 border-black p-1 w-[15%] align-middle" rowSpan={2}>VERIFIED BY</th>
+                      </tr>
+                      <tr className="bg-gray-100 font-bold text-center border-b-2 border-black">
+                        {Array.from({ length: 4 }, (_, i) => (
+                          <th key={i} className="border-2 border-black p-1">Station {i + 1}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {daysArray.map((day) => {
+                        const dayRecords = reportData.filter(r => new Date(r.date).getDate() === day)
+
+                        if (dayRecords.length === 0) {
+                          return (
+                            <tr key={day} className="text-center h-6">
+                              <td className="border-2 border-black p-1 font-bold">{getDayLabel(day)}</td>
+                              {Array.from({ length: 4 }, (_, i) => (
+                                <td key={i} className="border-2 border-black p-1"></td>
+                              ))}
+                              <td className="border-2 border-black p-1"></td>
+                              <td className="border-2 border-black p-1"></td>
+                            </tr>
+                          )
+                        }
+
+                        return dayRecords.map((rec, idx) => (
+                          <tr key={`${day}-${idx}`} className="text-center">
+                            {idx === 0 && (
+                              <td className="border-2 border-black p-1 font-bold align-middle" rowSpan={dayRecords.length}>{getDayLabel(day)}</td>
+                            )}
+                            {Array.from({ length: 4 }, (_, i) => (
+                              <td key={i} className="border-2 border-black p-1 font-bold text-[12px] text-amber-800">
+                                {rec[`station${i + 1}`] ? "✓" : "✗"}
+                              </td>
+                            ))}
+                            <td className="border-2 border-black p-1 uppercase">{rec.checkedBy}</td>
                             <td className="border-2 border-black p-1 uppercase">{rec.verifiedBy || "-"}</td>
                           </tr>
                         ))

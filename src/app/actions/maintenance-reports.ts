@@ -59,6 +59,18 @@ export async function getMonthlyMaintenanceReport(formType: string, month: numbe
           orderBy: { date: "asc" }
         })
         break
+      case "pcdm":
+        data = await prisma.maintenancePestControlDaily.findMany({
+          where: dateQuery,
+          orderBy: { date: "asc" }
+        })
+        break
+      case "ftdm":
+        data = await prisma.maintenanceFlyTrapDaily.findMany({
+          where: dateQuery,
+          orderBy: { date: "asc" }
+        })
+        break
       default:
         return { success: false, error: "Invalid form type" }
     }

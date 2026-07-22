@@ -41,6 +41,9 @@ const FORM_TYPES: { value: string; label: string }[] = [
   { value: "vchif", label: "SGMP-14 VCHIF" },
   { value: "dqip", label: "SGMP-18 DQIP" },
   { value: "qcdr", label: "SGMP-18 QCDR" },
+  { value: "pcs", label: "SGMP-06 PCS" },
+  { value: "pcdm", label: "SGMP-06 PCDM" },
+  { value: "ftdm", label: "SGMP-06 FTDM" },
 ]
 
 const FIELD_CONFIG: Record<string, FieldConfig[]> = {
@@ -194,6 +197,19 @@ const FIELD_CONFIG: Record<string, FieldConfig[]> = {
   ],
   qcdr: [
     { key: "checkedBy", label: "Prepared By", type: "text" },
+  ],
+  pcs: [
+    { key: "companyName", label: "Company", type: "text" },
+    { key: "servicedBy", label: "Serviced By", type: "text" },
+    { key: "remark", label: "Remark", type: "text" },
+  ],
+  pcdm: [
+    ...Array.from({ length: 14 }, (_, i) => ({ key: `station${i + 1}`, label: `Station ${i + 1}`, type: "checkbox" as FieldType })),
+    { key: "checkedBy", label: "Checked By", type: "text" },
+  ],
+  ftdm: [
+    ...Array.from({ length: 4 }, (_, i) => ({ key: `station${i + 1}`, label: `Station ${i + 1}`, type: "checkbox" as FieldType })),
+    { key: "checkedBy", label: "Checked By", type: "text" },
   ]
 }
 

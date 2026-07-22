@@ -91,6 +91,15 @@ export async function getMaintenanceSummaryRecords(
       case "qcdr":
         data = await prisma.maintenanceQCDR.findMany({ where, orderBy: { date: "desc" } })
         break
+      case "pcs":
+        data = await prisma.maintenancePestControlSchedule.findMany({ where, orderBy: { date: "desc" } })
+        break
+      case "pcdm":
+        data = await prisma.maintenancePestControlDaily.findMany({ where, orderBy: { date: "desc" } })
+        break
+      case "ftdm":
+        data = await prisma.maintenanceFlyTrapDaily.findMany({ where, orderBy: { date: "desc" } })
+        break
       default:
         return { success: false, error: "Invalid form type" }
     }
@@ -171,6 +180,15 @@ export async function updateMaintenanceRecord(formType: string, id: string, data
       case "qcdr":
         await prisma.maintenanceQCDR.update({ where: { id }, data })
         break
+      case "pcs":
+        await prisma.maintenancePestControlSchedule.update({ where: { id }, data })
+        break
+      case "pcdm":
+        await prisma.maintenancePestControlDaily.update({ where: { id }, data })
+        break
+      case "ftdm":
+        await prisma.maintenanceFlyTrapDaily.update({ where: { id }, data })
+        break
       default:
         return { success: false, error: "Invalid form type" }
     }
@@ -250,6 +268,15 @@ export async function deleteMaintenanceRecord(formType: string, id: string) {
         break
       case "qcdr":
         await prisma.maintenanceQCDR.delete({ where: { id } })
+        break
+      case "pcs":
+        await prisma.maintenancePestControlSchedule.delete({ where: { id } })
+        break
+      case "pcdm":
+        await prisma.maintenancePestControlDaily.delete({ where: { id } })
+        break
+      case "ftdm":
+        await prisma.maintenanceFlyTrapDaily.delete({ where: { id } })
         break
       default:
         return { success: false, error: "Invalid form type" }
@@ -337,6 +364,15 @@ export async function verifyMaintenanceRecord(
         break
       case "qcdr":
         await prisma.maintenanceQCDR.update({ where: { id }, data })
+        break
+      case "pcs":
+        await prisma.maintenancePestControlSchedule.update({ where: { id }, data })
+        break
+      case "pcdm":
+        await prisma.maintenancePestControlDaily.update({ where: { id }, data })
+        break
+      case "ftdm":
+        await prisma.maintenanceFlyTrapDaily.update({ where: { id }, data })
         break
       default:
         return { success: false, error: "Invalid form type" }

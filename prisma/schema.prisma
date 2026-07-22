@@ -1083,3 +1083,56 @@ model MaintenanceQCDR {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
+
+model MaintenancePestControlSchedule {
+  id                 String   @id @default(uuid())
+  date               DateTime // Date of Service
+  companyName        String
+  servicedBy         String
+  verifiedBy         String?
+  remark             String?
+  performedSignature String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model MaintenancePestControlDaily {
+  id                 String   @id @default(uuid())
+  date               DateTime
+  station1  Boolean @default(false)
+  station2  Boolean @default(false)
+  station3  Boolean @default(false)
+  station4  Boolean @default(false)
+  station5  Boolean @default(false)
+  station6  Boolean @default(false)
+  station7  Boolean @default(false)
+  station8  Boolean @default(false)
+  station9  Boolean @default(false)
+  station10 Boolean @default(false)
+  station11 Boolean @default(false)
+  station12 Boolean @default(false)
+  station13 Boolean @default(false)
+  station14 Boolean @default(false)
+  checkedBy          String
+  performedSignature String?
+  verifiedBy         String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model MaintenanceFlyTrapDaily {
+  id                 String   @id @default(uuid())
+  date               DateTime
+  station1 Boolean @default(false)
+  station2 Boolean @default(false)
+  station3 Boolean @default(false)
+  station4 Boolean @default(false)
+  checkedBy          String
+  performedSignature String?
+  verifiedBy         String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}

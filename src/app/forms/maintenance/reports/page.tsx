@@ -1,7 +1,7 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, ClipboardList, FileSpreadsheet, Brush, ClipboardCheck } from "lucide-react"
+import { Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, ClipboardList, FileSpreadsheet, Brush, ClipboardCheck, Bug } from "lucide-react"
 import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
 
 import { prisma } from "@/lib/prisma"
@@ -91,6 +91,30 @@ export default async function MaintenanceReportsDashboard() {
       href: "/forms/maintenance/reports/food-handler",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-orange-400"
+    },
+    {
+      title: "Pest Control Schedule Reports",
+      description: "View and print 3rd-party pest control service visit history.",
+      icon: <Bug className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/pcs",
+      gradient: "from-slate-900 via-slate-800 to-zinc-900",
+      accent: "bg-lime-400"
+    },
+    {
+      title: "Pest Control Daily Monitoring Reports",
+      description: "View and print daily bait station monitoring records.",
+      icon: <Bug className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/pcdm",
+      gradient: "from-slate-900 via-slate-800 to-zinc-900",
+      accent: "bg-lime-400"
+    },
+    {
+      title: "Fly Trap Daily Monitoring Reports",
+      description: "View and print daily fly trap station monitoring records.",
+      icon: <Bug className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/ftdm",
+      gradient: "from-slate-900 via-slate-800 to-zinc-900",
+      accent: "bg-amber-400"
     },
     {
       title: "Cleaning Inspection Reports",

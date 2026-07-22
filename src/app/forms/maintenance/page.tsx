@@ -58,6 +58,30 @@ export default async function MaintenanceDashboard() {
       href: "/forms/maintenance/qcdr",
       gradient: "from-emerald-900 via-emerald-800 to-teal-900",
       accent: "bg-emerald-400"
+    },
+    {
+      title: "Pest Control Schedule",
+      description: "SGMP-06: Log 3rd-party pest control service visits.",
+      icon: <Bug className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/pcs",
+      gradient: "from-lime-900 via-lime-800 to-green-900",
+      accent: "bg-lime-400"
+    },
+    {
+      title: "Pest Control Daily Monitoring",
+      description: "SGMP-06: Daily checklist for 14 bait station pest activity.",
+      icon: <Bug className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/pcdm",
+      gradient: "from-lime-900 via-lime-800 to-green-900",
+      accent: "bg-lime-400"
+    },
+    {
+      title: "Fly Trap Daily Monitoring",
+      description: "SGMP-06: Daily checklist for 4 fly trap station pest activity.",
+      icon: <Bug className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/ftdm",
+      gradient: "from-amber-900 via-amber-800 to-orange-900",
+      accent: "bg-amber-400"
     }
   ]
 
@@ -93,30 +117,6 @@ export default async function MaintenanceDashboard() {
       href: "/forms/maintenance/cleaning",
       gradient: "from-slate-900 via-slate-800 to-slate-900",
       accent: "bg-slate-400"
-    },
-    {
-      title: "Pest Control Schedule",
-      description: "SGMP-06: Log 3rd-party pest control service visits.",
-      icon: <Bug className="h-6 w-6 mr-3" />,
-      href: "/forms/maintenance/pcs",
-      gradient: "from-lime-900 via-lime-800 to-green-900",
-      accent: "bg-lime-400"
-    },
-    {
-      title: "Pest Control Daily Monitoring",
-      description: "SGMP-06: Daily checklist for 14 bait station pest activity.",
-      icon: <Bug className="h-6 w-6 mr-3" />,
-      href: "/forms/maintenance/pcdm",
-      gradient: "from-lime-900 via-lime-800 to-green-900",
-      accent: "bg-lime-400"
-    },
-    {
-      title: "Fly Trap Daily Monitoring",
-      description: "SGMP-06: Daily checklist for 4 fly trap station pest activity.",
-      icon: <Bug className="h-6 w-6 mr-3" />,
-      href: "/forms/maintenance/ftdm",
-      gradient: "from-amber-900 via-amber-800 to-orange-900",
-      accent: "bg-amber-400"
     },
     {
       title: "SGMP-08 LFCR",

@@ -52,31 +52,85 @@ export function CreateDOForm({ availableInventory, userId }: { availableInventor
   const watchItems = watch("items")
 
   const handleScan = (decodedText: string) => {
-    const batchNumber = decodedText.trim()
-    const batchData = availableInventory.find((b: any) => b.batchNumber === batchNumber)
-    
-    if (!batchData) {
-      alert(`Batch ${batchNumber} not found in active inventory!`)
+    let scannedBatch = ""
+    let scannedSku = ""
+
+    const text = decodedText.trim()
+
+    // 1. Try parsing JSON format: {"batch":"...","sku":"..."}
+    if (text.startsWith("{") && text.endsWith("}")) {
+      try {
+        const parsed = JSON.parse(text)
+        if (parsed.batch) scannedBatch = String(parsed.batch).trim()
+        if (parsed.sku) scannedSku = String(parsed.sku).trim()
+      } catch (e) {}
+    }
+
+    // 2. Try parsing URL parameters if text is a URL or query string
+    if (!scannedBatch && (text.includes("batch=") || text.includes("?"))) {
+      try {
+        const dummyUrl = text.startsWith("http") ? text : `http://localhost/${text.startsWith("?") ? text : "?" + text}`
+        const urlObj = new URL(dummyUrl)
+        const bParam = urlObj.searchParams.get("batch")
+        const sParam = urlObj.searchParams.get("sku")
+        if (bParam) scannedBatch = bParam.trim()
+        if (sParam) scannedSku = sParam.trim()
+      } catch (e) {}
+    }
+
+    // 3. Fallback: plain text scan
+    if (!scannedBatch) {
+      scannedBatch = text
+    }
+
+    if (!scannedBatch) {
+      alert("Unable to read batch number from scanned QR code.")
+      setIsScannerOpen(false)
       return
     }
+
+    // Find candidate matches in availableInventory
+    let matchingBatches = availableInventory.filter(
+      (b: any) => b.batchNumber.trim().toUpperCase() === scannedBatch.toUpperCase()
+    )
+
+    // If scannedSku is provided in the QR code, prioritize exact SKU match
+    if (scannedSku && matchingBatches.length > 0) {
+      const exactSkuMatches = matchingBatches.filter(
+        (b: any) => b.sku.trim().toLowerCase() === scannedSku.toLowerCase()
+      )
+      if (exactSkuMatches.length > 0) {
+        matchingBatches = exactSkuMatches
+      }
+    }
+
+    if (matchingBatches.length === 0) {
+      alert(`Batch ${scannedBatch} not found in active inventory!`)
+      setIsScannerOpen(false)
+      return
+    }
+
+    // Pick the target batch data
+    const batchData = matchingBatches[0]
 
     const skuIndex = SKU_CONFIG.findIndex(s => s.id === batchData.sku)
     if (skuIndex === -1) {
       alert(`SKU ${batchData.sku} is not configured in this form.`)
+      setIsScannerOpen(false)
       return
     }
 
     const currentBatches = getValues(`items.${skuIndex}.batches`) || []
     
-    if (currentBatches.some((b: any) => b.batchNumber === batchNumber)) {
-      alert(`Batch ${batchNumber} is already added to the list!`)
+    if (currentBatches.some((b: any) => b.batchNumber.toUpperCase() === batchData.batchNumber.toUpperCase())) {
+      alert(`Batch ${batchData.batchNumber} (${SKU_CONFIG[skuIndex].label}) is already added to the list!`)
       setIsScannerOpen(false)
       return
     }
 
-    fieldArrays[skuIndex].append({ batchNumber: batchNumber, qtySent: "" })
+    fieldArrays[skuIndex].append({ batchNumber: batchData.batchNumber, qtySent: "" })
     
-    alert(`Batch ${batchNumber} added successfully! Please enter quantity.`)
+    alert(`Batch ${batchData.batchNumber} added under ${SKU_CONFIG[skuIndex].label}! Please enter quantity.`)
     setIsScannerOpen(false)
   }
 

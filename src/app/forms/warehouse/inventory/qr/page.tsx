@@ -24,8 +24,8 @@ function QRTagContent() {
     )
   }
 
-  // The QR value can just be the batch number to make scanning easy
-  const qrValue = batch;
+  // Encode JSON payload with batch and sku for precise scanning
+  const qrValue = JSON.stringify({ batch, sku });
 
   return (
     <div className="flex flex-col items-center w-full">

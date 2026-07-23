@@ -1,10 +1,11 @@
 "use client"
 
 import { useForm, useFieldArray } from "react-hook-form"
-import { Plus, Trash2, Save, ArrowLeft, Truck, Loader2 } from "lucide-react"
+import { Plus, Trash2, Save, ArrowLeft, Truck, Loader2, QrCode, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 import { createTransferIn } from "@/app/actions/transferIn"
 import { useState } from "react"
+import { QRScannerModal } from "@/components/forms/QRScannerModal"
 
 const MULTIPLIERS = {
   BOTTLE_800: [225],
@@ -22,6 +23,7 @@ const MULTIPLIERS = {
 
 export function TransferInForm({ userName, initialData }: { userName: string, initialData?: any }) {
   const isEditing = !!initialData;
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const { register, control, handleSubmit, watch, setValue } = useForm({
     defaultValues: initialData ? {
       ...initialData,
@@ -46,6 +48,89 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
   const { fields, append, remove } = useFieldArray({ control, name: "items" })
   const watchItems = watch("items")
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleQRScan = (decodedText: string) => {
+    let scannedBatch = ""
+    let scannedSku = ""
+    let scannedBags = 0
+    let scannedQty = 0
+
+    const text = decodedText.trim()
+
+    // 1. Try parsing JSON: {"batch":"...","sku":"...","qty":225,"bags":1}
+    if (text.startsWith("{") && text.endsWith("}")) {
+      try {
+        const parsed = JSON.parse(text)
+        if (parsed.batch) scannedBatch = String(parsed.batch).trim().toUpperCase()
+        if (parsed.sku) scannedSku = String(parsed.sku).trim()
+        if (parsed.qty) scannedQty = Number(parsed.qty) || 0
+        if (parsed.bags) scannedBags = Number(parsed.bags) || 1
+      } catch (e) {}
+    }
+
+    // 2. Try parsing URL parameters
+    if (!scannedBatch && (text.includes("batch=") || text.includes("?"))) {
+      try {
+        const dummyUrl = text.startsWith("http") ? text : `http://localhost/${text.startsWith("?") ? text : "?" + text}`
+        const urlObj = new URL(dummyUrl)
+        const bParam = urlObj.searchParams.get("batch")
+        const sParam = urlObj.searchParams.get("sku")
+        if (bParam) scannedBatch = bParam.trim().toUpperCase()
+        if (sParam) scannedSku = sParam.trim()
+      } catch (e) {}
+    }
+
+    // 3. Fallback: plain text
+    if (!scannedBatch) {
+      scannedBatch = text.toUpperCase()
+    }
+
+    if (!scannedBatch) {
+      alert("Tak dapat membaca Nombor Batch daripada QR Code ini.")
+      setIsScannerOpen(false)
+      return
+    }
+
+    // DUPLICATE SCAN LOCK
+    const isDuplicate = watchItems.some((item: any) => (item.batchNo || "").trim().toUpperCase() === scannedBatch)
+    if (isDuplicate) {
+      alert(`⚠️ DUPLICATE DETECTED: Batch ${scannedBatch} sudah dimasukkan ke dalam senarai borang ini!`)
+      setIsScannerOpen(false)
+      return
+    }
+
+    // Determine target category & multiplier
+    let targetCategory = "BOTTLE 800ml"
+    if (scannedSku) {
+      const upperSku = scannedSku.toUpperCase()
+      if (upperSku.includes("425")) targetCategory = "BOTTLE 425ml"
+      else if (upperSku.includes("800")) targetCategory = "BOTTLE 800ml"
+      else if (upperSku.includes("CAP") && !upperSku.includes("CARTON")) targetCategory = "CAP"
+      else if (upperSku.includes("BOX")) targetCategory = "BOX 800x20"
+      else if (upperSku.includes("LABEL")) targetCategory = "LABEL"
+      else targetCategory = scannedSku
+    }
+
+    let targetMult = MULTIPLIERS.BOTTLE_800[0]
+    if (targetCategory === "BOTTLE 425ml") targetMult = MULTIPLIERS.BOTTLE_425[0]
+    if (targetCategory.includes("BOX")) targetMult = MULTIPLIERS.BOX[0]
+    if (targetCategory === "CAP") targetMult = 4000
+
+    const finalBags = scannedBags > 0 ? scannedBags : (scannedQty > 0 ? Math.ceil(scannedQty / targetMult) : 1)
+
+    // Append new item row with QR Scanned indicator
+    append({
+      category: targetCategory,
+      batchNo: scannedBatch,
+      bags: finalBags,
+      mult: targetMult,
+      weight: 0,
+      isQrScanned: true
+    })
+
+    alert(`✅ Batch ${scannedBatch} (${targetCategory}) berjaya dimasukkan menerusi imbasan QR!`)
+    setIsScannerOpen(false)
+  }
   
   const isBoxDO = watchItems.some((item: any) => (item.category || "").includes("BOX"))
 
@@ -361,7 +446,14 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
                     </div>
 
                     <div className="w-full md:w-[25%]" id={`item-${index}-batchNo`}>
-                      <label className="block md:hidden text-[10px] font-black uppercase text-gray-500 mb-1.5">Batch No</label>
+                      <div className="flex justify-between items-center mb-1.5">
+                        <label className="block md:hidden text-[10px] font-black uppercase text-gray-500">Batch No</label>
+                        {watchItems[index]?.isQrScanned && (
+                          <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-1.5 py-0.5 rounded border border-emerald-300 inline-flex items-center">
+                            <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" /> QR Scanned
+                          </span>
+                        )}
+                      </div>
                       <input 
                         type="text" 
                         placeholder={cat.includes("BOTTLE") ? "xxxxxx-xx" : "Batch No"}
@@ -438,9 +530,13 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
             </div>
           </div>
           
-          <div className="bg-gray-50 p-3 border-t border-gray-300">
+          <div className="bg-gray-50 p-3 border-t border-gray-300 flex flex-wrap gap-3">
             <button type="button" onClick={() => append({ category: "BOTTLE 800ml", batchNo: "", bags: 0, mult: 225, weight: 0 })} className="text-xs font-black uppercase tracking-wider flex items-center text-black border-2 border-black px-4 py-2 bg-white hover:bg-black hover:text-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px]">
               <Plus className="h-4 w-4 mr-2" /> Add Item Row
+            </button>
+
+            <button type="button" onClick={() => setIsScannerOpen(true)} className="text-xs font-black uppercase tracking-wider flex items-center text-black border-2 border-black px-4 py-2 bg-yellow-400 hover:bg-yellow-500 transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px]">
+              <QrCode className="h-4 w-4 mr-2" /> 📷 Scan QR Item
             </button>
           </div>
         </div>
@@ -453,6 +549,13 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
         </div>
 
       </form>
+
+      {/* QR Scanner Modal */}
+      <QRScannerModal 
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScan={handleQRScan}
+      />
     </div>
   )
 }

@@ -47,21 +47,37 @@ export default async function ProductionDashboard() {
         <FormsTabs role={access.isSuperAdmin ? "SUPERADMIN" : access.role} />
 
         {/* Module CTAs */}
-        <div className={`grid grid-cols-1 ${hasHandoverAccess ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-8 mb-12`}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
           
-          <div className="bg-gradient-to-br from-amber-900 via-amber-800 to-orange-900 rounded-2xl p-6 sm:p-10 text-white shadow-xl relative overflow-hidden flex flex-col justify-between border border-amber-700/50 hover:-translate-y-1 transition-transform">
-            <div className="relative z-10 mb-8">
-              <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-amber-500/30 border border-amber-400/30 text-amber-100 text-xs font-bold uppercase tracking-widest mb-6 shadow-sm">
+          <div className="bg-gradient-to-br from-yellow-900 via-amber-800 to-yellow-900 rounded-2xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden flex flex-col justify-between border border-yellow-700/50 hover:-translate-y-1 transition-transform">
+            <div className="relative z-10 mb-6">
+              <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-yellow-500/30 border border-yellow-400/30 text-yellow-100 text-xs font-bold uppercase tracking-widest mb-4 shadow-sm">
+                <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 mr-2 animate-pulse"></span>
+                Kilang Pedas Origin
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-2">Pedas Batch QR</h2>
+              <p className="text-yellow-200 text-sm font-medium">
+                Register Kilang Pedas batches and print QR stickers for thermal printers.
+              </p>
+            </div>
+            <Link href="/forms/production/origin-batch" className="group flex items-center justify-center w-full bg-yellow-400 text-black px-6 py-3.5 rounded-xl font-black text-base hover:bg-yellow-300 transition-colors shadow-lg uppercase tracking-wider">
+              <PackagePlus className="h-5 w-5 mr-2" /> Generate Batch QR
+            </Link>
+          </div>
+
+          <div className="bg-gradient-to-br from-amber-900 via-amber-800 to-orange-900 rounded-2xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden flex flex-col justify-between border border-amber-700/50 hover:-translate-y-1 transition-transform">
+            <div className="relative z-10 mb-6">
+              <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-amber-500/30 border border-amber-400/30 text-amber-100 text-xs font-bold uppercase tracking-widest mb-4 shadow-sm">
                 <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 mr-2 animate-pulse"></span>
                 Raw Materials
               </div>
-              <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-3">Transfer In Forms</h2>
-              <p className="text-amber-200 text-base font-medium max-w-md">
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-2">Transfer In Forms</h2>
+              <p className="text-amber-200 text-sm font-medium">
                 Log real-time Delivery Orders (DO) for raw materials as they arrive from suppliers.
               </p>
             </div>
-            <Link href="/forms/production/transfer-in" className="group flex items-center justify-center w-full bg-white text-amber-900 px-8 py-4 rounded-xl font-black text-lg hover:bg-amber-50 transition-colors shadow-lg uppercase tracking-wider">
-              <PackagePlus className="h-6 w-6 mr-3" /> Log Incoming Stock
+            <Link href="/forms/production/transfer-in" className="group flex items-center justify-center w-full bg-white text-amber-900 px-6 py-3.5 rounded-xl font-black text-base hover:bg-amber-50 transition-colors shadow-lg uppercase tracking-wider">
+              <PackagePlus className="h-5 w-5 mr-2" /> Log Incoming Stock
             </Link>
           </div>
 

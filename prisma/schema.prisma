@@ -1136,3 +1136,16 @@ model MaintenanceFlyTrapDaily {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
+
+model PedasBatch {
+  id          String   @id @default(uuid())
+  sku         String
+  batchNo     String   @unique
+  qtyPerBag   Int      @default(0)
+  totalBags   Int      @default(1)
+  totalQty    Int      @default(0)
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+

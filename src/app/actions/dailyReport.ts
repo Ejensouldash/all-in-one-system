@@ -191,23 +191,30 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       include: { transferIn: true }
     })
     
-    // 2. Fetch ALL Usages, Holds, Reuses, and Storeroom ever (Globally) up to the target date
+    // 2. Fetch ALL Usages, Holds, Reuses, Storeroom, and TransferIn ever (Globally) up to the target date
     const allLogs = await prisma.inventoryLog.findMany({
       where: { 
-        type: { in: ["Usage", "Hold", "Reuse", "Storeroom"] },
+        type: { in: ["Usage", "Hold", "Reuse", "Storeroom", "TransferIn"] },
         report: { date: { lte: targetDate } }
       },
       include: { report: true }
     })
 
-    // Helper: extract the calendar date (YYYY-MM-DD) from a stored Date.
-    // By adding 8 hours (Malaysia Time, GMT+8), we ensure that whether the date 
-    // was saved as Midnight UTC (from YYYY-MM-DD string) or local Malaysia time
-    // (from a datepicker), it will correctly resolve to the intended local calendar date.
+    // Helper: extract calendar date (YYYY-MM-DD)
     const toMalaysiaDateStr = (d: Date) => {
       const offsetDate = new Date(new Date(d).getTime() + 8 * 60 * 60 * 1000)
       return offsetDate.toISOString().split('T')[0]
     }
+
+    // Set of DO item identifiers already claimed by an existing report
+    const claimedDOs = new Set<string>()
+    allLogs.forEach(log => {
+      if (log.type === "TransferIn" && log.labelType) {
+        if (!excludeReportId || log.reportId !== excludeReportId) {
+          claimedDOs.add(`${log.batchNo}|${log.labelType}`)
+        }
+      }
+    })
 
     // Helper: was this Transfer In item RECEIVED TODAY (on the report date) and does it match the shift?
     const isReceivedToday = (item: any) => {
@@ -231,12 +238,6 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       return true
     }
 
-    // Accumulate, per batch key (category|batchNo|mult):
-    //  - totalBalance: ALL transfer-in up to target date, minus Usage/Hold (excluding the current report), plus Reuse
-    //  - todayItems:   the individual transfer-in items RECEIVED TODAY (shift matched)
-    // NOTE: Today's Transfer In is tracked separately so it can ALWAYS be shown under
-    //       "Transfer In (Received Today)" — even when the same Batch No already had
-    //       carry-forward stock from a previous day.
     const batchInfo: Record<string, {
       totalBalance: number,
       todayItems: any[],
@@ -265,7 +266,8 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
           batchInfo[key].doNumber += `, ${item.transferIn.doNumber}`
         }
       }
-      if (isReceivedToday(item)) {
+      // Only offer under "Transfer In Received Today" if it is received today AND not claimed by another report yet
+      if (isReceivedToday(item) && !claimedDOs.has(`${item.batchNo}|${item.transferIn.doNumber}`)) {
         batchInfo[key].todayItems.push(item)
       }
     })
@@ -306,12 +308,13 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
 
       sortedTps.forEach(tp => {
         const ev = eventsByTp[tp]
-        // Manual storeroom entry acts as the absolute balance override BEFORE adding same-day transfer ins
+        // Manual storeroom entry acts as the absolute balance override for that shift
         if (ev.storeroom !== null) {
           runningBalance = ev.storeroom
+        } else {
+          runningBalance += ev.transferIns
+          runningBalance -= ev.usage
         }
-        runningBalance += ev.transferIns
-        runningBalance -= ev.usage
       })
 
       info.totalBalance = runningBalance
@@ -323,27 +326,19 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
     Object.keys(batchInfo).forEach(batchKey => {
       const info = batchInfo[batchKey]
 
-      // Today's Transfer In (raw quantity received today for this batch)
+      // Unclaimed Transfer In received today
       const todayInRaw = info.todayItems.reduce((sum, it) => sum + it.bags, 0)
 
-      // FORMULA: Total Available = Carry Forward (previous day) + Today's Transfer In
-      //  => Carry Forward (Storeroom) = Total Available - Today's Transfer In
-      // (Total Available already excludes the current report's own usage via excludeReportId.)
       let carryForward = info.totalBalance - todayInRaw
 
-      // Always list today's received Transfer In separately (each DO item keeps its own id),
-      // regardless of whether this batch also carries previous-day stock.
       info.todayItems.forEach(it => {
         if (it.bags > 0) {
           todayDOs.push({ batchNo: it.batchNo, bags: it.bags, mult: it.mult, category: it.category, doNumber: it.transferIn.doNumber, transferInId: it.transferIn.id, id: it.id })
         }
       })
 
-      // Safety clamp: if today's Transfer In was already consumed within the same day by
-      // other reports, carryForward could turn negative — clamp to 0.
       if (carryForward < 0) carryForward = 0
 
-      // Show the remaining previous-day balance under the Storeroom (Carry Forward) section.
       if (carryForward > 0) {
         storeroomBatches.push({ batchNo: info.batchNo, bags: carryForward, mult: info.mult, category: info.category, doNumber: info.doNumber, labelType: "Standard", transferInId: info.transferInId })
       }

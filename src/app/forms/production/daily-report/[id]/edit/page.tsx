@@ -14,7 +14,8 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
       productions: { include: { batches: true } },
       rejects: true,
       breakdowns: true,
-      inventory: true
+      inventory: true,
+      holds: true
     }
   })
 
@@ -68,13 +69,13 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
     }),
 
     inventory: {
-      BOTTLE: { sources: [], usages: [] },
-      LABEL: { sources: [], usages: [] },
-      CAP: { sources: [], usages: [] },
-      BOX_p800_12: { sources: [], usages: [] },
-      BOX_p800_20: { sources: [], usages: [] },
-      BOX_p425_24: { sources: [], usages: [] },
-      BOX_p425_6: { sources: [], usages: [] },
+      BOTTLE: { sources: [], usages: [], holds: [] },
+      LABEL: { sources: [], usages: [], holds: [] },
+      CAP: { sources: [], usages: [], holds: [] },
+      BOX_p800_12: { sources: [], usages: [], holds: [] },
+      BOX_p800_20: { sources: [], usages: [], holds: [] },
+      BOX_p425_24: { sources: [], usages: [], holds: [] },
+      BOX_p425_6: { sources: [], usages: [], holds: [] },
     }
   }
 
@@ -156,6 +157,18 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
       } else if (i.type === "Usage") {
         initialData.inventory[i.sectionKey].usages.push(entry)
       }
+    }
+  })
+
+  // Populate Holds (Quarantine/On Hold) from the dedicated ProductionHoldItem relation
+  report.holds.forEach(h => {
+    if (initialData.inventory[h.sectionKey] && h.batchNo && h.batchNo.trim() !== "") {
+      initialData.inventory[h.sectionKey].holds.push({
+        batchNo: `${h.batchNo}|${h.mult}`,
+        qty: h.qty,
+        mult: h.mult,
+        reason: h.reason || ""
+      })
     }
   })
 

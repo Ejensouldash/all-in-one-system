@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ClipboardList, LayoutDashboard, Database, History, FileSpreadsheet, AlertTriangle } from "lucide-react"
+import { ClipboardList, LayoutDashboard, Database, History, FileSpreadsheet, AlertTriangle, QrCode } from "lucide-react"
 
 export function FormsTabs({ role, hasDatabaseAccess }: { role: string, hasDatabaseAccess?: boolean }) {
   const pathname = usePathname()
@@ -11,7 +11,8 @@ export function FormsTabs({ role, hasDatabaseAccess }: { role: string, hasDataba
   const isHome = pathname === "/forms/production" || 
                  (pathname.startsWith("/forms/production/") && 
                   !pathname.startsWith("/forms/production/stock") &&
-                  !pathname.startsWith("/forms/production/hold-items"))
+                  !pathname.startsWith("/forms/production/hold-items") &&
+                  !pathname.startsWith("/forms/production/origin-batch"))
 
   return (
     <div className="mb-8 border-b border-gray-200 overflow-x-auto">
@@ -40,6 +41,18 @@ export function FormsTabs({ role, hasDatabaseAccess }: { role: string, hasDataba
           Production Stock
         </Link>
         
+        <Link 
+          href="/forms/production/origin-batch"
+          className={`flex items-center pb-4 text-sm font-black uppercase tracking-wider border-b-4 transition-colors ${
+            pathname.startsWith("/forms/production/origin-batch")
+              ? "border-yellow-500 text-yellow-700" 
+              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+          }`}
+        >
+          <QrCode className="w-5 h-5 mr-2" />
+          Pedas Batch QR
+        </Link>
+
         <Link 
           href="/forms/dashboard"
           className={`flex items-center pb-4 text-sm font-black uppercase tracking-wider border-b-4 transition-colors ${

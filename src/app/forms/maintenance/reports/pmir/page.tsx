@@ -1,25 +1,18 @@
-import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { MaintenancePMIRReportClient } from "./MaintenancePMIRReportClient"
-import { prisma } from "@/lib/prisma"
+import { getAccessInfo } from "@/lib/access"
 
 export const metadata = {
   title: "Preventive Maintenance Inspection Reports",
 }
 
 export default async function PMIRReportsPage() {
-  const session = await auth()
-  if (!session) redirect("/login?callbackUrl=/forms/maintenance/reports")
+  const access = await getAccessInfo()
+  if (!access) redirect("/login?callbackUrl=/forms/maintenance/reports")
 
-  const dbUser = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true, modules: true }
-  })
-  const role = dbUser?.role || session.user.role
-  const userModules = dbUser?.modules || []
-  const isSuperAdmin = role === "SUPERADMIN"
+  const isSuperAdmin = access.role === "SUPERADMIN"
 
-  if (!isSuperAdmin && !userModules.includes("MAINTENANCE_REPORTS")) {
+  if (!isSuperAdmin && !access.modules.includes("MAINTENANCE_REPORTS")) {
     redirect("/dashboard")
   }
 

@@ -1,10 +1,9 @@
-import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { 
-  Package, 
-  AlertTriangle, 
+import {
+  Package,
+  AlertTriangle,
   DollarSign,
   Plus,
   QrCode,
@@ -13,65 +12,83 @@ import {
   ExternalLink,
   Printer
 } from "lucide-react"
-import { DashboardCharts } from "./DashboardCharts"
+import dynamic from "next/dynamic"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
 
+const DashboardCharts = dynamic(() =>
+  import("./DashboardCharts").then(mod => mod.DashboardCharts)
+)
+
 export default async function AssetsDashboard() {
-  const session = await auth()
-  if (!session) redirect("/login")
-
+  // getAccessInfo() returns null whenever there's no session, so this one
+  // check covers both "not logged in" and "no access record".
   const access = await getAccessInfo()
-  if (!access || !hasAnyModule(access, ["ASSETS"])) redirect("/dashboard")
+  if (!access) redirect("/login")
+  if (!hasAnyModule(access, ["ASSETS"])) redirect("/dashboard")
 
-  // 1. Fetch KPI Stats
-  const totalAssets = await prisma.asset.count()
-  const availableAssets = await prisma.asset.count({ where: { status: "AVAILABLE" } })
-  const assignedAssets = await prisma.asset.count({ where: { status: "ASSIGNED" } })
-  const maintenanceAssets = await prisma.asset.count({ where: { status: "MAINTENANCE" } })
-  
   // Calculate Total Maintenance Cost YTD
   const currentYear = new Date().getFullYear()
   const startOfYear = new Date(currentYear, 0, 1)
-  
-  const ytdLogs = await prisma.maintenanceLog.findMany({
-    where: { date: { gte: startOfYear } }
-  })
+
+  // All of these reads are independent of each other, so run them in
+  // parallel instead of one-by-one, and use DB-side aggregation instead of
+  // pulling every asset row down just to sum/count in JS.
+  const [
+    statusCounts,
+    valueAgg,
+    deptValueGroups,
+    departments,
+    ytdLogs,
+    recentAssignments,
+    recentMaintenance,
+    alertAssets
+  ] = await Promise.all([
+    prisma.asset.groupBy({ by: ['status'], _count: { _all: true } }),
+    prisma.asset.aggregate({ _sum: { price: true } }),
+    prisma.asset.groupBy({ by: ['departmentId'], _sum: { price: true } }),
+    prisma.department.findMany(),
+    prisma.maintenanceLog.findMany({ where: { date: { gte: startOfYear } } }),
+    prisma.assetAssignment.findMany({
+      take: 3,
+      orderBy: { checkoutDate: 'desc' },
+      include: { asset: true, user: true }
+    }),
+    prisma.maintenanceLog.findMany({
+      take: 3,
+      orderBy: { date: 'desc' },
+      include: { asset: true }
+    }),
+    prisma.asset.findMany({
+      where: {
+        OR: [
+          { status: "MAINTENANCE" },
+          { type: "VEHICLE" },
+          { type: "SAFETY" }
+        ]
+      },
+      take: 5
+    })
+  ])
+
+  const totalAssets = statusCounts.reduce((sum, s) => sum + s._count._all, 0)
+  const availableAssets = statusCounts.find(s => s.status === "AVAILABLE")?._count._all || 0
+  const assignedAssets = statusCounts.find(s => s.status === "ASSIGNED")?._count._all || 0
+  const maintenanceAssets = statusCounts.find(s => s.status === "MAINTENANCE")?._count._all || 0
+
   const totalMaintenanceCost = ytdLogs.reduce((acc, log) => acc + (log.cost || 0), 0)
-  
+
   // Asset Value by Department
-  const assetsWithDepts = await prisma.asset.findMany({
-    include: { department: true }
-  })
-  
-  const deptValues: Record<string, number> = {}
-  let totalValue = 0
-  
-  assetsWithDepts.forEach(asset => {
-    if (asset.price) {
-      totalValue += asset.price
-      const deptName = asset.department?.name || "Unassigned"
-      deptValues[deptName] = (deptValues[deptName] || 0) + asset.price
-    }
-  })
-  
-  const chartData = Object.entries(deptValues).map(([name, value]) => ({
-    name,
-    value
-  })).sort((a, b) => b.value - a.value)
-  
+  const totalValue = valueAgg._sum.price || 0
+  const deptNameById = new Map(departments.map(d => [d.id, d.name]))
+  const chartData = deptValueGroups
+    .filter(g => g._sum.price)
+    .map(g => ({
+      name: (g.departmentId && deptNameById.get(g.departmentId)) || "Unassigned",
+      value: g._sum.price || 0
+    }))
+    .sort((a, b) => b.value - a.value)
+
   // Recent Activities (Assignments & Logs)
-  const recentAssignments = await prisma.assetAssignment.findMany({
-    take: 3,
-    orderBy: { checkoutDate: 'desc' },
-    include: { asset: true, user: true }
-  })
-  
-  const recentMaintenance = await prisma.maintenanceLog.findMany({
-    take: 3,
-    orderBy: { date: 'desc' },
-    include: { asset: true }
-  })
-  
   const activities = [
     ...recentAssignments.map(a => ({
       id: `assign-${a.id}`,
@@ -88,19 +105,6 @@ export default async function AssetsDashboard() {
       date: m.date
     }))
   ].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 5)
-
-  // Maintenance & Expiry Alerts (Vehicles & Safety Equipment usually have expiries)
-  // We'll simulate alerts by pulling assets in MAINTENANCE or those that are VEHICLE/SAFETY
-  const alertAssets = await prisma.asset.findMany({
-    where: { 
-      OR: [
-        { status: "MAINTENANCE" },
-        { type: "VEHICLE" },
-        { type: "SAFETY" }
-      ]
-    },
-    take: 5
-  })
   
   // Helper to format currency
   const formatCurrency = (val: number) => `RM ${val.toLocaleString('en-MY', { minimumFractionDigits: 2 })}`

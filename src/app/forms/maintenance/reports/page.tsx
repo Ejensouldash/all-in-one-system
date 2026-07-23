@@ -1,26 +1,19 @@
-import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, ClipboardList, FileSpreadsheet, Brush, ClipboardCheck, Bug } from "lucide-react"
 import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
 
-import { prisma } from "@/lib/prisma"
+import { getAccessInfo } from "@/lib/access"
 
 export const metadata = {
   title: "Maintenance Reports",
 }
 
 export default async function MaintenanceReportsDashboard() {
-  const session = await auth()
-  if (!session) redirect("/login?callbackUrl=/forms/maintenance/reports")
+  const access = await getAccessInfo()
+  if (!access) redirect("/login?callbackUrl=/forms/maintenance/reports")
 
-  const dbUser = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true, modules: true }
-  })
-
-  const role = dbUser?.role || (session.user as any).trueRole || session.user.role
-  const userModules = dbUser?.modules || []
+  const { role, modules: userModules } = access
   const isSuperAdmin = role === "SUPERADMIN"
 
   if (!isSuperAdmin && !userModules.includes("MAINTENANCE_REPORTS")) {

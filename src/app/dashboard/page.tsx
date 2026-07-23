@@ -1,15 +1,20 @@
-import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { Ticket, Users, AlertCircle, CheckCircle2, CalendarDays, ExternalLink, FileText } from "lucide-react"
 import Link from "next/link"
 import { DashboardTicketButton } from "./DashboardTicketButton"
-import { AnalyticsCharts } from "@/components/dashboard/AnalyticsCharts"
+import dynamic from "next/dynamic"
 import { getDashboardStats } from "@/lib/cache/dashboard"
-import { getAccessInfo } from "@/lib/access"
+import { getAccessInfo, getSession } from "@/lib/access"
+
+const AnalyticsCharts = dynamic(() =>
+  import("@/components/dashboard/AnalyticsCharts").then(mod => mod.AnalyticsCharts)
+)
 
 export default async function DashboardPage() {
-  const session = await auth()
+  // getSession()/getAccessInfo() are both cached per-request, so calling
+  // both here doesn't cost a second auth()/DB round-trip.
+  const session = await getSession()
   if (!session) return null
 
   const access = await getAccessInfo()

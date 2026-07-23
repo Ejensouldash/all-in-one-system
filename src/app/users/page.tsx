@@ -23,19 +23,19 @@ export default async function UsersPage(props: { searchParams?: Promise<{ query?
     ]
   } : {}
 
-  const totalUsers = await prisma.user.count({ where: searchWhere as any })
+  const [totalUsers, users, branches, units] = await Promise.all([
+    prisma.user.count({ where: searchWhere as any }),
+    prisma.user.findMany({
+      where: searchWhere as any,
+      include: { branch: true, unit: true },
+      orderBy: { createdAt: 'desc' },
+      take: ITEMS_PER_PAGE,
+      skip: (currentPage - 1) * ITEMS_PER_PAGE
+    }),
+    prisma.branch.findMany({ orderBy: { name: 'asc' } }),
+    prisma.unit.findMany({ orderBy: { name: 'asc' } })
+  ])
   const totalPages = Math.ceil(totalUsers / ITEMS_PER_PAGE)
-
-  const users = await prisma.user.findMany({
-    where: searchWhere as any,
-    include: { branch: true, unit: true },
-    orderBy: { createdAt: 'desc' },
-    take: ITEMS_PER_PAGE,
-    skip: (currentPage - 1) * ITEMS_PER_PAGE
-  })
-
-  const branches = await prisma.branch.findMany({ orderBy: { name: 'asc' } })
-  const units = await prisma.unit.findMany({ orderBy: { name: 'asc' } })
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">

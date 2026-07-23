@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { QRCodeSVG } from "qrcode.react"
 import { QrCode, X, Printer } from "lucide-react"
 
@@ -62,7 +63,7 @@ export function MaintenanceFormsGrid({ forms }: { forms: MaintenanceForm[] }) {
               <X className="w-5 h-5" />
             </button>
 
-            <img src="/assets/BubblesO2_Logo.png" alt="BubblesO2" className="h-10 object-contain mb-4" />
+            <Image src="/assets/BubblesO2_Logo.png" alt="BubblesO2" width={3508} height={921} className="h-10 w-auto object-contain mb-4" />
 
             <h2 className="text-lg font-black uppercase tracking-tight mb-1 text-center">{qrForm.title}</h2>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 text-center">Scan to Fill</p>

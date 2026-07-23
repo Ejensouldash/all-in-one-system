@@ -1,27 +1,20 @@
-import { auth } from "@/auth"
 import { redirect } from "next/navigation"
-import { prisma } from "@/lib/prisma"
 import { Wrench } from "lucide-react"
 import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
 import { MaintenanceSummaryClient } from "./MaintenanceSummaryClient"
 import { getMaintenanceSummaryRecords } from "@/app/actions/maintenance-summary"
+import { getAccessInfo } from "@/lib/access"
 
 export const metadata = {
   title: "Maintenance Summary",
 }
 
 export default async function MaintenanceSummaryPage() {
-  const session = await auth()
-  if (!session) redirect("/login?callbackUrl=/forms/maintenance/summary")
+  const access = await getAccessInfo()
+  if (!access) redirect("/login?callbackUrl=/forms/maintenance/summary")
 
-  const dbUser = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true, modules: true, name: true }
-  })
-
-  const role = dbUser?.role || (session.user as any).trueRole || session.user.role
-  const userModules = dbUser?.modules || []
-  const userName = dbUser?.name || session.user.name || "Supervisor"
+  const { role, modules: userModules, name } = access
+  const userName = name || "Supervisor"
   const isSuperAdmin = role === "SUPERADMIN"
 
   if (!isSuperAdmin && !userModules.includes("MAINTENANCE_SUMMARY")) {

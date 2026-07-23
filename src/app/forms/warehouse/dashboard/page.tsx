@@ -10,16 +10,17 @@ export default async function WarehouseDashboard() {
   if (!session) redirect("/login")
   const user = session.user as any
 
-  const pendingHandovers = await prisma.productionHandover.findMany({
-    where: { status: "PENDING" },
-    orderBy: { createdAt: 'asc' },
-    include: { dailyReport: true, items: true, productionStaff: true }
-  })
-
-  const inventoryBatches = await prisma.inventoryBatch.findMany({
-    where: { availableBalance: { gt: 0 } },
-    orderBy: { batchNumber: 'asc' }
-  })
+  const [pendingHandovers, inventoryBatches] = await Promise.all([
+    prisma.productionHandover.findMany({
+      where: { status: "PENDING" },
+      orderBy: { createdAt: 'asc' },
+      include: { dailyReport: true, items: true, productionStaff: true }
+    }),
+    prisma.inventoryBatch.findMany({
+      where: { availableBalance: { gt: 0 } },
+      orderBy: { batchNumber: 'asc' }
+    })
+  ])
 
   return (
     <div className="space-y-12">

@@ -1,33 +1,29 @@
-import { auth } from "@/auth"
 import { Sidebar } from "./Sidebar"
 import { Topbar } from "./Topbar"
-import { Chatbot } from "../chat/Chatbot"
+import { Chatbot } from "../chat/ChatbotLoader"
 import { FloatingTicketModal } from "../tickets/FloatingTicketModal"
 import { NoticeBanner } from "./NoticeBanner"
 import { MobileLayoutWrapper } from "./MobileLayoutWrapper"
 import { getActiveNotices } from "@/app/actions/notice"
-import { prisma } from "@/lib/prisma"
+import { getSession, getAccessInfo } from "@/lib/access"
 
 export async function MainLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth()
+  const session = await getSession()
 
   if (!session) {
     return <>{children}</>
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { unitId: true, modules: true, role: true }
-  })
-  const activeNotices = await getActiveNotices(user?.unitId)
-  
+  const access = await getAccessInfo()
+  const activeNotices = await getActiveNotices(access?.unitId)
+
   const isViewOnly = session.user.email === "viewonly@bubbleso2.com"
 
   const freshUser = {
     ...session.user,
-    modules: user?.modules || [],
-    role: user?.role || session.user.role,
-    trueRole: user?.role || (session.user as any).trueRole
+    modules: access?.modules || [],
+    role: access?.role || session.user.role,
+    trueRole: access?.role || (session.user as any).trueRole
   }
 
   return (

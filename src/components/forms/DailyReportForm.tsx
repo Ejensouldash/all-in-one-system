@@ -996,23 +996,13 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
          pcs = net > 0 ? Math.round(net / 0.002125) : 0;
        } else if (w > 0 && b === 0) {
          pcs = Math.round(w / 0.002125);
-       } else if (b > 0 && w === 0) {
-         pcs = b * 4000;
        }
-       
+        
        const mult = batchSummaries[usage.batchNo].mult || 4000;
        const bagQty = pcs > 0 ? (pcs / mult) : 0;
-       if (usage.period === 'After') {
-         batchSummaries[usage.batchNo].usedBags -= bagQty;
-       } else {
-         batchSummaries[usage.batchNo].usedBags += bagQty;
-       }
+       batchSummaries[usage.batchNo].usedBags += bagQty;
     } else {
-       if (usage.period === 'After') {
-         batchSummaries[usage.batchNo].usedBags -= rawUsage;
-       } else {
-         batchSummaries[usage.batchNo].usedBags += rawUsage;
-       }
+       batchSummaries[usage.batchNo].usedBags += rawUsage;
     }
   })
 

@@ -66,7 +66,12 @@ export async function createDailyReport(data: any) {
               after: Number(data.rejectsReturn[k].after) || 0,
               type: "RETURN"
             }))
-          ].filter(r => r.before > 0 || r.after > 0)
+          ].filter(r => {
+            if (r.before <= 0 && r.after <= 0) return false;
+            if (data.line?.includes('800') && (r.item.includes('425') || r.item.includes('P425'))) return false;
+            if (data.line?.includes('425') && (r.item.includes('800') || r.item.includes('P800'))) return false;
+            return true;
+          })
         },
 
         // Breakdowns
@@ -524,7 +529,12 @@ export async function updateDailyReport(id: string, data: any) {
                 after: Number(data.rejectsReturn[k].after) || 0,
                 type: "RETURN"
               }))
-            ].filter(r => r.before > 0 || r.after > 0)
+            ].filter(r => {
+              if (r.before <= 0 && r.after <= 0) return false;
+              if (data.line?.includes('800') && (r.item.includes('425') || r.item.includes('P425'))) return false;
+              if (data.line?.includes('425') && (r.item.includes('800') || r.item.includes('P800'))) return false;
+              return true;
+            })
           },
 
           breakdowns: {

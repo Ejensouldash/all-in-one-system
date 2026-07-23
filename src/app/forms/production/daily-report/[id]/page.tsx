@@ -295,7 +295,15 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                         </tr>
                       </thead>
                       <tbody>
-                        {report.rejects.filter((r: any) => r.type === "SCRAP" || !r.type).map((rej: any) => (
+                        {report.rejects.filter((r: any) => {
+                          if (r.type && r.type !== "SCRAP") return false;
+                          const is800 = (report.line || "").includes("800");
+                          const is425 = (report.line || "").includes("425");
+                          const item = (r.item || "").toUpperCase();
+                          if (is800 && (item.includes("425") || item.includes("P425"))) return false;
+                          if (is425 && (item.includes("800") || item.includes("P800"))) return false;
+                          return true;
+                        }).map((rej: any) => (
                           <tr key={rej.id} className="border-b-2 print:border-b border-black print:border-black font-bold last:border-0 last:print:border-0">
                             <td className="p-2 print:py-0.5 print:px-2 border-r-2 print:border-r border-black print:border-black uppercase">{rej.item.startsWith('BOX_P') ? `BOX (${rej.item.replace('BOX_P800_', '800 ML X ').replace('BOX_P425_', '425 ML X ')})` : rej.item}</td>
                             <td className="p-2 print:py-0.5 print:px-2 text-center border-r-2 print:border-r border-black print:border-black text-gray-600 print:text-black">{rej.before}</td>

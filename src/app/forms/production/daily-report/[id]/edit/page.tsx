@@ -34,6 +34,7 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
     verifiedBy: report.verifiedBy || "",
     remarks: report.remarks || "",
     totalManpower: report.totalManpower ? report.totalManpower.toString() : "",
+    maxTotalManpower: report.maxTotalManpower ? report.maxTotalManpower.toString() : "",
     timeFrom: report.time ? report.time.split(" - ")[0] : "",
     timeTo: report.time ? report.time.split(" - ")[1] : "",
     reportTime: report.reportTime || "",

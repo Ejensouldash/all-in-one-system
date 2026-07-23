@@ -225,7 +225,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                 </div>
                 <div className="bg-gray-50 print:bg-transparent border border-gray-300 print:border-black p-3 print:py-1 print:px-2">
                   <p className="text-[10px] print:text-[8pt] font-black uppercase text-gray-500 print:text-black mb-0.5 print:mb-0">Total Manpower</p>
-                  <p className="font-bold text-sm print:text-[10pt]">{report.totalManpower ? `${report.totalManpower} / 10` : "-"}</p>
+                  <p className="font-bold text-sm print:text-[10pt]">{report.totalManpower ? `${report.totalManpower} / ${report.maxTotalManpower || 10}` : "-"}</p>
                 </div>
                 <div className="bg-gray-50 print:bg-transparent border border-gray-300 print:border-black p-3 print:py-1 print:px-2">
                   <p className="text-[10px] print:text-[8pt] font-black uppercase text-gray-500 print:text-black mb-0.5 print:mb-0">Prepared By</p>

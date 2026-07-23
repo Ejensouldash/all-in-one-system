@@ -259,62 +259,34 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
     }
   }
 
-  const onSubmit = async (data: any) => {
-    if (!data.date) return showErrorAndScroll('field-date', 'Please fill in the Production Date.')
-    if (!data.timeFrom || !data.timeTo) return showErrorAndScroll('field-time', 'Please fill in both Production Time (From and To).')
-    if (!data.reportTime) return showErrorAndScroll('field-reportTime', 'Please fill in the Report Time.')
-    if (!data.preparedBy) return showErrorAndScroll('field-preparedBy', 'Please fill in the Prepared By name.')
+  const prepareReportPayload = (data: any, isDraft = false) => {
+    const formattedData = JSON.parse(JSON.stringify(data));
+    formattedData.time = `${data.timeFrom || ""} - ${data.timeTo || ""}`;
+    formattedData.syncedDOs = syncedDOs;
+    if (isDraft) formattedData.isDraft = true;
 
-    // Validate Production
-    const config = PRODUCTION_CONFIG[data.line as keyof typeof PRODUCTION_CONFIG] || []
-    for (const prod of config) {
-      const prodData = data.production[prod.id]
-      if (prodData?.checked) {
-        if (!prodData.qty || Number(prodData.qty) <= 0) {
-          return showErrorAndScroll(`field-production-${prod.id}`, `Please enter Total Produced (Box) for ${prod.label}.`)
-        }
-        const sum = prodData.batches.reduce((acc: number, b: any) => acc + (Number(b.qty) || 0), 0)
-        if (sum !== Number(prodData.qty)) {
-          return showErrorAndScroll(`field-production-${prod.id}`, `Distributed batches (${sum}) must match Total Produced (${prodData.qty}) for ${prod.label}.`)
-        }
-      }
+    if (formattedData.noRejects) {
+      formattedData.rejectsScrap = { cap: {before:0,after:0}, bottle: {before:0,after:0}, label: {before:0,after:0}, box: {before:0,after:0} };
+      formattedData.rejectsReturn = { cap: {before:0,after:0}, bottle: {before:0,after:0}, label: {before:0,after:0}, box: {before:0,after:0} };
     }
 
-    // Validate Reject Tracking
-    const totalRejects = Object.values(data.rejectsScrap).reduce((sum: number, curr: any) => sum + Number(curr.before) + Number(curr.after), 0) + Object.values(data.rejectsReturn).reduce((sum: number, curr: any) => sum + Number(curr.before) + Number(curr.after), 0)
-    if (!data.noRejects && totalRejects === 0) {
-      return showErrorAndScroll('section-rejects', "Please fill in the box for reject product (Wajib isi). Jika tiada barang reject, sila tick checkbox 'Tiada Barang Reject'.")
-    }
-
-    if (!data.preparedSignature) {
-      return showErrorAndScroll('section-signature', 'Please provide a Digital Signature before submitting.')
-    }
-
-    if (data.noRejects) {
-      data.rejectsScrap = { cap: {before:0,after:0}, bottle: {before:0,after:0}, label: {before:0,after:0}, box: {before:0,after:0} }; data.rejectsReturn = { cap: {before:0,after:0}, bottle: {before:0,after:0}, label: {before:0,after:0}, box: {before:0,after:0} }
-    }
-
-    setIsSubmitting(true)
-    
-    // Process Usage Rejects, Batch Number Splits, and CAP weights
-    const formattedData = { ...data, time: `${data.timeFrom} - ${data.timeTo}`, syncedDOs };
     Object.keys(formattedData.inventory || {}).forEach(sectionKey => {
       let lowerItem = sectionKey === "CAP" ? "cap" : sectionKey === "BOTTLE" ? "bottle" : sectionKey === "LABEL" ? "label" : "box";
       if (sectionKey.startsWith("BOX_")) lowerItem = sectionKey.toLowerCase();
       
       if (formattedData.inventory[sectionKey].usages) {
         formattedData.inventory[sectionKey].usages = formattedData.inventory[sectionKey].usages.map((u: any) => {
-          // Add usage rejects to global rejects (we add to 'after' by default for usage rejects)
           if (u.hasReject && Number(u.rejectQty) > 0) {
             const qty = Number(u.rejectQty);
             if (u.rejectType === 'Scrap') {
-               formattedData.rejectsScrap[lowerItem].after = (Number(formattedData.rejectsScrap[lowerItem].after) || 0) + qty;
+              if (!formattedData.rejectsScrap[lowerItem]) formattedData.rejectsScrap[lowerItem] = { before: 0, after: 0 };
+              formattedData.rejectsScrap[lowerItem].after = (Number(formattedData.rejectsScrap[lowerItem].after) || 0) + qty;
             } else if (u.rejectType === 'Return') {
-               formattedData.rejectsReturn[lowerItem].after = (Number(formattedData.rejectsReturn[lowerItem].after) || 0) + qty;
+              if (!formattedData.rejectsReturn[lowerItem]) formattedData.rejectsReturn[lowerItem] = { before: 0, after: 0 };
+              formattedData.rejectsReturn[lowerItem].after = (Number(formattedData.rejectsReturn[lowerItem].after) || 0) + qty;
             }
           }
           
-          // Split batchNo and mult
           let pureBatchNo = u.batchNo;
           let pureMult = Number(u.mult) || 1;
           if (typeof u.batchNo === 'string' && u.batchNo.includes('|')) {
@@ -323,7 +295,6 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             pureMult = Number(parts[1]);
           }
 
-          // Format CAP usages correctly based on weight
           if (sectionKey === "CAP") {
             const w = Number(u.weight) || 0;
             const b = Number(u.boxes) || 0;
@@ -338,7 +309,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
               pcs = b * 4000;
             }
             
-            return { ...u, bags: pcs > 0 ? (pcs / 4000) : 0, batchNo: pureBatchNo, mult: 4000 };
+            return { ...u, bags: pcs > 0 ? (pcs / 4000) : (Number(u.bags) || 0), batchNo: pureBatchNo, mult: 4000 };
           }
           
           return { ...u, batchNo: pureBatchNo, mult: pureMult };
@@ -372,6 +343,44 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       }
     });
 
+    return formattedData;
+  }
+
+  const onSubmit = async (data: any) => {
+    if (isSubmitting) return
+    if (!data.date) return showErrorAndScroll('field-date', 'Please fill in the Production Date.')
+    if (!data.timeFrom || !data.timeTo) return showErrorAndScroll('field-time', 'Please fill in both Production Time (From and To).')
+    if (!data.reportTime) return showErrorAndScroll('field-reportTime', 'Please fill in the Report Time.')
+    if (!data.preparedBy) return showErrorAndScroll('field-preparedBy', 'Please fill in the Prepared By name.')
+
+    // Validate Production
+    const config = PRODUCTION_CONFIG[data.line as keyof typeof PRODUCTION_CONFIG] || []
+    for (const prod of config) {
+      const prodData = data.production[prod.id]
+      if (prodData?.checked) {
+        if (!prodData.qty || Number(prodData.qty) <= 0) {
+          return showErrorAndScroll(`field-production-${prod.id}`, `Please enter Total Produced (Box) for ${prod.label}.`)
+        }
+        const sum = prodData.batches.reduce((acc: number, b: any) => acc + (Number(b.qty) || 0), 0)
+        if (sum !== Number(prodData.qty)) {
+          return showErrorAndScroll(`field-production-${prod.id}`, `Distributed batches (${sum}) must match Total Produced (${prodData.qty}) for ${prod.label}.`)
+        }
+      }
+    }
+
+    // Validate Reject Tracking
+    const totalRejects = Object.values(data.rejectsScrap).reduce((sum: number, curr: any) => sum + Number(curr.before) + Number(curr.after), 0) + Object.values(data.rejectsReturn).reduce((sum: number, curr: any) => sum + Number(curr.before) + Number(curr.after), 0)
+    if (!data.noRejects && totalRejects === 0) {
+      return showErrorAndScroll('section-rejects', "Please fill in the box for reject product (Wajib isi). Jika tiada barang reject, sila tick checkbox 'Tiada Barang Reject'.")
+    }
+
+    if (!data.preparedSignature) {
+      return showErrorAndScroll('section-signature', 'Please provide a Digital Signature before submitting.')
+    }
+
+    setIsSubmitting(true)
+    const formattedData = prepareReportPayload(data, false);
+
     const result = reportId ? await updateDailyReport(reportId, formattedData) : await createDailyReport(formattedData)
     setIsSubmitting(false)
 
@@ -391,39 +400,9 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
     if (!data.line) return showErrorAndScroll("Please select a Line.", "line")
 
     setIsSubmitting(true)
-    data.time = `${data.timeFrom || ""} - ${data.timeTo || ""}`
-    data.isDraft = true
-    data.syncedDOs = syncedDOs;
+    const formattedData = prepareReportPayload(data, true);
 
-    // Normalize batch numbers
-    Object.keys(data.inventory || {}).forEach(sectionKey => {
-      if (data.inventory[sectionKey].usages) {
-        data.inventory[sectionKey].usages = data.inventory[sectionKey].usages.map((u: any) => {
-          let pureBatchNo = u.batchNo;
-          let pureMult = Number(u.mult) || 1;
-          if (typeof u.batchNo === 'string' && u.batchNo.includes('|')) {
-            const parts = u.batchNo.split('|');
-            pureBatchNo = parts[0];
-            pureMult = Number(parts[1]);
-          }
-          return { ...u, batchNo: pureBatchNo, mult: pureMult };
-        });
-      }
-      if (data.inventory[sectionKey].sources) {
-        data.inventory[sectionKey].sources = data.inventory[sectionKey].sources.map((s: any) => {
-          let pureBatchNo = s.batchNo;
-          let pureMult = Number(s.mult) || 1;
-          if (typeof s.batchNo === 'string' && s.batchNo.includes('|')) {
-            const parts = s.batchNo.split('|');
-            pureBatchNo = parts[0];
-            pureMult = Number(parts[1]);
-          }
-          return { ...s, batchNo: pureBatchNo, mult: pureMult };
-        });
-      }
-    });
-
-    const result = reportId ? await updateDailyReport(reportId, data) : await createDailyReport(data)
+    const result = reportId ? await updateDailyReport(reportId, formattedData) : await createDailyReport(formattedData)
     setIsSubmitting(false)
 
     if (result.success) {
@@ -1022,10 +1001,18 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
        }
        
        const mult = batchSummaries[usage.batchNo].mult || 4000;
-       // Convert pcs to equivalent 'bags' (boxes) to subtract from inventory
-       batchSummaries[usage.batchNo].usedBags += pcs > 0 ? (pcs / mult) : 0;
+       const bagQty = pcs > 0 ? (pcs / mult) : 0;
+       if (usage.period === 'After') {
+         batchSummaries[usage.batchNo].usedBags -= bagQty;
+       } else {
+         batchSummaries[usage.batchNo].usedBags += bagQty;
+       }
     } else {
-       batchSummaries[usage.batchNo].usedBags += rawUsage;
+       if (usage.period === 'After') {
+         batchSummaries[usage.batchNo].usedBags -= rawUsage;
+       } else {
+         batchSummaries[usage.batchNo].usedBags += rawUsage;
+       }
     }
   })
 

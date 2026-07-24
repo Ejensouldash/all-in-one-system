@@ -164,7 +164,8 @@ export async function createDailyReport(data: any) {
     })
 
     revalidatePath("/forms")
-    revalidatePath("/forms/daily-report")
+    revalidatePath("/forms/production")
+    revalidatePath("/forms/production/daily-report")
 
     // Log the action
     await logUserAction(
@@ -487,6 +488,7 @@ export async function updateDailyReport(id: string, data: any) {
         where: { id },
         data: {
           status: data.isDraft ? "DRAFT" : "PENDING",
+          date: new Date(data.date),
           time: data.time,
           reportTime: data.reportTime,
           shift: data.shift,
@@ -629,6 +631,8 @@ export async function updateDailyReport(id: string, data: any) {
     ])
 
     revalidatePath("/forms")
+    revalidatePath("/forms/production")
+    revalidatePath("/forms/production/daily-report")
     revalidatePath(`/forms/production/daily-report/${id}`)
 
     await logUserAction(

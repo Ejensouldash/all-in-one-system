@@ -211,12 +211,15 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       return offsetDate.toISOString().split('T')[0]
     }
 
-    // Set of DO item identifiers already claimed by an existing report
+    // Set of DO item identifiers already claimed by an existing submitted/approved report
     const claimedDOs = new Set<string>()
     allLogs.forEach(log => {
       if (log.type === "TransferIn" && log.labelType) {
         if (!excludeReportId || log.reportId !== excludeReportId) {
-          claimedDOs.add(`${log.batchNo}|${log.labelType}`)
+          // Draft reports should not lock Transfer In DOs globally for other reports
+          if (log.report && log.report.status !== "DRAFT") {
+            claimedDOs.add(`${log.batchNo}|${log.labelType}`)
+          }
         }
       }
     })

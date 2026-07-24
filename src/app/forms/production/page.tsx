@@ -134,7 +134,7 @@ export default async function ProductionDashboard() {
                   {reports.map((report) => (
                     <tr key={report.id} className="hover:bg-indigo-50/30 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                        {new Date(report.date).toLocaleDateString('en-GB')}
+                        {new Date(report.date).toLocaleDateString('en-GB', { timeZone: 'Asia/Kuala_Lumpur' })}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-600">
                         {report.time || '-'}

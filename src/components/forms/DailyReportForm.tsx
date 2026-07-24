@@ -111,6 +111,10 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
         try {
           const parsed = JSON.parse(draft)
           if (parsed && typeof parsed === 'object') {
+            const todayStr = new Date().toISOString().split('T')[0]
+            if (parsed.date && parsed.date !== todayStr) {
+              parsed.date = todayStr
+            }
             reset(parsed)
             if (parsed.syncedDOs) setSyncedDOs(parsed.syncedDOs)
           }

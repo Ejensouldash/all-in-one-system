@@ -97,15 +97,21 @@ export async function createDailyReport(data: any) {
               labelType: s.labelType
             })).filter((s: any) => s.batchNo && s.batchNo.trim() !== "")
             
-            const usages = data.inventory[sectionKey].usages.map((u: any) => ({
-              sectionKey,
-              type: "Usage",
-              period: u.period,
-              batchNo: u.batchNo,
-              bags: Number(u.bags),
-              mult: Number(u.mult) || 1,
-              labelType: u.labelType
-            })).filter((u: any) => u.batchNo && u.batchNo.trim() !== "")
+            const usages = data.inventory[sectionKey].usages.map((u: any) => {
+              let labelType = u.labelType;
+              if (sectionKey === "CAP" && (u.weight !== undefined || u.originalBags !== undefined)) {
+                labelType = JSON.stringify({ weight: u.weight, originalBags: u.originalBags });
+              }
+              return {
+                sectionKey,
+                type: "Usage",
+                period: u.period,
+                batchNo: u.batchNo,
+                bags: Number(u.bags),
+                mult: Number(u.mult) || 1,
+                labelType
+              };
+            }).filter((u: any) => u.batchNo && u.batchNo.trim() !== "")
 
             const holds = (data.inventory[sectionKey].holds || []).map((h: any) => ({
               sectionKey,
@@ -118,7 +124,7 @@ export async function createDailyReport(data: any) {
             const transferIns = (data.syncedDOs || []).filter((d: any) => {
               if (sectionKey === "CAP") return d.category.includes("CAP") && !d.category.includes("CARTON");
               if (sectionKey === "BOTTLE") return d.category.includes("BOTTLE") && d.category.includes(data.line.includes("800") ? "800" : "425");
-              if (sectionKey === "LABEL") return d.category.includes("LABEL") && (data.line.includes("800") ? d.batchNo.startsWith("8S") : d.batchNo.startsWith("4S"));
+              if (sectionKey === "LABEL") return d.category.includes("LABEL");
               if (sectionKey.startsWith("BOX_")) {
                 const size = sectionKey.replace("BOX_p", "").split("_")[0];
                 const pack = sectionKey.split("_")[2]; // e.g. BOX_p800_12 -> 800, 12
@@ -219,7 +225,7 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
         if (!excludeReportId || log.reportId !== excludeReportId) {
           // Draft reports should not lock Transfer In DOs globally for other reports
           if (log.report && log.report.status !== "DRAFT") {
-            claimedDOs.add(`${log.batchNo}|${log.labelType}`)
+            claimedDOs.add(`${log.batchNo}|${log.mult}|${log.labelType}`)
           }
         }
       }
@@ -276,7 +282,7 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
         }
       }
       // Only offer under "Transfer In Received Today" if it is received today AND not claimed by another report yet
-      if (isReceivedToday(item) && !claimedDOs.has(`${item.batchNo}|${item.transferIn.doNumber}`)) {
+      if (isReceivedToday(item) && !claimedDOs.has(`${item.batchNo}|${item.mult}|${item.transferIn.doNumber}`)) {
         batchInfo[key].todayItems.push(item)
       }
     })

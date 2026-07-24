@@ -301,7 +301,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
 
           if (sectionKey === "CAP") {
             const w = Number(u.weight) || 0;
-            const b = Number(u.boxes) || 0;
+            const b = Number(u.bags) || 0;
             
             let pcs = 0;
             if (w > 0 && b > 0) {
@@ -313,7 +313,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
               pcs = b * 4000;
             }
             
-            return { ...u, bags: pcs > 0 ? (pcs / 4000) : (Number(u.bags) || 0), batchNo: pureBatchNo, mult: 4000 };
+            return { ...u, bags: pcs > 0 ? (pcs / 4000) : (Number(u.bags) || 0), batchNo: pureBatchNo, mult: 4000, weight: u.weight, originalBags: u.bags };
           }
           
           return { ...u, batchNo: pureBatchNo, mult: pureMult };
@@ -672,11 +672,11 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             sectionKey="LABEL" 
             title={`LABEL INVENTORY (${watchLine.includes("800") ? "800ml" : "425ml"})`} 
             control={control} register={register} watch={watch} setValue={setValue}
-            availableCarryForward={availableCarryForward.filter(b => b.category.includes("LABEL") && (watchLine.includes("800") ? b.batchNo.startsWith("8S") : b.batchNo.startsWith("4S")))}
-            multipliers={watchLine.includes("800") ? [6451] : [8547]}
+            availableCarryForward={availableCarryForward.filter(b => b.category.includes("LABEL"))}
+            multipliers={[1]}
             isLabel={true}
-            syncedDOs={syncedDOs.filter(d => d.category.includes("LABEL") && (watchLine.includes("800") ? d.batchNo.startsWith("8S") : d.batchNo.startsWith("4S")))}
-            availableDOsToSync={allTodayDOs.filter(d => d.category.includes("LABEL") && (watchLine.includes("800") ? d.batchNo.startsWith("8S") : d.batchNo.startsWith("4S")))}
+            syncedDOs={syncedDOs.filter(d => d.category.includes("LABEL"))}
+            availableDOsToSync={allTodayDOs.filter(d => d.category.includes("LABEL"))}
           />
 
           <AdvancedInventorySection 
@@ -1082,7 +1082,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                     const doId = e.target.value;
                     if (!doId) return;
                     const selected = availableDOsToSync.find((d: any) => d.id === doId);
-                    if (selected && !syncedDOs.some((d: any) => d.id === doId)) {
+                    if (selected && !syncedDOs.some((s: any) => s.batchNo === selected.batchNo && (s.doNumber === selected.doNumber || s.doNumber === selected.transferIn?.doNumber) && Number(s.mult) === Number(selected.mult))) {
                       const event = new CustomEvent('addSyncedDO', { detail: selected });
                       window.dispatchEvent(event);
                     }
@@ -1090,7 +1090,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                   }}
                 >
                   <option value="">-- SELECT DO --</option>
-                  {availableDOsToSync.filter((d: any) => !syncedDOs.some((s: any) => s.id === d.id)).map((d: any) => (
+                  {availableDOsToSync.filter((d: any) => !syncedDOs.some((s: any) => s.batchNo === d.batchNo && (s.doNumber === d.doNumber || s.doNumber === d.transferIn?.doNumber) && Number(s.mult) === Number(d.mult))).map((d: any) => (
                     <option key={d.id} value={d.id}>
                       {d.doNumber} - {d.batchNo} ({d.bags} {unit})
                     </option>

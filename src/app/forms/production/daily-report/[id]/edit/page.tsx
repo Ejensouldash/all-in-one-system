@@ -147,10 +147,19 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
       }
 
       if (i.sectionKey === "CAP" && i.type === "Usage") {
-        // We only have bags in DB. Reconstruct pseudo boxes and weight so form doesn't calculate 0 pcs on save.
-        const pcs = i.bags * 4000;
-        entry.boxes = 0;
-        entry.weight = Number((pcs * 0.002125).toFixed(2));
+        let weight: any = "";
+        let bags: any = i.bags;
+        if (i.labelType) {
+          try {
+            const parsed = JSON.parse(i.labelType);
+            if (parsed.weight !== undefined) weight = parsed.weight;
+            if (parsed.originalBags !== undefined) bags = parsed.originalBags;
+          } catch(e) {
+            // fallback if labelType is not JSON
+          }
+        }
+        entry.weight = weight;
+        entry.bags = bags;
       }
 
       if (i.type === "Storeroom" || i.type === "CarryForward") {

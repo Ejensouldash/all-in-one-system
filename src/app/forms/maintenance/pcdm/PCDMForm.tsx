@@ -5,7 +5,7 @@ import { submitPestControlDailyForm } from "./actions"
 import { Loader2, CheckCircle2, CheckSquare } from "lucide-react"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
 
-const STATIONS = Array.from({ length: 14 }, (_, i) => ({
+const STATIONS = Array.from({ length: 18 }, (_, i) => ({
   name: `station${i + 1}`,
   label: `Station ${i + 1}`,
 }))

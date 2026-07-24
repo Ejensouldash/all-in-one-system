@@ -69,7 +69,7 @@ export default async function MaintenanceDashboard() {
     },
     {
       title: "Pest Control Daily Monitoring",
-      description: "SGMP-06: Daily checklist for 14 bait station pest activity.",
+      description: "SGMP-06: Daily checklist for 18 bait station pest activity.",
       icon: <Bug className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/pcdm",
       gradient: "from-lime-900 via-lime-800 to-green-900",

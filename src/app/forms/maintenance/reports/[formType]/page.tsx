@@ -648,12 +648,12 @@ export default function MaintenanceMonthlyReportPage() {
                     <thead>
                       <tr className="bg-gray-100 font-bold text-center border-b-2 border-black">
                         <th className="border-2 border-black p-1 w-[6%] align-middle" rowSpan={2}>DATE</th>
-                        <th className="border-2 border-black p-1" colSpan={14}>PEST CONTROL STATIONS</th>
+                        <th className="border-2 border-black p-1" colSpan={18}>PEST CONTROL STATIONS</th>
                         <th className="border-2 border-black p-1 w-[8%] align-middle" rowSpan={2}>CHECKED BY</th>
                         <th className="border-2 border-black p-1 w-[8%] align-middle" rowSpan={2}>VERIFIED BY</th>
                       </tr>
                       <tr className="bg-gray-100 font-bold text-center border-b-2 border-black">
-                        {Array.from({ length: 14 }, (_, i) => (
+                        {Array.from({ length: 18 }, (_, i) => (
                           <th key={i} className="border-2 border-black p-0.5">S{i + 1}</th>
                         ))}
                       </tr>
@@ -666,7 +666,7 @@ export default function MaintenanceMonthlyReportPage() {
                           return (
                             <tr key={day} className="text-center h-6">
                               <td className="border-2 border-black p-1 font-bold">{getDayLabel(day)}</td>
-                              {Array.from({ length: 14 }, (_, i) => (
+                              {Array.from({ length: 18 }, (_, i) => (
                                 <td key={i} className="border-2 border-black p-1"></td>
                               ))}
                               <td className="border-2 border-black p-1"></td>
@@ -680,7 +680,7 @@ export default function MaintenanceMonthlyReportPage() {
                             {idx === 0 && (
                               <td className="border-2 border-black p-1 font-bold align-middle" rowSpan={dayRecords.length}>{getDayLabel(day)}</td>
                             )}
-                            {Array.from({ length: 14 }, (_, i) => (
+                            {Array.from({ length: 18 }, (_, i) => (
                               <td key={i} className="border-2 border-black p-1 font-bold text-[12px] text-lime-800">
                                 {rec[`station${i + 1}`] ? "✓" : "✗"}
                               </td>

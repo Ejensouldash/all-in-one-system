@@ -1114,6 +1114,10 @@ model MaintenancePestControlDaily {
   station12 Boolean @default(false)
   station13 Boolean @default(false)
   station14 Boolean @default(false)
+  station15 Boolean @default(false)
+  station16 Boolean @default(false)
+  station17 Boolean @default(false)
+  station18 Boolean @default(false)
   checkedBy          String
   performedSignature String?
   verifiedBy         String?

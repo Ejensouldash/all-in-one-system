@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 
-const STATION_COUNT = 14
+const STATION_COUNT = 18
 
 export async function submitPestControlDailyForm(formData: FormData) {
   try {

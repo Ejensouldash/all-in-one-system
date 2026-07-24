@@ -267,7 +267,7 @@ export default async function MaintenanceReportsDashboard() {
             <Wrench className="h-10 w-10 text-blue-700" />
             <div>
               <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tighter text-gray-900">
-                Maintenance Dashboard
+                GMP Dashboard
               </h1>
               <p className="font-bold text-gray-500 uppercase tracking-widest text-xs mt-1">
                 Digitalized Forms & Records

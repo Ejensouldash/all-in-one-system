@@ -49,7 +49,7 @@ const staffLinks: NavLink[] = [
     subLinks: [
       { name: "Production", href: "/forms/production", module: "FORMS" },
       { name: "Warehouse", href: "/forms/warehouse/dashboard", module: "WAREHOUSE", restrictToWarehouseUnit: true },
-      { name: "Maintenance", href: "/forms/maintenance?_cache=bust", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS"] },
+      { name: "GMP", href: "/forms/maintenance?_cache=bust", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS"] },
     ]
   },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
@@ -66,7 +66,7 @@ const adminLinks: NavLink[] = [
     subLinks: [
       { name: "Production", href: "/forms/production", module: "FORMS" },
       { name: "Warehouse", href: "/forms/warehouse/dashboard", module: "WAREHOUSE", restrictToWarehouseUnit: true },
-      { name: "Maintenance", href: "/forms/maintenance?_cache=bust", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS"] },
+      { name: "GMP", href: "/forms/maintenance?_cache=bust", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS"] },
     ]
   },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
@@ -136,6 +136,18 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
         }
         
         return true;
+      }).map(sub => {
+        // Keep the name as "Maintenance Inventory" for users who only have access to the dashboard
+        if (sub.name === "GMP" && user?.trueRole !== "SUPERADMIN") {
+          const hasForms = userModules.includes("MAINTENANCE_FORMS");
+          const hasReports = userModules.includes("MAINTENANCE_REPORTS");
+          const hasDashboard = userModules.includes("MAINTENANCE_DASHBOARD");
+          
+          if (!hasForms && !hasReports && hasDashboard) {
+            return { ...sub, name: "Maintenance Inventory" };
+          }
+        }
+        return sub;
       })
     }
     return newLink;

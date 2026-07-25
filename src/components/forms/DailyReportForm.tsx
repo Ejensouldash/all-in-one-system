@@ -372,6 +372,15 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       }
     }
 
+    // Validate Usage Logs: a row with quantity but no batch would be dropped on save
+    for (const sectionKey of Object.keys(data.inventory || {})) {
+      const usages = data.inventory[sectionKey]?.usages || []
+      const incomplete = usages.some((u: any) => !u?.batchNo && ((Number(u?.bags) || 0) > 0 || (Number(u?.boxes) || 0) > 0 || (Number(u?.weight) || 0) > 0))
+      if (incomplete) {
+        return showErrorAndScroll(`section-inventory-${sectionKey}`, `USAGE LOG (${sectionKey}): Sila pilih Batch untuk semua rekod usage yang ada kuantiti. Rekod tanpa Batch tidak akan disimpan.`)
+      }
+    }
+
     // Validate Reject Tracking
     const totalRejects = Object.values(data.rejectsScrap).reduce((sum: number, curr: any) => sum + Number(curr.before) + Number(curr.after), 0) + Object.values(data.rejectsReturn).reduce((sum: number, curr: any) => sum + Number(curr.before) + Number(curr.after), 0)
     if (!data.noRejects && totalRejects === 0) {
@@ -399,9 +408,9 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
 
   const handleSaveAsDraft = async () => {
     const data = getValues();
-    if (!data.date) return showErrorAndScroll("Please select a Production Date.", "date")
-    if (!data.shift) return showErrorAndScroll("Please select a Shift.", "shift")
-    if (!data.line) return showErrorAndScroll("Please select a Line.", "line")
+    if (!data.date) return showErrorAndScroll("field-date", "Please select a Production Date.")
+    if (!data.shift) return showErrorAndScroll("field-shift", "Please select a Shift.")
+    if (!data.line) return showErrorAndScroll("field-line", "Please select a Line.")
 
     setIsSubmitting(true)
     const formattedData = prepareReportPayload(data, true);
@@ -474,14 +483,14 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
               <label className="block text-xs font-black uppercase tracking-wider mb-2">Report Time</label>
               <input type="time" {...register("reportTime")} className="w-full border-2 border-black p-3 font-bold focus:outline-none focus:ring-2 focus:ring-black bg-white" />
             </div>
-            <div>
+            <div id="field-shift">
               <label className="block text-xs font-black uppercase tracking-wider mb-2">Shift</label>
               <select {...register("shift")} className="w-full border-2 border-black p-3 font-bold focus:outline-none focus:ring-2 focus:ring-black bg-white">
                 <option value="AM">AM (Pagi)</option>
                 <option value="PM">PM (Malam)</option>
               </select>
             </div>
-            <div>
+            <div id="field-line">
               <label className="block text-xs font-black uppercase tracking-wider mb-2">Production Line</label>
               <select {...register("line")} className="w-full border-2 border-black p-3 font-bold focus:outline-none focus:ring-2 focus:ring-black bg-white">
                 <option value="LINE 1 - 800ml">LINE 1 - 800ml</option>
@@ -1042,7 +1051,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
   })
 
   return (
-    <div className="mb-12 border-[3px] border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+    <div id={`section-inventory-${sectionKey}`} className="mb-12 border-[3px] border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
       <div className="bg-gray-100 border-b-[3px] border-black p-4 font-black text-black uppercase tracking-widest text-xl flex items-center justify-between">
         <span>{title}</span>
       </div>
@@ -1311,9 +1320,18 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                         </select>
                       )}
 
-                      <select 
+                      <select
                         value={watchUsages[index]?.batchNo || ""}
-                        {...register(`inventory.${sectionKey}.usages.${index}.batchNo`)} 
+                        {...register(`inventory.${sectionKey}.usages.${index}.batchNo`, {
+                          onChange: (e: any) => {
+                            // The batch determines the label type — keep the row's labelType in sync
+                            if (!isLabel) return
+                            const lt = e.target.value ? batchSummaries[e.target.value]?.labelType : ""
+                            if (lt && lt !== "Standard" && lt !== "(HOLD)" && lt !== "HOLD") {
+                              setValue(`inventory.${sectionKey}.usages.${index}.labelType`, lt)
+                            }
+                          }
+                        })}
                         className={`flex-1 p-2 border ${hasInputWithoutBatch ? 'border-red-500 bg-red-100 text-red-900 font-extrabold animate-pulse' : 'border-gray-300 bg-white'} text-xs font-bold outline-none focus:border-blue-500 uppercase`}
                       >
                         <option value="">-- Select Batch --</option>

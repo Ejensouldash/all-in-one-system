@@ -136,40 +136,48 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
       return;
     }
 
-    // Skip empty rows (batchNo === "") that were saved by accident
-    if (initialData.inventory[i.sectionKey] && i.batchNo && i.batchNo.trim() !== "") {
-      const entry: any = {
-        batchNo: i.batchNo.includes('|') ? i.batchNo : `${i.batchNo}|${i.mult}`,
-        bags: i.bags,
-        mult: i.mult,
-        period: i.period || undefined,
-        labelType: i.labelType || undefined
-      }
+    if (!initialData.inventory[i.sectionKey]) return;
 
-      if (i.sectionKey === "CAP" && i.type === "Usage") {
-        let weight: any = "";
-        let bags: any = i.bags;
-        let boxes: any = "";
-        if (i.labelType) {
-          try {
-            const parsed = JSON.parse(i.labelType);
-            if (parsed.weight !== undefined) weight = parsed.weight;
-            if (parsed.originalBags !== undefined) bags = parsed.originalBags;
-            if (parsed.boxes !== undefined) boxes = parsed.boxes;
-          } catch(e) {
-            // fallback if labelType is not JSON
-          }
+    const hasBatch = !!(i.batchNo && i.batchNo.trim() !== "");
+    // Draft saves keep usage rows without a batch (lossless drafts) — load those back too.
+    // Everything else without a batch is an empty row saved by accident.
+    if (!hasBatch && !(i.type === "Usage" && i.bags > 0)) return;
+
+    const entry: any = {
+      batchNo: hasBatch ? (i.batchNo.includes('|') ? i.batchNo : `${i.batchNo}|${i.mult}`) : "",
+      bags: i.bags,
+      mult: i.mult,
+      period: i.period || undefined,
+      labelType: i.labelType === "Standard" ? "Standard Front" : (i.labelType || undefined)
+    }
+
+    if (i.sectionKey === "CAP" && i.type === "Usage") {
+      let weight: any = "";
+      let boxes: any = "";
+      if (i.labelType) {
+        try {
+          const parsed = JSON.parse(i.labelType);
+          if (parsed.weight !== undefined) weight = parsed.weight;
+          const pb = parsed.boxes ?? parsed.originalBags;
+          if (pb !== undefined && pb !== "" && Number(pb) > 0) boxes = pb;
+        } catch(e) {
+          // fallback if labelType is not JSON
         }
-        entry.weight = weight;
-        entry.bags = bags;
-        entry.boxes = boxes !== "" ? boxes : bags;
       }
+      // Legacy rows never stored boxes — recover the box count from the saved bags,
+      // but only when no weight was recorded (weight + boxes use a different formula)
+      if ((boxes === "" || Number(boxes) === 0) && (Number(weight) || 0) === 0 && Number(i.bags) > 0) {
+        boxes = i.bags;
+      }
+      entry.weight = weight;
+      entry.boxes = boxes;
+      entry.labelType = undefined; // the JSON stash is not a real label type
+    }
 
-      if (i.type === "Storeroom" || i.type === "CarryForward") {
-        initialData.inventory[i.sectionKey].sources.push(entry)
-      } else if (i.type === "Usage") {
-        initialData.inventory[i.sectionKey].usages.push(entry)
-      }
+    if (i.type === "Storeroom" || i.type === "CarryForward") {
+      initialData.inventory[i.sectionKey].sources.push(entry)
+    } else if (i.type === "Usage") {
+      initialData.inventory[i.sectionKey].usages.push(entry)
     }
   })
 

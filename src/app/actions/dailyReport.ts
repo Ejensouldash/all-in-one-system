@@ -5,6 +5,63 @@ import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
 import { logUserAction } from "./audit"
 
+// CAP conversion constants (must stay in sync with DailyReportForm)
+const CAP_PCS_PER_BOX = 4000
+const CAP_BOX_WEIGHT_KG = 0.88
+const CAP_KG_PER_PC = 0.002125
+
+function capPcsFromInput(weight: number, boxes: number) {
+  if (weight > 0 && boxes > 0) {
+    const net = weight - (boxes * CAP_BOX_WEIGHT_KG)
+    return net > 0 ? Math.round(net / CAP_KG_PER_PC) : 0
+  }
+  if (weight > 0) return Math.round(weight / CAP_KG_PER_PC)
+  if (boxes > 0) return boxes * CAP_PCS_PER_BOX
+  return 0
+}
+
+// Builds InventoryLog "Usage" rows for one section. The server recomputes CAP bags
+// from weight/boxes so a client-side bug can never persist 0 bags for a filled row.
+// Draft saves keep rows that carry data even without a batch, so drafts are lossless.
+function buildUsageRows(sectionKey: string, usages: any[], sources: any[], isDraft: boolean) {
+  return (usages || []).map((u: any) => {
+    let labelType = u.labelType
+    let bags = Number(u.bags) || 0
+
+    if (sectionKey === "CAP") {
+      const w = Number(u.weight) || 0
+      const b = Number(u.boxes ?? u.originalBags) || 0
+      const pcs = capPcsFromInput(w, b)
+      if (pcs > 0) bags = pcs / CAP_PCS_PER_BOX
+      labelType = JSON.stringify({
+        weight: u.weight ?? "",
+        originalBags: u.originalBags ?? u.boxes ?? "",
+        boxes: u.boxes ?? u.originalBags ?? ""
+      })
+    }
+
+    if (sectionKey === "LABEL") {
+      // The batch determines the label type — prefer the matching source's labelType
+      const src = (sources || []).find((s: any) => s.batchNo === u.batchNo && s.labelType)
+      if (src?.labelType) labelType = src.labelType
+      if (labelType === "Standard") labelType = "Standard Front"
+    }
+
+    return {
+      sectionKey,
+      type: "Usage",
+      period: u.period,
+      batchNo: (u.batchNo || "").trim(),
+      bags,
+      mult: Number(u.mult) || 1,
+      labelType
+    }
+  }).filter((u: any) => {
+    if (u.batchNo !== "") return true
+    return isDraft && u.bags > 0
+  })
+}
+
 export async function createDailyReport(data: any) {
   const session = await auth()
   if (!session) return { success: false, error: "Unauthorized" }
@@ -96,22 +153,8 @@ export async function createDailyReport(data: any) {
               mult: Number(s.mult),
               labelType: s.labelType
             })).filter((s: any) => s.batchNo && s.batchNo.trim() !== "")
-            
-            const usages = data.inventory[sectionKey].usages.map((u: any) => {
-              let labelType = u.labelType;
-              if (sectionKey === "CAP" && (u.weight !== undefined || u.originalBags !== undefined || u.boxes !== undefined)) {
-                labelType = JSON.stringify({ weight: u.weight, originalBags: u.originalBags ?? u.boxes, boxes: u.boxes ?? u.originalBags });
-              }
-              return {
-                sectionKey,
-                type: "Usage",
-                period: u.period,
-                batchNo: u.batchNo,
-                bags: Number(u.bags),
-                mult: Number(u.mult) || 1,
-                labelType
-              };
-            }).filter((u: any) => u.batchNo && u.batchNo.trim() !== "")
+
+            const usages = buildUsageRows(sectionKey, data.inventory[sectionKey].usages, sources, !!data.isDraft)
 
             const holds = (data.inventory[sectionKey].holds || []).map((h: any) => ({
               sectionKey,
@@ -272,6 +315,22 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       return score
     }
 
+    // Latest known label type per batch|mult from prior report logs, so carry-forward
+    // batches keep their real type (Standard Front/Back, ...) instead of a hardcoded one
+    const latestLabelTypes: Record<string, { labelType: string, tp: number }> = {}
+    allLogs.forEach(log => {
+      if (!log.labelType || !log.report) return
+      if (log.type !== "Storeroom" && log.type !== "Usage") return
+      const raw = log.labelType.trim()
+      if (raw.startsWith("{") || raw === "(HOLD)" || raw === "HOLD") return // CAP JSON stash / hold markers
+      const lt = raw === "Standard" ? "Standard Front" : raw
+      const key = `${log.batchNo}|${log.mult}`
+      const tp = getTimePoint(log.report.date, log.report.shift)
+      if (!latestLabelTypes[key] || tp >= latestLabelTypes[key].tp) {
+        latestLabelTypes[key] = { labelType: lt, tp }
+      }
+    })
+
     allDOItems.forEach(item => {
       const key = `${item.category}|${item.batchNo}|${item.mult}`
       if (!batchInfo[key]) {
@@ -368,15 +427,15 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       if (carryForward > 0 || isHold) {
         addedBatchKeys.add(batchKey)
         const bags = carryForward > 0 ? carryForward : (activeHoldMap[batchKey]?.qty || 1)
-        storeroomBatches.push({ 
-          batchNo: info.batchNo, 
-          bags: bags, 
-          mult: info.mult, 
-          category: info.category, 
-          doNumber: info.doNumber, 
-          labelType: isHold ? "(HOLD)" : "Standard", 
-          isHold, 
-          transferInId: info.transferInId 
+        storeroomBatches.push({
+          batchNo: info.batchNo,
+          bags: bags,
+          mult: info.mult,
+          category: info.category,
+          doNumber: info.doNumber,
+          labelType: isHold ? "(HOLD)" : (latestLabelTypes[`${info.batchNo}|${info.mult}`]?.labelType || "Standard Front"),
+          isHold,
+          transferInId: info.transferInId
         })
       }
     })
@@ -614,22 +673,8 @@ export async function updateDailyReport(id: string, data: any) {
                 mult: Number(s.mult),
                 labelType: s.labelType
               })).filter((s: any) => s.batchNo && s.batchNo.trim() !== "")
-              
-              const usages = data.inventory[sectionKey].usages.map((u: any) => {
-                let labelType = u.labelType;
-                if (sectionKey === "CAP" && (u.weight !== undefined || u.originalBags !== undefined || u.boxes !== undefined)) {
-                  labelType = JSON.stringify({ weight: u.weight, originalBags: u.originalBags ?? u.boxes, boxes: u.boxes ?? u.originalBags });
-                }
-                return {
-                  sectionKey,
-                  type: "Usage",
-                  period: u.period,
-                  batchNo: u.batchNo,
-                  bags: Number(u.bags),
-                  mult: Number(u.mult) || 1,
-                  labelType
-                };
-              }).filter((u: any) => u.batchNo && u.batchNo.trim() !== "")
+
+              const usages = buildUsageRows(sectionKey, data.inventory[sectionKey].usages, sources, !!data.isDraft)
 
               const holds = (data.inventory[sectionKey].holds || []).map((h: any) => ({
                 sectionKey,

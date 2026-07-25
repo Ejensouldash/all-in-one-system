@@ -12,6 +12,46 @@ import { SharePDFButton } from "@/components/ui/SharePDFButton"
 import { prisma } from "@/lib/prisma"
 import { Metadata } from "next"
 
+// CAP conversion constants (must stay in sync with DailyReportForm)
+const CAP_PCS_PER_BOX = 4000
+const CAP_BOX_WEIGHT_KG = 0.88
+const CAP_KG_PER_PC = 0.002125
+
+const capPcsFromInput = (weight: number, boxes: number) => {
+  if (weight > 0 && boxes > 0) {
+    const net = weight - (boxes * CAP_BOX_WEIGHT_KG)
+    return net > 0 ? Math.round(net / CAP_KG_PER_PC) : 0
+  }
+  if (weight > 0) return Math.round(weight / CAP_KG_PER_PC)
+  if (boxes > 0) return boxes * CAP_PCS_PER_BOX
+  return 0
+}
+
+const isJsonLabelType = (labelType?: string | null) => !!labelType && labelType.trim().startsWith("{")
+
+// CAP usage rows stash their raw inputs (weight/boxes) as JSON in labelType — parse, never render raw
+const parseCapMeta = (labelType?: string | null) => {
+  if (!isJsonLabelType(labelType)) return null
+  try {
+    const p = JSON.parse(labelType!)
+    return { weight: Number(p.weight) || 0, boxes: Number(p.boxes ?? p.originalBags) || 0 }
+  } catch {
+    return null
+  }
+}
+
+// Effective used bags for a usage row; heals legacy CAP rows that were saved with bags=0
+const effectiveUsageBags = (u: any, sectionKey: string) => {
+  const bags = Number(u.bags) || 0
+  if (sectionKey !== 'CAP' || bags > 0) return bags
+  const meta = parseCapMeta(u.labelType)
+  if (!meta) return bags
+  const pcs = capPcsFromInput(meta.weight, meta.boxes)
+  return pcs > 0 ? pcs / (Number(u.mult) || CAP_PCS_PER_BOX) : 0
+}
+
+const fmtBags = (n: number) => Math.round(n * 100) / 100
+
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const resolvedParams = await params
   const report = await prisma.dailyReport.findUnique({ where: { id: resolvedParams.id } })
@@ -407,34 +447,50 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                         ...usages.map((u:any)=>`${u.batchNo}|${u.mult}`)
                       ]))
                       
+                      // Which mult groups exist per batch — needed so a batch that exists under
+                      // two mults (e.g. 425ml x181 and x162) doesn't get its usage deducted twice
+                      const multsByBatch: Record<string, Set<number>> = {}
+                      sectionBatchNos.forEach((bk: any) => {
+                        const [bn, m] = bk.split('|')
+                        if (!multsByBatch[bn]) multsByBatch[bn] = new Set()
+                        multsByBatch[bn].add(Number(m))
+                      })
+
                       const carryForwardSummaries: any[] = []
                       sectionBatchNos.forEach((batchKey: any) => {
                         const [batchNo, multStr] = batchKey.split('|');
                         const multVal = Number(multStr);
-                        
+
                         // Get storeroom balance (carry forward from previous day)
                         const storeroomObj = sources.find((s:any) => s.batchNo === batchNo && s.mult === multVal)
                         let storeroomBags = storeroomObj ? storeroomObj.bags : 0
-                        
+
                         // Get today's Transfer In for this batch
                         const todayDOBags = sectionDOItems
                           .filter((d:any) => d.batchNo === batchNo && d.mult === multVal)
                           .reduce((sum:number, d:any) => sum + d.bags, 0)
-                        
+
                         // Total available = Storeroom + Transfer In
                         const startBags = storeroomBags + todayDOBags
                         const mult = multVal
-                        
-                        const beforeBags = usages.filter((u:any) => {
+
+                        const matchesThisBatch = (u: any) => {
                           const pureU = typeof u.batchNo === 'string' ? u.batchNo.split('|')[0] : u.batchNo
-                          return pureU === batchNo && u.period !== 'After'
-                        }).reduce((sum:number, u:any) => sum + u.bags, 0)
-                        
-                        const afterBags = usages.filter((u:any) => {
-                          const pureU = typeof u.batchNo === 'string' ? u.batchNo.split('|')[0] : u.batchNo
-                          return pureU === batchNo && u.period === 'After'
-                        }).reduce((sum:number, u:any) => sum + u.bags, 0)
-                        
+                          if (pureU !== batchNo) return false
+                          const uMult = Number(u.mult) || 1
+                          const groupMults = multsByBatch[batchNo]
+                          // Batch exists under multiple mults: count the usage only in its own mult
+                          // group (legacy rows with an unknown mult still match every group)
+                          if (groupMults && groupMults.size > 1 && groupMults.has(uMult)) return uMult === multVal
+                          return true
+                        }
+
+                        const beforeBags = usages.filter((u:any) => matchesThisBatch(u) && u.period !== 'After')
+                          .reduce((sum:number, u:any) => sum + effectiveUsageBags(u, key), 0)
+
+                        const afterBags = usages.filter((u:any) => matchesThisBatch(u) && u.period === 'After')
+                          .reduce((sum:number, u:any) => sum + effectiveUsageBags(u, key), 0)
+
                         const usedBags = beforeBags + afterBags
                         const carryFwdBags = startBags - usedBags
                         carryForwardSummaries.push({ batchNo, startBags, usedBags, carryFwdBags, mult, labelType: storeroomObj?.labelType, isHold: holdBatchSet.has(batchNo) })
@@ -449,13 +505,30 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                         carryForward: {} as Record<string, number>,
                       };
                       
-                      const getGroupKey = (item: any) => item.labelType ? `${item.mult}|${item.labelType}` : `${item.mult}`;
+                      // CAP usage rows keep a JSON stash in labelType — group those by mult only
+                      const getGroupKey = (item: any) => (item.labelType && !isJsonLabelType(item.labelType)) ? `${item.mult}|${item.labelType}` : `${item.mult}`;
 
                       sectionDOItems.forEach((s: any) => { const k = getGroupKey(s); rowTotals.transferIn[k] = (rowTotals.transferIn[k] || 0) + s.bags; });
                       sources.forEach((s: any) => { const k = getGroupKey(s); rowTotals.storeroom[k] = (rowTotals.storeroom[k] || 0) + s.bags; });
-                      usages.filter((u:any) => u.period === 'Before').forEach((u: any) => { const k = getGroupKey(u); rowTotals.usageBefore[k] = (rowTotals.usageBefore[k] || 0) + u.bags; });
-                      usages.filter((u:any) => u.period === 'After').forEach((u: any) => { const k = getGroupKey(u); rowTotals.usageAfter[k] = (rowTotals.usageAfter[k] || 0) + u.bags; });
+                      usages.filter((u:any) => u.period === 'Before').forEach((u: any) => { const k = getGroupKey(u); rowTotals.usageBefore[k] = (rowTotals.usageBefore[k] || 0) + effectiveUsageBags(u, key); });
+                      usages.filter((u:any) => u.period === 'After').forEach((u: any) => { const k = getGroupKey(u); rowTotals.usageAfter[k] = (rowTotals.usageAfter[k] || 0) + effectiveUsageBags(u, key); });
                       carryForwardSummaries.forEach((s: any) => { const k = getGroupKey(s); rowTotals.carryForward[k] = (rowTotals.carryForward[k] || 0) + s.carryFwdBags; });
+
+                      const renderUsageEntry = (u: any) => {
+                        const capMeta = key === 'CAP' ? parseCapMeta(u.labelType) : null
+                        const effBags = fmtBags(effectiveUsageBags(u, key))
+                        return (
+                          <div key={u.id} className="text-[10px] print:text-[8pt] font-bold leading-tight border-b border-dashed border-gray-200 print:border-gray-300 pb-1 last:border-0 last:pb-0 break-inside-avoid">
+                            <div>{u.batchNo} {u.labelType && !isJsonLabelType(u.labelType) ? `(${u.labelType})` : ''}</div>
+                            <div className="text-blue-700 print:text-black">{effBags} <span className="text-[8px] print:text-[6pt] text-gray-500">(x{u.mult})</span></div>
+                            {capMeta && (capMeta.boxes > 0 || capMeta.weight > 0) && (
+                              <div className="text-[8px] print:text-[6pt] text-gray-500">
+                                {capMeta.boxes > 0 ? `${capMeta.boxes} Box` : ''}{capMeta.boxes > 0 && capMeta.weight > 0 ? ' / ' : ''}{capMeta.weight > 0 ? `${capMeta.weight} kg` : ''} = {capPcsFromInput(capMeta.weight, capMeta.boxes)} Pcs
+                              </div>
+                            )}
+                          </div>
+                        )
+                      }
 
                       return (
                         <React.Fragment key={key}>
@@ -497,24 +570,14 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                           {/* 4. Usage Before */}
                           <td className="p-2 print:p-1 border-r border-black align-top break-words">
                             <div className="space-y-1.5">
-                              {usages.filter((u:any) => u.period === 'Before').map((u: any) => (
-                                <div key={u.id} className="text-[10px] print:text-[8pt] font-bold leading-tight border-b border-dashed border-gray-200 print:border-gray-300 pb-1 last:border-0 last:pb-0 break-inside-avoid">
-                                  <div>{u.batchNo} {u.labelType ? `(${u.labelType})` : ''}</div>
-                                  <div className="text-blue-700 print:text-black">{u.bags} <span className="text-[8px] print:text-[6pt] text-gray-500">(x{u.mult})</span></div>
-                                </div>
-                              ))}
+                              {usages.filter((u:any) => u.period === 'Before').map(renderUsageEntry)}
                             </div>
                           </td>
 
                           {/* 5. Usage After */}
                           <td className="p-2 print:p-1 border-r-2 border-black align-top break-words">
                             <div className="space-y-1.5">
-                              {usages.filter((u:any) => u.period === 'After').map((u: any) => (
-                                <div key={u.id} className="text-[10px] print:text-[8pt] font-bold leading-tight border-b border-dashed border-gray-200 print:border-gray-300 pb-1 last:border-0 last:pb-0 break-inside-avoid">
-                                  <div>{u.batchNo} {u.labelType ? `(${u.labelType})` : ''}</div>
-                                  <div className="text-blue-700 print:text-black">{u.bags} <span className="text-[8px] print:text-[6pt] text-gray-500">(x{u.mult})</span></div>
-                                </div>
-                              ))}
+                              {usages.filter((u:any) => u.period === 'After').map(renderUsageEntry)}
                             </div>
                           </td>
 
@@ -526,7 +589,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                                   <div key={summary.batchNo} className="text-[10px] print:text-[8pt] font-bold leading-tight border-b border-dashed border-yellow-200 print:border-gray-300 pb-1 last:border-0 last:pb-0 break-inside-avoid">
                                     <div className="uppercase mb-0.5">{summary.batchNo} {summary.isHold ? <span className="text-amber-600 print:text-black font-black">(HOLD)</span> : ''} {summary.labelType ? `(${summary.labelType})` : ''}</div>
                                     <div className="whitespace-nowrap bg-yellow-100 print:bg-transparent px-1 print:px-0 py-0.5 rounded text-[9px] print:text-[7pt] text-gray-800">
-                                      Av: {summary.startBags} - {summary.usedBags} = <span className="font-black text-[10px] print:text-[8pt] text-black">{summary.carryFwdBags}</span> <span className="text-[8px] print:text-[6pt] text-gray-600">(x{summary.mult})</span>
+                                      Av: {fmtBags(summary.startBags)} - {fmtBags(summary.usedBags)} = <span className="font-black text-[10px] print:text-[8pt] text-black">{fmtBags(summary.carryFwdBags)}</span> <span className="text-[8px] print:text-[6pt] text-gray-600">(x{summary.mult})</span>
                                     </div>
                                   </div>
                                 ))}
@@ -561,8 +624,8 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                                 const [mult, labelType] = keyStr.split('|');
                                 return (
                                 <div key={keyStr} className="mb-1 last:mb-0">
-                                  <div className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span> {labelType && <span className="text-gray-800 print:text-black text-[9px] print:text-[7pt]">({labelType})</span>}</div>
-                                  {key === 'CAP' && <div className="text-[9px] print:text-[7pt] text-gray-500 font-bold mt-0.5">= {bags * Number(mult)} Pcs</div>}
+                                  <div className="text-blue-700 print:text-black">{fmtBags(Number(bags))} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span> {labelType && <span className="text-gray-800 print:text-black text-[9px] print:text-[7pt]">({labelType})</span>}</div>
+                                  {key === 'CAP' && <div className="text-[9px] print:text-[7pt] text-gray-500 font-bold mt-0.5">= {Math.round(Number(bags) * Number(mult))} Pcs</div>}
                                 </div>
                               )})}
                             </td>
@@ -571,8 +634,8 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                                 const [mult, labelType] = keyStr.split('|');
                                 return (
                                 <div key={keyStr} className="mb-1 last:mb-0">
-                                  <div className="text-blue-700 print:text-black">{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span> {labelType && <span className="text-gray-800 print:text-black text-[9px] print:text-[7pt]">({labelType})</span>}</div>
-                                  {key === 'CAP' && <div className="text-[9px] print:text-[7pt] text-gray-500 font-bold mt-0.5">= {bags * Number(mult)} Pcs</div>}
+                                  <div className="text-blue-700 print:text-black">{fmtBags(Number(bags))} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span> {labelType && <span className="text-gray-800 print:text-black text-[9px] print:text-[7pt]">({labelType})</span>}</div>
+                                  {key === 'CAP' && <div className="text-[9px] print:text-[7pt] text-gray-500 font-bold mt-0.5">= {Math.round(Number(bags) * Number(mult))} Pcs</div>}
                                 </div>
                               )})}
                             </td>
@@ -581,8 +644,8 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                                 const [mult, labelType] = keyStr.split('|');
                                 return (
                                 <div key={keyStr} className="mb-1 last:mb-0">
-                                  <div>{bags} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span> {labelType && <span className="text-gray-800 print:text-black text-[9px] print:text-[7pt]">({labelType})</span>}</div>
-                                  {key === 'CAP' && <div className="text-[9px] print:text-[7pt] text-gray-500 font-bold mt-0.5">= {bags * Number(mult)} Pcs</div>}
+                                  <div>{fmtBags(Number(bags))} <span className="text-gray-600 print:text-black text-[8px] print:text-[6pt]">(x{mult})</span> {labelType && <span className="text-gray-800 print:text-black text-[9px] print:text-[7pt]">({labelType})</span>}</div>
+                                  {key === 'CAP' && <div className="text-[9px] print:text-[7pt] text-gray-500 font-bold mt-0.5">= {Math.round(Number(bags) * Number(mult))} Pcs</div>}
                                 </div>
                               )})}
                             </td>

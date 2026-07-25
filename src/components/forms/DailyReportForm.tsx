@@ -1033,7 +1033,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
 
   Object.keys(batchSummaries).forEach(key => {
     const totals = batchUsageTotals[key] || { before: 0, after: 0 };
-    batchSummaries[key].usedBags = Math.max(0, totals.before - totals.after);
+    batchSummaries[key].usedBags = totals.before + totals.after;
   });
 
   // 4. Compute Carry Forward

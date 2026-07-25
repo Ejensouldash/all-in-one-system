@@ -435,7 +435,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                           return pureU === batchNo && u.period === 'After'
                         }).reduce((sum:number, u:any) => sum + u.bags, 0)
                         
-                        const usedBags = Math.max(0, beforeBags - afterBags)
+                        const usedBags = beforeBags + afterBags
                         const carryFwdBags = startBags - usedBags
                         carryForwardSummaries.push({ batchNo, startBags, usedBags, carryFwdBags, mult, labelType: storeroomObj?.labelType, isHold: holdBatchSet.has(batchNo) })
                       })

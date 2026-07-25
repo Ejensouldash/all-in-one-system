@@ -425,8 +425,16 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                         const startBags = storeroomBags + todayDOBags
                         const mult = multVal
                         
-                        const beforeBags = usages.filter((u:any) => u.batchNo === batchNo && u.mult === multVal && u.period !== 'After').reduce((sum:number, u:any) => sum + u.bags, 0)
-                        const afterBags = usages.filter((u:any) => u.batchNo === batchNo && u.mult === multVal && u.period === 'After').reduce((sum:number, u:any) => sum + u.bags, 0)
+                        const beforeBags = usages.filter((u:any) => {
+                          const pureU = typeof u.batchNo === 'string' ? u.batchNo.split('|')[0] : u.batchNo
+                          return pureU === batchNo && u.period !== 'After'
+                        }).reduce((sum:number, u:any) => sum + u.bags, 0)
+                        
+                        const afterBags = usages.filter((u:any) => {
+                          const pureU = typeof u.batchNo === 'string' ? u.batchNo.split('|')[0] : u.batchNo
+                          return pureU === batchNo && u.period === 'After'
+                        }).reduce((sum:number, u:any) => sum + u.bags, 0)
+                        
                         const usedBags = Math.max(0, beforeBags - afterBags)
                         const carryFwdBags = startBags - usedBags
                         carryForwardSummaries.push({ batchNo, startBags, usedBags, carryFwdBags, mult, labelType: storeroomObj?.labelType, isHold: holdBatchSet.has(batchNo) })

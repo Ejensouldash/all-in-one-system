@@ -987,7 +987,17 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
 
   // 3. Sum up used bags per batch from Usages
   watchUsages.forEach((usage: any) => {
-    if (!usage.batchNo || !batchSummaries[usage.batchNo]) return;
+    if (!usage.batchNo) return;
+    
+    // Find key in batchSummaries (exact match or match by pure batchNo)
+    let key = usage.batchNo;
+    if (!batchSummaries[key]) {
+      const pure = typeof usage.batchNo === 'string' ? usage.batchNo.split('|')[0] : usage.batchNo;
+      key = Object.keys(batchSummaries).find(k => k === pure || k.startsWith(`${pure}|`) || batchSummaries[k].pureBatchNo === pure) || "";
+    }
+
+    if (!key || !batchSummaries[key]) return;
+
     const rawUsage = Number(usage.bags) || 0;
     const isUsageCap = sectionKey === "CAP";
     if (isUsageCap) {
@@ -1004,18 +1014,18 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
          pcs = b * 4000;
        }
        
-       const mult = batchSummaries[usage.batchNo].mult || 4000;
+       const mult = batchSummaries[key].mult || 4000;
        const bagQty = pcs > 0 ? (pcs / mult) : 0;
        if (usage.period === 'After') {
-         batchSummaries[usage.batchNo].usedBags -= bagQty;
+         batchSummaries[key].usedBags -= bagQty;
        } else {
-         batchSummaries[usage.batchNo].usedBags += bagQty;
+         batchSummaries[key].usedBags += bagQty;
        }
     } else {
        if (usage.period === 'After') {
-         batchSummaries[usage.batchNo].usedBags -= rawUsage;
+         batchSummaries[key].usedBags -= rawUsage;
        } else {
-         batchSummaries[usage.batchNo].usedBags += rawUsage;
+         batchSummaries[key].usedBags += rawUsage;
        }
     }
   })

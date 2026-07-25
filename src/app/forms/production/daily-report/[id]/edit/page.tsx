@@ -139,7 +139,7 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
     // Skip empty rows (batchNo === "") that were saved by accident
     if (initialData.inventory[i.sectionKey] && i.batchNo && i.batchNo.trim() !== "") {
       const entry: any = {
-        batchNo: `${i.batchNo}|${i.mult}`,
+        batchNo: i.batchNo.includes('|') ? i.batchNo : `${i.batchNo}|${i.mult}`,
         bags: i.bags,
         mult: i.mult,
         period: i.period || undefined,
@@ -149,17 +149,20 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
       if (i.sectionKey === "CAP" && i.type === "Usage") {
         let weight: any = "";
         let bags: any = i.bags;
+        let boxes: any = "";
         if (i.labelType) {
           try {
             const parsed = JSON.parse(i.labelType);
             if (parsed.weight !== undefined) weight = parsed.weight;
             if (parsed.originalBags !== undefined) bags = parsed.originalBags;
+            if (parsed.boxes !== undefined) boxes = parsed.boxes;
           } catch(e) {
             // fallback if labelType is not JSON
           }
         }
         entry.weight = weight;
         entry.bags = bags;
+        entry.boxes = boxes !== "" ? boxes : bags;
       }
 
       if (i.type === "Storeroom" || i.type === "CarryForward") {
@@ -174,7 +177,7 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
   report.holds.forEach(h => {
     if (initialData.inventory[h.sectionKey] && h.batchNo && h.batchNo.trim() !== "") {
       initialData.inventory[h.sectionKey].holds.push({
-        batchNo: `${h.batchNo}|${h.mult}`,
+        batchNo: h.batchNo.includes('|') ? h.batchNo : `${h.batchNo}|${h.mult}`,
         qty: h.qty,
         mult: h.mult,
         reason: h.reason || ""

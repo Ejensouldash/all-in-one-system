@@ -301,7 +301,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
 
           if (sectionKey === "CAP") {
             const w = Number(u.weight) || 0;
-            const b = Number(u.bags) || 0;
+            const b = Number(u.boxes) || 0;
             
             let pcs = 0;
             if (w > 0 && b > 0) {
@@ -313,7 +313,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
               pcs = b * 4000;
             }
             
-            return { ...u, bags: pcs > 0 ? (pcs / 4000) : (Number(u.bags) || 0), batchNo: pureBatchNo, mult: 4000, weight: u.weight, originalBags: u.bags };
+            return { ...u, bags: pcs > 0 ? (pcs / 4000) : (Number(u.boxes) || 0), batchNo: pureBatchNo, mult: 4000, weight: u.weight, originalBags: u.boxes, boxes: u.boxes };
           }
           
           return { ...u, batchNo: pureBatchNo, mult: pureMult };

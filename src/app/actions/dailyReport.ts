@@ -99,8 +99,8 @@ export async function createDailyReport(data: any) {
             
             const usages = data.inventory[sectionKey].usages.map((u: any) => {
               let labelType = u.labelType;
-              if (sectionKey === "CAP" && (u.weight !== undefined || u.originalBags !== undefined)) {
-                labelType = JSON.stringify({ weight: u.weight, originalBags: u.originalBags });
+              if (sectionKey === "CAP" && (u.weight !== undefined || u.originalBags !== undefined || u.boxes !== undefined)) {
+                labelType = JSON.stringify({ weight: u.weight, originalBags: u.originalBags ?? u.boxes, boxes: u.boxes ?? u.originalBags });
               }
               return {
                 sectionKey,
@@ -615,15 +615,21 @@ export async function updateDailyReport(id: string, data: any) {
                 labelType: s.labelType
               })).filter((s: any) => s.batchNo && s.batchNo.trim() !== "")
               
-              const usages = data.inventory[sectionKey].usages.map((u: any) => ({
-                sectionKey,
-                type: "Usage",
-                period: u.period,
-                batchNo: u.batchNo,
-                bags: Number(u.bags),
-                mult: Number(u.mult) || 1,
-                labelType: u.labelType
-              })).filter((u: any) => u.batchNo && u.batchNo.trim() !== "")
+              const usages = data.inventory[sectionKey].usages.map((u: any) => {
+                let labelType = u.labelType;
+                if (sectionKey === "CAP" && (u.weight !== undefined || u.originalBags !== undefined || u.boxes !== undefined)) {
+                  labelType = JSON.stringify({ weight: u.weight, originalBags: u.originalBags ?? u.boxes, boxes: u.boxes ?? u.originalBags });
+                }
+                return {
+                  sectionKey,
+                  type: "Usage",
+                  period: u.period,
+                  batchNo: u.batchNo,
+                  bags: Number(u.bags),
+                  mult: Number(u.mult) || 1,
+                  labelType
+                };
+              }).filter((u: any) => u.batchNo && u.batchNo.trim() !== "")
 
               const holds = (data.inventory[sectionKey].holds || []).map((h: any) => ({
                 sectionKey,

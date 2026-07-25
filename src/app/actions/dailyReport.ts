@@ -335,8 +335,18 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       info.totalBalance = runningBalance
     })
 
+    // Fetch active pending hold items to flag and include batches on hold
+    const activeHoldItems = await prisma.productionHoldItem.findMany({
+      where: { status: "PENDING" }
+    })
+    const activeHoldMap: Record<string, any> = {}
+    activeHoldItems.forEach(h => {
+      activeHoldMap[`${h.batchNo}|${h.mult}`] = h
+    })
+
     const todayDOs: any[] = []
     const storeroomBatches: any[] = []
+    const addedBatchKeys = new Set<string>()
 
     Object.keys(batchInfo).forEach(batchKey => {
       const info = batchInfo[batchKey]
@@ -353,9 +363,44 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       })
 
       if (carryForward < 0) carryForward = 0
+      const isHold = !!activeHoldMap[batchKey]
 
-      if (carryForward > 0) {
-        storeroomBatches.push({ batchNo: info.batchNo, bags: carryForward, mult: info.mult, category: info.category, doNumber: info.doNumber, labelType: "Standard", transferInId: info.transferInId })
+      if (carryForward > 0 || isHold) {
+        addedBatchKeys.add(batchKey)
+        const bags = carryForward > 0 ? carryForward : (activeHoldMap[batchKey]?.qty || 1)
+        storeroomBatches.push({ 
+          batchNo: info.batchNo, 
+          bags: bags, 
+          mult: info.mult, 
+          category: info.category, 
+          doNumber: info.doNumber, 
+          labelType: isHold ? "(HOLD)" : "Standard", 
+          isHold, 
+          transferInId: info.transferInId 
+        })
+      }
+    })
+
+    // Ensure all pending hold items are available in carry forward dropdown
+    activeHoldItems.forEach(h => {
+      const key = `${h.batchNo}|${h.mult}`
+      if (!addedBatchKeys.has(key)) {
+        let category = h.sectionKey
+        if (category === "CAP") category = "CAP"
+        else if (category === "BOTTLE") category = "BOTTLE"
+        else if (category === "LABEL") category = "LABEL"
+
+        storeroomBatches.push({
+          batchNo: h.batchNo,
+          bags: h.qty,
+          mult: h.mult,
+          category: category,
+          doNumber: "HOLD",
+          labelType: "(HOLD)",
+          isHold: true,
+          transferInId: ""
+        })
+        addedBatchKeys.add(key)
       }
     })
 
@@ -387,7 +432,8 @@ export async function getDailyReportById(id: string) {
         productions: { include: { batches: true } },
         rejects: true,
         breakdowns: true,
-        inventory: true
+        inventory: true,
+        holds: true
       }
     })
     console.log("Report found:", report ? "YES" : "NO")

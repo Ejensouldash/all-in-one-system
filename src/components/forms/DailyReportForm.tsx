@@ -1045,31 +1045,37 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
               <p className="text-xs font-bold text-gray-400 italic">No incoming deliveries for this section today.</p>
             ) : (
               <div className="space-y-2">
-                {syncedDOs.map((doItem: any, idx: number) => (
-                  <div key={idx} className="flex justify-between items-center bg-white p-2 border border-emerald-200">
-                    <div className="flex flex-col">
-                      <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600">{doItem.doNumber}</span>
-                      <span className="text-xs font-black uppercase">{doItem.batchNo}</span>
+                {syncedDOs.map((doItem: any, idx: number) => {
+                  const isHoldDO = doItem.isHold || doItem.labelType === "(HOLD)" || doItem.labelType === "HOLD";
+                  return (
+                    <div key={idx} className={`flex justify-between items-center p-2 border ${isHoldDO ? 'bg-amber-50 border-amber-400 border-2' : 'bg-white border-emerald-200'}`}>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600">{doItem.doNumber}</span>
+                          {isHoldDO && <span className="bg-amber-600 text-white font-black text-[9px] px-1.5 py-0.5 rounded">HOLD</span>}
+                        </div>
+                        <span className={`text-xs font-black uppercase ${isHoldDO ? 'text-amber-900 font-black' : ''}`}>{doItem.batchNo}</span>
+                      </div>
+                      <div className="flex items-center text-xs font-bold">
+                        <span className={`${isHoldDO ? 'bg-amber-200 text-amber-900 font-black' : 'bg-emerald-100 text-emerald-800'} px-2 py-0.5 mr-3`}>{doItem.bags} {unit}</span>
+                        <span className="text-gray-500 mr-2">x {doItem.mult} = {doItem.bags * doItem.mult} Pcs</span>
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            if (window.confirm('Remove this Transfer In from syncing?')) {
+                              const event = new CustomEvent('removeSyncedDO', { detail: doItem.id });
+                              window.dispatchEvent(event);
+                            }
+                          }}
+                          className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors"
+                          title="Remove from sync"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center text-xs font-bold">
-                      <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 mr-3">{doItem.bags} {unit}</span>
-                      <span className="text-gray-500 mr-2">x {doItem.mult} = {doItem.bags * doItem.mult} Pcs</span>
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          if (window.confirm('Remove this Transfer In from syncing?')) {
-                            const event = new CustomEvent('removeSyncedDO', { detail: doItem.id });
-                            window.dispatchEvent(event);
-                          }
-                        }}
-                        className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors"
-                        title="Remove from sync"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -1111,9 +1117,11 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                 const bags = Number(watchSources[index]?.bags) || 0
                 const mult = Number(watchSources[index]?.mult) || 1
                 const calculatedPcs = bags * mult
+                const selectedBatchVal = watchSources[index]?.batchNo || ""
+                const isSelectedHold = selectedBatchVal && sectionAvailableBatches.some((b: any) => `${b.batchNo}|${b.mult}` === selectedBatchVal && (b.isHold || b.labelType === "(HOLD)" || b.labelType === "HOLD"))
 
                 return (
-                  <div key={field.id} className="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-gray-50 p-3 px-4 border border-gray-300">
+                  <div key={field.id} className={`flex flex-col sm:flex-row gap-2 items-start sm:items-center p-3 px-4 border ${isSelectedHold ? 'bg-amber-50 border-amber-400 border-2 shadow-sm' : 'bg-gray-50 border-gray-300'}`}>
                     {isLabel && (
                       <select {...register(`inventory.${sectionKey}.sources.${index}.labelType`)} className="w-full sm:w-32 p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-black uppercase">
                         <option value="Standard Front">Standard Front</option>
@@ -1140,26 +1148,39 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                       </select>
                     )}
 
-                    <div className="w-full sm:w-56">
+                    <div className="w-full sm:w-56 flex flex-col gap-1">
                       <select 
-                        value={watchSources[index]?.batchNo || ""}
+                        value={selectedBatchVal}
                         {...register(`inventory.${sectionKey}.sources.${index}.batchNo`, {
                           onChange: (e: any) => handleBatchSelect(index, e)
                         })} 
-                        className="w-full p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-black uppercase"
+                        className={`w-full p-2 border text-xs font-bold outline-none uppercase ${isSelectedHold ? 'border-amber-500 bg-amber-100 text-amber-900 font-black' : 'border-gray-300 bg-white'}`}
                       >
                         <option value="">-- SELECT CARRY FORWARD --</option>
-                        {watchSources[index]?.batchNo && !sectionAvailableBatches.some((b: any) => `${b.batchNo}|${b.mult}` === watchSources[index].batchNo) && (
-                          <option value={watchSources[index].batchNo}>
-                            {watchSources[index].batchNo.split('|')[0]} (x{watchSources[index].batchNo.split('|')[1]})
+                        {selectedBatchVal && !sectionAvailableBatches.some((b: any) => `${b.batchNo}|${b.mult}` === selectedBatchVal) && (
+                          <option value={selectedBatchVal}>
+                            {selectedBatchVal.split('|')[0]} (x{selectedBatchVal.split('|')[1]})
                           </option>
                         )}
-                        {sectionAvailableBatches.map((b: any) => (
-                          <option key={`${b.batchNo}|${b.mult}`} value={`${b.batchNo}|${b.mult}`}>
-                            {b.batchNo} (x{b.mult}) ({b.bags} {unit})
-                          </option>
-                        ))}
+                        {sectionAvailableBatches.map((b: any) => {
+                          const isHoldItem = b.isHold || b.labelType === "(HOLD)" || b.labelType === "HOLD";
+                          return (
+                            <option 
+                              key={`${b.batchNo}|${b.mult}`} 
+                              value={`${b.batchNo}|${b.mult}`}
+                              disabled={isHoldItem}
+                              className={isHoldItem ? "bg-amber-100 text-amber-900 font-bold italic" : ""}
+                            >
+                              {b.batchNo} {isHoldItem ? "[HOLD - LIHAT SAHAJA]" : ""} (x{b.mult}) ({b.bags} {unit})
+                            </option>
+                          );
+                        })}
                       </select>
+                      {isSelectedHold && (
+                        <span className="inline-block bg-amber-600 text-white font-black text-[9px] px-1.5 py-0.5 rounded w-max uppercase tracking-wider">
+                          ⚠️ ON HOLD STOCK
+                        </span>
+                      )}
                     </div>
                     
                     <div className="flex-1 flex justify-end w-full sm:w-auto">
@@ -1470,17 +1491,22 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
               {Object.keys(batchSummaries).length === 0 ? (
                 <tr><td colSpan={4} className="p-4 text-center text-gray-500 font-medium text-xs">No batches defined yet.</td></tr>
               ) : (
-                Object.entries(batchSummaries).map(([batch, data]) => (
-                  <tr key={batch} className="border-b border-gray-200 font-bold">
-                    <td className="p-2 border-r border-gray-300 uppercase truncate max-w-[120px]" title={batch}>{data.pureBatchNo} (x{data.mult})</td>
-                    <td className="p-2 text-center border-r border-gray-300 text-gray-600">{Math.round(data.totalBags)} <span className="text-[10px]">B</span></td>
-                    <td className="p-2 text-center border-r border-gray-300 text-blue-600">{Math.round(data.usedBags)} <span className="text-[10px]">B</span></td>
-                    <td className={`p-2 border-l-[3px] border-black flex flex-col items-center justify-center font-black ${data.carryFwdBags < 0 ? 'bg-red-100 text-red-700' : 'bg-yellow-50 text-yellow-900'}`}>
+                Object.entries(batchSummaries).map(([batch, data]) => {
+                  const isHoldBatch = sectionAvailableBatches.some((b: any) => `${b.batchNo}|${b.mult}` === batch && (b.isHold || b.labelType === "(HOLD)" || b.labelType === "HOLD"))
+                  return (
+                    <tr key={batch} className={`border-b border-gray-200 font-bold ${isHoldBatch ? 'bg-amber-50/80' : ''}`}>
+                      <td className="p-2 border-r border-gray-300 uppercase truncate max-w-[120px]" title={batch}>
+                        {data.pureBatchNo} (x{data.mult}) {isHoldBatch && <span className="bg-amber-600 text-white font-black text-[9px] px-1 py-0.5 rounded ml-1">HOLD</span>}
+                      </td>
+                      <td className="p-2 text-center border-r border-gray-300 text-gray-600">{Math.round(data.totalBags)} <span className="text-[10px]">B</span></td>
+                      <td className="p-2 text-center border-r border-gray-300 text-blue-600">{Math.round(data.usedBags)} <span className="text-[10px]">B</span></td>
+                      <td className={`p-2 border-l-[3px] border-black flex flex-col items-center justify-center font-black ${isHoldBatch ? 'bg-amber-100 text-amber-950 font-black border-l-amber-600' : data.carryFwdBags < 0 ? 'bg-red-100 text-red-700' : 'bg-yellow-50 text-yellow-900'}`}>
                       <span className="text-lg">{Math.round(data.carryFwdBags)} {unit}</span>
                       <span className="text-xs text-gray-500 font-bold">= {Math.round(data.carryFwdBags * data.mult)} Pcs</span>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

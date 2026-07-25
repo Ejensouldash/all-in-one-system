@@ -395,6 +395,12 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                         return false;
                       });
 
+                      // Collect hold batch numbers for tagging
+                      const holdBatchSet = new Set([
+                        ...(report.holds || []).map((h: any) => h.batchNo),
+                        ...report.inventory.filter((i: any) => i.type === 'Hold').map((i: any) => i.batchNo)
+                      ]);
+
                       const sectionBatchNos = Array.from(new Set([
                         ...sources.map((s:any)=>`${s.batchNo}|${s.mult}`), 
                         ...sectionDOItems.map((d:any)=>`${d.batchNo}|${d.mult}`),
@@ -423,7 +429,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                         const afterBags = usages.filter((u:any) => u.batchNo === batchNo && u.mult === multVal && u.period === 'After').reduce((sum:number, u:any) => sum + u.bags, 0)
                         const usedBags = Math.max(0, beforeBags - afterBags)
                         const carryFwdBags = startBags - usedBags
-                        carryForwardSummaries.push({ batchNo, startBags, usedBags, carryFwdBags, mult, labelType: storeroomObj?.labelType })
+                        carryForwardSummaries.push({ batchNo, startBags, usedBags, carryFwdBags, mult, labelType: storeroomObj?.labelType, isHold: holdBatchSet.has(batchNo) })
                       })
 
                       // Accumulate row totals
@@ -457,7 +463,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                               <div className="space-y-1.5">
                                 {sources.map((s: any) => (
                                   <div key={s.id} className="text-[10px] print:text-[8pt] font-bold leading-tight border-b border-dashed border-gray-200 print:border-gray-300 pb-1 last:border-0 last:pb-0 break-inside-avoid">
-                                    <div>{s.batchNo} {s.labelType ? `(${s.labelType})` : ''}</div>
+                                    <div>{s.batchNo} {holdBatchSet.has(s.batchNo) ? <span className="text-amber-600 print:text-black font-black">(HOLD)</span> : ''} {s.labelType ? `(${s.labelType})` : ''}</div>
                                     <div>{s.bags} <span className="text-[8px] print:text-[6pt] text-gray-500">(x{s.mult})</span></div>
                                   </div>
                                 ))}
@@ -472,7 +478,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                                 {sectionDOItems.map((s: any) => (
                                   <div key={s.id} className="text-[10px] print:text-[8pt] font-bold leading-tight border-b border-dashed border-gray-200 print:border-gray-300 pb-1 last:border-0 last:pb-0 break-inside-avoid">
                                     <div className="text-[8px] print:text-[6pt] text-gray-500 uppercase">{s.doNumber}</div>
-                                    <div>{s.batchNo}</div>
+                                    <div>{s.batchNo} {holdBatchSet.has(s.batchNo) ? <span className="text-amber-600 print:text-black font-black">(HOLD)</span> : ''}</div>
                                     <div className="text-emerald-700 print:text-black">{s.bags} <span className="text-[8px] print:text-[6pt] text-gray-500">(x{s.mult})</span></div>
                                   </div>
                                 ))}
@@ -510,7 +516,7 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                               <div className="space-y-1.5">
                                 {carryForwardSummaries.map((summary: any) => (
                                   <div key={summary.batchNo} className="text-[10px] print:text-[8pt] font-bold leading-tight border-b border-dashed border-yellow-200 print:border-gray-300 pb-1 last:border-0 last:pb-0 break-inside-avoid">
-                                    <div className="uppercase mb-0.5">{summary.batchNo} {summary.labelType ? `(${summary.labelType})` : ''}</div>
+                                    <div className="uppercase mb-0.5">{summary.batchNo} {summary.isHold ? <span className="text-amber-600 print:text-black font-black">(HOLD)</span> : ''} {summary.labelType ? `(${summary.labelType})` : ''}</div>
                                     <div className="whitespace-nowrap bg-yellow-100 print:bg-transparent px-1 print:px-0 py-0.5 rounded text-[9px] print:text-[7pt] text-gray-800">
                                       Av: {summary.startBags} - {summary.usedBags} = <span className="font-black text-[10px] print:text-[8pt] text-black">{summary.carryFwdBags}</span> <span className="text-[8px] print:text-[6pt] text-gray-600">(x{summary.mult})</span>
                                     </div>
@@ -580,6 +586,47 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
                   </tbody>
                 </table>
               </div>
+
+              {/* Dedicated On Hold / Quarantine Table */}
+              {((report.holds && report.holds.length > 0) || report.inventory.some((i: any) => i.type === 'Hold')) && (
+                <div className="mt-3 print:mt-2 border-2 border-amber-600 print:border-black p-2.5 print:p-1.5 bg-amber-50/50 print:bg-transparent print:break-inside-avoid">
+                  <h3 className="font-black text-xs print:text-[9pt] uppercase text-amber-900 print:text-black mb-1 flex items-center">
+                    <span className="bg-amber-600 text-white print:bg-black print:text-white px-1.5 py-0.5 mr-1.5 text-[9px] print:text-[7pt] font-black">HOLD</span>
+                    Quarantine / Items On Hold
+                  </h3>
+                  <table className="w-full text-xs print:text-[8pt] border border-black print:border-black bg-white print:bg-transparent">
+                    <thead className="bg-amber-100 print:bg-gray-100 font-black uppercase text-left border-b border-black text-[9px] print:text-[8pt]">
+                      <tr>
+                        <th className="p-1 print:py-0.5 print:px-1 border-r border-black">Material / Section</th>
+                        <th className="p-1 print:py-0.5 print:px-1 border-r border-black">Batch No</th>
+                        <th className="p-1 print:py-0.5 print:px-1 border-r border-black text-center">Hold Qty</th>
+                        <th className="p-1 print:py-0.5 print:px-1">Reason / Remarks</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {report.holds && report.holds.length > 0 ? (
+                        report.holds.map((h: any) => (
+                          <tr key={h.id} className="border-b border-black last:border-0 font-bold">
+                            <td className="p-1 print:py-0.5 print:px-1 border-r border-black uppercase">{h.sectionKey}</td>
+                            <td className="p-1 print:py-0.5 print:px-1 border-r border-black uppercase font-black text-amber-900 print:text-black">{h.batchNo} <span className="text-amber-600 print:text-black">(HOLD)</span></td>
+                            <td className="p-1 print:py-0.5 print:px-1 text-center border-r border-black">{h.qty} {h.sectionKey === 'CAP' ? 'Box' : 'Bag'} <span className="text-[9px] print:text-[7pt] text-gray-500 print:text-black">(x{h.mult} = {h.qty * h.mult} Pcs)</span></td>
+                            <td className="p-1 print:py-0.5 print:px-1 text-gray-700 print:text-black italic">{h.reason || "-"}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        report.inventory.filter((i: any) => i.type === 'Hold').map((h: any) => (
+                          <tr key={h.id} className="border-b border-black last:border-0 font-bold">
+                            <td className="p-1 print:py-0.5 print:px-1 border-r border-black uppercase">{h.sectionKey}</td>
+                            <td className="p-1 print:py-0.5 print:px-1 border-r border-black uppercase font-black text-amber-900 print:text-black">{h.batchNo} <span className="text-amber-600 print:text-black">(HOLD)</span></td>
+                            <td className="p-1 print:py-0.5 print:px-1 text-center border-r border-black">{h.bags} {h.sectionKey === 'CAP' ? 'Box' : 'Bag'} <span className="text-[9px] print:text-[7pt] text-gray-500 print:text-black">(x{h.mult} = {h.bags * h.mult} Pcs)</span></td>
+                            <td className="p-1 print:py-0.5 print:px-1 text-gray-700 print:text-black italic">-</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
             {/* Section 5: Remarks / Downtime */}
             <section className="print:break-inside-avoid mb-4 print:mb-0">

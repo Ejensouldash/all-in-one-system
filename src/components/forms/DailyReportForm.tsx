@@ -960,12 +960,12 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
       }
     }
 
-  const batchSummaries: Record<string, { totalBags: number, usedBags: number, carryFwdBags: number, mult: number, pureBatchNo: string, holdBags: number }> = {}
+  const batchSummaries: Record<string, { totalBags: number, usedBags: number, carryFwdBags: number, mult: number, pureBatchNo: string, holdBags: number, labelType?: string }> = {}
 
   syncedDOs.forEach((mock: any) => {
     const key = `${mock.batchNo}|${mock.mult}`
     if (!batchSummaries[key]) {
-      batchSummaries[key] = { totalBags: 0, usedBags: 0, carryFwdBags: 0, mult: isCap ? 4000 : (Number(mock.mult) || 1), pureBatchNo: mock.batchNo, holdBags: 0 }
+      batchSummaries[key] = { totalBags: 0, usedBags: 0, carryFwdBags: 0, mult: isCap ? 4000 : (Number(mock.mult) || 1), pureBatchNo: mock.batchNo, holdBags: 0, labelType: mock.labelType }
     }
     batchSummaries[key].totalBags += Number(mock.bags) || 0
   })
@@ -979,7 +979,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
     // src.batchNo is already in "batchNo|mult" format because of our handleBatchSelect
     if (!batchSummaries[src.batchNo]) {
       batchSummaries[src.batchNo] = { 
-        totalBags: 0, usedBags: 0, carryFwdBags: 0, mult: mult, pureBatchNo: src.batchNo.split('|')[0], holdBags: 0 
+        totalBags: 0, usedBags: 0, carryFwdBags: 0, mult: mult, pureBatchNo: src.batchNo.split('|')[0], holdBags: 0, labelType: src.labelType 
       }
     }
     batchSummaries[src.batchNo].totalBags += bags
@@ -1266,6 +1266,9 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
               {usageFields.map((field, index) => {
                 const selectedBatch = watchUsages[index]?.batchNo
                 const usageBags = Number(watchUsages[index]?.bags) || 0
+                const usageBoxes = Number(watchUsages[index]?.boxes) || 0
+                const usageWeight = Number(watchUsages[index]?.weight) || 0
+                const hasInputWithoutBatch = (usageBags > 0 || usageBoxes > 0 || usageWeight > 0) && !selectedBatch
                 
                 // Dropdown logic using BAGS instead of pcs
                 const availableBatches = Object.keys(batchSummaries).filter(b => {
@@ -1274,7 +1277,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                 })
 
                 return (
-                  <div key={field.id} className="flex flex-col bg-white border border-blue-200 shadow-sm">
+                  <div key={field.id} className={`flex flex-col bg-white border ${hasInputWithoutBatch ? 'border-red-500 ring-2 ring-red-400 bg-red-50/20' : 'border-blue-200'} shadow-sm`}>
                     <div className="flex flex-wrap gap-2 items-center p-3 px-4">
                       <select {...register(`inventory.${sectionKey}.usages.${index}.period`)} className="w-28 p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-blue-500">
                         <option value="Before">Before</option>
@@ -1311,7 +1314,7 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                       <select 
                         value={watchUsages[index]?.batchNo || ""}
                         {...register(`inventory.${sectionKey}.usages.${index}.batchNo`)} 
-                        className="flex-1 p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-blue-500 uppercase"
+                        className={`flex-1 p-2 border ${hasInputWithoutBatch ? 'border-red-500 bg-red-100 text-red-900 font-extrabold animate-pulse' : 'border-gray-300 bg-white'} text-xs font-bold outline-none focus:border-blue-500 uppercase`}
                       >
                         <option value="">-- Select Batch --</option>
                         {watchUsages[index]?.batchNo && !availableBatches.includes(watchUsages[index].batchNo) && (
@@ -1356,12 +1359,23 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                     
                       <button type="button" onClick={() => removeUsage(index)} className="text-red-500 p-2 hover:bg-red-50 ml-auto"><Trash2 className="w-4 h-4" /></button>
                     </div>
+
+                    {hasInputWithoutBatch && (
+                      <div className="px-4 pb-2 text-[11px] font-black text-red-600 flex items-center gap-1">
+                        ⚠️ SIAPKAN: Sila pilih Batch dalam dropdown di atas! Data tidak akan disimpan jika tiada Batch.
+                      </div>
+                    )}
                   </div>
                 )
               })}
             </div>
             {watchUsages.length > 0 && (
-              <div className="mt-2 flex justify-end w-full">
+              <div className="mt-2 flex flex-col justify-end items-end w-full gap-1">
+                {watchUsages.some((u: any) => (Number(u?.bags) > 0 || Number(u?.boxes) > 0 || Number(u?.weight) > 0) && !u?.batchNo) && (
+                  <div className="bg-red-100 border-2 border-red-400 p-2 px-3 text-red-800 text-xs font-black w-full text-right animate-pulse">
+                    ⚠️ AMARAN: Terdapat rekod usage yang BELUM DIPILIH BATCH. Sila pilih batch supaya data tidak ghaib/hilang selepas disimpan!
+                  </div>
+                )}
                 <div className="bg-blue-100 p-3 sm:px-4 sm:py-2 border-2 border-blue-200 font-black text-xs sm:text-sm flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
                   <span className="text-gray-600 uppercase tracking-widest text-xs">Total Usage</span>
                   {isLabel ? (
@@ -1512,7 +1526,10 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                   return (
                     <tr key={batch} className={`border-b border-gray-200 font-bold ${isHoldBatch ? 'bg-amber-50/80' : ''}`}>
                       <td className="p-2 border-r border-gray-300 uppercase truncate max-w-[120px]" title={batch}>
-                        {data.pureBatchNo} (x{data.mult}) {isHoldBatch && <span className="bg-amber-600 text-white font-black text-[9px] px-1 py-0.5 rounded ml-1">HOLD</span>}
+                        <div>{data.pureBatchNo} (x{data.mult}) {isHoldBatch && <span className="bg-amber-600 text-white font-black text-[9px] px-1 py-0.5 rounded ml-1">HOLD</span>}</div>
+                        {isLabel && data.labelType && (
+                          <div className="text-[10px] text-blue-700 font-extrabold tracking-tight mt-0.5">{data.labelType}</div>
+                        )}
                       </td>
                       <td className="p-2 text-center border-r border-gray-300 text-gray-600">{Math.round(data.totalBags)} <span className="text-[10px]">B</span></td>
                       <td className="p-2 text-center border-r border-gray-300 text-blue-600">{Math.round(data.usedBags)} <span className="text-[10px]">B</span></td>

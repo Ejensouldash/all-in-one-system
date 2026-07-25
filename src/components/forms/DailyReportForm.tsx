@@ -986,6 +986,8 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
   })
 
   // 3. Sum up used bags per batch from Usages
+  const batchUsageTotals: Record<string, { before: number, after: number }> = {};
+
   watchUsages.forEach((usage: any) => {
     if (!usage.batchNo) return;
     
@@ -997,9 +999,11 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
     }
 
     if (!key || !batchSummaries[key]) return;
+    if (!batchUsageTotals[key]) batchUsageTotals[key] = { before: 0, after: 0 };
 
-    const rawUsage = Number(usage.bags) || 0;
     const isUsageCap = sectionKey === "CAP";
+    let bagQty = 0;
+
     if (isUsageCap) {
        const w = Number(usage.weight) || 0;
        const b = Number(usage.boxes) || 0;
@@ -1015,20 +1019,22 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
        }
        
        const mult = batchSummaries[key].mult || 4000;
-       const bagQty = pcs > 0 ? (pcs / mult) : 0;
-       if (usage.period === 'After') {
-         batchSummaries[key].usedBags -= bagQty;
-       } else {
-         batchSummaries[key].usedBags += bagQty;
-       }
+       bagQty = pcs > 0 ? (pcs / mult) : 0;
     } else {
-       if (usage.period === 'After') {
-         batchSummaries[key].usedBags -= rawUsage;
-       } else {
-         batchSummaries[key].usedBags += rawUsage;
-       }
+       bagQty = Number(usage.bags) || 0;
     }
-  })
+
+    if (usage.period === 'After') {
+      batchUsageTotals[key].after += bagQty;
+    } else {
+      batchUsageTotals[key].before += bagQty;
+    }
+  });
+
+  Object.keys(batchSummaries).forEach(key => {
+    const totals = batchUsageTotals[key] || { before: 0, after: 0 };
+    batchSummaries[key].usedBags = Math.max(0, totals.before - totals.after);
+  });
 
   // 4. Compute Carry Forward
   Object.keys(batchSummaries).forEach(batch => {

@@ -31,6 +31,12 @@ const maskBatchNo = (raw: string) => {
   return digits.length > 6 ? `${digits.slice(0, 6)}-${digits.slice(6, 8)}` : digits
 }
 
+// The inputs carry a Tailwind `uppercase` class, but that is text-transform — display
+// only. The value was still stored exactly as typed, so "8-STDF-130526" on screen went
+// into the database as "8-stdf-130526". Uppercase the value itself to keep it consistent.
+const normaliseBatchNo = (raw: string, category: string) =>
+  needsBatchMask(category) ? maskBatchNo(raw) : (raw || "").toUpperCase()
+
 export function TransferInForm({ userName, initialData }: { userName: string, initialData?: any }) {
   const isEditing = !!initialData;
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -165,20 +171,24 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
       return
     }
     
+    data.receiverName = (data.receiverName || "").toUpperCase()
+    data.doNumber = (data.doNumber || "").toUpperCase()
+
     for (let i = 0; i < data.items.length; i++) {
        const cat = data.items[i].category || "";
        if (!data.items[i].batchNo) {
           return showErrorAndScroll(`item-${i}-batchNo`, `Please fill in the Batch No for item #${i + 1}.`)
        }
-       
+
+       // The onChange normaliser can be bypassed by pasting or by the QR scanner,
+       // which appends the scanned value directly — normalise every row here too.
+       const normalised = normaliseBatchNo(data.items[i].batchNo, cat)
+       if (normalised !== data.items[i].batchNo) {
+         data.items[i].batchNo = normalised
+         setValue(`items.${i}.batchNo`, normalised, { shouldValidate: true, shouldDirty: true })
+       }
+
        if (cat === "CAP") {
-         // The onChange mask can be bypassed by pasting or by the QR scanner, which
-         // appends the scanned value directly — normalise here, then enforce the format.
-         const normalised = maskBatchNo(data.items[i].batchNo)
-         if (normalised !== data.items[i].batchNo) {
-           data.items[i].batchNo = normalised
-           setValue(`items.${i}.batchNo`, normalised, { shouldValidate: true, shouldDirty: true })
-         }
          if (!BATCH_PATTERN.test(normalised)) {
            return showErrorAndScroll(`item-${i}-batchNo`, `Batch No CAP untuk item #${i + 1} mesti dalam format XXXXXX-XX (8 digit), contoh: 053026-02. Nilai sekarang: "${data.items[i].batchNo}"`)
          }
@@ -355,7 +365,12 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
           </div>
           <div id="field-receiverName">
             <label className="block text-xs font-black uppercase tracking-wider mb-2">Receiver (Staff)</label>
-            <input type="text" {...register("receiverName")} className="w-full border-2 border-black p-3 font-bold focus:outline-none focus:ring-2 focus:ring-black bg-white uppercase" />
+            <input
+              type="text"
+              {...register("receiverName")}
+              onChange={(e) => setValue("receiverName", e.target.value.toUpperCase(), { shouldValidate: true, shouldDirty: true })}
+              className="w-full border-2 border-black p-3 font-bold focus:outline-none focus:ring-2 focus:ring-black bg-white uppercase"
+            />
           </div>
         </div>
 
@@ -480,10 +495,7 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
                         placeholder={needsBatchMask(cat) ? "xxxxxx-xx" : "Batch No"}
                         {...register(`items.${index}.batchNo`)}
                         onChange={(e) => {
-                          let val = e.target.value;
-                          if (needsBatchMask(cat)) {
-                            val = maskBatchNo(val);
-                          }
+                          const val = normaliseBatchNo(e.target.value, cat);
                           setValue(`items.${index}.batchNo`, val, { shouldValidate: true, shouldDirty: true });
                         }}
                         maxLength={needsBatchMask(cat) ? 9 : undefined}

@@ -144,9 +144,9 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
     if (!initialData.inventory[i.sectionKey]) return;
 
     const hasBatch = !!(i.batchNo && i.batchNo.trim() !== "");
-    // Draft saves keep usage rows without a batch (lossless drafts) — load those back too.
-    // Everything else without a batch is an empty row saved by accident.
-    if (!hasBatch && !(i.type === "Usage" && i.bags > 0)) return;
+    // Draft saves keep Usage and Storeroom rows without a batch (lossless drafts) —
+    // load those back too. Anything else without a batch is an empty row saved by accident.
+    if (!hasBatch && !((i.type === "Usage" || i.type === "Storeroom") && i.bags > 0)) return;
 
     const entry: any = {
       batchNo: hasBatch ? (i.batchNo.includes('|') ? i.batchNo : `${i.batchNo}|${i.mult}`) : "",

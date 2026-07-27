@@ -63,6 +63,34 @@ function buildUsageRows(sectionKey: string, usages: any[], sources: any[], isDra
   })
 }
 
+// Builds InventoryLog "Storeroom" rows for one section. Mirrors buildUsageRows:
+// a draft keeps a row that carries a quantity even when no batch was picked yet,
+// so a half-filled draft survives a reload instead of vanishing on save.
+function buildSourceRows(sectionKey: string, sources: any[], isDraft: boolean) {
+  return (sources || []).map((s: any) => ({
+    sectionKey,
+    type: "Storeroom", // Technically we only submit Storeroom now, as TransferIn comes from DO
+    batchNo: (s.batchNo || "").trim(),
+    bags: Number(s.bags) || 0,
+    mult: Number(s.mult) || 1,
+    labelType: s.labelType
+  })).filter((s: any) => {
+    if (s.batchNo !== "") return true
+    return isDraft && s.bags > 0
+  })
+}
+
+// A label batch's FIRST DIGIT identifies its line: 8… = 800ml, 4… = 425ml.
+// Batch numbers arrive mixed-case with optional separators (8STDF-130526,
+// 8-stdf-130526, 4stdf-130526), so normalise before reading that digit.
+// Reject ONLY the opposite line — anything unclassifiable is kept, because
+// silently dropping it is exactly what lost the data.
+function isOtherLineLabel(batchNo: string, line: string) {
+  const d = (batchNo || "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase()[0]
+  if (d !== "8" && d !== "4") return false
+  return line.includes("800") ? d === "4" : d === "8"
+}
+
 export async function createDailyReport(data: any) {
   const session = await auth()
   if (!session) return { success: false, error: "Unauthorized" }
@@ -146,14 +174,7 @@ export async function createDailyReport(data: any) {
           create: Object.keys(data.inventory || {}).flatMap(sectionKey => {
             if (data.line.includes('800') && sectionKey.startsWith('BOX_') && !sectionKey.includes('800')) return [];
             if (data.line.includes('425') && sectionKey.startsWith('BOX_') && !sectionKey.includes('425')) return [];
-            const sources = data.inventory[sectionKey].sources.map((s: any) => ({
-              sectionKey,
-              type: "Storeroom", // Technically we only submit Storeroom now, as TransferIn comes from DO
-              batchNo: s.batchNo,
-              bags: Number(s.bags),
-              mult: Number(s.mult),
-              labelType: s.labelType
-            })).filter((s: any) => s.batchNo && s.batchNo.trim() !== "")
+            const sources = buildSourceRows(sectionKey, data.inventory[sectionKey].sources, !!data.isDraft)
 
             const usages = buildUsageRows(sectionKey, data.inventory[sectionKey].usages, sources, !!data.isDraft)
 
@@ -168,7 +189,7 @@ export async function createDailyReport(data: any) {
             const transferIns = (data.syncedDOs || []).filter((d: any) => {
               if (sectionKey === "CAP") return d.category.includes("CAP") && !d.category.includes("CARTON");
               if (sectionKey === "BOTTLE") return d.category.includes("BOTTLE") && d.category.includes(data.line.includes("800") ? "800" : "425");
-              if (sectionKey === "LABEL") return d.category.includes("LABEL");
+              if (sectionKey === "LABEL") return d.category.includes("LABEL") && !isOtherLineLabel(d.batchNo, data.line);
               if (sectionKey.startsWith("BOX_")) {
                 const size = sectionKey.replace("BOX_p", "").split("_")[0];
                 const pack = sectionKey.split("_")[2]; // e.g. BOX_p800_12 -> 800, 12
@@ -676,14 +697,7 @@ export async function updateDailyReport(id: string, data: any) {
             create: Object.keys(data.inventory || {}).flatMap(sectionKey => {
               if (data.line.includes('800') && sectionKey.startsWith('BOX_') && !sectionKey.includes('800')) return [];
               if (data.line.includes('425') && sectionKey.startsWith('BOX_') && !sectionKey.includes('425')) return [];
-              const sources = data.inventory[sectionKey].sources.map((s: any) => ({
-                sectionKey,
-                type: "Storeroom",
-                batchNo: s.batchNo,
-                bags: Number(s.bags),
-                mult: Number(s.mult),
-                labelType: s.labelType
-              })).filter((s: any) => s.batchNo && s.batchNo.trim() !== "")
+              const sources = buildSourceRows(sectionKey, data.inventory[sectionKey].sources, !!data.isDraft)
 
               const usages = buildUsageRows(sectionKey, data.inventory[sectionKey].usages, sources, !!data.isDraft)
 
@@ -698,7 +712,7 @@ export async function updateDailyReport(id: string, data: any) {
               const transferIns = (data.syncedDOs || []).filter((d: any) => {
                 if (sectionKey === "CAP") return d.category.includes("CAP") && !d.category.includes("CARTON");
                 if (sectionKey === "BOTTLE") return d.category.includes("BOTTLE") && d.category.includes(data.line.includes("800") ? "800" : "425");
-                if (sectionKey === "LABEL") return d.category.includes("LABEL") && (data.line.includes("800") ? d.batchNo.startsWith("8S") : d.batchNo.startsWith("4S"));
+                if (sectionKey === "LABEL") return d.category.includes("LABEL") && !isOtherLineLabel(d.batchNo, data.line);
                 if (sectionKey.startsWith("BOX_")) {
                   const size = sectionKey.replace("BOX_p", "").split("_")[0];
                   const pack = sectionKey.split("_")[2];

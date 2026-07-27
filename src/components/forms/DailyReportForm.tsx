@@ -372,12 +372,19 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       }
     }
 
-    // Validate Usage Logs: a row with quantity but no batch would be dropped on save
+    // Validate Usage Logs and Storeroom Balance: a row with quantity but no batch
+    // would be dropped on save, which is how filled-in data used to vanish silently
     for (const sectionKey of Object.keys(data.inventory || {})) {
       const usages = data.inventory[sectionKey]?.usages || []
       const incomplete = usages.some((u: any) => !u?.batchNo && ((Number(u?.bags) || 0) > 0 || (Number(u?.boxes) || 0) > 0 || (Number(u?.weight) || 0) > 0))
       if (incomplete) {
         return showErrorAndScroll(`section-inventory-${sectionKey}`, `USAGE LOG (${sectionKey}): Sila pilih Batch untuk semua rekod usage yang ada kuantiti. Rekod tanpa Batch tidak akan disimpan.`)
+      }
+
+      const sources = data.inventory[sectionKey]?.sources || []
+      const incompleteSource = sources.some((s: any) => !s?.batchNo && (Number(s?.bags) || 0) > 0)
+      if (incompleteSource) {
+        return showErrorAndScroll(`section-inventory-${sectionKey}`, `STOREROOM BALANCE (${sectionKey}): Sila pilih Batch untuk semua baris yang ada kuantiti. Baris tanpa Batch tidak akan disimpan.`)
       }
     }
 

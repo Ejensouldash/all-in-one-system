@@ -4,6 +4,16 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
 import { logUserAction } from "./audit"
+import { getAccessInfo, hasAnyModule } from "@/lib/access"
+
+// Module access must come from the DB, never from session.user.modules: the JWT
+// snapshots modules at login, so a freshly granted module stays invisible to the
+// gate until the user logs out and back in. See the note in src/lib/access.ts.
+async function hasTransferInHistoryAccess() {
+  const access = await getAccessInfo()
+  if (!access) return false
+  return hasAnyModule(access, ["TRANSFER_IN_HISTORY"])
+}
 
 export async function createTransferIn(data: any) {
   const session = await auth()
@@ -55,12 +65,8 @@ export async function updateTransferIn(id: string, data: any) {
     })
     
     if (!existing) return { success: false, error: "Not found" }
-    
-    const user = session.user as any
-    const role = user.trueRole || user.role
-    const modules = user.modules || []
 
-    const hasAccess = role === "SUPERADMIN" || modules.includes("TRANSFER_IN_HISTORY")
+    const hasAccess = await hasTransferInHistoryAccess()
 
     // Check if within 30 minutes for normal users
     if (!hasAccess) {
@@ -115,11 +121,7 @@ export async function deleteTransferIn(id: string) {
   const session = await auth()
   if (!session) return { success: false, error: "Unauthorized" }
 
-  const user = session.user as any
-  const role = user.trueRole || user.role
-  const modules = user.modules || []
-  
-  if (role !== "SUPERADMIN" && !modules.includes("TRANSFER_IN_HISTORY")) {
+  if (!(await hasTransferInHistoryAccess())) {
     return { success: false, error: "Unauthorized. You do not have permission to delete Transfer In records." }
   }
 
@@ -175,11 +177,7 @@ export async function bulkDeleteTransferIn(ids: string[]) {
   const session = await auth()
   if (!session) return { success: false, error: "Unauthorized" }
 
-  const user = session.user as any
-  const role = user.trueRole || user.role
-  const modules = user.modules || []
-  
-  if (role !== "SUPERADMIN" && !modules.includes("TRANSFER_IN_HISTORY")) {
+  if (!(await hasTransferInHistoryAccess())) {
     return { success: false, error: "Unauthorized. You do not have permission to delete Transfer In records." }
   }
 

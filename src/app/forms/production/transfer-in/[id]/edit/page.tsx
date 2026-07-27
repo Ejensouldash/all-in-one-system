@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import { TransferInForm } from "@/components/forms/TransferInForm"
 import { getTransferInById } from "@/app/actions/transferIn"
+import { getAccessInfo, hasAnyModule } from "@/lib/access"
 
 export const metadata = {
   title: "Edit Delivery Order (Transfer In)",
@@ -34,10 +35,10 @@ export default async function EditTransferInPage({
 
   const transfer = result.data
 
-  const user = session.user as any
-  const role = user.trueRole || user.role
-  const modules = user.modules || []
-  const hasAccess = role === "SUPERADMIN" || modules.includes("TRANSFER_IN_HISTORY")
+  // Read modules live from the DB — the session JWT goes stale the moment an
+  // admin grants a module, which silently locked users out of editing.
+  const access = await getAccessInfo()
+  const hasAccess = !!access && hasAnyModule(access, ["TRANSFER_IN_HISTORY"])
 
   // Check if it's within 30 minutes
   const thirtyMinutes = 30 * 60 * 1000

@@ -2,6 +2,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { DailyReportForm } from "@/components/forms/DailyReportForm"
+import { getAccessInfo, hasAnyModule } from "@/lib/access"
 
 export default async function EditDailyReportPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -21,8 +22,12 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
 
   if (!report) redirect("/forms")
   if (report.status !== "PENDING" && report.status !== "REJECTED" && report.status !== "DRAFT") {
-    // Only pending, rejected, or draft reports can be edited
-    redirect(`/forms/production/daily-report/${resolvedParams.id}`)
+    // Approved reports are editable only by holders of DAILY_REPORT_EDIT_APPROVED
+    const access = await getAccessInfo()
+    const canEditApproved = report.status === "APPROVED" && !!access && hasAnyModule(access, ["DAILY_REPORT_EDIT_APPROVED"])
+    if (!canEditApproved) {
+      redirect(`/forms/production/daily-report/${resolvedParams.id}`)
+    }
   }
 
   // Transform Prisma data back to React Hook Form structure

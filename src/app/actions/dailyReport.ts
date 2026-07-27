@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
 import { logUserAction } from "./audit"
+import { getAccessInfo, hasAnyModule } from "@/lib/access"
 
 // CAP conversion constants (must stay in sync with DailyReportForm)
 const CAP_PCS_PER_BOX = 4000
@@ -583,7 +584,17 @@ export async function updateDailyReport(id: string, data: any) {
     // Verify report is PENDING, REJECTED, or DRAFT
     const existing = await prisma.dailyReport.findUnique({ where: { id } })
     if (!existing) return { success: false, error: "Report not found" }
-    if (existing.status !== "PENDING" && existing.status !== "REJECTED" && existing.status !== "DRAFT") return { success: false, error: "Cannot edit an approved report." }
+
+    // Approved reports may be edited only by holders of DAILY_REPORT_EDIT_APPROVED.
+    // When they are, the report STAYS approved: dropping it back to PENDING would
+    // discard the supervisor's verification and let re-approval duplicate the
+    // ProductionTransfer rows that approveDailyReport creates.
+    let isApprovedEdit = false
+    if (existing.status !== "PENDING" && existing.status !== "REJECTED" && existing.status !== "DRAFT") {
+      const access = await getAccessInfo()
+      isApprovedEdit = existing.status === "APPROVED" && !!access && hasAnyModule(access, ["DAILY_REPORT_EDIT_APPROVED"])
+      if (!isApprovedEdit) return { success: false, error: "Cannot edit an approved report." }
+    }
 
     // Note: Usage rejects are already aggregated into data.rejectsScrap and data.rejectsReturn
     // by the frontend form logic. We just map them directly.
@@ -598,7 +609,7 @@ export async function updateDailyReport(id: string, data: any) {
       prisma.dailyReport.update({
         where: { id },
         data: {
-          status: data.isDraft ? "DRAFT" : "PENDING",
+          status: isApprovedEdit ? "APPROVED" : (data.isDraft ? "DRAFT" : "PENDING"),
           date: new Date(data.date),
           time: data.time,
           reportTime: data.reportTime,
@@ -739,8 +750,8 @@ export async function updateDailyReport(id: string, data: any) {
     revalidatePath(`/forms/production/daily-report/${id}`)
 
     await logUserAction(
-      "Updated Daily Report",
-      `Report ID: ${id}. Payload: ${JSON.stringify(data)}`
+      isApprovedEdit ? "Edited APPROVED Daily Report" : "Updated Daily Report",
+      `Report ID: ${id}.${isApprovedEdit ? " Report remained APPROVED after edit." : ""} Payload: ${JSON.stringify(data)}`
     )
 
     return { success: true }

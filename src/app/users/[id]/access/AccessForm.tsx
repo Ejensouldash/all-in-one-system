@@ -50,6 +50,7 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "WAREHOUSE", name: "Warehouse & Transfer In", description: "Manage inventory and incoming deliveries.", icon: Warehouse },
       { id: "PRODUCTION_STOCK", name: "Production Stock", description: "View and manage production stock balances.", icon: Boxes },
       { id: "TRANSFER_IN_HISTORY", name: "Transfer In History", description: "View, edit, and delete transfer in historical records.", icon: History },
+      { id: "DAILY_REPORT_EDIT_APPROVED", name: "Edit Approved Daily Report", description: "Allows editing production daily reports even after they have been approved.", icon: FileSpreadsheet },
       { id: "DATABASE_MANAGER", name: "Production Database", description: "Manage raw database records for production.", icon: Database },
     ],
   },

@@ -10,6 +10,7 @@ import { DeleteReportButton } from "@/components/forms/DeleteReportButton"
 import { ExportDailyReportButton } from "@/components/forms/ExportDailyReportButton"
 import { SharePDFButton } from "@/components/ui/SharePDFButton"
 import { prisma } from "@/lib/prisma"
+import { getAccessInfo, hasAnyModule } from "@/lib/access"
 import { Metadata } from "next"
 
 // CAP conversion constants (must stay in sync with DailyReportForm)
@@ -69,6 +70,10 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function ViewDailyReportPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session) redirect("/login")
+
+  // Read modules live from the DB, not the session JWT (which goes stale on grant)
+  const access = await getAccessInfo()
+  const canEditApproved = !!access && hasAnyModule(access, ["DAILY_REPORT_EDIT_APPROVED"])
 
   const resolvedParams = await params
   const response = await getDailyReportById(resolvedParams.id)
@@ -162,12 +167,12 @@ export default async function ViewDailyReportPage({ params }: { params: Promise<
           {((session.user as any).trueRole === "SUPERADMIN" || (session.user as any).trueRole === "SUPERVISOR") && (
             <DeleteReportButton reportId={report.id} />
           )}
-          {(report.status === "PENDING" || report.status === "REJECTED" || report.status === "DRAFT") && (
+          {(report.status === "PENDING" || report.status === "REJECTED" || report.status === "DRAFT" || (report.status === "APPROVED" && canEditApproved)) && (
             <>
               {report.status === "PENDING" && ((session.user as any).trueRole === "SUPERVISOR" || (session.user as any).trueRole === "SUPERADMIN") && (
                 <ApprovalSignatureModal reportId={report.id} />
               )}
-              
+
               <Link href={`/forms/production/daily-report/${report.id}/edit`} className="inline-flex items-center text-sm font-black uppercase tracking-wider border-2 border-indigo-600 text-indigo-600 px-4 py-2 bg-white hover:bg-indigo-600 hover:text-white transition-all shadow-[4px_4px_0px_0px_rgba(79,70,229,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px]">
                 Edit Report
               </Link>

@@ -21,6 +21,16 @@ const MULTIPLIERS = {
   MACHINE_STRETCH_FILM: [1]
 }
 
+// Batch numbers for BOTTLE and CAP follow a strict 6-digit + dash + 2-digit format.
+// LABEL (8STDF-130526) and BOX (230726-80020) use other shapes and must never be masked.
+const BATCH_PATTERN = /^\d{6}-\d{2}$/
+const needsBatchMask = (category: string) => (category || "").includes("BOTTLE") || category === "CAP"
+
+const maskBatchNo = (raw: string) => {
+  const digits = (raw || "").replace(/[^0-9]/g, '')
+  return digits.length > 6 ? `${digits.slice(0, 6)}-${digits.slice(6, 8)}` : digits
+}
+
 export function TransferInForm({ userName, initialData }: { userName: string, initialData?: any }) {
   const isEditing = !!initialData;
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -162,6 +172,17 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
        }
        
        if (cat === "CAP") {
+         // The onChange mask can be bypassed by pasting or by the QR scanner, which
+         // appends the scanned value directly — normalise here, then enforce the format.
+         const normalised = maskBatchNo(data.items[i].batchNo)
+         if (normalised !== data.items[i].batchNo) {
+           data.items[i].batchNo = normalised
+           setValue(`items.${i}.batchNo`, normalised, { shouldValidate: true, shouldDirty: true })
+         }
+         if (!BATCH_PATTERN.test(normalised)) {
+           return showErrorAndScroll(`item-${i}-batchNo`, `Batch No CAP untuk item #${i + 1} mesti dalam format XXXXXX-XX (8 digit), contoh: 053026-02. Nilai sekarang: "${data.items[i].batchNo}"`)
+         }
+
          const w = Number(data.items[i].weight) || 0;
          const b = Number(data.items[i].bags) || 0;
          if (w <= 0 && b <= 0) {
@@ -454,21 +475,18 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
                           </span>
                         )}
                       </div>
-                      <input 
-                        type="text" 
-                        placeholder={cat.includes("BOTTLE") ? "xxxxxx-xx" : "Batch No"}
-                        {...register(`items.${index}.batchNo`)} 
+                      <input
+                        type="text"
+                        placeholder={needsBatchMask(cat) ? "xxxxxx-xx" : "Batch No"}
+                        {...register(`items.${index}.batchNo`)}
                         onChange={(e) => {
                           let val = e.target.value;
-                          if (cat.includes("BOTTLE")) {
-                            val = val.replace(/[^0-9]/g, ''); // keep only numbers
-                            if (val.length > 6) {
-                              val = val.slice(0, 6) + '-' + val.slice(6, 8);
-                            }
+                          if (needsBatchMask(cat)) {
+                            val = maskBatchNo(val);
                           }
                           setValue(`items.${index}.batchNo`, val, { shouldValidate: true, shouldDirty: true });
                         }}
-                        maxLength={cat.includes("BOTTLE") ? 9 : undefined}
+                        maxLength={needsBatchMask(cat) ? 9 : undefined}
                         className="w-full p-3 md:p-2 border-2 border-gray-300 bg-white font-bold outline-none focus:border-black uppercase text-sm" 
                       />
                     </div>

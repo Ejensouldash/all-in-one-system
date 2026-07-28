@@ -44,6 +44,8 @@ const FORM_TYPES: { value: string; label: string }[] = [
   { value: "pcs", label: "SGMP-06 PCS" },
   { value: "pcdm", label: "SGMP-06 PCDM" },
   { value: "ftdm", label: "SGMP-06 FTDM" },
+  { value: "fpir", label: "SGMP-18 FPIR" },
+  { value: "wqtr", label: "SGMP-18 WQTR" },
 ]
 
 const FIELD_CONFIG: Record<string, FieldConfig[]> = {
@@ -209,6 +211,15 @@ const FIELD_CONFIG: Record<string, FieldConfig[]> = {
   ],
   ftdm: [
     ...Array.from({ length: 4 }, (_, i) => ({ key: `station${i + 1}`, label: `Station ${i + 1}`, type: "checkbox" as FieldType })),
+    { key: "checkedBy", label: "Checked By", type: "text" },
+  ],
+  // Inspection rows live in the `rows` JSON column, so the summary grid only
+  // exposes the record-level fields — same approach as dqip/qcdr above.
+  fpir: [
+    { key: "remarks", label: "Remarks", type: "text" },
+    { key: "checkedBy", label: "Checked By", type: "text" },
+  ],
+  wqtr: [
     { key: "checkedBy", label: "Checked By", type: "text" },
   ]
 }

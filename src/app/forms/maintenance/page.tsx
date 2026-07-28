@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { ClipboardList, Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, Brush, ClipboardCheck, Bug } from "lucide-react"
+import { ClipboardList, Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, Brush, ClipboardCheck, Bug, Droplets } from "lucide-react"
 import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
 import { MaintenanceFormsGrid } from "./MaintenanceFormsGrid"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
@@ -82,6 +82,22 @@ export default async function MaintenanceDashboard() {
       href: "/forms/maintenance/ftdm",
       gradient: "from-amber-900 via-amber-800 to-orange-900",
       accent: "bg-amber-400"
+    },
+    {
+      title: "SGMP/18/FPIR",
+      description: "SGMP/18/FPIR - Finished Product Inspection Record",
+      icon: <ShieldAlert className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/fpir",
+      gradient: "from-rose-900 via-rose-800 to-pink-900",
+      accent: "bg-rose-400"
+    },
+    {
+      title: "SGMP/18/WQTR",
+      description: "SGMP/18/WQTR - Water Quality Testing Record",
+      icon: <Droplets className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/wqtr",
+      gradient: "from-sky-900 via-sky-800 to-cyan-900",
+      accent: "bg-sky-400"
     }
   ]
 

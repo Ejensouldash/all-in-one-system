@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, ClipboardList, FileSpreadsheet, Brush, ClipboardCheck, Bug } from "lucide-react"
+import { Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, ClipboardList, FileSpreadsheet, Brush, ClipboardCheck, Bug, Droplets } from "lucide-react"
 import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
 
 import { getAccessInfo } from "@/lib/access"
@@ -81,6 +81,22 @@ export default async function MaintenanceReportsDashboard() {
       href: "/forms/maintenance/reports/ftdm",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-amber-400"
+    },
+    {
+      title: "Finished Product Inspection Reports",
+      description: "SGMP-18: View and print finished product inspection records.",
+      icon: <ShieldAlert className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/fpir",
+      gradient: "from-slate-900 via-slate-800 to-zinc-900",
+      accent: "bg-rose-400"
+    },
+    {
+      title: "Water Quality Testing Reports",
+      description: "SGMP-18: View and print water quality testing records.",
+      icon: <Droplets className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/wqtr",
+      gradient: "from-slate-900 via-slate-800 to-zinc-900",
+      accent: "bg-sky-400"
     }
   ]
 

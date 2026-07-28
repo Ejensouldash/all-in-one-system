@@ -91,6 +91,12 @@ export async function getMaintenanceSummaryRecords(
       case "qcdr":
         data = await prisma.maintenanceQCDR.findMany({ where, orderBy: { date: "desc" } })
         break
+      case "fpir":
+        data = await prisma.maintenanceFPIR.findMany({ where, orderBy: { date: "desc" } })
+        break
+      case "wqtr":
+        data = await prisma.maintenanceWQTR.findMany({ where, orderBy: { date: "desc" } })
+        break
       case "pcs":
         data = await prisma.maintenancePestControlSchedule.findMany({ where, orderBy: { date: "desc" } })
         break
@@ -180,6 +186,12 @@ export async function updateMaintenanceRecord(formType: string, id: string, data
       case "qcdr":
         await prisma.maintenanceQCDR.update({ where: { id }, data })
         break
+      case "fpir":
+        await prisma.maintenanceFPIR.update({ where: { id }, data })
+        break
+      case "wqtr":
+        await prisma.maintenanceWQTR.update({ where: { id }, data })
+        break
       case "pcs":
         await prisma.maintenancePestControlSchedule.update({ where: { id }, data })
         break
@@ -268,6 +280,12 @@ export async function deleteMaintenanceRecord(formType: string, id: string) {
         break
       case "qcdr":
         await prisma.maintenanceQCDR.delete({ where: { id } })
+        break
+      case "fpir":
+        await prisma.maintenanceFPIR.delete({ where: { id } })
+        break
+      case "wqtr":
+        await prisma.maintenanceWQTR.delete({ where: { id } })
         break
       case "pcs":
         await prisma.maintenancePestControlSchedule.delete({ where: { id } })
@@ -364,6 +382,12 @@ export async function verifyMaintenanceRecord(
         break
       case "qcdr":
         await prisma.maintenanceQCDR.update({ where: { id }, data })
+        break
+      case "fpir":
+        await prisma.maintenanceFPIR.update({ where: { id }, data })
+        break
+      case "wqtr":
+        await prisma.maintenanceWQTR.update({ where: { id }, data })
         break
       case "pcs":
         await prisma.maintenancePestControlSchedule.update({ where: { id }, data })

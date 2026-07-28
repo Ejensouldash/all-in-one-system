@@ -1084,6 +1084,35 @@ model MaintenanceQCDR {
   updatedAt          DateTime @updatedAt
 }
 
+// SGMP/18/FPIR - Finished Product Inspection Record.
+// boxSealing/pallet hold "OKAY" | "NOT_OKAY"; batchNumber holds
+// "AVAILABLE" | "NOT_AVAILABLE" — on the paper form all three sit under CONDITIONS.
+model MaintenanceFPIR {
+  id                 String   @id @default(uuid())
+  date               DateTime
+  rows               Json     // [{ line, sku, time, weightKg, boxSealing, batchNumber, pallet }]
+  remarks            String?
+  checkedBy          String
+  performedSignature String?
+  verifiedBy         String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// SGMP/18/WQTR - Water Quality Testing Record
+model MaintenanceWQTR {
+  id                 String   @id @default(uuid())
+  date               DateTime
+  rows               Json     // [{ time, phUnfiltered, phFiltered, turbidity, colour }]
+  checkedBy          String
+  performedSignature String?
+  verifiedBy         String?
+  verifiedSignature  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
 model MaintenancePestControlSchedule {
   id                 String   @id @default(uuid())
   date               DateTime // Date of Service

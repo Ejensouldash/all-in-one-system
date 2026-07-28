@@ -6,6 +6,7 @@ import Link from "next/link"
 import { createTransferIn } from "@/app/actions/transferIn"
 import { useState } from "react"
 import { QRScannerModal } from "@/components/forms/QRScannerModal"
+import { isKbpBatchNo } from "@/lib/kbp/batchNumber"
 
 const MULTIPLIERS = {
   BOTTLE_800: [225],
@@ -34,8 +35,17 @@ const maskBatchNo = (raw: string) => {
 // The inputs carry a Tailwind `uppercase` class, but that is text-transform — display
 // only. The value was still stored exactly as typed, so "8-STDF-130526" on screen went
 // into the database as "8-stdf-130526". Uppercase the value itself to keep it consistent.
-const normaliseBatchNo = (raw: string, category: string) =>
-  needsBatchMask(category) ? maskBatchNo(raw) : (raw || "").toUpperCase()
+//
+// A letter switches the mask off entirely. Legacy BOTTLE/CAP batches are digits only
+// (verified against production: 0 of 88 TransferInItem rows carry a letter), so a letter
+// can only mean a KBP batch — BM1-425-032126-01, same 032126-01 tail as before with the
+// machine and product prefixed. Masking that would strip the letters and reshape the
+// leftover digits into 142505-21: meaningless, yet still passing the format check below.
+const normaliseBatchNo = (raw: string, category: string) => {
+  const upper = (raw || "").toUpperCase()
+  if (/[A-Z]/.test(upper)) return upper
+  return needsBatchMask(category) ? maskBatchNo(upper) : upper
+}
 
 export function TransferInForm({ userName, initialData }: { userName: string, initialData?: any }) {
   const isEditing = !!initialData;
@@ -189,8 +199,8 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
        }
 
        if (cat === "CAP") {
-         if (!BATCH_PATTERN.test(normalised)) {
-           return showErrorAndScroll(`item-${i}-batchNo`, `Batch No CAP untuk item #${i + 1} mesti dalam format XXXXXX-XX (8 digit), contoh: 053026-02. Nilai sekarang: "${data.items[i].batchNo}"`)
+         if (!BATCH_PATTERN.test(normalised) && !isKbpBatchNo(normalised)) {
+           return showErrorAndScroll(`item-${i}-batchNo`, `Batch No CAP untuk item #${i + 1} mesti dalam format XXXXXX-XX (contoh: 053026-02) atau format KBP (contoh: CM1-CAP-053026-02). Nilai sekarang: "${data.items[i].batchNo}"`)
          }
 
          const w = Number(data.items[i].weight) || 0;
@@ -492,13 +502,16 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
                       </div>
                       <input
                         type="text"
-                        placeholder={needsBatchMask(cat) ? "xxxxxx-xx" : "Batch No"}
+                        placeholder={needsBatchMask(cat) ? "xxxxxx-xx / BM1-425-xxxxxx-xx" : "Batch No"}
                         {...register(`items.${index}.batchNo`)}
                         onChange={(e) => {
                           const val = normaliseBatchNo(e.target.value, cat);
                           setValue(`items.${index}.batchNo`, val, { shouldValidate: true, shouldDirty: true });
                         }}
-                        maxLength={needsBatchMask(cat) ? 9 : undefined}
+                        // 17 fits a KBP batch (BM1-425-032126-01). Digit-only input is
+                        // still capped at 9 by maskBatchNo itself, so the legacy format
+                        // behaves exactly as before.
+                        maxLength={needsBatchMask(cat) ? 17 : undefined}
                         className="w-full p-3 md:p-2 border-2 border-gray-300 bg-white font-bold outline-none focus:border-black uppercase text-sm" 
                       />
                     </div>

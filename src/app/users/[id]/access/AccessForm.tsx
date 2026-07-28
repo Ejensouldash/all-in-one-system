@@ -51,6 +51,7 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "PRODUCTION_STOCK", name: "Production Stock", description: "View and manage production stock balances.", icon: Boxes },
       { id: "TRANSFER_IN_HISTORY", name: "Transfer In History", description: "View, edit, and delete transfer in historical records.", icon: History },
       { id: "DAILY_REPORT_EDIT_APPROVED", name: "Edit Approved Daily Report", description: "Allows editing production daily reports even after they have been approved.", icon: FileSpreadsheet },
+      { id: "KBP", name: "KBP — Batch QR", description: "Generate and print batch QR stickers for the Pedas bottle & cap machines.", icon: QrCode },
       { id: "DATABASE_MANAGER", name: "Production Database", description: "Manage raw database records for production.", icon: Database },
     ],
   },

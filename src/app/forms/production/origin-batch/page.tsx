@@ -1,17 +1,7 @@
-import { auth } from "@/auth"
 import { redirect } from "next/navigation"
-import { getPedasBatches } from "@/app/actions/pedasBatch"
-import { PedasBatchClient } from "./PedasBatchClient"
 
-export default async function PedasBatchPage() {
-  const session = await auth()
-  if (!session) redirect("/login")
-
-  const user = session.user as any
-  const userName = user.name || user.email || "Staff Pedas"
-
-  const res = await getPedasBatches()
-  const initialBatches = res.success && res.data ? res.data : []
-
-  return <PedasBatchClient initialBatches={initialBatches} userName={userName} />
+// The Pedas Batch QR generator moved out of Production into its own KBP module.
+// Kept as a redirect so existing bookmarks and printed links still land somewhere.
+export default function OriginBatchRedirect() {
+  redirect("/kbp/batch")
 }

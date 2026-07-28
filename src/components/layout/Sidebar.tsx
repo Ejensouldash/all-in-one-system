@@ -15,6 +15,7 @@ import {
   Building2,
   ChevronDown,
   ChevronRight,
+  QrCode,
   X
 } from "lucide-react"
 import { clsx, type ClassValue } from "clsx"
@@ -52,6 +53,7 @@ const staffLinks: NavLink[] = [
       { name: "GMP", href: "/forms/maintenance?_cache=bust", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS"] },
     ]
   },
+  { name: "KBP", href: "/kbp", icon: QrCode, module: "KBP" },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
   { name: "Reminders", href: "/reminders", icon: BellRing, module: "REMINDERS" },
   { name: "Assets", href: "/dashboard/assets", icon: Package, module: "ASSETS" },
@@ -69,6 +71,7 @@ const adminLinks: NavLink[] = [
       { name: "GMP", href: "/forms/maintenance?_cache=bust", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS"] },
     ]
   },
+  { name: "KBP", href: "/kbp", icon: QrCode, module: "KBP" },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
   { name: "Reminders", href: "/reminders", icon: BellRing, module: "REMINDERS" },
   { name: "Assets", href: "/dashboard/assets", icon: Package, module: "ASSETS" },

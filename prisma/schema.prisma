@@ -1180,5 +1180,18 @@ model PedasBatch {
   createdBy   String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // KBP fields. Nullable because rows created before the KBP module (free-text
+  // "PDS-DDMMYY-NNN" batch numbers) have no machine/shift breakdown to backfill.
+  machine        String?   // BM1 | BM2 | BM3 | CM1 | CM2
+  productCode    String?   // 425 | 800 | CAP
+  productionDate DateTime? @db.Date
+  dayCode        String? // "01" (Isnin) .. "07" (Ahad)
+  weekNo         Int? // ISO 8601 week
+  weekYear       Int? // ISO 8601 week-year
+  shift          String? // "01" = Pagi (AM), "02" = Malam (PM)
+
+  @@index([productionDate])
+  @@index([machine, productionDate, shift])
 }
 

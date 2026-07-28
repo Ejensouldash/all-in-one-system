@@ -102,7 +102,11 @@ export function TransferInHistoryClient({
                 </button>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm font-bold text-gray-900">{new Date(t.receiveDate).toLocaleDateString()}</div>
+                {/* Locale and timeZone must both be pinned. Bare toLocaleDateString()
+                    renders 7/28/2026 on the Node server and 28/07/2026 in an en-GB
+                    browser, which fails hydration on every row. receiveDate is a
+                    @db.Date, so UTC is the calendar day that was actually stored. */}
+                <div className="text-sm font-bold text-gray-900">{new Date(t.receiveDate).toLocaleDateString("en-GB", { timeZone: "UTC" })}</div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm text-gray-500">{t.receiveTime}</div>

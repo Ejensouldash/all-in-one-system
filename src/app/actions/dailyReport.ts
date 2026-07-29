@@ -199,7 +199,7 @@ export async function createDailyReport(data: any) {
             }).map((d: any) => ({
               sectionKey,
               type: "TransferIn",
-              batchNo: d.batchNo,
+              batchNo: (d.batchNo || "").trim(),
               bags: Number(d.bags),
               mult: Number(d.mult) || 1,
               labelType: d.doNumber
@@ -283,6 +283,14 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       return offsetDate.toISOString().split('T')[0]
     }
 
+    // Helper: batch numbers are typed by hand, so stray whitespace creeps in. Every key we build
+    // below must be whitespace-insensitive, otherwise "270726-42524 " and "270726-42524" become
+    // two separate batches and the stray one never sees any of its usage logs.
+    const normBatch = (b: string | null | undefined) => (b || "").trim()
+
+    // Only the BOX sections are covered by the fixes below for now.
+    const isBoxCategory = (c: string | null | undefined) => (c || "").trim().toUpperCase().startsWith("BOX ")
+
     // Set of DO item identifiers already claimed by an existing submitted/approved report
     const claimedDOs = new Set<string>()
     allLogs.forEach(log => {
@@ -290,7 +298,7 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
         if (!excludeReportId || log.reportId !== excludeReportId) {
           // Draft reports should not lock Transfer In DOs globally for other reports
           if (log.report && log.report.status !== "DRAFT") {
-            claimedDOs.add(`${log.batchNo}|${log.mult}|${log.labelType}`)
+            claimedDOs.add(`${normBatch(log.batchNo)}|${log.mult}|${log.labelType}`)
           }
         }
       }
@@ -346,7 +354,7 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       const raw = log.labelType.trim()
       if (raw.startsWith("{") || raw === "(HOLD)" || raw === "HOLD") return // CAP JSON stash / hold markers
       const lt = raw === "Standard" ? "Standard Front" : raw
-      const key = `${log.batchNo}|${log.mult}`
+      const key = `${normBatch(log.batchNo)}|${log.mult}`
       const tp = getTimePoint(log.report.date, log.report.shift)
       if (!latestLabelTypes[key] || tp >= latestLabelTypes[key].tp) {
         latestLabelTypes[key] = { labelType: lt, tp }
@@ -354,16 +362,16 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
     })
 
     allDOItems.forEach(item => {
-      const key = `${item.category}|${item.batchNo}|${item.mult}`
+      const key = `${item.category}|${normBatch(item.batchNo)}|${item.mult}`
       if (!batchInfo[key]) {
-        batchInfo[key] = { totalBalance: 0, todayItems: [], mult: item.mult, category: item.category, batchNo: item.batchNo, transferInId: item.transferIn.id, doNumber: item.transferIn.doNumber }
+        batchInfo[key] = { totalBalance: 0, todayItems: [], mult: item.mult, category: item.category, batchNo: normBatch(item.batchNo), transferInId: item.transferIn.id, doNumber: item.transferIn.doNumber }
       } else {
         if (!batchInfo[key].doNumber.includes(item.transferIn.doNumber)) {
           batchInfo[key].doNumber += `, ${item.transferIn.doNumber}`
         }
       }
       // Only offer under "Transfer In Received Today" if it is received today AND not claimed by another report yet
-      if (isReceivedToday(item) && !claimedDOs.has(`${item.batchNo}|${item.mult}|${item.transferIn.doNumber}`)) {
+      if (isReceivedToday(item) && !claimedDOs.has(`${normBatch(item.batchNo)}|${item.mult}|${item.transferIn.doNumber}`)) {
         batchInfo[key].todayItems.push(item)
       }
     })
@@ -372,30 +380,35 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
     Object.keys(batchInfo).forEach(batchKey => {
       const info = batchInfo[batchKey]
       
-      const batchDOs = allDOItems.filter(item => `${item.category}|${item.batchNo}|${item.mult}` === batchKey)
+      const isBox = isBoxCategory(info.category)
+
+      const batchDOs = allDOItems.filter(item => `${item.category}|${normBatch(item.batchNo)}|${item.mult}` === batchKey)
       const batchLogs = allLogs.filter(log => {
         if (excludeReportId && log.reportId === excludeReportId) return false
-        return batchKey.endsWith(`|${log.batchNo}|${log.mult}`)
+        return batchKey.endsWith(`|${normBatch(log.batchNo)}|${log.mult}`)
       })
 
-      const eventsByTp: Record<number, { transferIns: number, storeroom: number | null, usage: number }> = {}
+      const eventsByTp: Record<number, { transferIns: number, transferInLogs: number, storeroom: number | null, usage: number }> = {}
+      const blank = () => ({ transferIns: 0, transferInLogs: 0, storeroom: null, usage: 0 })
 
       batchDOs.forEach(item => {
         const tp = getTimePoint(item.transferIn.receiveDate, item.transferIn.shift)
-        if (!eventsByTp[tp]) eventsByTp[tp] = { transferIns: 0, storeroom: null, usage: 0 }
+        if (!eventsByTp[tp]) eventsByTp[tp] = blank()
         eventsByTp[tp].transferIns += item.bags
       })
 
       batchLogs.forEach(log => {
         const tp = getTimePoint(log.report.date, log.report.shift)
-        if (!eventsByTp[tp]) eventsByTp[tp] = { transferIns: 0, storeroom: null, usage: 0 }
-        
+        if (!eventsByTp[tp]) eventsByTp[tp] = blank()
+
         if (log.type === "Storeroom") {
           eventsByTp[tp].storeroom = (eventsByTp[tp].storeroom || 0) + log.bags
         } else if (log.type === "Usage" || log.type === "Hold") {
           eventsByTp[tp].usage += log.bags
         } else if (log.type === "Reuse") {
           eventsByTp[tp].usage -= log.bags
+        } else if (log.type === "TransferIn") {
+          eventsByTp[tp].transferInLogs += log.bags
         }
       })
 
@@ -404,6 +417,18 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
 
       sortedTps.forEach(tp => {
         const ev = eventsByTp[tp]
+
+        if (isBox) {
+          // A Storeroom row is the shift's OPENING balance (it is auto-filled from the previous
+          // report's carry forward), so it seeds the balance but must NOT swallow that shift's usage.
+          if (ev.storeroom !== null) runningBalance = ev.storeroom
+          // A saved TransferIn log is the inflow the report actually recorded. Prefer whichever
+          // source is larger so the inflow survives the DO being edited or deleted afterwards.
+          runningBalance += Math.max(ev.transferIns, ev.transferInLogs)
+          runningBalance -= ev.usage
+          return
+        }
+
         // Manual storeroom entry acts as the absolute balance override for that shift
         if (ev.storeroom !== null) {
           runningBalance = ev.storeroom
@@ -439,7 +464,7 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
 
       info.todayItems.forEach(it => {
         if (it.bags > 0) {
-          todayDOs.push({ batchNo: it.batchNo, bags: it.bags, mult: it.mult, category: it.category, doNumber: it.transferIn.doNumber, transferInId: it.transferIn.id, id: it.id })
+          todayDOs.push({ batchNo: normBatch(it.batchNo), bags: it.bags, mult: it.mult, category: it.category, doNumber: it.transferIn.doNumber, transferInId: it.transferIn.id, id: it.id })
         }
       })
 
@@ -722,7 +747,7 @@ export async function updateDailyReport(id: string, data: any) {
               }).map((d: any) => ({
                 sectionKey,
                 type: "TransferIn",
-                batchNo: d.batchNo,
+                batchNo: (d.batchNo || "").trim(),
                 bags: Number(d.bags),
                 mult: Number(d.mult) || 1,
                 labelType: d.doNumber

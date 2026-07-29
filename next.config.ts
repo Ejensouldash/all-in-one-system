@@ -2,6 +2,11 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['bcryptjs', 'bcrypt'],
+  // The PDF report reads the logo off disk at request time, so it must be traced into the
+  // serverless bundle — it is not picked up automatically from public/.
+  outputFileTracingIncludes: {
+    '/api/analytics/report': ['./public/assets/BubblesO2_Logo.png'],
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: '20mb',

@@ -27,72 +27,72 @@ export default async function MaintenanceReportsDashboard() {
   }
   const qcReports = [
     {
-      title: "Finished Goods Reports",
-      description: "View and print damage logs for finished goods packaging.",
+      title: "SGMP/21/FIR",
+      description: "SGMP/21/FIR - Finished Goods Product Inspection Record",
       icon: <ShieldAlert className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/finished-goods",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-red-400"
     },
     {
-      title: "Chemical Control Logs",
-      description: "View and print logs for chemical collections and returns.",
+      title: "SGMP/17/CCR",
+      description: "SGMP/17/CCR - Chemical Control Records",
       icon: <FlaskConical className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/chemical-control",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-purple-400"
     },
     {
-      title: "Daily Quality In-Process Reports",
-      description: "SGMP-18: View and print in-process weight, condition, and sensory sample records.",
+      title: "SGMP/18/DQIP",
+      description: "SGMP/18/DQIP - Daily Quality In-Process Records",
       icon: <FlaskConical className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/dqip",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-violet-400"
     },
     {
-      title: "QC Daily Reports",
-      description: "SGMP-18: View and print quality control daily activity reports.",
+      title: "SGMP/18/QCDR",
+      description: "SGMP/18/QCDR - QC Daily Report",
       icon: <ClipboardCheck className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/qcdr",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-emerald-400"
     },
     {
-      title: "Pest Control Schedule Reports",
-      description: "View and print 3rd-party pest control service visit history.",
+      title: "SGMP/06/PCS",
+      description: "SGMP/06/PCS - Pest Control Schedule Form",
       icon: <Bug className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/pcs",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-lime-400"
     },
     {
-      title: "Pest Control Daily Monitoring Reports",
-      description: "View and print daily bait station monitoring records.",
+      title: "SGMP/06/PCDM",
+      description: "SGMP/06/PCDM - Pest Control Daily Monitoring Form",
       icon: <Bug className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/pcdm",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-lime-400"
     },
     {
-      title: "Fly Trap Daily Monitoring Reports",
-      description: "View and print daily fly trap station monitoring records.",
+      title: "SGMP/06/FTDM",
+      description: "SGMP/06/FTDM - Fly Trap Daily Monitoring Form",
       icon: <Bug className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/ftdm",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-amber-400"
     },
     {
-      title: "Finished Product Inspection Reports",
-      description: "SGMP-18: View and print finished product inspection records.",
+      title: "SGMP/18/FPIR",
+      description: "SGMP/18/FPIR - Finished Product Inspection Record",
       icon: <ShieldAlert className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/fpir",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-rose-400"
     },
     {
-      title: "Water Quality Testing Reports",
-      description: "SGMP-18: View and print water quality testing records.",
+      title: "SGMP/18/WQTR",
+      description: "SGMP/18/WQTR - Water Quality Testing Record",
       icon: <Droplets className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/wqtr",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
@@ -102,88 +102,88 @@ export default async function MaintenanceReportsDashboard() {
 
   const productionReports = [
     {
-      title: "Waste Management Reports",
-      description: "View and print recycling and disposal records.",
+      title: "SGMP/07/WMDR",
+      description: "SGMP/07/WMDR - Waste Management Disposal Record",
       icon: <Trash2 className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/waste-management",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-green-400"
     },
     {
-      title: "Waste Disposal Checklists",
-      description: "View and print daily disposal area checklists.",
+      title: "SGMP/07/WDIR",
+      description: "SGMP/07/WDIR - Waste Disposal Inspection Record",
       icon: <ClipboardList className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/waste-disposal",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-teal-400"
     },
     {
-      title: "Food Handler Reports",
-      description: "View and print employee hygiene logs.",
+      title: "SGMP/09/FHDIR",
+      description: "SGMP/09/FHDIR - Food Handler Daily Inspection Records",
       icon: <Utensils className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/food-handler",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-orange-400"
     },
     {
-      title: "Cleaning Inspection Reports",
-      description: "View and print floor cleaning checklist records.",
+      title: "SGMP/05",
+      description: "SGMP/05 - Cleaning & Sanitization Inspection Records (All Areas)",
       icon: <Brush className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/cleaning",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-slate-400"
     },
     {
-      title: "LFCR Reports",
-      description: "View and print lighting fixtures cleaning records.",
+      title: "SGMP/08/LFCR",
+      description: "SGMP/08/LFCR - Lighting Fixtures Cleaning Record",
       icon: <ClipboardList className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/lfcr",
       gradient: "from-cyan-900 via-cyan-800 to-sky-900",
       accent: "bg-cyan-400"
     },
     {
-      title: "MGL Reports",
-      description: "View and print monthly glass log records.",
+      title: "SGMP/12/MGL",
+      description: "SGMP/12/MGL - Monthly Glass Log Records",
       icon: <ClipboardList className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/mgl",
       gradient: "from-cyan-900 via-cyan-800 to-sky-900",
       accent: "bg-cyan-400"
     },
     {
-      title: "MGB Reports",
-      description: "View and print monthly glass breakage records.",
+      title: "SGMP/12/MGB",
+      description: "SGMP/12/MGB - Monthly Glass Breakage Records",
       icon: <ClipboardList className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/mgb",
       gradient: "from-red-900 via-red-800 to-rose-900",
       accent: "bg-red-400"
     },
     {
-      title: "MWL Reports",
-      description: "View and print monthly wood log records.",
+      title: "SGMP/13/MWL",
+      description: "SGMP/13/MWL - Monthly Wood Log Records",
       icon: <ClipboardList className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/mwl",
       gradient: "from-cyan-900 via-cyan-800 to-sky-900",
       accent: "bg-cyan-400"
     },
     {
-      title: "MWB Reports",
-      description: "View and print monthly wood breakage records.",
+      title: "SGMP/13/MWB",
+      description: "SGMP/13/MWB - Monthly Wood Breakage Records",
       icon: <ClipboardList className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/mwb",
       gradient: "from-red-900 via-red-800 to-rose-900",
       accent: "bg-red-400"
     },
     {
-      title: "MPL Reports",
-      description: "View and print monthly plastic log records.",
+      title: "SGMP/13/MPL",
+      description: "SGMP/13/MPL - Monthly Plastic Log Records",
       icon: <ClipboardList className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/mpl",
       gradient: "from-cyan-900 via-cyan-800 to-sky-900",
       accent: "bg-cyan-400"
     },
     {
-      title: "MPB Reports",
-      description: "View and print monthly plastic breakage records.",
+      title: "SGMP/13/MPB",
+      description: "SGMP/13/MPB - Monthly Plastic Breakage Records",
       icon: <ClipboardList className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/mpb",
       gradient: "from-red-900 via-red-800 to-rose-900",
@@ -193,40 +193,40 @@ export default async function MaintenanceReportsDashboard() {
 
   const maintenanceReports = [
     {
-      title: "Lighting Inspection Reports",
-      description: "View and print lighting inspection logs by date.",
+      title: "SGMP/02/LIR",
+      description: "SGMP/02/LIR - Lighting Inspection Records",
       icon: <Lightbulb className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/lighting",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-yellow-400"
     },
     {
-      title: "Maintenance Equipment Reports",
-      description: "SGMP-04: View and print maintenance equipment records.",
+      title: "SGMP/04/MR",
+      description: "SGMP/04/MR - Maintenance Record",
       icon: <Wrench className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/maintenance-record",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-blue-400"
     },
     {
-      title: "PMIR Reports",
-      description: "SGMP-03: View and print preventive maintenance inspection records.",
+      title: "SGMP/03/PMIR",
+      description: "SGMP/03/PMIR - Preventive Maintenance Inspection Records",
       icon: <ShieldAlert className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/pmir",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-indigo-400"
     },
     {
-      title: "PMR Reports",
-      description: "SGMP-03: View and print preventive maintenance records.",
+      title: "SGMP/03/PMR",
+      description: "SGMP/03/PMR - Preventive Maintenance Records",
       icon: <ShieldAlert className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/pmr",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-violet-400"
     },
     {
-      title: "Filtration Backwash Reports",
-      description: "SGMP-19: View and print filtration backwash system records.",
+      title: "SGMP/19/FBSR",
+      description: "SGMP/19/FBSR - Filtration Backwash System Records",
       icon: <ClipboardList className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/fbsr",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
@@ -236,16 +236,16 @@ export default async function MaintenanceReportsDashboard() {
 
   const securityReports = [
     {
-      title: "IVVI Reports",
-      description: "SGMP-14: View and print incoming vehicle visual inspection records.",
+      title: "SGMP/14/IVVI",
+      description: "SGMP/14/IVVI - Incoming Vehicle Visual Inspection Records",
       icon: <ShieldAlert className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/ivvi",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-slate-400"
     },
     {
-      title: "VCHIF Reports",
-      description: "SGMP-14: View and print vehicle cleaning & hygiene inspection records.",
+      title: "SGMP/14/VCHIF",
+      description: "SGMP/14/VCHIF - Vehicle Cleaning & Hygiene Inspection Record",
       icon: <ShieldAlert className="h-6 w-6 mr-3" />,
       href: "/forms/maintenance/reports/vchif",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",

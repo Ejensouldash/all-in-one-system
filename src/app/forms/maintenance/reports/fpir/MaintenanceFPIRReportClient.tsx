@@ -114,8 +114,8 @@ export function MaintenanceFPIRReportClient() {
                   title="FINISHED PRODUCT INSPECTION RECORD"
                   recNo="SGMP/18/FPIR"
                   issueNo="10/04/2025"
-                  revNo="0"
-                  effectiveDate="14/04/2025"
+                  revNo="1"
+                  effectiveDate="1/7/2026"
                 />
 
                 <div className="flex justify-start items-center mb-4 text-xs font-bold text-black font-sans uppercase">

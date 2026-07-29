@@ -111,8 +111,8 @@ export function MaintenanceWQTRReportClient() {
                   title="WATER QUALITY TESTING RECORD"
                   recNo="SGMP/18/WQTR"
                   issueNo="20/05/2025"
-                  revNo="0"
-                  effectiveDate="01/11/2025"
+                  revNo="1"
+                  effectiveDate="1/7/2026"
                 />
 
                 <div className="flex justify-start items-center mb-4 text-xs font-bold text-black font-sans uppercase">

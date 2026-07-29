@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-3.1-flash-lite",
+      model: "gemini-3.6-flash",
       generationConfig: { responseMimeType: "application/json" },
       systemInstruction: `You are an AI data parser. Your job is to convert raw Excel JSON rows into structured Asset objects.
 Return a JSON array of objects. Each object MUST have:

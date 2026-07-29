@@ -283,13 +283,10 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       return offsetDate.toISOString().split('T')[0]
     }
 
-    // Helper: batch numbers are typed by hand, so stray whitespace creeps in. Every key we build
-    // below must be whitespace-insensitive, otherwise "270726-42524 " and "270726-42524" become
-    // two separate batches and the stray one never sees any of its usage logs.
-    const normBatch = (b: string | null | undefined) => (b || "").trim()
-
-    // Only the BOX sections are covered by the fixes below for now.
-    const isBoxCategory = (c: string | null | undefined) => (c || "").trim().toUpperCase().startsWith("BOX ")
+    // Helper: batch numbers are typed by hand, so stray whitespace and mixed case creep in. Every
+    // key we build below must ignore both, otherwise "270726-42524 " / "270726-42524" and
+    // "4stdf-130526" / "4STDF-130526" become separate batches whose usage logs never match.
+    const normBatch = (b: string | null | undefined) => (b || "").trim().toUpperCase()
 
     // Set of DO item identifiers already claimed by an existing submitted/approved report
     const claimedDOs = new Set<string>()
@@ -345,6 +342,11 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       return score
     }
 
+    // The report being edited sits at this point on the timeline. Anything later must not count
+    // towards its opening balance — otherwise an evening delivery leaks into the morning report,
+    // which contradicts the rule that an AM Transfer In becomes the PM shift's Storeroom Balance.
+    const reportTp = getTimePoint(new Date(reportDateString), shift || "AM")
+
     // Latest known label type per batch|mult from prior report logs, so carry-forward
     // batches keep their real type (Standard Front/Back, ...) instead of a hardcoded one
     const latestLabelTypes: Record<string, { labelType: string, tp: number }> = {}
@@ -380,29 +382,38 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
     Object.keys(batchInfo).forEach(batchKey => {
       const info = batchInfo[batchKey]
       
-      const isBox = isBoxCategory(info.category)
-
       const batchDOs = allDOItems.filter(item => `${item.category}|${normBatch(item.batchNo)}|${item.mult}` === batchKey)
       const batchLogs = allLogs.filter(log => {
         if (excludeReportId && log.reportId === excludeReportId) return false
         return batchKey.endsWith(`|${normBatch(log.batchNo)}|${log.mult}`)
       })
 
-      const eventsByTp: Record<number, { transferIns: number, transferInLogs: number, storeroom: number | null, usage: number }> = {}
-      const blank = () => ({ transferIns: 0, transferInLogs: 0, storeroom: null, usage: 0 })
+      // storeroomByReport keeps each report's declared opening separate. Both production lines draw
+      // from the same storeroom and each writes its own row for the same batch and shift, so those
+      // rows are one balance seen twice — summing them would double the stock.
+      const eventsByTp: Record<number, {
+        transferIns: number,
+        transferInLogs: number,
+        storeroomByReport: Record<string, number>,
+        usage: number
+      }> = {}
+      const blank = () => ({ transferIns: 0, transferInLogs: 0, storeroomByReport: {} as Record<string, number>, usage: 0 })
 
       batchDOs.forEach(item => {
         const tp = getTimePoint(item.transferIn.receiveDate, item.transferIn.shift)
+        if (tp > reportTp) return
         if (!eventsByTp[tp]) eventsByTp[tp] = blank()
         eventsByTp[tp].transferIns += item.bags
       })
 
       batchLogs.forEach(log => {
         const tp = getTimePoint(log.report.date, log.report.shift)
+        if (tp > reportTp) return
         if (!eventsByTp[tp]) eventsByTp[tp] = blank()
 
         if (log.type === "Storeroom") {
-          eventsByTp[tp].storeroom = (eventsByTp[tp].storeroom || 0) + log.bags
+          const byReport = eventsByTp[tp].storeroomByReport
+          byReport[log.reportId] = (byReport[log.reportId] || 0) + log.bags
         } else if (log.type === "Usage" || log.type === "Hold") {
           eventsByTp[tp].usage += log.bags
         } else if (log.type === "Reuse") {
@@ -418,24 +429,15 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       sortedTps.forEach(tp => {
         const ev = eventsByTp[tp]
 
-        if (isBox) {
-          // A Storeroom row is the shift's OPENING balance (it is auto-filled from the previous
-          // report's carry forward), so it seeds the balance but must NOT swallow that shift's usage.
-          if (ev.storeroom !== null) runningBalance = ev.storeroom
-          // A saved TransferIn log is the inflow the report actually recorded. Prefer whichever
-          // source is larger so the inflow survives the DO being edited or deleted afterwards.
-          runningBalance += Math.max(ev.transferIns, ev.transferInLogs)
-          runningBalance -= ev.usage
-          return
-        }
+        // A Storeroom row is the shift's OPENING balance (it is auto-filled from the previous
+        // report's carry forward), so it seeds the balance but must NOT swallow that shift's usage.
+        const declared = Object.values(ev.storeroomByReport)
+        if (declared.length > 0) runningBalance = Math.max(...declared)
 
-        // Manual storeroom entry acts as the absolute balance override for that shift
-        if (ev.storeroom !== null) {
-          runningBalance = ev.storeroom
-        } else {
-          runningBalance += ev.transferIns
-          runningBalance -= ev.usage
-        }
+        // A saved TransferIn log is the inflow the report actually recorded. Prefer whichever
+        // source is larger so the inflow survives the DO being edited or deleted afterwards.
+        runningBalance += Math.max(ev.transferIns, ev.transferInLogs)
+        runningBalance -= ev.usage
       })
 
       info.totalBalance = runningBalance
@@ -445,9 +447,15 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
     const activeHoldItems = await prisma.productionHoldItem.findMany({
       where: { status: "PENDING" }
     })
-    const activeHoldMap: Record<string, any> = {}
+    // Keyed by batchNo|mult throughout. A batch can have several PENDING hold rows, so merge their
+    // quantities into one entry — otherwise each row pushes its own duplicate into the dropdown.
+    const activeHoldMap: Record<string, { batchNo: string, mult: number, sectionKey: string, qty: number }> = {}
     activeHoldItems.forEach(h => {
-      activeHoldMap[`${h.batchNo}|${h.mult}`] = h
+      const key = `${normBatch(h.batchNo)}|${h.mult}`
+      if (!activeHoldMap[key]) {
+        activeHoldMap[key] = { batchNo: normBatch(h.batchNo), mult: h.mult, sectionKey: h.sectionKey, qty: 0 }
+      }
+      activeHoldMap[key].qty += h.qty
     })
 
     const todayDOs: any[] = []
@@ -469,11 +477,14 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       })
 
       if (carryForward < 0) carryForward = 0
-      const isHold = !!activeHoldMap[batchKey]
+      // batchKey is category|batchNo|mult but holds are tracked by batchNo|mult, so build the
+      // matching key here. Getting this wrong left every batch unflagged and let held stock be picked.
+      const holdKey = `${info.batchNo}|${info.mult}`
+      const isHold = !!activeHoldMap[holdKey]
 
       if (carryForward > 0 || isHold) {
-        addedBatchKeys.add(batchKey)
-        const bags = carryForward > 0 ? carryForward : (activeHoldMap[batchKey]?.qty || 1)
+        addedBatchKeys.add(holdKey)
+        const bags = carryForward > 0 ? carryForward : (activeHoldMap[holdKey]?.qty || 1)
         storeroomBatches.push({
           batchNo: info.batchNo,
           bags: bags,
@@ -488,8 +499,7 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
     })
 
     // Ensure all pending hold items are available in carry forward dropdown
-    activeHoldItems.forEach(h => {
-      const key = `${h.batchNo}|${h.mult}`
+    Object.entries(activeHoldMap).forEach(([key, h]) => {
       if (!addedBatchKeys.has(key)) {
         let category = h.sectionKey
         if (category === "CAP") category = "CAP"

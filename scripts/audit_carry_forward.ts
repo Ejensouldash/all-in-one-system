@@ -221,6 +221,65 @@ async function main() {
     )
   }
 
+  // ---------------------------------------------------------------- 7
+  head(7, 'BATCH TANPA TRANSFER IN -- untuk semakan team production')
+  console.log('  Batch ini ada baki dalam report tetapi tidak pernah melalui Transfer In (tiada')
+  console.log('  TransferInItem dan tiada log TransferIn). Ikut peraturan "Batch No hanya wujud')
+  console.log('  selepas Transfer In", ia TIDAK akan muncul dalam Storeroom Balance. Kalau stoknya')
+  console.log('  memang ada, team perlu key-in Transfer In backdated untuk batch berkenaan.\n')
+
+  const doKeys = new Set(items.map(i => `${i.batchNo.trim().toUpperCase()}|${i.mult}`))
+  type Orphan = { section: string; batch: string; mult: number; balance: number; lastReport: string; lastDate: string }
+  const orphanAgg = new Map<string, Orphan>()
+
+  for (const l of logs) {
+    if (l.sectionKey === 'SYSTEM' || l.type === 'TransferInFlag') continue
+    const canon = `${l.batchNo.trim().toUpperCase()}|${l.mult}`
+    if (doKeys.has(canon)) continue
+    const key = `${l.sectionKey}|${canon}`
+    if (!orphanAgg.has(key)) {
+      orphanAgg.set(key, {
+        section: l.sectionKey, batch: l.batchNo.trim().toUpperCase(), mult: l.mult,
+        balance: 0, lastReport: '', lastDate: '',
+      })
+    }
+    const o = orphanAgg.get(key)!
+    if (l.type === 'TransferIn') { o.balance = NaN; continue } // pernah ada Transfer In -> bukan orphan
+    const d = toMalaysiaDateStr(l.report.date)
+    if (d >= o.lastDate) { o.lastDate = d; o.lastReport = `${l.reportId.slice(0, 8)} ${d} ${l.report.shift}` }
+  }
+
+  // Kira baki terakhir mengikut turutan masa (storeroom = opening, usage sentiasa ditolak)
+  for (const [key, o] of orphanAgg) {
+    if (Number.isNaN(o.balance)) { orphanAgg.delete(key); continue }
+    const mine = logs.filter(
+      l => l.sectionKey === o.section && l.batchNo.trim().toUpperCase() === o.batch && l.mult === o.mult
+    )
+    const ev: Record<number, { st: number | null; us: number }> = {}
+    mine.forEach(l => {
+      const tp = getTimePoint(l.report.date, l.report.shift)
+      ev[tp] ??= { st: null, us: 0 }
+      if (l.type === 'Storeroom') ev[tp].st = (ev[tp].st ?? 0) + l.bags
+      else if (l.type === 'Usage' || l.type === 'Hold') ev[tp].us += l.bags
+      else if (l.type === 'Reuse') ev[tp].us -= l.bags
+    })
+    let bal = 0
+    Object.keys(ev).map(Number).sort((a, b) => a - b).forEach(tp => {
+      if (ev[tp].st !== null) bal = ev[tp].st!
+      bal -= ev[tp].us
+    })
+    o.balance = bal
+  }
+
+  const noTransferIn = [...orphanAgg.values()].sort((a, b) => b.balance - a.balance)
+  console.log(`  ${noTransferIn.length} batch\n`)
+  console.log('  SEKSYEN       BATCH                MULT     BAKI   REPORT TERAKHIR')
+  for (const o of noTransferIn) {
+    console.log(
+      `  ${o.section.padEnd(13)} ${o.batch.padEnd(20)} ${String(o.mult).padStart(4)} ${String(Math.round(o.balance)).padStart(8)}   ${o.lastReport}`
+    )
+  }
+
   console.log('\n(read-only: tiada data diubah)')
 }
 

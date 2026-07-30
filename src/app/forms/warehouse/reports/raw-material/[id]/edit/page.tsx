@@ -31,7 +31,10 @@ export default async function EditRawMaterialPage({ params }: { params: Promise<
           <Lock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-black uppercase tracking-tight text-amber-900">Borang ini tidak boleh diubah</p>
-            <p className="text-xs font-medium text-amber-800 mt-1 leading-relaxed">{state.detail}</p>
+            <p className="text-xs font-medium text-amber-800 mt-1 leading-relaxed">
+              {state.detail?.trim() ||
+                "Sebab tidak dapat ditentukan. Muat semula halaman dan cuba lagi."}
+            </p>
           </div>
         </div>
       </div>

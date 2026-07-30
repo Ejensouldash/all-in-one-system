@@ -78,7 +78,13 @@ export async function getRawMaterialReport(id: string) {
   }
 }
 
-/** Whether this report can still be edited, voided or deleted, and if not, why. */
+/**
+ * Whether this report can still be edited, voided or deleted, and if not, why.
+ *
+ * A failure here must never look like an ordinary lock. Falling back to "not editable" with an
+ * empty reason left the UI showing a locked banner with no explanation at all, which is worse
+ * than the lock itself — so both failure paths carry a message that says what actually happened.
+ */
 export async function getReportEditability(reportId: string) {
   const session = await auth()
   if (!session) {
@@ -87,7 +93,7 @@ export async function getReportEditability(reportId: string) {
       error: "Unauthorized",
       editable: false,
       reason: null,
-      detail: "",
+      detail: "Sesi tamat. Sila log masuk semula untuk menyemak status borang.",
       isLatest: false,
       blockedBy: [] as string[],
     }
@@ -102,7 +108,10 @@ export async function getReportEditability(reportId: string) {
       error: error.message,
       editable: false,
       reason: null,
-      detail: "",
+      detail:
+        `Tidak dapat menyemak status borang: ${error.message}. ` +
+        `Butang tindakan disembunyikan sebagai langkah berjaga-jaga. Muat semula halaman; ` +
+        `kalau masih berlaku selepas skema dikemas kini, mulakan semula server.`,
       isLatest: false,
       blockedBy: [] as string[],
     }

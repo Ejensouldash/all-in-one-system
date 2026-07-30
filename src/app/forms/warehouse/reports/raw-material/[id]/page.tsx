@@ -28,6 +28,12 @@ export default async function RawMaterialViewPage({ params }: { params: Promise<
   const state = await getReportEditability(id)
   const isVoid = report.status === "VOID"
 
+  // A locked banner with no text tells the user nothing. If the guard ever comes back without a
+  // reason, say so plainly rather than rendering an empty explanation.
+  const lockReason =
+    state.detail?.trim() ||
+    "Borang ini dikunci tetapi sebabnya tidak dapat ditentukan. Muat semula halaman dan cuba lagi."
+
   // Group into the paper form's sections, keeping the paper's row order.
   const bySection = new Map<string, typeof report.items>()
   for (const item of report.items) {
@@ -99,7 +105,7 @@ export default async function RawMaterialViewPage({ params }: { params: Promise<
             <p className={`text-[11px] font-medium mt-0.5 leading-snug ${state.editable ? "text-indigo-700" : "text-amber-800"}`}>
               {state.editable
                 ? `DO ini akan muncul dalam bahagian Transfer In borang harian shift ${report.shift} pada ${dmy(report.date)}. Belum digunakan lagi.`
-                : state.detail}
+                : lockReason}
             </p>
           </div>
         </div>
@@ -113,7 +119,7 @@ export default async function RawMaterialViewPage({ params }: { params: Promise<
             <Lock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           )}
           <p className="text-[11px] font-medium text-gray-600 leading-snug">
-            Tiada stock out dalam borang ini, jadi tiada DO dijana. {state.editable ? "" : state.detail}
+            Tiada stock out dalam borang ini, jadi tiada DO dijana. {state.editable ? "" : lockReason}
           </p>
         </div>
       )}

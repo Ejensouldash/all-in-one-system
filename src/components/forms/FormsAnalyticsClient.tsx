@@ -8,7 +8,7 @@ import {
   Package, AlertOctagon, TrendingUp, Archive, Activity, Timer, ClipboardCheck,
   ArrowUpRight, ArrowDownRight, AlertTriangle, CalendarX2, Boxes, Wrench
 } from "lucide-react"
-import { SKU_COLORS, type AnalyticsPayload } from "@/lib/analytics/types"
+import { SKU_COLORS, type AnalyticsPayload, type StoreroomReport } from "@/lib/analytics/types"
 
 const REJECT_COLORS = ["#ef4444", "#f97316", "#f59e0b", "#8b5cf6", "#ec4899", "#64748b"]
 
@@ -22,8 +22,8 @@ const dmyFull = (iso: string) => {
   return `${d}/${m}/${y}`
 }
 
-export function FormsAnalyticsClient({ data }: { data: AnalyticsPayload }) {
-  const { kpi, bySku, byDay, byShift, byLine, extremes, problems, rates, coverage, trends, storeroom, dataQuality } = data
+export function FormsAnalyticsClient({ data, storeroom }: { data: AnalyticsPayload; storeroom: StoreroomReport }) {
+  const { kpi, bySku, byDay, byShift, byLine, extremes, problems, rates, coverage, trends, dataQuality } = data
 
   const hasProduction = kpi.totalBoxes > 0
   const skuChartData = byDay.map(d => ({ date: dmy(d.date), ...d.bySku }))
@@ -437,13 +437,31 @@ export function FormsAnalyticsClient({ data }: { data: AnalyticsPayload }) {
           )}
         </Panel>
 
-        <Panel title="Baki Storeroom" icon={<Archive className="w-4 h-4 text-emerald-600" />}>
-          {storeroom.length > 0 ? (
-            <div className="space-y-2">
-              {storeroom.map(s => (
-                <div key={s.category} className="flex items-center justify-between p-3 bg-emerald-50/60 border border-emerald-100 rounded-lg">
-                  <span className="text-xs font-black uppercase tracking-wide text-emerald-900">{s.category}</span>
-                  <span className="text-sm font-black text-emerald-700">{fmt(s.pieces)}</span>
+        <Panel title="Baki Storeroom Ikut SKU" icon={<Archive className="w-4 h-4 text-emerald-600" />}>
+          {storeroom.groups.some(g => g.batches > 0 || g.heldBatches > 0) ? (
+            <div className="space-y-1.5">
+              {storeroom.groups.map(g => (
+                <div
+                  key={g.sku}
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg border ${
+                    g.batches > 0 ? "bg-emerald-50/60 border-emerald-100" : "bg-gray-50/60 border-gray-100"
+                  }`}
+                >
+                  <div className="min-w-0 pr-2">
+                    <p className={`text-[11px] font-black uppercase tracking-wide truncate ${g.batches > 0 ? "text-emerald-900" : "text-gray-400"}`}>
+                      {g.sku}
+                    </p>
+                    <p className="text-[9px] font-bold text-gray-400">
+                      {g.batches} batch
+                      {g.heldBalance > 0 && <span className="text-amber-700"> · {fmt(g.heldBalance)} {g.unit} ditahan</span>}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className={`text-xs font-black ${g.batches > 0 ? "text-emerald-700" : "text-gray-300"}`}>
+                      {fmt(g.balance)} {g.unit}
+                    </p>
+                    <p className="text-[9px] font-bold text-gray-400">{fmt(g.pcs)} pcs</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -451,7 +469,8 @@ export function FormsAnalyticsClient({ data }: { data: AnalyticsPayload }) {
             <EmptyState message="Tiada baki storeroom." />
           )}
           <p className="text-[10px] text-gray-400 font-medium mt-3 leading-snug">
-            Berdasarkan report diluluskan terkini. Nilai dalam anggaran jumlah keping.
+            Baki carry forward setakat {dmyFull(storeroom.asOf)}, sumber sama dengan tab Production Stock.
+            Stok ditahan tidak dikira dalam baki tersedia.
           </p>
         </Panel>
       </div>

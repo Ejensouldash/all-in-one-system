@@ -1,6 +1,6 @@
 import React from "react"
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer"
-import { SKU_COLORS, type AnalyticsPayload, type ExecutiveSummary } from "@/lib/analytics/types"
+import { SKU_COLORS, type AnalyticsPayload, type ExecutiveSummary, type StoreroomReport } from "@/lib/analytics/types"
 import {
   StackedBarChart,
   HorizontalBars,
@@ -20,6 +20,16 @@ const dmy = (iso: string) => {
 const dm = (iso: string) => {
   const [, m, d] = iso.split("-")
   return `${d}/${m}`
+}
+
+/**
+ * A batch can be fed by a dozen DOs, and printing all of them makes the row three lines tall.
+ * Show the first two and count the rest — the Excel export carries the full list.
+ */
+function shortDo(doNumber: string): string {
+  const parts = (doNumber || "").split(",").map(p => p.trim()).filter(Boolean)
+  if (parts.length <= 2) return parts.join(", ") || "-"
+  return `${parts.slice(0, 2).join(", ")} (+${parts.length - 2} lagi)`
 }
 
 const C = {
@@ -191,6 +201,7 @@ const TOC = [
   { id: "quality", n: "7", label: "Kualiti & Kadar Reject", desc: "Analisis Pareto reject dan kadar ikut kategori" },
   { id: "coverage", n: "8", label: "Kepatuhan Pengisian Borang", desc: "Hari dan shift yang borangnya tidak diisi" },
   { id: "appendix", n: "9", label: "Lampiran: Data Harian", desc: "Jadual penuh pengeluaran harian" },
+  { id: "storeroom", n: "10", label: "Storeroom Balance Report", desc: "Baki carry forward penuh ikut SKU, dengan DO number dan stok ditahan" },
 ]
 
 /**
@@ -216,6 +227,7 @@ function PageMarker({ id, onResolve }: { id: string; onResolve?: (id: string, pa
 export function AnalyticsReportDocument({
   data,
   summary,
+  storeroom,
   logo,
   preparedBy,
   generatedAt,
@@ -224,6 +236,7 @@ export function AnalyticsReportDocument({
 }: {
   data: AnalyticsPayload
   summary: ExecutiveSummary
+  storeroom: StoreroomReport
   logo: string
   preparedBy: string
   generatedAt: string
@@ -838,11 +851,126 @@ export function AnalyticsReportDocument({
             </View>
           )}
 
+        </View>,
+        "appendix"
+      )}
+
+      {/* ------------------------------------------------------------------ 10. Storeroom */}
+      {page(
+        <View>
+          <SectionHeading title="10. Storeroom Balance Report" />
+
+          <Text style={s.p}>
+            Baki carry forward setakat {dmy(storeroom.asOf)}. {storeroom.totals.batches} batch tersedia merentasi
+            {" "}{storeroom.groups.filter(g => g.batches > 0).length} SKU, bersamaan {nf(storeroom.totals.pcs)} keping.
+            {storeroom.totals.heldBatches > 0
+              ? ` ${storeroom.totals.heldBatches} batch ditahan (HOLD) disenaraikan berasingan dan tidak dikira dalam baki tersedia.`
+              : ""}
+          </Text>
+
+          <Text style={s.h2}>10.1 Ringkasan Ikut SKU</Text>
+          <View style={s.table}>
+            <View style={[s.tr, s.thead]}>
+              <Text style={[s.th, { width: "30%" }]}>SKU</Text>
+              <Text style={[s.th, { width: "12%" }, s.right]}>Batch</Text>
+              <Text style={[s.th, { width: "20%" }, s.right]}>Baki Tersedia</Text>
+              <Text style={[s.th, { width: "20%" }, s.right]}>Setara Pcs</Text>
+              <Text style={[s.th, { width: "18%" }, s.right]}>Ditahan</Text>
+            </View>
+            {storeroom.groups.map((g, i) => (
+              <View key={g.sku} style={[s.tr, i === storeroom.groups.length - 1 ? s.trLast : {}]}>
+                <Text style={[s.tdB, { width: "30%" }]}>{g.sku}</Text>
+                <Text style={[s.td, { width: "12%" }, s.right]}>{g.batches}</Text>
+                <Text style={[s.td, { width: "20%" }, s.right]}>{`${nf(g.balance)} ${g.unit}`}</Text>
+                <Text style={[s.td, { width: "20%" }, s.right]}>{nf(g.pcs)}</Text>
+                <Text style={[s.td, { width: "18%" }, s.right]}>
+                  {g.heldBalance > 0 ? `${nf(g.heldBalance)} ${g.unit}` : "-"}
+                </Text>
+              </View>
+            ))}
+            <View style={[s.tr, s.trLast, { backgroundColor: "#f8fafc" }]}>
+              <Text style={[s.tdB, { width: "30%" }]}>JUMLAH</Text>
+              <Text style={[s.tdB, { width: "12%" }, s.right]}>{storeroom.totals.batches}</Text>
+              <Text style={[s.td, { width: "20%" }, s.right]}>—</Text>
+              <Text style={[s.tdB, { width: "20%" }, s.right]}>{nf(storeroom.totals.pcs)}</Text>
+              <Text style={[s.td, { width: "18%" }, s.right]}>—</Text>
+            </View>
+          </View>
+          <Text style={s.note}>
+            Unit berbeza ikut bahan: bottle dan cap dalam bag, box dalam box, label dalam roll. Setara pcs dikira
+            daripada baki didarab multiplier setiap batch.
+          </Text>
+
+          <Text style={s.h2}>10.2 Detail Baki Ikut Batch</Text>
+          {storeroom.rows.length > 0 ? (
+            <View style={s.table}>
+              <View style={[s.tr, s.thead]} fixed>
+                <Text style={[s.th, { width: "26%" }]}>DO No</Text>
+                <Text style={[s.th, { width: "22%" }]}>SKU</Text>
+                <Text style={[s.th, { width: "18%" }]}>Batch No</Text>
+                <Text style={[s.th, { width: "17%" }, s.right]}>Balance</Text>
+                <Text style={[s.th, { width: "17%" }, s.right]}>Setara Pcs</Text>
+              </View>
+              {storeroom.rows.map((r, i) => (
+                <View key={`${r.sku}|${r.batchNo}|${i}`} style={[s.tr, i === storeroom.rows.length - 1 ? s.trLast : {}]} wrap={false}>
+                  <Text style={[s.td, { width: "26%", fontSize: 7 }]}>{shortDo(r.doNumber)}</Text>
+                  <Text style={[s.tdB, { width: "22%" }]}>{r.sku}</Text>
+                  <Text style={[s.td, { width: "18%" }]}>{r.batchNo}</Text>
+                  <Text style={[s.td, { width: "17%" }, s.right]}>{`${nf(r.balance)} ${r.unit}`}</Text>
+                  <Text style={[s.td, { width: "17%" }, s.right]}>{nf(r.pcs)}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={s.p}>Tiada baki storeroom setakat tarikh ini.</Text>
+          )}
+          <Text style={s.note}>
+            Satu batch boleh menerima bekalan daripada beberapa DO. Dua DO pertama dipaparkan di sini dengan kiraan
+            selebihnya; senarai penuh setiap DO ada dalam fail Excel "Export Balance".
+          </Text>
+
+          <Text style={s.h2}>10.3 Stok Ditahan (HOLD)</Text>
+          {storeroom.holds.length > 0 ? (
+            <View style={s.table}>
+              <View style={[s.tr, s.thead]}>
+                <Text style={[s.th, { width: "30%" }]}>SKU</Text>
+                <Text style={[s.th, { width: "28%" }]}>Batch No</Text>
+                <Text style={[s.th, { width: "21%" }, s.right]}>Qty Ditahan</Text>
+                <Text style={[s.th, { width: "21%" }, s.right]}>Setara Pcs</Text>
+              </View>
+              {storeroom.holds.map((r, i) => (
+                <View
+                  key={`hold|${r.sku}|${r.batchNo}|${i}`}
+                  style={[s.tr, i === storeroom.holds.length - 1 ? s.trLast : {}, { backgroundColor: C.warnSoft }]}
+                  wrap={false}
+                >
+                  <Text style={[s.tdB, { width: "30%" }]}>{r.sku}</Text>
+                  <Text style={[s.td, { width: "28%" }]}>{r.batchNo}</Text>
+                  <Text style={[s.td, { width: "21%" }, s.right]}>{`${nf(r.balance)} ${r.unit}`}</Text>
+                  <Text style={[s.td, { width: "21%" }, s.right]}>{nf(r.pcs)}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={s.p}>Tiada stok ditahan setakat tarikh ini.</Text>
+          )}
+          <Text style={s.note}>
+            Stok ditahan menunggu keputusan kuarantin dan tidak boleh digunakan dalam pengeluaran. Ia tidak dikira
+            dalam baki tersedia di 10.1 dan 10.2.
+          </Text>
+
+          {storeroom.warnings.length > 0 && (
+            <View>
+              <Text style={s.h2}>Amaran Data</Text>
+              <Bullets items={storeroom.warnings} />
+            </View>
+          )}
+
           <Text style={s.note}>
             Tamat laporan. Dijana oleh BubblesO2 AIO System pada {generatedAt} oleh {preparedBy}.
           </Text>
         </View>,
-        "appendix"
+        "storeroom"
       )}
     </Document>
   )

@@ -4,6 +4,7 @@ import path from "path"
 import { renderToBuffer } from "@react-pdf/renderer"
 import { auth } from "@/auth"
 import { computeProductionAnalytics } from "@/lib/analytics/compute"
+import { getStoreroomReport } from "@/lib/analytics/storeroom"
 import { generateExecutiveSummary } from "@/lib/analytics/ai"
 import { AnalyticsReportDocument } from "@/lib/pdf/AnalyticsReportDocument"
 
@@ -40,7 +41,11 @@ export async function POST(request: Request) {
     const preparedBy = user?.name || user?.email || "BubblesO2 AIO System"
 
     const data = await computeProductionAnalytics(start, end)
-    const [summary, logo] = await Promise.all([generateExecutiveSummary(data, useAi), loadLogo()])
+    const [summary, storeroom, logo] = await Promise.all([
+      generateExecutiveSummary(data, useAi),
+      getStoreroomReport(end),
+      loadLogo(),
+    ])
 
     const generatedAt = new Intl.DateTimeFormat("en-GB", {
       dateStyle: "long",
@@ -54,7 +59,7 @@ export async function POST(request: Request) {
     const pageMap: Record<string, number> = {}
     await renderToBuffer(
       AnalyticsReportDocument({
-        data, summary, logo, preparedBy, generatedAt,
+        data, summary, storeroom, logo, preparedBy, generatedAt,
         onResolvePage: (id, page) => {
           if (pageMap[id] === undefined) pageMap[id] = page
         },
@@ -62,7 +67,7 @@ export async function POST(request: Request) {
     )
 
     const buffer = await renderToBuffer(
-      AnalyticsReportDocument({ data, summary, logo, preparedBy, generatedAt, pageMap })
+      AnalyticsReportDocument({ data, summary, storeroom, logo, preparedBy, generatedAt, pageMap })
     )
 
     return new NextResponse(new Uint8Array(buffer), {

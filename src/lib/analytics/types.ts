@@ -126,6 +126,60 @@ export type AnalyticsPayload = {
   }
 }
 
+// ---------------------------------------------------------------------------------------------
+// Storeroom balance report (section 10)
+// ---------------------------------------------------------------------------------------------
+
+/** The nine SKUs in use, in the display order production asked for. */
+export const STOREROOM_SKUS = [
+  "BOTTLE 800ml X225",
+  "BOTTLE 425ml X181",
+  "BOTTLE 425ml X162",
+  "BOX 800x12",
+  "BOX 800x20",
+  "BOX 425x24",
+  "BOX 425x6",
+  "LABEL",
+  "CAP",
+] as const
+
+export type StoreroomUnit = "bag" | "box" | "roll"
+
+export type StoreroomRow = {
+  doNumber: string
+  sku: string
+  batchNo: string
+  balance: number
+  unit: StoreroomUnit
+  mult: number
+  pcs: number
+  isHold: boolean
+  /** True when the row could not be mapped to one of the nine known SKUs. */
+  unknownSku: boolean
+  /** True when mult is zero or missing, so the pieces figure cannot be trusted. */
+  suspectMult: boolean
+}
+
+export type StoreroomSkuGroup = {
+  sku: string
+  unit: StoreroomUnit
+  batches: number
+  balance: number
+  pcs: number
+  heldBalance: number
+  heldBatches: number
+  known: boolean
+}
+
+export type StoreroomReport = {
+  asOf: string
+  rows: StoreroomRow[]
+  holds: StoreroomRow[]
+  groups: StoreroomSkuGroup[]
+  totals: { batches: number; pcs: number; heldBatches: number }
+  warnings: string[]
+}
+
 export type ExecutiveSummary = {
   headline: string
   overview: string[]

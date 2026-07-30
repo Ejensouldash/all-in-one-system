@@ -5,7 +5,9 @@ import { LayoutDashboard } from "lucide-react"
 import { FormsAnalyticsClient } from "@/components/forms/FormsAnalyticsClient"
 import { AnalyticsRangePicker } from "@/components/forms/AnalyticsRangePicker"
 import { GenerateReportButton } from "@/components/forms/GenerateReportButton"
+import { ExportStoreroomButton } from "@/components/forms/ExportStoreroomButton"
 import { computeProductionAnalytics } from "@/lib/analytics/compute"
+import { getStoreroomReport } from "@/lib/analytics/storeroom"
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -34,7 +36,10 @@ export default async function FormsDashboardPage({
   let to = ISO_DATE.test(rawTo) ? rawTo : fallback.to
   if (from > to) [from, to] = [to, from]
 
-  const data = await computeProductionAnalytics(from, to)
+  const [data, storeroom] = await Promise.all([
+    computeProductionAnalytics(from, to),
+    getStoreroomReport(to),
+  ])
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 animate-in fade-in duration-500 pb-12">
@@ -52,11 +57,14 @@ export default async function FormsDashboardPage({
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <AnalyticsRangePicker from={from} to={to} />
-          <GenerateReportButton from={from} to={to} />
+          <div className="flex items-start gap-2">
+            <GenerateReportButton from={from} to={to} />
+            <ExportStoreroomButton asOf={to} />
+          </div>
         </div>
       </div>
 
-      <FormsAnalyticsClient data={data} />
+      <FormsAnalyticsClient data={data} storeroom={storeroom} />
     </div>
   )
 }

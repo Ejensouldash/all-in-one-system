@@ -31,6 +31,16 @@ export default function ReportsDashboard() {
           </div>
         </Link>
 
+        <Link href="/forms/warehouse/reports/daily-raw-material" className="block group">
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:border-orange-500 hover:shadow-md transition-all h-full">
+            <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <FileText className="w-6 h-6 text-orange-600" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Daily Raw Material</h3>
+            <p className="text-sm text-gray-500">Manage and track daily raw material balances, stock in, and stock out.</p>
+          </div>
+        </Link>
+
         <Link href="/forms/warehouse/reports/opening-stock" className="block group">
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:border-emerald-500 hover:shadow-md transition-all h-full">
             <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">

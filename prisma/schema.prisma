@@ -39,6 +39,7 @@ model User {
   assetAssignments  AssetAssignment[]
   createdReminders  Reminder[]              @relation("ReminderCreator")
   reminderTargets   ReminderRecipient[]     @relation("ReminderTargetUser")
+  warehouseDailyRawMaterials WarehouseDailyRawMaterial[] @relation("WarehouseDailyRawMaterialCreator")
 }
 
 model Branch {
@@ -1195,3 +1196,49 @@ model PedasBatch {
   @@index([machine, productionDate, shift])
 }
 
+// ==========================================
+// WAREHOUSE DAILY RAW MATERIAL FORMS
+// ==========================================
+
+model WarehouseDailyRawMaterial {
+  id                 String   @id @default(uuid())
+  date               DateTime @db.Date
+  time               String   
+  shift              String   
+  status             String   @default("PENDING") // PENDING, VERIFIED
+  remarks            String?
+  
+  preparedBy         String
+  verifiedBy         String?
+  preparedSignature  String?
+  verifiedSignature  String?
+
+  createdById        String
+  createdBy          User     @relation("WarehouseDailyRawMaterialCreator", fields: [createdById], references: [id])
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  items              WarehouseDailyRawMaterialItem[]
+}
+
+model WarehouseDailyRawMaterialItem {
+  id                  String   @id @default(uuid())
+  reportId            String
+  report              WarehouseDailyRawMaterial @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  
+  section             String   // e.g., "BOTTLES 425 ML", "BOX 425 ML", "LABEL 425 ML"
+  sku                 String   // e.g., "425 ML", "(425 ml x 6)", "(425 ml x 24)", "LABEL 425 ML"
+  unit                String   // BAG, PCS, ROLL
+  batchNo             String
+  
+  balanceInWarehouse  Int      
+  quantityStockIn     Int
+  quantityStockOut    Int      
+  balanceCarryForward Int      
+  
+  remarks             String?
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}

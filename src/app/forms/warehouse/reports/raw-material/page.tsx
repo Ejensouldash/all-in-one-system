@@ -1,7 +1,7 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Plus, FileText, ArrowRight, PackageSearch } from "lucide-react"
+import { Plus, FileText, ArrowRight, PackageSearch, Ban } from "lucide-react"
 import { listRawMaterialReports } from "@/app/actions/warehouseRawMaterial"
 
 const dmy = (d: Date) => {
@@ -52,6 +52,7 @@ export default async function RawMaterialListPage() {
                   <th className="px-4 py-3 text-left">Tarikh</th>
                   <th className="px-4 py-3 text-left">Shift</th>
                   <th className="px-4 py-3 text-left">#</th>
+                  <th className="px-4 py-3 text-left">Status</th>
                   <th className="px-4 py-3 text-right">Baris</th>
                   <th className="px-4 py-3 text-right">Jumlah Stock Out</th>
                   <th className="px-4 py-3 text-left">DO Dijana</th>
@@ -62,25 +63,48 @@ export default async function RawMaterialListPage() {
               <tbody className="divide-y divide-gray-100">
                 {reports.map(r => {
                   const totalOut = r.items.reduce((s, i) => s + i.qtyOut, 0)
+                  const isVoid = r.status === "VOID"
                   return (
-                    <tr key={r.id} className="hover:bg-gray-50/60">
-                      <td className="px-4 py-3 text-xs font-black text-gray-900">{dmy(r.date)}</td>
+                    <tr key={r.id} className={isVoid ? "bg-gray-50/80 text-gray-400" : "hover:bg-gray-50/60"}>
+                      <td className={`px-4 py-3 text-xs font-black ${isVoid ? "text-gray-400 line-through" : "text-gray-900"}`}>
+                        {dmy(r.date)}
+                      </td>
                       <td className="px-4 py-3">
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] font-black ${
-                            r.shift === "AM" ? "bg-sky-100 text-sky-800" : "bg-amber-100 text-amber-800"
+                            isVoid
+                              ? "bg-gray-200 text-gray-500"
+                              : r.shift === "AM"
+                                ? "bg-sky-100 text-sky-800"
+                                : "bg-amber-100 text-amber-800"
                           }`}
                         >
                           {r.shift}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-xs font-bold text-gray-500">#{r.sequence}</td>
+                      <td className="px-4 py-3">
+                        {isVoid ? (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-200 text-gray-600 text-[10px] font-black"
+                            title={r.voidReason || undefined}
+                          >
+                            <Ban className="w-3 h-3" /> VOID
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-black">
+                            ACTIVE
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-xs text-right text-gray-700">{r.items.length}</td>
-                      <td className="px-4 py-3 text-xs text-right font-black text-red-700">
+                      <td className={`px-4 py-3 text-xs text-right font-black ${isVoid ? "text-gray-400" : "text-red-700"}`}>
                         {totalOut.toLocaleString("en-MY")}
                       </td>
                       <td className="px-4 py-3">
-                        {r.linkedDoNumber ? (
+                        {isVoid ? (
+                          <span className="text-[11px] text-gray-400 font-bold italic">DO dibuang</span>
+                        ) : r.linkedDoNumber ? (
                           <span className="inline-flex items-center gap-1 text-[11px] font-black text-indigo-700">
                             <ArrowRight className="w-3 h-3" />
                             {r.linkedDoNumber}

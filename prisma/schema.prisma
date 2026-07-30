@@ -1223,6 +1223,14 @@ model WarehouseRawMaterialReport {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  // SGMP-15 is a controlled GMP document, so a mistaken entry is voided rather than erased.
+  // A voided report keeps all its rows but is skipped by the carry-forward chain, and its
+  // generated DO is removed.
+  status     String    @default("ACTIVE") // "ACTIVE" | "VOID"
+  voidedAt   DateTime?
+  voidedById String?
+  voidReason String?
+
   items WarehouseRawMaterialItem[]
 
   @@index([date, sequence])

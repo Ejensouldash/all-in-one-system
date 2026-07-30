@@ -10,7 +10,7 @@ import {
   RAW_MATERIAL_SKUS, RAW_MATERIAL_SECTIONS, findSku, sectionRank, skuRank,
 } from "@/lib/warehouse/rawMaterialSkus"
 import { normaliseBatchNo, batchInputMaxLength } from "@/lib/warehouse/batchFormat"
-import { createRawMaterialReport } from "@/app/actions/warehouseRawMaterial"
+import { createRawMaterialReport, updateRawMaterialReport } from "@/app/actions/warehouseRawMaterial"
 
 type Row = {
   uid: string
@@ -42,29 +42,60 @@ const n = (v: string) => {
   return Number.isFinite(x) ? x : 0
 }
 
+export type RawMaterialInitialData = {
+  id: string
+  date: string
+  time: string
+  shift: string
+  preparedBy: string
+  verifiedBy: string
+  remarks: string
+  rows: { sku: string; batchNo: string; balanceIn: number; qtyIn: number; qtyOut: number; remarks: string }[]
+}
+
 export function RawMaterialForm({
   prefillRows,
   prefillFrom,
   defaultPreparedBy,
+  initialData,
 }: {
   prefillRows: { sku: string; batchNo: string; balanceIn: number }[]
   prefillFrom: { date: string; sequence: number; shift: string } | null
   defaultPreparedBy: string
+  /** Present in edit mode. The date is fixed once a report exists. */
+  initialData?: RawMaterialInitialData
 }) {
   const router = useRouter()
+  const isEdit = !!initialData
 
   const today = new Date()
-  const [date, setDate] = useState(today.toISOString().split("T")[0])
+  const [date, setDate] = useState(initialData?.date ?? today.toISOString().split("T")[0])
   const [time, setTime] = useState(
-    `${String(today.getHours()).padStart(2, "0")}:${String(today.getMinutes()).padStart(2, "0")}`
+    initialData?.time ??
+      `${String(today.getHours()).padStart(2, "0")}:${String(today.getMinutes()).padStart(2, "0")}`
   )
-  const [shift, setShift] = useState(today.getHours() >= 19 || today.getHours() < 7 ? "PM" : "AM")
-  const [preparedBy, setPreparedBy] = useState(defaultPreparedBy)
-  const [verifiedBy, setVerifiedBy] = useState("")
-  const [remarks, setRemarks] = useState("")
+  const [shift, setShift] = useState(
+    initialData?.shift ?? (today.getHours() >= 19 || today.getHours() < 7 ? "PM" : "AM")
+  )
+  const [preparedBy, setPreparedBy] = useState(initialData?.preparedBy ?? defaultPreparedBy)
+  const [verifiedBy, setVerifiedBy] = useState(initialData?.verifiedBy ?? "")
+  const [remarks, setRemarks] = useState(initialData?.remarks ?? "")
 
-  const [rows, setRows] = useState<Row[]>(() =>
-    prefillRows.length > 0
+  const [rows, setRows] = useState<Row[]>(() => {
+    if (initialData) {
+      // Every field stays editable when correcting a mistake, including the opening balance.
+      return initialData.rows.map(r => ({
+        uid: uid(),
+        sku: r.sku,
+        batchNo: r.batchNo,
+        balanceIn: String(r.balanceIn),
+        qtyIn: String(r.qtyIn),
+        qtyOut: String(r.qtyOut),
+        remarks: r.remarks,
+        locked: false,
+      }))
+    }
+    return prefillRows.length > 0
       ? prefillRows.map(p => ({
           uid: uid(),
           sku: p.sku,
@@ -76,7 +107,7 @@ export function RawMaterialForm({
           locked: true,
         }))
       : [blankRow()]
-  )
+  })
 
   const [scanTarget, setScanTarget] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -135,8 +166,7 @@ export function RawMaterialForm({
     setBusy(true)
     setError(null)
     try {
-      const res = await createRawMaterialReport({
-        date,
+      const payload = {
         time,
         shift,
         preparedBy,
@@ -150,10 +180,16 @@ export function RawMaterialForm({
           qtyOut: n(r.qtyOut),
           remarks: r.remarks,
         })),
-      })
+      }
+
+      const res = initialData
+        ? await updateRawMaterialReport(initialData.id, payload)
+        : await createRawMaterialReport({ ...payload, date })
 
       if (!res.success) throw new Error(res.error || "Gagal simpan")
-      router.push(`/forms/warehouse/reports/raw-material/${res.data!.id}`)
+      const id = initialData?.id ?? (res as any).data.id
+      router.push(`/forms/warehouse/reports/raw-material/${id}`)
+      router.refresh()
     } catch (e: any) {
       setError(e.message || "Gagal simpan")
       setBusy(false)
@@ -165,8 +201,15 @@ export function RawMaterialForm({
       {/* header */}
       <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-          <Field label="Date">
-            <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inputCls} />
+          <Field label={isEdit ? "Date (dikunci)" : "Date"}>
+            <input
+              type="date"
+              value={date}
+              onChange={e => setDate(e.target.value)}
+              disabled={isEdit}
+              title={isEdit ? "Tarikh tidak boleh diubah. Kalau salah, batalkan borang dan buat yang baharu." : undefined}
+              className={`${inputCls} disabled:bg-gray-100 disabled:text-gray-500`}
+            />
           </Field>
           <Field label="Time">
             <input type="time" value={time} onChange={e => setTime(e.target.value)} className={inputCls} />
@@ -185,7 +228,17 @@ export function RawMaterialForm({
           </Field>
         </div>
 
-        {prefillFrom && (
+        {isEdit && (
+          <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+            <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-[11px] font-bold text-amber-900 leading-snug">
+              Mod pembetulan. Menyimpan akan menjana semula DO dengan nombor yang sama.
+              Tarikh dikunci — kalau tarikh salah, batalkan borang ini dan buat yang baharu.
+            </p>
+          </div>
+        )}
+
+        {!isEdit && prefillFrom && (
           <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-indigo-50 border border-indigo-200">
             <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
             <p className="text-[11px] font-bold text-indigo-900 leading-snug">
@@ -364,7 +417,7 @@ export function RawMaterialForm({
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-xs font-black uppercase tracking-wide rounded-lg shadow-sm"
           >
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {busy ? "Menyimpan..." : "Submit"}
+            {busy ? "Menyimpan..." : isEdit ? "Simpan Pembetulan" : "Submit"}
           </button>
         </div>
       </div>

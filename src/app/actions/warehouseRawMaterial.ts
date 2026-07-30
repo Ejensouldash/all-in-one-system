@@ -7,7 +7,9 @@ import { logUserAction } from "./audit"
 import {
   loadCarryForwardPrefill,
   saveRawMaterialReport,
-  checkLinkedDoClaimed,
+  updateRawMaterialReport as updateReport,
+  voidRawMaterialReport as voidReport,
+  getEditability,
   deleteReportAndLinkedDo,
   RawMaterialError,
   type RawMaterialReportInput,
@@ -76,16 +78,34 @@ export async function getRawMaterialReport(id: string) {
   }
 }
 
-export async function isLinkedDoClaimed(reportId: string) {
+/** Whether this report can still be edited, voided or deleted, and if not, why. */
+export async function getReportEditability(reportId: string) {
   const session = await auth()
-  if (!session) return { success: false as const, error: "Unauthorized", claimed: false, by: [] as string[] }
+  if (!session) {
+    return {
+      success: false as const,
+      error: "Unauthorized",
+      editable: false,
+      reason: null,
+      detail: "",
+      isLatest: false,
+      blockedBy: [] as string[],
+    }
+  }
 
   try {
-    const result = await checkLinkedDoClaimed(reportId)
-    return { success: true as const, ...result }
+    return { success: true as const, ...(await getEditability(reportId)) }
   } catch (error: any) {
-    console.error("Failed to check linked DO:", error)
-    return { success: false as const, error: error.message, claimed: false, by: [] as string[] }
+    console.error("Failed to check editability:", error)
+    return {
+      success: false as const,
+      error: error.message,
+      editable: false,
+      reason: null,
+      detail: "",
+      isLatest: false,
+      blockedBy: [] as string[],
+    }
   }
 }
 
@@ -111,21 +131,63 @@ export async function createRawMaterialReport(input: Omit<RawMaterialReportInput
   }
 }
 
+export async function updateRawMaterialReport(
+  id: string,
+  input: Omit<RawMaterialReportInput, "date" | "createdById">
+) {
+  const session = await auth()
+  if (!session) return { success: false as const, error: "Unauthorized" }
+
+  try {
+    const updated = await updateReport(id, input)
+
+    revalidateAll()
+    revalidatePath(`/forms/warehouse/reports/raw-material/${id}`)
+    await logUserAction(
+      "Updated Daily Raw Material (Warehouse)",
+      `Report: ${id}, Rows: ${updated.items.length}, Linked DO: ${updated.linkedDoNumber || "none"}. ` +
+        `Payload: ${JSON.stringify(input)}`
+    )
+
+    return { success: true as const, data: updated }
+  } catch (error: any) {
+    if (!(error instanceof RawMaterialError)) console.error("Failed to update raw material report:", error)
+    return { success: false as const, error: error.message }
+  }
+}
+
+/** Void keeps the record for the audit trail and removes only the generated DO. */
+export async function voidRawMaterialReport(id: string, reason: string) {
+  const session = await auth()
+  if (!session) return { success: false as const, error: "Unauthorized" }
+  const user = session.user as any
+
+  try {
+    const voided = await voidReport(id, reason, user?.id || null)
+
+    revalidateAll()
+    revalidatePath(`/forms/warehouse/reports/raw-material/${id}`)
+    await logUserAction(
+      "Voided Daily Raw Material (Warehouse)",
+      `Date: ${voided.date.toISOString().split("T")[0]} #${voided.sequence}, ` +
+        `DO dibuang: ${voided.linkedDoNumber || "none"}, Sebab: ${reason}`
+    )
+
+    return { success: true as const }
+  } catch (error: any) {
+    if (!(error instanceof RawMaterialError)) console.error("Failed to void raw material report:", error)
+    return { success: false as const, error: error.message }
+  }
+}
+
+/** Hard delete, for test and demo data. Same gate as edit and void. */
 export async function deleteRawMaterialReport(id: string) {
   const session = await auth()
   if (!session) return { success: false as const, error: "Unauthorized" }
   const user = session.user as any
-  if (user?.trueRole !== "SUPERADMIN") return { success: false as const, error: "Hanya SUPERADMIN boleh padam" }
+  if (user?.trueRole !== "SUPERADMIN") return { success: false as const, error: "Hanya SUPERADMIN boleh padam kekal" }
 
   try {
-    const claim = await checkLinkedDoClaimed(id)
-    if (claim.claimed) {
-      return {
-        success: false as const,
-        error: `DO borang ini sudah digunakan oleh Daily Production Report (${claim.by.join("; ")}). Padam rekod itu dahulu.`,
-      }
-    }
-
     const removed = await deleteReportAndLinkedDo(id)
 
     revalidateAll()

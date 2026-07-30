@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { FileText, CalendarDays, Archive } from "lucide-react"
+import { FileText, CalendarDays, Archive, PackageSearch } from "lucide-react"
 
 export default function ReportsDashboard() {
   return (
@@ -10,7 +10,20 @@ export default function ReportsDashboard() {
         <h2 className="text-xl font-black uppercase tracking-tight">Warehouse Reports</h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        <Link href="/forms/warehouse/reports/raw-material" className="block group">
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all h-full">
+            <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <PackageSearch className="w-6 h-6 text-amber-600" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Daily Raw Material</h3>
+            <p className="text-sm text-gray-500">
+              SGMP-15. Rekod baki bahan mentah warehouse. Quantity Stock Out terus masuk ke Transfer In
+              dalam Daily Production Report.
+            </p>
+          </div>
+        </Link>
+
         <Link href="/forms/warehouse/reports/daily" className="block group">
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:border-blue-500 hover:shadow-md transition-all h-full">
             <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">

@@ -1195,3 +1195,53 @@ model PedasBatch {
   @@index([machine, productionDate, shift])
 }
 
+
+// ---------------------------------------------------------------------------------------------
+// Daily Raw Material (Warehouse) — form SGMP/15/DRM (W)
+//
+// A warehouse-side ledger, deliberately separate from the production storeroom replay in
+// getActiveInventory. Each report reads its opening balance from the previous report's carry
+// forward, so this is a simple lookup rather than a fourth carry-forward calculation.
+//
+// On submit, rows with a stock-out quantity also generate a TransferIn document, which is how the
+// figure reaches the Daily Production Report without any production code being changed.
+// ---------------------------------------------------------------------------------------------
+
+model WarehouseRawMaterialReport {
+  id                String   @id @default(uuid())
+  date              DateTime @db.Date
+  time              String
+  shift             String   @default("AM") // "AM" | "PM"
+  sequence          Int // 1, 2, 3... order of the chain within one date
+  preparedBy        String
+  preparedSignature String?
+  verifiedBy        String?
+  verifiedSignature String?
+  remarks           String?
+  createdById       String?
+  linkedDoNumber    String? // the TransferIn DO generated from this report's stock-out rows
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  items WarehouseRawMaterialItem[]
+
+  @@index([date, sequence])
+}
+
+model WarehouseRawMaterialItem {
+  id           String  @id @default(uuid())
+  reportId     String
+  sku          String // catalogue key, e.g. "BOTTLE 425ml X181"
+  category     String // Transfer In category, e.g. "BOTTLE 425ml"
+  mult         Int
+  batchNo      String
+  balanceIn    Float   @default(0)
+  qtyIn        Float   @default(0)
+  qtyOut       Float   @default(0)
+  carryForward Float   @default(0)
+  remarks      String?
+
+  report WarehouseRawMaterialReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+}

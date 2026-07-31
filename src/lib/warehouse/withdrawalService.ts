@@ -1,0 +1,426 @@
+import { prisma } from "@/lib/prisma"
+import { findSku, skuRank, sectionRank, type RawMaterialSku } from "./rawMaterialSkus"
+import { normaliseBatchNo } from "./batchFormat"
+
+/**
+ * Raw material withdrawal — warehouse to production.
+ *
+ * Production takes stock off the rack itself, so warehouse staff cannot know the outflow. Whoever
+ * moves the stock records it here, and the Daily Raw Material form's QUANTITY STOCK OUT is derived
+ * from these records instead of being typed.
+ *
+ * A PRODUCTION withdrawal writes a TransferIn document straight away, which is the only path into
+ * the Daily Production Report that leaves production code untouched.
+ */
+
+export const ACTIVE = "ACTIVE"
+export const VOID = "VOID"
+
+export const PURPOSES = ["PRODUCTION", "DISPOSAL", "RETURN", "ADJUSTMENT"] as const
+export type WithdrawalPurpose = (typeof PURPOSES)[number]
+
+export class WithdrawalError extends Error {}
+
+export type WithdrawalLineInput = { sku: string; batchNo: string; qty: number }
+
+export type WithdrawalInput = {
+  date: string // YYYY-MM-DD
+  time: string
+  shift: string
+  takenBy: string
+  purpose: WithdrawalPurpose
+  remarks?: string
+  createdById?: string | null
+  lines: WithdrawalLineInput[]
+}
+
+export type LiveStockRow = {
+  key: string // `${sku}|${batchNo}`
+  sku: string
+  label: string
+  section: string
+  unit: string
+  category: string
+  mult: number
+  batchNo: string
+  available: number
+  /** Sort key derived from the DDMMYY prefix most batch numbers carry. Oldest first. */
+  ageKey: string
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+const round = (n: number) => Math.round(n * 1000) / 1000
+
+function toDbDate(dateStr: string): Date {
+  return new Date(`${dateStr}T00:00:00.000Z`)
+}
+
+/**
+ * Batch numbers mostly start DDMMYY (270726-42524). Turn that into YYMMDD so a plain string sort
+ * puts the oldest batch first; anything that does not match sorts last rather than pretending.
+ */
+function batchAgeKey(batchNo: string): string {
+  const m = /(\d{2})(\d{2})(\d{2})/.exec(batchNo || "")
+  if (!m) return "999999" + batchNo
+  const [, dd, mm, yy] = m
+  return `${yy}${mm}${dd}`
+}
+
+// ---------------------------------------------------------------------------------------------
+// Live stock
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * What is physically on the warehouse rack right now, per batch.
+ *
+ *   available(B) = carryForward(B) on the latest ACTIVE DRM report containing B
+ *                  − ACTIVE withdrawals of B recorded after that report
+ *
+ * Ordering is by createdAt, not the report date, so a backdated form cannot invert the sequence.
+ */
+export async function getLiveWarehouseStock(): Promise<LiveStockRow[]> {
+  const [reports, withdrawals] = await Promise.all([
+    prisma.warehouseRawMaterialReport.findMany({
+      where: { status: ACTIVE },
+      orderBy: { createdAt: "asc" },
+      include: { items: true },
+    }),
+    prisma.rawMaterialWithdrawal.findMany({
+      where: { status: ACTIVE },
+      include: { items: true },
+    }),
+  ])
+
+  // Latest report per batch, plus the carry forward it declared.
+  const latest = new Map<string, { at: Date; carryForward: number; sku: string; batchNo: string }>()
+  for (const report of reports) {
+    for (const item of report.items) {
+      const key = `${item.sku}|${item.batchNo}`
+      const existing = latest.get(key)
+      if (!existing || report.createdAt >= existing.at) {
+        latest.set(key, {
+          at: report.createdAt,
+          carryForward: item.carryForward,
+          sku: item.sku,
+          batchNo: item.batchNo,
+        })
+      }
+    }
+  }
+
+  // Withdrawals recorded after that report.
+  const takenSince = new Map<string, number>()
+  for (const w of withdrawals) {
+    for (const line of w.items) {
+      const key = `${line.sku}|${line.batchNo}`
+      const anchor = latest.get(key)
+      if (!anchor) continue // never entered the ledger, so nothing to reduce
+      if (w.createdAt <= anchor.at) continue // already folded into that report's qtyOut
+      takenSince.set(key, (takenSince.get(key) || 0) + line.qty)
+    }
+  }
+
+  const rows: LiveStockRow[] = []
+  for (const [key, anchor] of latest) {
+    const sku = findSku(anchor.sku)
+    if (!sku) continue
+    const available = round(anchor.carryForward - (takenSince.get(key) || 0))
+    if (available <= 0) continue
+    rows.push({
+      key,
+      sku: sku.key,
+      label: sku.label,
+      section: sku.section,
+      unit: sku.unit,
+      category: sku.category,
+      mult: sku.mult,
+      batchNo: anchor.batchNo,
+      available,
+      ageKey: batchAgeKey(anchor.batchNo),
+    })
+  }
+
+  // Grouped the way the paper form reads, oldest batch first within each SKU.
+  return rows.sort(
+    (a, b) =>
+      sectionRank(a.section) - sectionRank(b.section) ||
+      skuRank(a.sku) - skuRank(b.sku) ||
+      a.ageKey.localeCompare(b.ageKey) ||
+      a.batchNo.localeCompare(b.batchNo)
+  )
+}
+
+/**
+ * How much of a batch has been withdrawn since a given moment. This is what the Daily Raw Material
+ * form fills its QUANTITY STOCK OUT with, so the two figures can never drift apart.
+ */
+export async function getWithdrawnSince(after: Date | null): Promise<Map<string, number>> {
+  const withdrawals = await prisma.rawMaterialWithdrawal.findMany({
+    where: { status: ACTIVE, ...(after ? { createdAt: { gt: after } } : {}) },
+    include: { items: true },
+  })
+
+  const totals = new Map<string, number>()
+  for (const w of withdrawals) {
+    for (const line of w.items) {
+      const key = `${line.sku}|${line.batchNo}`
+      totals.set(key, round((totals.get(key) || 0) + line.qty))
+    }
+  }
+  return totals
+}
+
+/** The anchor the DRM form measures "since" from: the latest ACTIVE report before this one. */
+export async function getPreviousReportAnchor(excludeReportId?: string): Promise<Date | null> {
+  const previous = await prisma.warehouseRawMaterialReport.findFirst({
+    where: { status: ACTIVE, ...(excludeReportId ? { id: { not: excludeReportId } } : {}) },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  })
+  return previous?.createdAt ?? null
+}
+
+// ---------------------------------------------------------------------------------------------
+// Create
+// ---------------------------------------------------------------------------------------------
+
+function validateLines(lines: WithdrawalLineInput[], stock: LiveStockRow[]) {
+  const clean = (lines || []).filter(l => l.sku && l.batchNo?.trim() && Number(l.qty) > 0)
+  if (clean.length === 0) throw new WithdrawalError("Sekurang-kurangnya satu baris dengan kuantiti diperlukan")
+
+  const byKey = new Map(stock.map(s => [s.key, s]))
+  const seen = new Set<string>()
+  const resolved: { sku: RawMaterialSku; batchNo: string; qty: number }[] = []
+
+  for (const [i, line] of clean.entries()) {
+    const at = `Baris ${i + 1}`
+    const sku = findSku(line.sku)
+    if (!sku) throw new WithdrawalError(`${at}: SKU "${line.sku}" tidak dikenali`)
+
+    const batchNo = normaliseBatchNo(line.batchNo, sku.category).trim()
+    const key = `${sku.key}|${batchNo}`
+
+    if (seen.has(key)) throw new WithdrawalError(`${at}: ${sku.label} batch ${batchNo} berulang dalam satu pengeluaran`)
+    seen.add(key)
+
+    const available = byKey.get(key)
+    if (!available) {
+      throw new WithdrawalError(
+        `${at}: ${sku.label} batch ${batchNo} tiada baki dalam warehouse. Pastikan warehouse sudah rekod stock in untuk batch ini.`
+      )
+    }
+
+    const qty = Number(line.qty)
+    if (!Number.isInteger(qty)) throw new WithdrawalError(`${at}: kuantiti mesti nombor bulat`)
+    if (qty > available.available) {
+      throw new WithdrawalError(
+        `${at}: ${sku.label} batch ${batchNo} — cuba ambil ${qty} ${sku.unit.toLowerCase()} tetapi hanya ${available.available} tersedia`
+      )
+    }
+
+    resolved.push({ sku, batchNo, qty })
+  }
+
+  return resolved
+}
+
+export async function createWithdrawal(input: WithdrawalInput) {
+  if (!ISO_DATE.test(input.date)) throw new WithdrawalError("Tarikh tidak sah")
+  if (input.shift !== "AM" && input.shift !== "PM") throw new WithdrawalError("Shift mesti AM atau PM")
+  if (!input.takenBy?.trim()) throw new WithdrawalError("Nama pengambil wajib diisi")
+  if (!PURPOSES.includes(input.purpose)) throw new WithdrawalError("Tujuan tidak sah")
+
+  const stock = await getLiveWarehouseStock()
+  const resolved = validateLines(input.lines, stock)
+
+  const dateStamp = input.date.slice(2).replace(/-/g, "")
+
+  return prisma.$transaction(async tx => {
+    const sameDay = await tx.rawMaterialWithdrawal.count({ where: { date: toDbDate(input.date) } })
+    const seq = String(sameDay + 1).padStart(3, "0")
+    const withdrawalNo = `WD-${dateStamp}-${seq}`
+
+    // Only a production withdrawal becomes stock for the daily report. Disposal, return and
+    // adjustment reduce the warehouse balance without sending anything downstream.
+    const makesDo = input.purpose === "PRODUCTION"
+    const doNumber = makesDo ? `DO - WD${dateStamp}-${seq}` : null
+
+    const withdrawal = await tx.rawMaterialWithdrawal.create({
+      data: {
+        withdrawalNo,
+        date: toDbDate(input.date),
+        time: input.time,
+        shift: input.shift,
+        takenBy: input.takenBy.trim(),
+        purpose: input.purpose,
+        remarks: input.remarks?.trim() || null,
+        createdById: input.createdById || null,
+        linkedDoNumber: doNumber,
+        items: {
+          create: resolved.map(r => ({
+            sku: r.sku.key,
+            category: r.sku.category,
+            mult: r.sku.mult,
+            batchNo: r.batchNo,
+            qty: r.qty,
+          })),
+        },
+      },
+      include: { items: true },
+    })
+
+    if (doNumber) {
+      await tx.transferIn.create({
+        data: {
+          doNumber,
+          receiveDate: toDbDate(input.date),
+          receiveTime: input.time,
+          shift: input.shift,
+          receiverName: `Production Withdrawal - ${input.takenBy.trim()}`,
+          items: {
+            create: resolved.map(r => ({
+              category: r.sku.category,
+              batchNo: r.batchNo,
+              bags: Math.round(r.qty),
+              mult: r.sku.mult,
+            })),
+          },
+        },
+      })
+    }
+
+    return withdrawal
+  })
+}
+
+// ---------------------------------------------------------------------------------------------
+// Void guard
+// ---------------------------------------------------------------------------------------------
+
+export type WithdrawalVoidability = {
+  voidable: boolean
+  reason: "VOIDED" | "CLAIMED_SUBMITTED" | "CLAIMED_DRAFT" | "CLOSED_BY_REPORT" | "NOT_FOUND" | null
+  detail: string
+  blockedBy: string[]
+}
+
+/**
+ * Three gates, same shape as the Daily Raw Material form's own guard.
+ *
+ * The third is specific to withdrawals: once a DRM report has been filed that counted this
+ * withdrawal in its QUANTITY STOCK OUT, voiding it would leave that report's figure wrong with
+ * nothing on screen to say so.
+ */
+export async function getWithdrawalVoidability(id: string): Promise<WithdrawalVoidability> {
+  const w = await prisma.rawMaterialWithdrawal.findUnique({
+    where: { id },
+    select: { id: true, status: true, createdAt: true, linkedDoNumber: true, withdrawalNo: true },
+  })
+  if (!w) return { voidable: false, reason: "NOT_FOUND", detail: "Pengeluaran tidak dijumpai.", blockedBy: [] }
+
+  if (w.status !== ACTIVE) {
+    return {
+      voidable: false,
+      reason: "VOIDED",
+      detail: "Pengeluaran ini sudah dibatalkan. Tiada tindakan lanjut boleh dibuat.",
+      blockedBy: [],
+    }
+  }
+
+  if (w.linkedDoNumber) {
+    const logs = await prisma.inventoryLog.findMany({
+      where: { type: "TransferIn", labelType: w.linkedDoNumber },
+      include: { report: { select: { date: true, shift: true, line: true, status: true } } },
+    })
+    const describe = (l: (typeof logs)[number]) =>
+      `${l.report!.date.toISOString().split("T")[0]} ${l.report!.shift} ${l.report!.line}`
+    const withReport = logs.filter(l => l.report)
+    const submitted = [...new Set(withReport.filter(l => l.report!.status !== "DRAFT").map(describe))]
+    const drafts = [...new Set(withReport.filter(l => l.report!.status === "DRAFT").map(describe))]
+
+    if (submitted.length > 0) {
+      return {
+        voidable: false,
+        reason: "CLAIMED_SUBMITTED",
+        detail:
+          `DO ${w.linkedDoNumber} sudah digunakan oleh Daily Production Report (${submitted.join("; ")}). ` +
+          `Buang DO itu daripada borang harian tersebut dahulu.`,
+        blockedBy: submitted,
+      }
+    }
+    if (drafts.length > 0) {
+      return {
+        voidable: false,
+        reason: "CLAIMED_DRAFT",
+        detail:
+          `DO ${w.linkedDoNumber} sudah di-sync ke dalam draft Daily Production Report (${drafts.join("; ")}). ` +
+          `Buang DO itu daripada draft tersebut dan simpan semula.`,
+        blockedBy: drafts,
+      }
+    }
+  }
+
+  const closing = await prisma.warehouseRawMaterialReport.findFirst({
+    where: { status: ACTIVE, createdAt: { gt: w.createdAt } },
+    orderBy: { createdAt: "asc" },
+    select: { date: true, sequence: true },
+  })
+  if (closing) {
+    const label = `${closing.date.toISOString().split("T")[0]} #${closing.sequence}`
+    return {
+      voidable: false,
+      reason: "CLOSED_BY_REPORT",
+      detail:
+        `Borang Daily Raw Material ${label} sudah difailkan selepas pengeluaran ini dan mengambil kira ` +
+        `kuantitinya dalam Quantity Stock Out. Batalkan borang itu dahulu, jika tidak angkanya akan jadi salah.`,
+      blockedBy: [label],
+    }
+  }
+
+  return { voidable: true, reason: null, detail: "Pengeluaran ini boleh dibatalkan.", blockedBy: [] }
+}
+
+export async function voidWithdrawal(id: string, reason: string, voidedById?: string | null) {
+  const state = await getWithdrawalVoidability(id)
+  if (!state.voidable) throw new WithdrawalError(state.detail)
+  if (!reason?.trim()) throw new WithdrawalError("Sebab pembatalan wajib diisi")
+
+  const w = await prisma.rawMaterialWithdrawal.findUnique({
+    where: { id },
+    select: { linkedDoNumber: true, withdrawalNo: true },
+  })
+  if (!w) throw new WithdrawalError("Pengeluaran tidak dijumpai")
+
+  await prisma.$transaction(async tx => {
+    if (w.linkedDoNumber) {
+      await tx.transferIn.deleteMany({ where: { doNumber: w.linkedDoNumber } })
+    }
+    await tx.rawMaterialWithdrawal.update({
+      where: { id },
+      data: { status: VOID, voidedAt: new Date(), voidedById: voidedById || null, voidReason: reason.trim() },
+    })
+  })
+
+  return w
+}
+
+export async function listWithdrawals(limit = 80) {
+  return prisma.rawMaterialWithdrawal.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: { items: true },
+  })
+}
+
+/** Bypasses the guard. Only for cleaning up data created by verification scripts. */
+export async function forceDeleteWithdrawal(id: string) {
+  const w = await prisma.rawMaterialWithdrawal.findUnique({
+    where: { id },
+    select: { linkedDoNumber: true },
+  })
+  if (!w) return
+  await prisma.$transaction(async tx => {
+    if (w.linkedDoNumber) await tx.transferIn.deleteMany({ where: { doNumber: w.linkedDoNumber } })
+    await tx.rawMaterialWithdrawal.delete({ where: { id } })
+  })
+}

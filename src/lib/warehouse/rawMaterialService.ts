@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { findSku, skuRank } from "./rawMaterialSkus"
 import { normaliseBatchNo, validateBatchNo } from "./batchFormat"
+import { getWithdrawnSince, getPreviousReportAnchor } from "./withdrawalService"
 
 /**
  * Core logic for the Daily Raw Material (Warehouse) form.
@@ -49,14 +50,19 @@ function num(v: unknown): number {
   return Number.isFinite(x) ? x : 0
 }
 
+const round2 = (n: number) => Math.round(n * 100) / 100
+
 // ---------------------------------------------------------------------------------------------
 
 export const ACTIVE = "ACTIVE"
 export const VOID = "VOID"
 
 /**
- * Opening balances for a new form: the carry forward of the most recent ACTIVE report.
- * Rows that carried forward zero are dropped — a finished batch should not reappear.
+ * Opening balances for a new form: the carry forward of the most recent ACTIVE report, plus the
+ * stock-out already recorded against each batch since that report.
+ *
+ * Warehouse staff cannot know how much production helped itself to, so `qtyOut` is filled from the
+ * withdrawal records rather than typed. Rows carrying a withdrawal come back locked.
  */
 export async function loadCarryForwardPrefill() {
   const previous = await prisma.warehouseRawMaterialReport.findFirst({
@@ -65,11 +71,18 @@ export async function loadCarryForwardPrefill() {
     include: { items: true },
   })
 
+  const withdrawn = await getWithdrawnSince(previous?.createdAt ?? null)
+
   if (!previous) return { rows: [], from: null }
 
   const rows = previous.items
     .filter(i => i.carryForward > 0)
-    .map(i => ({ sku: i.sku, batchNo: i.batchNo, balanceIn: i.carryForward }))
+    .map(i => ({
+      sku: i.sku,
+      batchNo: i.batchNo,
+      balanceIn: i.carryForward,
+      withdrawnQty: withdrawn.get(`${i.sku}|${i.batchNo}`) || 0,
+    }))
     .sort((a, b) => skuRank(a.sku) - skuRank(b.sku) || a.batchNo.localeCompare(b.batchNo))
 
   return {
@@ -146,10 +159,15 @@ export function buildItems(input: RawMaterialReportInput) {
   return items
 }
 
-/** Saves the report and, when there is any stock out, the TransferIn document it feeds. */
+/** Saves the report and, when any stock out was typed by hand, the TransferIn document it feeds. */
 export async function saveRawMaterialReport(input: RawMaterialReportInput) {
   const items = buildItems(input)
   const reportDate = toDbDate(input.date)
+
+  // Read before opening the transaction: these withdrawals were recorded since the previous
+  // report and already carry their own DO.
+  const anchor = await getPreviousReportAnchor()
+  const withdrawnByKey = await getWithdrawnSince(anchor)
 
   return prisma.$transaction(async tx => {
     // Counts voided reports too, so a sequence is never reused and DO numbers cannot collide
@@ -157,7 +175,13 @@ export async function saveRawMaterialReport(input: RawMaterialReportInput) {
     const existing = await tx.warehouseRawMaterialReport.count({ where: { date: reportDate } })
     const sequence = existing + 1
 
-    const outRows = items.filter(i => i.qtyOut > 0)
+    // Stock that left through a recorded withdrawal already has its own DO, so only the portion
+    // the warehouse typed by hand may generate one here. Without this the same boxes would reach
+    // production twice.
+    const outRows = items
+      .map(i => ({ ...i, manualOut: round2(i.qtyOut - (withdrawnByKey.get(`${i.sku}|${i.batchNo}`) || 0)) }))
+      .filter(i => i.manualOut > 0)
+
     // The "DO - " prefix with spaces matters: if a human later opens this DO in the Transfer In
     // edit form, that form rewrites the number to exactly this shape. Matching it up front keeps
     // the value stable instead of changing on first edit.
@@ -195,7 +219,7 @@ export async function saveRawMaterialReport(input: RawMaterialReportInput) {
             create: outRows.map(r => ({
               category: r.category,
               batchNo: r.batchNo,
-              bags: Math.round(r.qtyOut),
+              bags: Math.round(r.manualOut),
               mult: r.mult,
             })),
           },
@@ -349,7 +373,15 @@ export async function updateRawMaterialReport(
   const dateStr = existing.date.toISOString().split("T")[0]
   const items = buildItems({ ...input, date: dateStr })
 
-  const outRows = items.filter(i => i.qtyOut > 0)
+  // Same rule as on create: withdrawn stock already has its own DO, so only the hand-typed
+  // remainder may generate one here.
+  const anchor = await getPreviousReportAnchor(reportId)
+  const withdrawnByKey = await getWithdrawnSince(anchor)
+
+  const outRows = items
+    .map(i => ({ ...i, manualOut: round2(i.qtyOut - (withdrawnByKey.get(`${i.sku}|${i.batchNo}`) || 0)) }))
+    .filter(i => i.manualOut > 0)
+
   const doNumber = outRows.length > 0
     ? existing.linkedDoNumber || `DO - WH${dateStr.slice(2).replace(/-/g, "")}-${existing.sequence}`
     : null
@@ -388,7 +420,7 @@ export async function updateRawMaterialReport(
             create: outRows.map(r => ({
               category: r.category,
               batchNo: r.batchNo,
-              bags: Math.round(r.qtyOut),
+              bags: Math.round(r.manualOut),
               mult: r.mult,
             })),
           },

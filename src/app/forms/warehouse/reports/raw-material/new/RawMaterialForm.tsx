@@ -22,6 +22,8 @@ type Row = {
   remarks: string
   /** Carried over from the previous report, so the opening balance is not free-typed. */
   locked: boolean
+  /** Already recorded as a withdrawal since the last report. Locks Qty Out when above zero. */
+  withdrawnQty: number
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10)
@@ -35,6 +37,7 @@ const blankRow = (sku = RAW_MATERIAL_SKUS[0].key): Row => ({
   qtyOut: "0",
   remarks: "",
   locked: false,
+  withdrawnQty: 0,
 })
 
 const n = (v: string) => {
@@ -59,7 +62,7 @@ export function RawMaterialForm({
   defaultPreparedBy,
   initialData,
 }: {
-  prefillRows: { sku: string; batchNo: string; balanceIn: number }[]
+  prefillRows: { sku: string; batchNo: string; balanceIn: number; withdrawnQty: number }[]
   prefillFrom: { date: string; sequence: number; shift: string } | null
   defaultPreparedBy: string
   /** Present in edit mode. The date is fixed once a report exists. */
@@ -93,6 +96,7 @@ export function RawMaterialForm({
         qtyOut: String(r.qtyOut),
         remarks: r.remarks,
         locked: false,
+        withdrawnQty: 0,
       }))
     }
     return prefillRows.length > 0
@@ -102,9 +106,10 @@ export function RawMaterialForm({
           batchNo: p.batchNo,
           balanceIn: String(p.balanceIn),
           qtyIn: "0",
-          qtyOut: "0",
+          qtyOut: String(p.withdrawnQty || 0),
           remarks: "",
           locked: true,
+          withdrawnQty: p.withdrawnQty || 0,
         }))
       : [blankRow()]
   })
@@ -343,12 +348,26 @@ export function RawMaterialForm({
                         />
                       </td>
                       <td className="px-3 py-2">
+                        {/* Stock production already took is recorded by whoever took it, so this
+                            figure is derived rather than typed. Only rows with no withdrawal stay
+                            editable, which keeps the old manual path working. */}
                         <input
                           type="number" min="0" step="1"
                           value={r.qtyOut}
                           onChange={e => patch(r.uid, { qtyOut: e.target.value })}
-                          className={`${cellCls} text-right ${n(r.qtyOut) > 0 ? "border-red-300 bg-red-50 font-bold" : ""}`}
+                          disabled={r.withdrawnQty > 0}
+                          title={
+                            r.withdrawnQty > 0
+                              ? `${r.withdrawnQty} sudah direkod melalui Ambil Bahan. Untuk ubah, batalkan pengeluaran itu.`
+                              : undefined
+                          }
+                          className={`${cellCls} text-right disabled:bg-indigo-50 disabled:text-indigo-800 disabled:font-black disabled:border-indigo-200 ${n(r.qtyOut) > 0 && r.withdrawnQty === 0 ? "border-red-300 bg-red-50 font-bold" : ""}`}
                         />
+                        {r.withdrawnQty > 0 && (
+                          <p className="text-[9px] font-black uppercase text-indigo-600 mt-0.5 leading-none">
+                            dari Ambil Bahan
+                          </p>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-right">
                         <span className={`text-sm font-black ${negative ? "text-red-600" : cf === 0 ? "text-gray-300" : "text-indigo-700"}`}>

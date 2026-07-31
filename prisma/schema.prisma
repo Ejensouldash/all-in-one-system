@@ -1253,3 +1253,54 @@ model WarehouseRawMaterialItem {
 
   @@index([reportId])
 }
+
+// ---------------------------------------------------------------------------------------------
+// Raw material withdrawal — warehouse to production
+//
+// Production helps itself from the warehouse rack, so warehouse staff cannot know the outflow.
+// Whoever physically moves the stock records it here instead, and the Daily Raw Material form's
+// QUANTITY STOCK OUT is derived from these records rather than typed.
+//
+// A PRODUCTION withdrawal generates a TransferIn document immediately, which is how it reaches
+// the Daily Production Report without any production code being changed. Other purposes reduce
+// the warehouse balance without sending anything to production.
+// ---------------------------------------------------------------------------------------------
+
+model RawMaterialWithdrawal {
+  id             String    @id @default(uuid())
+  withdrawalNo   String    @unique // WD-260730-001
+  date           DateTime  @db.Date
+  time           String
+  shift          String    @default("AM") // "AM" | "PM"
+  takenBy        String
+  purpose        String    @default("PRODUCTION") // PRODUCTION | DISPOSAL | RETURN | ADJUSTMENT
+  remarks        String?
+  createdById    String?
+  linkedDoNumber String? // the TransferIn DO generated, PRODUCTION purpose only
+  status         String    @default("ACTIVE") // "ACTIVE" | "VOID"
+  voidedAt       DateTime?
+  voidedById     String?
+  voidReason     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  items RawMaterialWithdrawalItem[]
+
+  @@index([createdAt])
+  @@index([date, status])
+}
+
+model RawMaterialWithdrawalItem {
+  id           String @id @default(uuid())
+  withdrawalId String
+  sku          String // catalogue key, e.g. "BOX 425x24"
+  category     String // Transfer In category
+  mult         Int
+  batchNo      String
+  qty          Float
+
+  withdrawal RawMaterialWithdrawal @relation(fields: [withdrawalId], references: [id], onDelete: Cascade)
+
+  @@index([withdrawalId])
+  @@index([batchNo])
+}

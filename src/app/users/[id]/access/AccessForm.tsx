@@ -6,7 +6,7 @@ import { updateUserModules } from "@/app/actions/user"
 import {
   Save, Loader2, Search, CheckCircle2, RotateCcw, SearchX, AlertTriangle,
   Wrench, ClipboardList, ArrowRightLeft,
-  Warehouse, Boxes, History, Database,
+  Warehouse, Boxes, History, Database, PackageOpen,
   CalendarDays, Megaphone, QrCode,
   Users, Activity, Settings,
   Workflow, Factory, Building2, ShieldCheck,
@@ -48,6 +48,7 @@ const MODULE_CATEGORIES: CategoryDef[] = [
     iconClass: "bg-amber-50 text-amber-600 border-amber-100",
     modules: [
       { id: "WAREHOUSE", name: "Warehouse & Transfer In", description: "Manage inventory and incoming deliveries.", icon: Warehouse },
+      { id: "RAW_MATERIAL_WITHDRAWAL", name: "Ambil Bahan dari Warehouse", description: "Record raw material taken off the warehouse rack. Grants the Daily Raw Material screens only, not the rest of the warehouse module.", icon: PackageOpen },
       { id: "PRODUCTION_STOCK", name: "Production Stock", description: "View and manage production stock balances.", icon: Boxes },
       { id: "TRANSFER_IN_HISTORY", name: "Transfer In History", description: "View, edit, and delete transfer in historical records.", icon: History },
       { id: "DAILY_REPORT_EDIT_APPROVED", name: "Edit Approved Daily Report", description: "Allows editing production daily reports even after they have been approved.", icon: FileSpreadsheet },

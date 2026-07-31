@@ -1,7 +1,7 @@
-import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Plus, FileText, ArrowRight, PackageSearch, Ban } from "lucide-react"
+import { Plus, FileText, ArrowRight, PackageSearch, Ban, PackageOpen, History } from "lucide-react"
+import { getAccessInfo, hasAnyModule } from "@/lib/access"
 import { listRawMaterialReports } from "@/app/actions/warehouseRawMaterial"
 
 const dmy = (d: Date) => {
@@ -11,8 +11,13 @@ const dmy = (d: Date) => {
 }
 
 export default async function RawMaterialListPage() {
-  const session = await auth()
-  if (!session) redirect("/login")
+  const access = await getAccessInfo()
+  if (!access) redirect("/login")
+  if (!hasAnyModule(access, ["WAREHOUSE", "RAW_MATERIAL_WITHDRAWAL"])) redirect("/forms")
+
+  // Production staff hold RAW_MATERIAL_WITHDRAWAL only. They take stock and see the record; they
+  // do not file the warehouse's own form.
+  const canFileReport = hasAnyModule(access, ["WAREHOUSE"])
 
   const res = await listRawMaterialReports()
   const reports = res.success ? res.data! : []
@@ -23,15 +28,31 @@ export default async function RawMaterialListPage() {
         <div>
           <h2 className="text-xl font-black uppercase tracking-tight">Daily Raw Material (Warehouse)</h2>
           <p className="text-sm text-gray-500 font-medium">
-            SGMP/15/DRM (W) · Rev 2 · Baki bahan mentah warehouse dan stock out ke production.
+            SGMP/15/DRM (W) · Rev 3 · Baki bahan mentah warehouse dan stock out ke production.
           </p>
         </div>
-        <Link
-          href="/forms/warehouse/reports/raw-material/new"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black uppercase tracking-wide rounded-lg shadow-sm"
-        >
-          <Plus className="w-4 h-4" /> Borang Baharu
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/forms/warehouse/reports/raw-material/withdraw/history"
+            className="inline-flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 text-xs font-black uppercase tracking-wide"
+          >
+            <History className="w-4 h-4" /> Sejarah Ambil
+          </Link>
+          <Link
+            href="/forms/warehouse/reports/raw-material/withdraw"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-wide rounded-lg shadow-sm"
+          >
+            <PackageOpen className="w-4 h-4" /> Ambil Bahan
+          </Link>
+          {canFileReport && (
+            <Link
+              href="/forms/warehouse/reports/raw-material/new"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black uppercase tracking-wide rounded-lg shadow-sm"
+            >
+              <Plus className="w-4 h-4" /> Borang Baharu
+            </Link>
+          )}
+        </div>
       </div>
 
       {reports.length === 0 ? (

@@ -8,7 +8,13 @@ export default async function WarehouseLayout({ children }: { children: React.Re
   const access = await getAccessInfo()
   if (!access) redirect("/login")
 
-  if (!hasAnyModule(access, ["WAREHOUSE"])) {
+  // RAW_MATERIAL_WITHDRAWAL is a narrow grant for production staff who take material off the
+  // rack themselves. It opens the Daily Raw Material screens only; every other warehouse page
+  // gates on WAREHOUSE separately.
+  const fullWarehouse = hasAnyModule(access, ["WAREHOUSE"])
+  const withdrawalOnly = !fullWarehouse && hasAnyModule(access, ["RAW_MATERIAL_WITHDRAWAL"])
+
+  if (!fullWarehouse && !withdrawalOnly) {
     // /forms re-routes the user to whichever section they DO have access to
     redirect("/forms")
   }
@@ -24,7 +30,7 @@ export default async function WarehouseLayout({ children }: { children: React.Re
       </div>
       
       <div className="print:hidden">
-        <WarehouseTabs />
+        <WarehouseTabs fullWarehouse={fullWarehouse} />
       </div>
       
       {children}

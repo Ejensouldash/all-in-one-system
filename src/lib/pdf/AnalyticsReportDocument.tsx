@@ -699,7 +699,7 @@ export function AnalyticsReportDocument({
 
           <Text style={s.h2}>Analisis Pareto Reject (Mengikut Item & Peringkat)</Text>
           {problems.paretoRejects.length > 0 ? (
-            <>
+            <View wrap={false}>
               <View style={s.chartWrap}>
                 <ParetoChart data={problems.paretoRejects} colors={REJECT_COLORS} />
               </View>
@@ -721,54 +721,58 @@ export function AnalyticsReportDocument({
                   </View>
                 ))}
               </View>
-            </>
+            </View>
           ) : (
             <Text style={s.p}>Tiada reject direkodkan.</Text>
           )}
 
-          <Text style={s.h2}>Kadar Reject Mengikut Kategori Bahan (Before vs After)</Text>
-          <View style={s.table}>
-            <View style={[s.tr, s.thead]}>
-              <Text style={[s.th, { width: "18%" }]}>Kategori</Text>
-              <Text style={[s.th, { width: "20%" }, s.right]}>Penggunaan</Text>
-              <Text style={[s.th, { width: "16%" }, s.right]}>Sebelum</Text>
-              <Text style={[s.th, { width: "16%" }, s.right]}>Selepas</Text>
-              <Text style={[s.th, { width: "16%" }, s.right]}>Jumlah</Text>
-              <Text style={[s.th, { width: "14%" }, s.right]}>Kadar</Text>
-            </View>
-            {Object.entries(rates.categoryStats).map(([cat, x], i, arr) => (
-              <View key={cat} style={[s.tr, i === arr.length - 1 ? s.trLast : {}]}>
-                <Text style={[s.tdB, { width: "18%" }]}>{cat}</Text>
-                <Text style={[s.td, { width: "20%" }, s.right]}>{nf(x.usage)}</Text>
-                <Text style={[s.td, { width: "16%" }, s.right]}>{nf(x.rejectsBefore)}</Text>
-                <Text style={[s.td, { width: "16%" }, s.right]}>{nf(x.rejectsAfter)}</Text>
-                <Text style={[s.tdB, { width: "16%" }, s.right]}>{nf(x.rejects)}</Text>
-                <Text style={[s.tdB, { width: "14%" }, s.right]}>{x.comparable ? `${x.rate}%` : "N/A"}</Text>
+          <View wrap={false}>
+            <Text style={s.h2}>Kadar Reject Mengikut Kategori Bahan (Before vs After)</Text>
+            <View style={s.table}>
+              <View style={[s.tr, s.thead]}>
+                <Text style={[s.th, { width: "18%" }]}>Kategori</Text>
+                <Text style={[s.th, { width: "20%" }, s.right]}>Penggunaan</Text>
+                <Text style={[s.th, { width: "16%" }, s.right]}>Sebelum</Text>
+                <Text style={[s.th, { width: "16%" }, s.right]}>Selepas</Text>
+                <Text style={[s.th, { width: "16%" }, s.right]}>Jumlah</Text>
+                <Text style={[s.th, { width: "14%" }, s.right]}>Kadar</Text>
               </View>
-            ))}
+              {Object.entries(rates.categoryStats).map(([cat, x], i, arr) => (
+                <View key={cat} style={[s.tr, i === arr.length - 1 ? s.trLast : {}]}>
+                  <Text style={[s.tdB, { width: "18%" }]}>{cat}</Text>
+                  <Text style={[s.td, { width: "20%" }, s.right]}>{nf(x.usage)}</Text>
+                  <Text style={[s.td, { width: "16%" }, s.right]}>{nf(x.rejectsBefore)}</Text>
+                  <Text style={[s.td, { width: "16%" }, s.right]}>{nf(x.rejectsAfter)}</Text>
+                  <Text style={[s.tdB, { width: "16%" }, s.right]}>{nf(x.rejects)}</Text>
+                  <Text style={[s.tdB, { width: "14%" }, s.right]}>{x.comparable ? `${x.rate}%` : "N/A"}</Text>
+                </View>
+              ))}
+            </View>
+            <Text style={s.note}>
+              * Kadar LABEL ditandakan N/A kerana penggunaan direkodkan dalam unit roll manakala reject direkodkan dalam keping label.
+            </Text>
           </View>
-          <Text style={s.note}>
-            * Kadar LABEL ditandakan N/A kerana penggunaan direkodkan dalam unit roll manakala reject direkodkan dalam keping label.
-          </Text>
 
-          <Text style={s.h2}>Reject Mengikut SKU Kotak (Before vs After)</Text>
-          <View style={s.table}>
-            <View style={[s.tr, s.thead]}>
-              <Text style={[s.th, { width: "28%" }]}>SKU</Text>
-              <Text style={[s.th, { width: "18%" }, s.right]}>Hasil (Kotak)</Text>
-              <Text style={[s.th, { width: "18%" }, s.right]}>Sebelum</Text>
-              <Text style={[s.th, { width: "18%" }, s.right]}>Selepas</Text>
-              <Text style={[s.th, { width: "18%" }, s.right]}>Jumlah</Text>
-            </View>
-            {rates.skuRejectRates.map((x, i, arr) => (
-              <View key={x.key} style={[s.tr, i === arr.length - 1 ? s.trLast : {}]}>
-                <Text style={[s.tdB, { width: "28%" }]}>{x.label}</Text>
-                <Text style={[s.td, { width: "18%" }, s.right]}>{nf(x.boxes)}</Text>
-                <Text style={[s.td, { width: "18%" }, s.right]}>{nf(x.rejectsBefore)}</Text>
-                <Text style={[s.td, { width: "18%" }, s.right]}>{nf(x.rejectsAfter)}</Text>
-                <Text style={[s.tdB, { width: "18%" }, s.right]}>{nf(x.rejects)}</Text>
+          <View wrap={false}>
+            <Text style={s.h2}>Reject Mengikut SKU Kotak (Before vs After)</Text>
+            <View style={s.table}>
+              <View style={[s.tr, s.thead]}>
+                <Text style={[s.th, { width: "28%" }]}>SKU</Text>
+                <Text style={[s.th, { width: "18%" }, s.right]}>Hasil (Kotak)</Text>
+                <Text style={[s.th, { width: "18%" }, s.right]}>Sebelum</Text>
+                <Text style={[s.th, { width: "18%" }, s.right]}>Selepas</Text>
+                <Text style={[s.th, { width: "18%" }, s.right]}>Jumlah</Text>
               </View>
-            ))}
+              {rates.skuRejectRates.map((x, i, arr) => (
+                <View key={x.key} style={[s.tr, i === arr.length - 1 ? s.trLast : {}]}>
+                  <Text style={[s.tdB, { width: "28%" }]}>{x.label}</Text>
+                  <Text style={[s.td, { width: "18%" }, s.right]}>{nf(x.boxes)}</Text>
+                  <Text style={[s.td, { width: "18%" }, s.right]}>{nf(x.rejectsBefore)}</Text>
+                  <Text style={[s.td, { width: "18%" }, s.right]}>{nf(x.rejectsAfter)}</Text>
+                  <Text style={[s.tdB, { width: "18%" }, s.right]}>{nf(x.rejects)}</Text>
+                </View>
+              ))}
+            </View>
           </View>
         </View>,
         "quality"

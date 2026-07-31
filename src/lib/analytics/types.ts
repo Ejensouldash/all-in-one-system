@@ -74,6 +74,8 @@ export type AnalyticsPayload = {
     totalBoxes: number
     totalPcs: number
     totalRejects: number
+    totalRejectsBefore: number
+    totalRejectsAfter: number
     rejectRate: number
     totalTransferBags: number
     totalDowntime: number
@@ -97,14 +99,17 @@ export type AnalyticsPayload = {
     downtimeBySection: SectionDowntime[]
     topReasons: { reason: string; minutes: number; count: number }[]
     longestIncident: { section: string; reason: string; minutes: number; date: string; shift: string } | null
-    paretoRejects: { name: string; value: number; cumulative: number }[]
+    paretoRejects: { name: string; value: number; before: number; after: number; cumulative: number }[]
   }
   rates: {
     // `comparable` is false where usage and rejects are recorded in different units, so the
     // percentage is not a meaningful yield figure. LABEL usage is counted in rolls while LABEL
     // rejects are counted in individual labels.
-    categoryStats: Record<string, { usage: number; rejects: number; rate: number; comparable: boolean; unit: string }>
-    skuRejectRates: { key: string; label: string; boxes: number; rejects: number; rate: number }[]
+    categoryStats: Record<
+      string,
+      { usage: number; rejects: number; rejectsBefore: number; rejectsAfter: number; rate: number; comparable: boolean; unit: string }
+    >
+    skuRejectRates: { key: string; label: string; boxes: number; rejects: number; rejectsBefore: number; rejectsAfter: number; rate: number }[]
   }
   coverage: {
     expectedSlots: number

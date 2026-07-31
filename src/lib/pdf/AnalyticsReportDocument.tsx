@@ -671,58 +671,102 @@ export function AnalyticsReportDocument({
           <SectionHeading title="7. Kualiti & Kadar Reject" />
 
           <Text style={s.p}>
-            Jumlah reject {nf(kpi.totalRejects)} unit pada kadar keseluruhan {kpi.rejectRate}% berbanding jumlah input bahan.
+            Analisis kualiti merangkumi peratusan reject berbanding input bahan serta pecahan punca kerosakan mengikut peringkat **Sebelum Process (Before)** dan **Selepas Process (After)**.
           </Text>
 
-          <Text style={s.h2}>Analisis Pareto Reject</Text>
-          {problems.paretoRejects.length > 0 ? (
-            <View style={s.chartWrap}>
-              <ParetoChart data={problems.paretoRejects} colors={REJECT_COLORS} />
+          {/* KPI Cards: Total, Before, After */}
+          <View style={s.kpiGrid}>
+            <View style={s.kpiCard}>
+              <Text style={s.kpiLabel}>Jumlah Reject</Text>
+              <Text style={s.kpiValue}>{nf(kpi.totalRejects)} unit</Text>
+              <Text style={s.kpiSub}>Kadar Reject: {kpi.rejectRate}%</Text>
             </View>
+            <View style={s.kpiCard}>
+              <Text style={s.kpiLabel}>Reject Sebelum (Before)</Text>
+              <Text style={[s.kpiValue, { color: C.warn }]}>{nf(kpi.totalRejectsBefore)} unit</Text>
+              <Text style={s.kpiSub}>
+                {kpi.totalRejects > 0 ? Math.round((kpi.totalRejectsBefore / kpi.totalRejects) * 100) : 0}% drpd reject
+              </Text>
+            </View>
+            <View style={s.kpiCard}>
+              <Text style={s.kpiLabel}>Reject Selepas (After)</Text>
+              <Text style={[s.kpiValue, { color: C.bad }]}>{nf(kpi.totalRejectsAfter)} unit</Text>
+              <Text style={s.kpiSub}>
+                {kpi.totalRejects > 0 ? Math.round((kpi.totalRejectsAfter / kpi.totalRejects) * 100) : 0}% drpd reject
+              </Text>
+            </View>
+          </View>
+
+          <Text style={s.h2}>Analisis Pareto Reject (Mengikut Item & Peringkat)</Text>
+          {problems.paretoRejects.length > 0 ? (
+            <>
+              <View style={s.chartWrap}>
+                <ParetoChart data={problems.paretoRejects} colors={REJECT_COLORS} />
+              </View>
+              <View style={[s.table, { marginTop: 8 }]}>
+                <View style={[s.tr, s.thead]}>
+                  <Text style={[s.th, { width: "32%" }]}>Item / Komponen</Text>
+                  <Text style={[s.th, { width: "17%" }, s.right]}>Sebelum (Before)</Text>
+                  <Text style={[s.th, { width: "17%" }, s.right]}>Selepas (After)</Text>
+                  <Text style={[s.th, { width: "18%" }, s.right]}>Jumlah Reject</Text>
+                  <Text style={[s.th, { width: "16%" }, s.right]}>Pareto %</Text>
+                </View>
+                {problems.paretoRejects.map((x, i, arr) => (
+                  <View key={x.name} style={[s.tr, i === arr.length - 1 ? s.trLast : {}]}>
+                    <Text style={[s.tdB, { width: "32%" }]}>{x.name}</Text>
+                    <Text style={[s.td, { width: "17%" }, s.right]}>{nf(x.before)}</Text>
+                    <Text style={[s.td, { width: "17%" }, s.right]}>{nf(x.after)}</Text>
+                    <Text style={[s.tdB, { width: "18%" }, s.right]}>{nf(x.value)}</Text>
+                    <Text style={[s.td, { width: "16%" }, s.right]}>{x.cumulative}%</Text>
+                  </View>
+                ))}
+              </View>
+            </>
           ) : (
             <Text style={s.p}>Tiada reject direkodkan.</Text>
           )}
 
-          <Text style={s.h2}>Kadar Reject Mengikut Kategori Bahan</Text>
+          <Text style={s.h2}>Kadar Reject Mengikut Kategori Bahan (Before vs After)</Text>
           <View style={s.table}>
             <View style={[s.tr, s.thead]}>
-              <Text style={[s.th, { width: "22%" }]}>Kategori</Text>
-              <Text style={[s.th, { width: "24%" }, s.right]}>Penggunaan</Text>
-              <Text style={[s.th, { width: "20%" }, s.right]}>Reject</Text>
-              <Text style={[s.th, { width: "16%" }, s.right]}>Kadar</Text>
-              <Text style={[s.th, { width: "18%" }]}>Status</Text>
+              <Text style={[s.th, { width: "18%" }]}>Kategori</Text>
+              <Text style={[s.th, { width: "20%" }, s.right]}>Penggunaan</Text>
+              <Text style={[s.th, { width: "16%" }, s.right]}>Sebelum</Text>
+              <Text style={[s.th, { width: "16%" }, s.right]}>Selepas</Text>
+              <Text style={[s.th, { width: "16%" }, s.right]}>Jumlah</Text>
+              <Text style={[s.th, { width: "14%" }, s.right]}>Kadar</Text>
             </View>
             {Object.entries(rates.categoryStats).map(([cat, x], i, arr) => (
               <View key={cat} style={[s.tr, i === arr.length - 1 ? s.trLast : {}]}>
-                <Text style={[s.tdB, { width: "22%" }]}>{cat}</Text>
-                <Text style={[s.td, { width: "24%" }, s.right]}>{nf(x.usage)}</Text>
-                <Text style={[s.td, { width: "20%" }, s.right]}>{nf(x.rejects)}</Text>
-                <Text style={[s.tdB, { width: "16%" }, s.right]}>{x.comparable ? `${x.rate}%` : "N/A"}</Text>
-                <Text style={[s.td, { width: "18%", fontSize: 6.5 }]}>
-                  {x.comparable ? (x.rate > 5 ? "Melebihi 5%" : "Dalam had") : "Unit tak sepadan"}
-                </Text>
+                <Text style={[s.tdB, { width: "18%" }]}>{cat}</Text>
+                <Text style={[s.td, { width: "20%" }, s.right]}>{nf(x.usage)}</Text>
+                <Text style={[s.td, { width: "16%" }, s.right]}>{nf(x.rejectsBefore)}</Text>
+                <Text style={[s.td, { width: "16%" }, s.right]}>{nf(x.rejectsAfter)}</Text>
+                <Text style={[s.tdB, { width: "16%" }, s.right]}>{nf(x.rejects)}</Text>
+                <Text style={[s.tdB, { width: "14%" }, s.right]}>{x.comparable ? `${x.rate}%` : "N/A"}</Text>
               </View>
             ))}
           </View>
           <Text style={s.note}>
-            Kadar LABEL ditandakan N/A kerana penggunaan direkodkan dalam unit roll manakala reject direkodkan dalam
-            keping label. Kedua-dua nilai tidak boleh dibandingkan secara terus sehingga unit diselaraskan.
+            * Kadar LABEL ditandakan N/A kerana penggunaan direkodkan dalam unit roll manakala reject direkodkan dalam keping label.
           </Text>
 
-          <Text style={s.h2}>Reject Mengikut SKU Kotak</Text>
+          <Text style={s.h2}>Reject Mengikut SKU Kotak (Before vs After)</Text>
           <View style={s.table}>
             <View style={[s.tr, s.thead]}>
-              <Text style={[s.th, { width: "34%" }]}>SKU</Text>
-              <Text style={[s.th, { width: "22%" }, s.right]}>Kotak</Text>
-              <Text style={[s.th, { width: "22%" }, s.right]}>Reject</Text>
-              <Text style={[s.th, { width: "22%" }, s.right]}>Kadar</Text>
+              <Text style={[s.th, { width: "28%" }]}>SKU</Text>
+              <Text style={[s.th, { width: "18%" }, s.right]}>Hasil (Kotak)</Text>
+              <Text style={[s.th, { width: "18%" }, s.right]}>Sebelum</Text>
+              <Text style={[s.th, { width: "18%" }, s.right]}>Selepas</Text>
+              <Text style={[s.th, { width: "18%" }, s.right]}>Jumlah</Text>
             </View>
             {rates.skuRejectRates.map((x, i, arr) => (
               <View key={x.key} style={[s.tr, i === arr.length - 1 ? s.trLast : {}]}>
-                <Text style={[s.tdB, { width: "34%" }]}>{x.label}</Text>
-                <Text style={[s.td, { width: "22%" }, s.right]}>{nf(x.boxes)}</Text>
-                <Text style={[s.td, { width: "22%" }, s.right]}>{nf(x.rejects)}</Text>
-                <Text style={[s.td, { width: "22%" }, s.right]}>{x.rate}%</Text>
+                <Text style={[s.tdB, { width: "28%" }]}>{x.label}</Text>
+                <Text style={[s.td, { width: "18%" }, s.right]}>{nf(x.boxes)}</Text>
+                <Text style={[s.td, { width: "18%" }, s.right]}>{nf(x.rejectsBefore)}</Text>
+                <Text style={[s.td, { width: "18%" }, s.right]}>{nf(x.rejectsAfter)}</Text>
+                <Text style={[s.tdB, { width: "18%" }, s.right]}>{nf(x.rejects)}</Text>
               </View>
             ))}
           </View>

@@ -146,8 +146,8 @@ export async function computeProductionAnalytics(from: string, to: string): Prom
   }
 
   // ---- accumulators -------------------------------------------------------------------------
-  const skuTotals = new Map<string, { boxes: number; pcs: number; rejects: number }>(
-    SKUS.map(s => [s.key as string, { boxes: 0, pcs: 0, rejects: 0 }])
+  const skuTotals = new Map<string, { boxes: number; pcs: number; rejects: number; rejectsBefore: number; rejectsAfter: number }>(
+    SKUS.map(s => [s.key as string, { boxes: 0, pcs: 0, rejects: 0, rejectsBefore: 0, rejectsAfter: 0 }])
   )
   const shiftTotals = new Map<string, ShiftStat>([
     ["AM", { shift: "AM", boxes: 0, pcs: 0, rejects: 0, downtime: 0, reports: 0 }],
@@ -159,13 +159,16 @@ export async function computeProductionAnalytics(from: string, to: string): Prom
   // LABEL usage is stored in rolls while LABEL rejects are counted in individual labels, so its
   // percentage is not a yield figure. It is still computed (unchanged from the previous
   // dashboard) but flagged so the UI and the PDF can say so instead of showing a bogus rate.
-  const categoryStats: Record<string, { usage: number; rejects: number; rate: number; comparable: boolean; unit: string }> = {
-    BOTTLE: { usage: 0, rejects: 0, rate: 0, comparable: true, unit: "pcs" },
-    CAP: { usage: 0, rejects: 0, rate: 0, comparable: true, unit: "pcs" },
-    LABEL: { usage: 0, rejects: 0, rate: 0, comparable: false, unit: "rolls vs pcs" },
-    BOX: { usage: 0, rejects: 0, rate: 0, comparable: true, unit: "pcs" },
+  const categoryStats: Record<
+    string,
+    { usage: number; rejects: number; rejectsBefore: number; rejectsAfter: number; rate: number; comparable: boolean; unit: string }
+  > = {
+    BOTTLE: { usage: 0, rejects: 0, rejectsBefore: 0, rejectsAfter: 0, rate: 0, comparable: true, unit: "pcs" },
+    CAP: { usage: 0, rejects: 0, rejectsBefore: 0, rejectsAfter: 0, rate: 0, comparable: true, unit: "pcs" },
+    LABEL: { usage: 0, rejects: 0, rejectsBefore: 0, rejectsAfter: 0, rate: 0, comparable: false, unit: "rolls vs pcs" },
+    BOX: { usage: 0, rejects: 0, rejectsBefore: 0, rejectsAfter: 0, rate: 0, comparable: true, unit: "pcs" },
   }
-  const rejectByItem = new Map<string, number>()
+  const rejectByItem = new Map<string, { total: number; before: number; after: number }>()
   const sectionMap = new Map<string, SectionDowntime>()
   const reasonMap = new Map<string, { reason: string; minutes: number; count: number }>()
   let longestIncident: AnalyticsPayload["problems"]["longestIncident"] = null
@@ -176,6 +179,8 @@ export async function computeProductionAnalytics(from: string, to: string): Prom
   let totalBoxes = 0
   let totalPcs = 0
   let totalRejects = 0
+  let totalRejectsBefore = 0
+  let totalRejectsAfter = 0
   let totalDowntime = 0
   let downtimeIncidents = 0
 
@@ -224,23 +229,42 @@ export async function computeProductionAnalytics(from: string, to: string): Prom
       }
     }
 
-    // Rejects. before + after, matching the existing dashboard convention.
+    // Rejects. before + after tracked separately and summed.
     for (const rej of report.rejects) {
-      const value = (rej.before || 0) + (rej.after || 0)
+      const beforeVal = rej.before || 0
+      const afterVal = rej.after || 0
+      const value = beforeVal + afterVal
+
       totalRejects += value
+      totalRejectsBefore += beforeVal
+      totalRejectsAfter += afterVal
+
       if (day) day.rejects += value
       if (shift) shift.rejects += value
       if (line) line.rejects += value
 
-      rejectByItem.set(rej.item, (rejectByItem.get(rej.item) || 0) + value)
+      const curr = rejectByItem.get(rej.item) || { total: 0, before: 0, after: 0 }
+      rejectByItem.set(rej.item, {
+        total: curr.total + value,
+        before: curr.before + beforeVal,
+        after: curr.after + afterVal,
+      })
 
       const cat = rejectCategory(rej.item)
-      if (cat) categoryStats[cat].rejects += value
+      if (cat) {
+        categoryStats[cat].rejects += value
+        categoryStats[cat].rejectsBefore += beforeVal
+        categoryStats[cat].rejectsAfter += afterVal
+      }
 
       const skuKey = rejectSkuKey(rej.item)
       if (skuKey) {
         const totals = skuTotals.get(skuKey)
-        if (totals) totals.rejects += value
+        if (totals) {
+          totals.rejects += value
+          totals.rejectsBefore += beforeVal
+          totals.rejectsAfter += afterVal
+        }
       }
     }
 
@@ -377,7 +401,7 @@ export async function computeProductionAnalytics(from: string, to: string): Prom
 
   // ---- pareto ---------------------------------------------------------------------------------
   const rejectSorted = [...rejectByItem.entries()]
-    .map(([name, value]) => ({ name, value }))
+    .map(([name, d]) => ({ name, value: d.total, before: d.before, after: d.after }))
     .sort((a, b) => b.value - a.value)
   let running = 0
   const paretoRejects = rejectSorted.map(r => {
@@ -417,6 +441,8 @@ export async function computeProductionAnalytics(from: string, to: string): Prom
       totalBoxes,
       totalPcs,
       totalRejects,
+      totalRejectsBefore,
+      totalRejectsAfter,
       rejectRate,
       totalTransferBags,
       totalDowntime,
@@ -444,7 +470,18 @@ export async function computeProductionAnalytics(from: string, to: string): Prom
     },
     rates: {
       categoryStats,
-      skuRejectRates: bySku.map(s => ({ key: s.key, label: s.label, boxes: s.boxes, rejects: s.rejects, rate: s.rejectRate })),
+      skuRejectRates: bySku.map(s => {
+        const totals = skuTotals.get(s.key)!
+        return {
+          key: s.key,
+          label: s.label,
+          boxes: s.boxes,
+          rejects: s.rejects,
+          rejectsBefore: totals.rejectsBefore,
+          rejectsAfter: totals.rejectsAfter,
+          rate: s.rejectRate,
+        }
+      }),
     },
     coverage: {
       expectedSlots,

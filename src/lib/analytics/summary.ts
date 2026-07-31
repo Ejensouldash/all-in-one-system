@@ -98,6 +98,8 @@ export function buildAnalyticsBrief(d: AnalyticsPayload) {
       kotak: d.kpi.totalBoxes,
       botol: d.kpi.totalPcs,
       reject: d.kpi.totalRejects,
+      rejectSebelum: d.kpi.totalRejectsBefore,
+      rejectSelepas: d.kpi.totalRejectsAfter,
       kadarRejectPeratus: d.kpi.rejectRate,
       downtimeMinit: d.kpi.totalDowntime,
       insidenDowntime: d.kpi.downtimeIncidents,

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { findSku, skuRank } from "./rawMaterialSkus"
 import { normaliseBatchNo, validateBatchNo } from "./batchFormat"
-import { getWithdrawnSince, getPreviousReportAnchor } from "./withdrawalService"
+import { getBatchAnchors, getWithdrawnSincePerKey, type BatchAnchor } from "./withdrawalService"
 
 /**
  * Core logic for the Daily Raw Material (Warehouse) form.
@@ -58,41 +58,55 @@ export const ACTIVE = "ACTIVE"
 export const VOID = "VOID"
 
 /**
- * Opening balances for a new form: the carry forward of the most recent ACTIVE report, plus the
- * stock-out already recorded against each batch since that report.
+ * Opening balances for a new form: each batch's own carry forward from wherever it was last
+ * mentioned in an ACTIVE report, plus the stock-out already recorded against it since then.
+ *
+ * This spans however many different reports those batches last appeared in — it does NOT take
+ * only the single most-recent report's rows. The paper form has ten SKU sections and staff will
+ * not necessarily touch every section every time; a batch must not vanish from the chain just
+ * because the latest report happened to skip it.
  *
  * Warehouse staff cannot know how much production helped itself to, so `qtyOut` is filled from the
  * withdrawal records rather than typed. Rows carrying a withdrawal come back locked.
  */
 export async function loadCarryForwardPrefill() {
-  const previous = await prisma.warehouseRawMaterialReport.findFirst({
-    where: { status: ACTIVE },
-    orderBy: [{ date: "desc" }, { sequence: "desc" }],
-    include: { items: true },
-  })
+  const anchors = await getBatchAnchors()
+  const withdrawn = await getWithdrawnSincePerKey(anchors)
 
-  const withdrawn = await getWithdrawnSince(previous?.createdAt ?? null)
-
-  if (!previous) return { rows: [], from: null }
-
-  const rows = previous.items
-    .filter(i => i.carryForward > 0)
-    .map(i => ({
-      sku: i.sku,
-      batchNo: i.batchNo,
-      balanceIn: i.carryForward,
-      withdrawnQty: withdrawn.get(`${i.sku}|${i.batchNo}`) || 0,
+  const rows = [...anchors.values()]
+    .filter(a => a.carryForward > 0)
+    .map(a => ({
+      sku: a.sku,
+      batchNo: a.batchNo,
+      balanceIn: a.carryForward,
+      withdrawnQty: withdrawn.get(`${a.sku}|${a.batchNo}`) || 0,
     }))
     .sort((a, b) => skuRank(a.sku) - skuRank(b.sku) || a.batchNo.localeCompare(b.batchNo))
 
+  if (rows.length === 0) return { rows: [], from: null }
+
+  // Purely informational for the on-screen note — batches can anchor off different reports now,
+  // so this names whichever report most recently touched any of them, not "the" source of truth.
+  let mostRecent: BatchAnchor | null = null
+  for (const a of anchors.values()) {
+    if (a.carryForward > 0 && (!mostRecent || a.createdAt > mostRecent.createdAt)) mostRecent = a
+  }
+  const latestReport = mostRecent
+    ? await prisma.warehouseRawMaterialReport.findUnique({
+        where: { id: mostRecent.reportId },
+        select: { date: true, sequence: true, shift: true },
+      })
+    : null
+
   return {
     rows,
-    from: {
-      id: previous.id,
-      date: previous.date.toISOString().split("T")[0],
-      sequence: previous.sequence,
-      shift: previous.shift,
-    },
+    from: latestReport
+      ? {
+          date: latestReport.date.toISOString().split("T")[0],
+          sequence: latestReport.sequence,
+          shift: latestReport.shift,
+        }
+      : null,
   }
 }
 
@@ -164,10 +178,11 @@ export async function saveRawMaterialReport(input: RawMaterialReportInput) {
   const items = buildItems(input)
   const reportDate = toDbDate(input.date)
 
-  // Read before opening the transaction: these withdrawals were recorded since the previous
-  // report and already carry their own DO.
-  const anchor = await getPreviousReportAnchor()
-  const withdrawnByKey = await getWithdrawnSince(anchor)
+  // Read before opening the transaction. Each row is measured against ITS OWN batch's anchor
+  // report, not one anchor applied to every row — see getBatchAnchors for why that distinction
+  // matters. These withdrawals already carry their own DO.
+  const anchors = await getBatchAnchors()
+  const withdrawnByKey = await getWithdrawnSincePerKey(anchors)
 
   return prisma.$transaction(async tx => {
     // Counts voided reports too, so a sequence is never reused and DO numbers cannot collide
@@ -261,7 +276,13 @@ export async function checkLinkedDoClaimed(reportId: string) {
   return { claimed: submitted.length > 0 || drafts.length > 0, submitted, drafts }
 }
 
-export type EditabilityReason = "VOIDED" | "NOT_LATEST" | "CLAIMED_SUBMITTED" | "CLAIMED_DRAFT" | "NOT_FOUND"
+export type EditabilityReason =
+  | "VOIDED"
+  | "NOT_LATEST"
+  | "CLAIMED_SUBMITTED"
+  | "CLAIMED_DRAFT"
+  | "WITHDRAWN_SINCE"
+  | "NOT_FOUND"
 
 export type Editability = {
   editable: boolean
@@ -281,7 +302,7 @@ export type Editability = {
 export async function getEditability(reportId: string): Promise<Editability> {
   const report = await prisma.warehouseRawMaterialReport.findUnique({
     where: { id: reportId },
-    select: { id: true, status: true, date: true, sequence: true },
+    select: { id: true, status: true, date: true, sequence: true, createdAt: true, items: { select: { sku: true, batchNo: true } } },
   })
   if (!report) {
     return { editable: false, reason: "NOT_FOUND", detail: "Borang tidak dijumpai.", isLatest: false, blockedBy: [] }
@@ -341,6 +362,35 @@ export async function getEditability(reportId: string): Promise<Editability> {
     }
   }
 
+  // Because this report is confirmed to be the latest one overall (above), it is unambiguously
+  // the current anchor for every batch it lists — nothing newer exists for any of them. If a
+  // withdrawal was recorded against one of those batches after this report, voiding or editing it
+  // away would leave that withdrawal's "since" calculation anchored to nothing: the batch's
+  // balance and any future report's prefill for it would simply vanish, exactly as happened when
+  // this gap was found (report voided, later withdrawal's stock became untraceable).
+  const keys = new Set(report.items.map(i => `${i.sku}|${i.batchNo}`))
+  if (keys.size > 0) {
+    const laterWithdrawals = await prisma.rawMaterialWithdrawal.findMany({
+      where: { status: ACTIVE, createdAt: { gt: report.createdAt } },
+      select: { withdrawalNo: true, items: { select: { sku: true, batchNo: true } } },
+    })
+    const dependents = laterWithdrawals
+      .filter(w => w.items.some(i => keys.has(`${i.sku}|${i.batchNo}`)))
+      .map(w => w.withdrawalNo)
+
+    if (dependents.length > 0) {
+      return {
+        editable: false,
+        reason: "WITHDRAWN_SINCE",
+        detail:
+          `Tidak boleh diubah — pengeluaran (${dependents.join(", ")}) telah direkod berdasarkan baki ` +
+          `dalam borang ini. Batalkan pengeluaran itu dahulu.`,
+        isLatest,
+        blockedBy: dependents,
+      }
+    }
+  }
+
   return { editable: true, reason: null, detail: "Borang ini boleh diubah atau dibatalkan.", isLatest, blockedBy: [] }
 }
 
@@ -374,9 +424,10 @@ export async function updateRawMaterialReport(
   const items = buildItems({ ...input, date: dateStr })
 
   // Same rule as on create: withdrawn stock already has its own DO, so only the hand-typed
-  // remainder may generate one here.
-  const anchor = await getPreviousReportAnchor(reportId)
-  const withdrawnByKey = await getWithdrawnSince(anchor)
+  // remainder may generate one here. Excludes this report itself so it doesn't anchor off its
+  // own prior values while being edited.
+  const anchors = await getBatchAnchors(reportId)
+  const withdrawnByKey = await getWithdrawnSincePerKey(anchors)
 
   const outRows = items
     .map(i => ({ ...i, manualOut: round2(i.qtyOut - (withdrawnByKey.get(`${i.sku}|${i.batchNo}`) || 0)) }))

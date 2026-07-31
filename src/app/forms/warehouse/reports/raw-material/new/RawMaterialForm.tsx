@@ -247,7 +247,7 @@ export function RawMaterialForm({
           <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-indigo-50 border border-indigo-200">
             <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
             <p className="text-[11px] font-bold text-indigo-900 leading-snug">
-              Balance In Warehouse diisi automatik daripada carry forward borang {prefillFrom.date} #{prefillFrom.sequence} ({prefillFrom.shift}).
+              Balance In Warehouse diisi automatik daripada carry forward terkini setiap batch (kemas kini terakhir: borang {prefillFrom.date} #{prefillFrom.sequence} {prefillFrom.shift}).
               Batch yang sudah habis tidak dibawa ke sini.
             </p>
           </div>

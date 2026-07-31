@@ -78,50 +78,75 @@ function batchAgeKey(batchNo: string): string {
  *
  * Ordering is by createdAt, not the report date, so a backdated form cannot invert the sequence.
  */
-export async function getLiveWarehouseStock(): Promise<LiveStockRow[]> {
-  const [reports, withdrawals] = await Promise.all([
-    prisma.warehouseRawMaterialReport.findMany({
-      where: { status: ACTIVE },
-      orderBy: { createdAt: "asc" },
-      include: { items: true },
-    }),
-    prisma.rawMaterialWithdrawal.findMany({
-      where: { status: ACTIVE },
-      include: { items: true },
-    }),
-  ])
+export type BatchAnchor = { sku: string; batchNo: string; createdAt: Date; carryForward: number; reportId: string }
 
-  // Latest report per batch, plus the carry forward it declared.
-  const latest = new Map<string, { at: Date; carryForward: number; sku: string; batchNo: string }>()
+/**
+ * The latest ACTIVE report PER BATCH — not the single latest report overall.
+ *
+ * This distinction matters: the paper form has ten SKU sections, and staff will not necessarily
+ * touch every section on every report. If report N only covers CAP, a batch of BOX last mentioned
+ * in report N-1 must still carry forward — it must not vanish just because the most recent report
+ * happened not to mention it. Every caller that needs "what does this batch currently stand at"
+ * must go through this, not a naive "most recent report" lookup.
+ *
+ * `excludeReportId` lets an edit compute what the world looked like without the report being
+ * edited, so it doesn't anchor off itself.
+ */
+export async function getBatchAnchors(excludeReportId?: string): Promise<Map<string, BatchAnchor>> {
+  const reports = await prisma.warehouseRawMaterialReport.findMany({
+    where: { status: ACTIVE, ...(excludeReportId ? { id: { not: excludeReportId } } : {}) },
+    orderBy: { createdAt: "asc" },
+    include: { items: true },
+  })
+
+  const latest = new Map<string, BatchAnchor>()
   for (const report of reports) {
     for (const item of report.items) {
       const key = `${item.sku}|${item.batchNo}`
       const existing = latest.get(key)
-      if (!existing || report.createdAt >= existing.at) {
+      if (!existing || report.createdAt >= existing.createdAt) {
         latest.set(key, {
-          at: report.createdAt,
-          carryForward: item.carryForward,
           sku: item.sku,
           batchNo: item.batchNo,
+          createdAt: report.createdAt,
+          carryForward: item.carryForward,
+          reportId: report.id,
         })
       }
     }
   }
+  return latest
+}
 
-  // Withdrawals recorded after that report.
-  const takenSince = new Map<string, number>()
+/**
+ * How much of each batch has been withdrawn since ITS OWN anchor report — not one anchor applied
+ * uniformly to every batch. A batch with no anchor (never appeared in any ACTIVE report) counts
+ * every active withdrawal against it, matching the very-first-report case.
+ */
+export async function getWithdrawnSincePerKey(anchors: Map<string, BatchAnchor>): Promise<Map<string, number>> {
+  const withdrawals = await prisma.rawMaterialWithdrawal.findMany({
+    where: { status: ACTIVE },
+    include: { items: true },
+  })
+
+  const totals = new Map<string, number>()
   for (const w of withdrawals) {
     for (const line of w.items) {
       const key = `${line.sku}|${line.batchNo}`
-      const anchor = latest.get(key)
-      if (!anchor) continue // never entered the ledger, so nothing to reduce
-      if (w.createdAt <= anchor.at) continue // already folded into that report's qtyOut
-      takenSince.set(key, (takenSince.get(key) || 0) + line.qty)
+      const anchor = anchors.get(key)
+      if (anchor && w.createdAt <= anchor.createdAt) continue // already folded into that report's qtyOut
+      totals.set(key, round((totals.get(key) || 0) + line.qty))
     }
   }
+  return totals
+}
+
+export async function getLiveWarehouseStock(): Promise<LiveStockRow[]> {
+  const anchors = await getBatchAnchors()
+  const takenSince = await getWithdrawnSincePerKey(anchors)
 
   const rows: LiveStockRow[] = []
-  for (const [key, anchor] of latest) {
+  for (const [key, anchor] of anchors) {
     const sku = findSku(anchor.sku)
     if (!sku) continue
     const available = round(anchor.carryForward - (takenSince.get(key) || 0))
@@ -148,36 +173,6 @@ export async function getLiveWarehouseStock(): Promise<LiveStockRow[]> {
       a.ageKey.localeCompare(b.ageKey) ||
       a.batchNo.localeCompare(b.batchNo)
   )
-}
-
-/**
- * How much of a batch has been withdrawn since a given moment. This is what the Daily Raw Material
- * form fills its QUANTITY STOCK OUT with, so the two figures can never drift apart.
- */
-export async function getWithdrawnSince(after: Date | null): Promise<Map<string, number>> {
-  const withdrawals = await prisma.rawMaterialWithdrawal.findMany({
-    where: { status: ACTIVE, ...(after ? { createdAt: { gt: after } } : {}) },
-    include: { items: true },
-  })
-
-  const totals = new Map<string, number>()
-  for (const w of withdrawals) {
-    for (const line of w.items) {
-      const key = `${line.sku}|${line.batchNo}`
-      totals.set(key, round((totals.get(key) || 0) + line.qty))
-    }
-  }
-  return totals
-}
-
-/** The anchor the DRM form measures "since" from: the latest ACTIVE report before this one. */
-export async function getPreviousReportAnchor(excludeReportId?: string): Promise<Date | null> {
-  const previous = await prisma.warehouseRawMaterialReport.findFirst({
-    where: { status: ACTIVE, ...(excludeReportId ? { id: { not: excludeReportId } } : {}) },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true },
-  })
-  return previous?.createdAt ?? null
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -314,7 +309,10 @@ export type WithdrawalVoidability = {
 export async function getWithdrawalVoidability(id: string): Promise<WithdrawalVoidability> {
   const w = await prisma.rawMaterialWithdrawal.findUnique({
     where: { id },
-    select: { id: true, status: true, createdAt: true, linkedDoNumber: true, withdrawalNo: true },
+    select: {
+      id: true, status: true, createdAt: true, linkedDoNumber: true, withdrawalNo: true,
+      items: { select: { sku: true, batchNo: true } },
+    },
   })
   if (!w) return { voidable: false, reason: "NOT_FOUND", detail: "Pengeluaran tidak dijumpai.", blockedBy: [] }
 
@@ -360,11 +358,16 @@ export async function getWithdrawalVoidability(id: string): Promise<WithdrawalVo
     }
   }
 
-  const closing = await prisma.warehouseRawMaterialReport.findFirst({
+  // Only a report that actually mentions one of this withdrawal's own batches can have counted
+  // it — a later report for an unrelated SKU has nothing to do with this withdrawal and must not
+  // block it. Checking naively for "any later report" over-blocked in exactly this way before.
+  const withdrawalKeys = new Set(w.items.map(i => `${i.sku}|${i.batchNo}`))
+  const laterReports = await prisma.warehouseRawMaterialReport.findMany({
     where: { status: ACTIVE, createdAt: { gt: w.createdAt } },
     orderBy: { createdAt: "asc" },
-    select: { date: true, sequence: true },
+    select: { date: true, sequence: true, items: { select: { sku: true, batchNo: true } } },
   })
+  const closing = laterReports.find(r => r.items.some(i => withdrawalKeys.has(`${i.sku}|${i.batchNo}`)))
   if (closing) {
     const label = `${closing.date.toISOString().split("T")[0]} #${closing.sequence}`
     return {

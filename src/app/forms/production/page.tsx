@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { ClipboardList, PackagePlus, Eye } from "lucide-react"
+import { ClipboardList, PackagePlus } from "lucide-react"
 import { FormsTabs } from "@/components/forms/FormsTabs"
 import { prisma } from "@/lib/prisma"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
+import { ProductionReportsTable } from "@/components/forms/ProductionReportsTable"
 
 export const metadata = {
   title: "Production Dashboard",
@@ -36,6 +37,15 @@ export default async function ProductionDashboard(props: {
     orderBy: { createdAt: 'desc' },
     skip: (currentPage - 1) * pageSize,
     take: pageSize,
+    select: {
+      id: true,
+      date: true,
+      time: true,
+      shift: true,
+      line: true,
+      preparedBy: true,
+      status: true,
+    }
   })
 
   return (
@@ -125,128 +135,13 @@ export default async function ProductionDashboard(props: {
             <p className="text-gray-500 mt-1">Production reports submitted via the KAR Daily Report will appear here.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-12">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Date</th>
-                    <th scope="col" className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Time</th>
-                    <th scope="col" className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Shift</th>
-                    <th scope="col" className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Line</th>
-                    <th scope="col" className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Prepared By</th>
-                    <th scope="col" className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Status</th>
-                    <th scope="col" className="px-6 py-4 text-right text-xs font-black text-gray-500 uppercase tracking-wider">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {reports.map((report) => (
-                    <tr key={report.id} className="hover:bg-indigo-50/30 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                        {new Date(report.date).toLocaleDateString('en-GB', { timeZone: 'Asia/Kuala_Lumpur' })}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-600">
-                        {report.time || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-black uppercase rounded ${report.shift === 'AM' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}>
-                          {report.shift}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-600">
-                        {report.line}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 uppercase font-medium">
-                        {report.preparedBy}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {report.status === 'APPROVED' ? (
-                          <span className="px-2.5 py-1 inline-flex text-xs leading-5 font-black uppercase rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm">
-                            Approved
-                          </span>
-                        ) : report.status === 'DRAFT' ? (
-                          <span className="px-2.5 py-1 inline-flex text-xs leading-5 font-black uppercase rounded-full bg-blue-100 text-blue-800 border border-blue-300 shadow-sm">
-                            Draft
-                          </span>
-                        ) : report.status === 'REJECTED' ? (
-                          <span className="px-2.5 py-1 inline-flex text-xs leading-5 font-black uppercase rounded-full bg-red-100 text-red-800 border border-red-300 shadow-sm">
-                            Rejected
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-1 inline-flex text-xs leading-5 font-black uppercase rounded-full bg-amber-100 text-amber-800 border border-amber-300 shadow-sm">
-                            Pending
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <Link href={`/forms/production/daily-report/${report.id}`} className="text-indigo-600 hover:text-indigo-900 font-black flex items-center justify-end bg-indigo-50 px-3 py-2 rounded-lg hover:bg-indigo-100 transition-colors">
-                          <Eye className="w-4 h-4 mr-2" /> View
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
-                <div className="flex-1 flex justify-between sm:hidden">
-                  <Link
-                    href={`/forms/production?page=${Math.max(1, currentPage - 1)}`}
-                    className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 ${currentPage === 1 ? 'pointer-events-none opacity-50' : ''}`}
-                  >
-                    Previous
-                  </Link>
-                  <Link
-                    href={`/forms/production?page=${Math.min(totalPages, currentPage + 1)}`}
-                    className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 ${currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}`}
-                  >
-                    Next
-                  </Link>
-                </div>
-                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm text-gray-700">
-                      Showing <span className="font-bold text-gray-900">{(currentPage - 1) * pageSize + 1}</span> to{" "}
-                      <span className="font-bold text-gray-900">{Math.min(currentPage * pageSize, totalReports)}</span> of{" "}
-                      <span className="font-bold text-gray-900">{totalReports}</span> reports
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                      <Link
-                        href={`/forms/production?page=${Math.max(1, currentPage - 1)}`}
-                        className={`relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${currentPage === 1 ? 'pointer-events-none opacity-50' : ''}`}
-                      >
-                        Previous
-                      </Link>
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                        <Link
-                          key={p}
-                          href={`/forms/production?page=${p}`}
-                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-bold ${
-                            p === currentPage
-                              ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
-                              : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                          }`}
-                        >
-                          {p}
-                        </Link>
-                      ))}
-                      <Link
-                        href={`/forms/production?page=${Math.min(totalPages, currentPage + 1)}`}
-                        className={`relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}`}
-                      >
-                        Next
-                      </Link>
-                    </nav>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          <ProductionReportsTable
+            reports={reports}
+            totalReports={totalReports}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            totalPages={totalPages}
+          />
         )}
 
       </div>

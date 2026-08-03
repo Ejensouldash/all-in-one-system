@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '20mb',
       allowedOrigins: ['localhost:3000', '192.168.0.39:3000', '192.168.0.188:3000']
     },
-    optimizePackageImports: ['recharts', 'lucide-react', 'date-fns'],
+    optimizePackageImports: ['recharts', 'lucide-react', 'date-fns', 'framer-motion', 'exceljs'],
   },
   async headers() {
     return [

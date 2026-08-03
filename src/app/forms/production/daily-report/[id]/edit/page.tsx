@@ -1,16 +1,13 @@
+import { Suspense } from "react"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { DailyReportForm } from "@/components/forms/DailyReportForm"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
 
-export default async function EditDailyReportPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session) redirect("/login")
-
-  const resolvedParams = await params
+async function AsyncEditForm({ id, userName }: { id: string; userName: string }) {
   const report = await prisma.dailyReport.findUnique({
-    where: { id: resolvedParams.id },
+    where: { id },
     include: {
       productions: { include: { batches: true } },
       rejects: true,
@@ -22,11 +19,10 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
 
   if (!report) redirect("/forms")
   if (report.status !== "PENDING" && report.status !== "REJECTED" && report.status !== "DRAFT") {
-    // Approved reports are editable only by holders of DAILY_REPORT_EDIT_APPROVED
     const access = await getAccessInfo()
     const canEditApproved = report.status === "APPROVED" && !!access && hasAnyModule(access, ["DAILY_REPORT_EDIT_APPROVED"])
     if (!canEditApproved) {
-      redirect(`/forms/production/daily-report/${resolvedParams.id}`)
+      redirect(`/forms/production/daily-report/${id}`)
     }
   }
 
@@ -127,7 +123,7 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
       else if (i.sectionKey.startsWith("BOX_")) {
         const size = i.sectionKey.replace("BOX_p", "").split("_")[0];
         const pack = i.sectionKey.split("_")[2];
-        category = `BOX_${size}_${pack}`; // Enough for includes("BOX") and includes(size)
+        category = `BOX_${size}_${pack}`;
       }
       
       initialData.syncedDOs.push({
@@ -144,8 +140,6 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
     if (!initialData.inventory[i.sectionKey]) return;
 
     const hasBatch = !!(i.batchNo && i.batchNo.trim() !== "");
-    // Draft saves keep Usage and Storeroom rows without a batch (lossless drafts) —
-    // load those back too. Anything else without a batch is an empty row saved by accident.
     if (!hasBatch && !((i.type === "Usage" || i.type === "Storeroom") && i.bags > 0)) return;
 
     const entry: any = {
@@ -166,17 +160,15 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
           const pb = parsed.boxes ?? parsed.originalBags;
           if (pb !== undefined && pb !== "" && Number(pb) > 0) boxes = pb;
         } catch(e) {
-          // fallback if labelType is not JSON
+          // fallback
         }
       }
-      // Legacy rows never stored boxes — recover the box count from the saved bags,
-      // but only when no weight was recorded (weight + boxes use a different formula)
       if ((boxes === "" || Number(boxes) === 0) && (Number(weight) || 0) === 0 && Number(i.bags) > 0) {
         boxes = i.bags;
       }
       entry.weight = weight;
       entry.boxes = boxes;
-      entry.labelType = undefined; // the JSON stash is not a real label type
+      entry.labelType = undefined;
     }
 
     if (i.type === "Storeroom" || i.type === "CarryForward") {
@@ -186,7 +178,7 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
     }
   })
 
-  // Populate Holds (Quarantine/On Hold) from the dedicated ProductionHoldItem relation
+  // Populate Holds
   report.holds.forEach(h => {
     if (initialData.inventory[h.sectionKey] && h.batchNo && h.batchNo.trim() !== "") {
       initialData.inventory[h.sectionKey].holds.push({
@@ -198,7 +190,7 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
     }
   })
 
-  // Ensure default structure if array is empty (to avoid hook form errors)
+  // Ensure default structure
   Object.keys(initialData.inventory).forEach(key => {
     if (initialData.inventory[key].sources.length === 0) {
       initialData.inventory[key].sources.push({ batchNo: "", bags: 0, mult: 1 })
@@ -208,6 +200,29 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
     }
   })
 
+  return <DailyReportForm userName={userName} initialData={initialData} reportId={report.id} />
+}
+
+function FormSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-sm space-y-6 animate-pulse">
+      <div className="h-8 bg-gray-200 rounded w-1/3 mb-6"></div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="h-12 bg-gray-100 rounded-xl"></div>
+        <div className="h-12 bg-gray-100 rounded-xl"></div>
+        <div className="h-12 bg-gray-100 rounded-xl"></div>
+      </div>
+      <div className="h-64 bg-gray-100 rounded-xl"></div>
+    </div>
+  )
+}
+
+export default async function EditDailyReportPage({ params }: { params: Promise<{ id: string }> }) {
+  const session = await auth()
+  if (!session) redirect("/login")
+
+  const resolvedParams = await params
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-500">
       <div className="mb-8">
@@ -215,7 +230,9 @@ export default async function EditDailyReportPage({ params }: { params: Promise<
         <p className="text-gray-500 font-medium mt-1">Make corrections to the submitted report.</p>
       </div>
 
-      <DailyReportForm userName={session.user.name || ""} initialData={initialData} reportId={report.id} />
+      <Suspense fallback={<FormSkeleton />}>
+        <AsyncEditForm id={resolvedParams.id} userName={session.user?.name || ""} />
+      </Suspense>
     </div>
   )
 }

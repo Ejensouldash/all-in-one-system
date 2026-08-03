@@ -1,15 +1,12 @@
+import { Suspense } from "react"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { CheckCircle2, Clock } from "lucide-react"
+import { CheckCircle2 } from "lucide-react"
 import { LiveInventoryTable } from "@/components/warehouse/LiveInventoryTable"
 
-export default async function WarehouseDashboard() {
-  const session = await auth()
-  if (!session) redirect("/login")
-  const user = session.user as any
-
+async function AsyncWarehouseContent() {
   const [pendingHandovers, inventoryBatches] = await Promise.all([
     prisma.productionHandover.findMany({
       where: { status: "PENDING" },
@@ -24,7 +21,6 @@ export default async function WarehouseDashboard() {
 
   return (
     <div className="space-y-12">
-      
       {/* PENDING TRANSFERS */}
       <div>
         <h2 className="text-xl font-black uppercase tracking-tight mb-4 flex items-center">
@@ -77,11 +73,29 @@ export default async function WarehouseDashboard() {
         
         <LiveInventoryTable inventoryBatches={inventoryBatches} />
       </div>
-      
     </div>
   )
 }
 
+function WarehouseSkeleton() {
+  return (
+    <div className="space-y-12 animate-pulse">
+      <div className="h-48 bg-white border border-gray-200 rounded-xl p-6"></div>
+      <div className="h-96 bg-white border border-gray-200 rounded-xl p-6"></div>
+    </div>
+  )
+}
+
+export default async function WarehouseDashboard() {
+  const session = await auth()
+  if (!session) redirect("/login")
+
+  return (
+    <Suspense fallback={<WarehouseSkeleton />}>
+      <AsyncWarehouseContent />
+    </Suspense>
+  )
+}
 
 function DatabaseIcon(props: any) {
   return (

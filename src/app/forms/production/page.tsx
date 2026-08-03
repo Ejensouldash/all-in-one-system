@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { ClipboardList, PackagePlus } from "lucide-react"
@@ -8,6 +9,59 @@ import { ProductionReportsTable } from "@/components/forms/ProductionReportsTabl
 
 export const metadata = {
   title: "Production Dashboard",
+}
+
+async function AsyncReportsTable({ currentPage, pageSize }: { currentPage: number; pageSize: number }) {
+  const [totalReports, reports] = await Promise.all([
+    prisma.dailyReport.count(),
+    prisma.dailyReport.findMany({
+      orderBy: { createdAt: 'desc' },
+      skip: (currentPage - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true,
+        date: true,
+        time: true,
+        shift: true,
+        line: true,
+        preparedBy: true,
+        status: true,
+      }
+    })
+  ])
+
+  const totalPages = Math.max(1, Math.ceil(totalReports / pageSize))
+
+  if (reports.length === 0) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center flex flex-col items-center">
+        <ClipboardList className="h-12 w-12 text-gray-300 mb-3" />
+        <h3 className="text-lg font-medium text-gray-900">No Reports Found</h3>
+        <p className="text-gray-500 mt-1">Production reports submitted via the KAR Daily Report will appear here.</p>
+      </div>
+    )
+  }
+
+  return (
+    <ProductionReportsTable
+      reports={reports}
+      totalReports={totalReports}
+      currentPage={currentPage}
+      pageSize={pageSize}
+      totalPages={totalPages}
+    />
+  )
+}
+
+function ReportsTableSkeleton() {
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 space-y-4 animate-pulse">
+      <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+      <div className="h-12 bg-gray-100 rounded w-full"></div>
+      <div className="h-12 bg-gray-100 rounded w-full"></div>
+      <div className="h-12 bg-gray-100 rounded w-full"></div>
+    </div>
+  )
 }
 
 export default async function ProductionDashboard(props: {
@@ -27,26 +81,6 @@ export default async function ProductionDashboard(props: {
   }
 
   const hasHandoverAccess = hasAnyModule(access, ["HANDOVER"])
-
-  // Count total reports for pagination
-  const totalReports = await prisma.dailyReport.count()
-  const totalPages = Math.max(1, Math.ceil(totalReports / pageSize))
-
-  // Fetch paginated reports for the table
-  const reports = await prisma.dailyReport.findMany({
-    orderBy: { createdAt: 'desc' },
-    skip: (currentPage - 1) * pageSize,
-    take: pageSize,
-    select: {
-      id: true,
-      date: true,
-      time: true,
-      shift: true,
-      line: true,
-      preparedBy: true,
-      status: true,
-    }
-  })
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -128,21 +162,9 @@ export default async function ProductionDashboard(props: {
           </h2>
         </div>
         
-        {reports.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center flex flex-col items-center">
-            <ClipboardList className="h-12 w-12 text-gray-300 mb-3" />
-            <h3 className="text-lg font-medium text-gray-900">No Reports Found</h3>
-            <p className="text-gray-500 mt-1">Production reports submitted via the KAR Daily Report will appear here.</p>
-          </div>
-        ) : (
-          <ProductionReportsTable
-            reports={reports}
-            totalReports={totalReports}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            totalPages={totalPages}
-          />
-        )}
+        <Suspense fallback={<ReportsTableSkeleton />}>
+          <AsyncReportsTable currentPage={currentPage} pageSize={pageSize} />
+        </Suspense>
 
       </div>
     </div>

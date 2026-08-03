@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { Ticket, Users, AlertCircle, CheckCircle2, CalendarDays, ExternalLink, FileText } from "lucide-react"
@@ -11,70 +12,11 @@ const AnalyticsCharts = dynamic(() =>
   import("@/components/dashboard/AnalyticsCharts").then(mod => mod.AnalyticsCharts)
 )
 
-export default async function DashboardPage() {
-  // getSession()/getAccessInfo() are both cached per-request, so calling
-  // both here doesn't cost a second auth()/DB round-trip.
-  const session = await getSession()
-  if (!session) return null
-
-  const access = await getAccessInfo()
-  if (!access) return null
-
-  const userModules = access.modules
-  const isRantau = access.branchName === "BubblesO2 Rantau"
-
-  // Redirect Rantau users to their specific modules instead of the dashboard.
-  // Every target here must admit the module that sent the user to it,
-  // otherwise the two pages redirect at each other in an infinite loop.
-  if (isRantau && !access.isSuperAdmin) {
-    if (userModules.includes("FORMS")) redirect("/forms/production")
-    if (userModules.includes("WAREHOUSE")) redirect("/forms/warehouse/dashboard")
-    if (userModules.includes("MAINTENANCE_FORMS")) redirect("/forms/maintenance")
-    if (userModules.includes("MAINTENANCE_DASHBOARD")) redirect("/forms/maintenance/dashboard")
-    if (userModules.includes("MAINTENANCE_REPORTS")) redirect("/forms/maintenance/reports")
-    if (userModules.includes("PRODUCTION_STOCK")) redirect("/forms/production/stock")
-    if (userModules.includes("TRANSFER_IN_HISTORY")) redirect("/forms/production/transfer-in/history")
-    if (userModules.includes("DATABASE_MANAGER")) redirect("/forms/database")
-    if (userModules.includes("HANDOVER")) redirect("/forms/production/handover/new")
-    if (userModules.includes("TICKETS")) redirect("/tickets")
-    if (userModules.includes("ASSETS")) redirect("/dashboard/assets")
-
-    // If they have no modules, show a restricted message instead of the IT dashboard
-    return (
-      <div className="flex items-center justify-center h-[70vh]">
-        <div className="text-center p-8 bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-          <h1 className="text-2xl font-black uppercase tracking-widest text-red-600 mb-2">Access Restricted</h1>
-          <p className="text-gray-600 font-bold">You do not have access to any modules yet.</p>
-          <p className="text-gray-500 text-sm mt-2">Please contact your administrator to configure your access.</p>
-        </div>
-      </div>
-    )
-  }
-
-  const isSuperAdmin = session.user.role === "SUPERADMIN"
-  const userUnitId = session.user.unitId || null
-
-  // Use cached aggregation queries (revalidates every 60s)
+async function AsyncDashboardStats({ userUnitId, isSuperAdmin }: { userUnitId: string | null; isSuperAdmin: boolean }) {
   const stats = await getDashboardStats(userUnitId, isSuperAdmin)
-  const ticketScope = isSuperAdmin ? {} : { unitId: userUnitId }
-
-  // Real-time Recent Tickets Feed (Uncached)
-  const recentTickets = await prisma.ticket.findMany({
-    where: ticketScope,
-    orderBy: { createdAt: 'desc' },
-    take: 5,
-    include: { createdBy: true, unit: true }
-  })
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 pb-10">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Dashboard</h1>
-        <p className="text-gray-500 mt-1">
-          Welcome back, {session.user.name}. Here's your real-time analytics.
-        </p>
-      </div>
-
+    <>
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <DashboardCard 
           title="Total Tickets" 
@@ -112,10 +54,130 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      {/* Advanced Analytics Charts */}
       {isSuperAdmin && (
         <AnalyticsCharts statusData={stats.statusData} departmentData={stats.departmentData} />
       )}
+    </>
+  )
+}
+
+function StatsSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 animate-pulse">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div key={i} className="bg-white/70 h-28 rounded-xl border border-gray-100 p-5">
+          <div className="h-4 bg-gray-200 rounded w-1/2 mb-3"></div>
+          <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+async function AsyncRecentTickets({ isSuperAdmin, userUnitId }: { isSuperAdmin: boolean; userUnitId: string | null }) {
+  const ticketScope = isSuperAdmin ? {} : { unitId: userUnitId }
+
+  const recentTickets = await prisma.ticket.findMany({
+    where: ticketScope,
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+    include: { createdBy: true, unit: true }
+  })
+
+  if (recentTickets.length === 0) {
+    return (
+      <div className="text-sm text-gray-500 flex items-center justify-center h-32 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50/50">
+        No recent tickets found.
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {recentTickets.map(ticket => (
+        <div key={ticket.id} className="p-4 bg-white rounded-lg border border-gray-100 shadow-sm flex items-center justify-between hover:border-blue-200 transition-colors gap-3">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-medium text-gray-900 truncate">{ticket.title}</h3>
+            <div className="flex items-center text-xs text-gray-500 mt-1 space-x-2 truncate">
+              <span className="truncate max-w-[100px] sm:max-w-none">{ticket.createdBy.name}</span>
+              <span>•</span>
+              <span className="text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded flex-shrink-0">{ticket.unit?.name || 'No Unit'}</span>
+              <span className="flex-shrink-0">•</span>
+              <span className="flex-shrink-0">{new Date(ticket.createdAt).toLocaleDateString()}</span>
+            </div>
+          </div>
+          <div className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${
+            ticket.status === 'OPEN' ? 'bg-amber-100 text-amber-700' :
+            ticket.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+            'bg-emerald-100 text-emerald-700'
+          }`}>
+            {ticket.status}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function TicketsSkeleton() {
+  return (
+    <div className="space-y-3 animate-pulse">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="h-16 bg-gray-100 rounded-lg"></div>
+      ))}
+    </div>
+  )
+}
+
+export default async function DashboardPage() {
+  const session = await getSession()
+  if (!session) return null
+
+  const access = await getAccessInfo()
+  if (!access) return null
+
+  const userModules = access.modules
+  const isRantau = access.branchName === "BubblesO2 Rantau"
+
+  if (isRantau && !access.isSuperAdmin) {
+    if (userModules.includes("FORMS")) redirect("/forms/production")
+    if (userModules.includes("WAREHOUSE")) redirect("/forms/warehouse/dashboard")
+    if (userModules.includes("MAINTENANCE_FORMS")) redirect("/forms/maintenance")
+    if (userModules.includes("MAINTENANCE_DASHBOARD")) redirect("/forms/maintenance/dashboard")
+    if (userModules.includes("MAINTENANCE_REPORTS")) redirect("/forms/maintenance/reports")
+    if (userModules.includes("PRODUCTION_STOCK")) redirect("/forms/production/stock")
+    if (userModules.includes("TRANSFER_IN_HISTORY")) redirect("/forms/production/transfer-in/history")
+    if (userModules.includes("DATABASE_MANAGER")) redirect("/forms/database")
+    if (userModules.includes("HANDOVER")) redirect("/forms/production/handover/new")
+    if (userModules.includes("TICKETS")) redirect("/tickets")
+    if (userModules.includes("ASSETS")) redirect("/dashboard/assets")
+
+    return (
+      <div className="flex items-center justify-center h-[70vh]">
+        <div className="text-center p-8 bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+          <h1 className="text-2xl font-black uppercase tracking-widest text-red-600 mb-2">Access Restricted</h1>
+          <p className="text-gray-600 font-bold">You do not have access to any modules yet.</p>
+          <p className="text-gray-500 text-sm mt-2">Please contact your administrator to configure your access.</p>
+        </div>
+      </div>
+    )
+  }
+
+  const isSuperAdmin = session.user.role === "SUPERADMIN"
+  const userUnitId = session.user.unitId || null
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500 pb-10">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Dashboard</h1>
+        <p className="text-gray-500 mt-1">
+          Welcome back, {session.user.name}. Here's your real-time analytics.
+        </p>
+      </div>
+
+      <Suspense fallback={<StatsSkeleton />}>
+        <AsyncDashboardStats userUnitId={userUnitId} isSuperAdmin={isSuperAdmin} />
+      </Suspense>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
         <div className="lg:col-span-2 bg-white/70 backdrop-blur-lg rounded-xl shadow-sm border border-gray-100 p-6">
@@ -124,35 +186,9 @@ export default async function DashboardPage() {
             <Link href="/tickets" className="text-sm font-medium text-blue-600 hover:text-blue-700">View All</Link>
           </div>
           
-          <div className="space-y-3">
-            {recentTickets.length === 0 ? (
-              <div className="text-sm text-gray-500 flex items-center justify-center h-32 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50/50">
-                No recent tickets found.
-              </div>
-            ) : (
-              recentTickets.map(ticket => (
-                <div key={ticket.id} className="p-4 bg-white rounded-lg border border-gray-100 shadow-sm flex items-center justify-between hover:border-blue-200 transition-colors gap-3">
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-medium text-gray-900 truncate">{ticket.title}</h3>
-                    <div className="flex items-center text-xs text-gray-500 mt-1 space-x-2 truncate">
-                      <span className="truncate max-w-[100px] sm:max-w-none">{ticket.createdBy.name}</span>
-                      <span>•</span>
-                      <span className="text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded flex-shrink-0">{ticket.unit?.name || 'No Unit'}</span>
-                      <span className="flex-shrink-0">•</span>
-                      <span className="flex-shrink-0">{new Date(ticket.createdAt).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                  <div className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${
-                    ticket.status === 'OPEN' ? 'bg-amber-100 text-amber-700' :
-                    ticket.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                    'bg-emerald-100 text-emerald-700'
-                  }`}>
-                    {ticket.status}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          <Suspense fallback={<TicketsSkeleton />}>
+            <AsyncRecentTickets isSuperAdmin={isSuperAdmin} userUnitId={userUnitId} />
+          </Suspense>
         </div>
         
         <div className="bg-white/70 backdrop-blur-lg rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col">

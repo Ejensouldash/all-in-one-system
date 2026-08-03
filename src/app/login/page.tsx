@@ -31,15 +31,11 @@ function LoginForm() {
         setError(res.error || "Login failed.")
         setIsLoading(false)
       } else {
-        // Since redirect is handled by Next.js in the action natively, we won't hit here on success.
-        // But wait! If redirect is set to false in NextAuth or we intercept it?
-        // Let's actually show the animation before the redirect triggers!
+        // Handled by Next.js action redirect
       }
     } catch (err: any) {
       if (err.message && err.message.includes('NEXT_REDIRECT')) {
-        // This means login was SUCCESSFUL! Next.js throws this error to redirect.
         setIsSuccess(true)
-        // Let the animation play for 1.5 seconds, then let Next.js handle the actual redirect via window location.
         setTimeout(() => {
           window.location.href = callbackUrl
         }, 1500)
@@ -137,9 +133,25 @@ function LoginForm() {
   )
 }
 
+function LoginSkeleton() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950 px-4 py-12 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md space-y-8 bg-white dark:bg-gray-900 p-10 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 animate-pulse">
+        <div className="h-8 bg-gray-200 dark:bg-gray-800 rounded w-1/2 mx-auto mb-4"></div>
+        <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-3/4 mx-auto mb-8"></div>
+        <div className="space-y-4">
+          <div className="h-12 bg-gray-100 dark:bg-gray-800 rounded-xl"></div>
+          <div className="h-12 bg-gray-100 dark:bg-gray-800 rounded-xl"></div>
+          <div className="h-12 bg-blue-500/20 rounded-xl mt-6"></div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function LoginPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<LoginSkeleton />}>
       <LoginForm />
     </Suspense>
   )

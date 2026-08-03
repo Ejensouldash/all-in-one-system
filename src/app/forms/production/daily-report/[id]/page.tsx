@@ -1,4 +1,4 @@
-import React from "react"
+import React, { Suspense } from "react"
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { getDailyReportById } from "@/app/actions/dailyReport"
@@ -67,16 +67,36 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
 }
 
+function ReportSkeleton() {
+  return (
+    <div className="min-h-screen bg-gray-400 p-4 sm:p-8 flex flex-col items-center">
+      <div className="w-full max-w-[210mm] bg-white min-h-[297mm] p-6 border-2 border-black space-y-6 animate-pulse">
+        <div className="h-20 bg-gray-200 rounded"></div>
+        <div className="h-32 bg-gray-100 rounded"></div>
+        <div className="h-64 bg-gray-100 rounded"></div>
+      </div>
+    </div>
+  )
+}
+
 export default async function ViewDailyReportPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session) redirect("/login")
+  const resolvedParams = await params
 
+  return (
+    <Suspense fallback={<ReportSkeleton />}>
+      <AsyncReportContent id={resolvedParams.id} session={session} />
+    </Suspense>
+  )
+}
+
+async function AsyncReportContent({ id, session }: { id: string; session: any }) {
   // Read modules live from the DB, not the session JWT (which goes stale on grant)
   const access = await getAccessInfo()
   const canEditApproved = !!access && hasAnyModule(access, ["DAILY_REPORT_EDIT_APPROVED"])
 
-  const resolvedParams = await params
-  const response = await getDailyReportById(resolvedParams.id)
+  const response = await getDailyReportById(id)
   const report = response.data
 
   if (!report) {

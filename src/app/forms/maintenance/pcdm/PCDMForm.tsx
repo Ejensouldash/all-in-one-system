@@ -5,9 +5,14 @@ import { submitPestControlDailyForm } from "./actions"
 import { Loader2, CheckCircle2, CheckSquare } from "lucide-react"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
 
-const STATIONS = Array.from({ length: 18 }, (_, i) => ({
+const EXBS_STATIONS = Array.from({ length: 14 }, (_, i) => ({
   name: `station${i + 1}`,
-  label: `Station ${i + 1}`,
+  label: `${i + 1}. EXBS Station ${i + 1} (P${i + 1})`,
+}))
+
+const TRBS_STATIONS = Array.from({ length: 4 }, (_, i) => ({
+  name: `station${i + 15}`,
+  label: `${i + 15}. TRBS Station ${i + 15} (G${i + 1})`,
 }))
 
 export function PCDMForm({ userName }: { userName: string }) {
@@ -79,17 +84,45 @@ export function PCDMForm({ userName }: { userName: string }) {
         </div>
 
         {/* Checklist Section */}
-        <div className="md:col-span-2 mt-4">
-          <h3 className="text-sm font-black uppercase tracking-widest text-lime-800 bg-lime-100 px-4 py-2 inline-block rounded-t-lg border-b-2 border-lime-500 mb-4">
-            Bait Station Checklist
-          </h3>
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <p className="text-sm text-gray-500 mb-6 font-medium">
-              Check the box if the station is clear (no pest activity found). Leave unchecked if pest activity is found.
-            </p>
+        <div className="md:col-span-2 mt-4 space-y-6">
+          <p className="text-sm text-gray-500 font-medium bg-gray-50 p-4 rounded-xl border border-gray-200">
+            Check the box if the station is clear (no pest activity found). Leave unchecked if pest activity is found.
+          </p>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {STATIONS.map((station) => (
+          {/* EXBS Section */}
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+            <h3 className="text-sm font-black uppercase tracking-widest text-lime-800 bg-lime-100 px-4 py-2 inline-block rounded-t-lg border-b-2 border-lime-500 mb-4">
+              EXBS
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {EXBS_STATIONS.map((station) => (
+                <label
+                  key={station.name}
+                  className="flex items-center p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-lime-50 hover:border-lime-200 transition-all group"
+                >
+                  <div className="relative flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      name={station.name}
+                      className="peer appearance-none w-6 h-6 border-2 border-gray-300 rounded cursor-pointer checked:bg-lime-500 checked:border-lime-500 transition-all"
+                    />
+                    <CheckSquare className="absolute w-4 h-4 text-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity" />
+                  </div>
+                  <span className="ml-3 font-bold text-gray-700 group-hover:text-lime-900 transition-colors uppercase tracking-wide text-sm">
+                    {station.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* TRBS Section */}
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+            <h3 className="text-sm font-black uppercase tracking-widest text-lime-800 bg-lime-100 px-4 py-2 inline-block rounded-t-lg border-b-2 border-lime-500 mb-4">
+              TRBS
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {TRBS_STATIONS.map((station) => (
                 <label
                   key={station.name}
                   className="flex items-center p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-lime-50 hover:border-lime-200 transition-all group"

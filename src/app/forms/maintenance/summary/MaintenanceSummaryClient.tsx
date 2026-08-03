@@ -206,7 +206,8 @@ const FIELD_CONFIG: Record<string, FieldConfig[]> = {
     { key: "remark", label: "Remark", type: "text" },
   ],
   pcdm: [
-    ...Array.from({ length: 18 }, (_, i) => ({ key: `station${i + 1}`, label: `Station ${i + 1}`, type: "checkbox" as FieldType })),
+    ...Array.from({ length: 14 }, (_, i) => ({ key: `station${i + 1}`, label: `EXBS Station ${i + 1} (P${i + 1})`, type: "checkbox" as FieldType })),
+    ...Array.from({ length: 4 }, (_, i) => ({ key: `station${i + 15}`, label: `TRBS Station ${i + 15} (G${i + 1})`, type: "checkbox" as FieldType })),
     { key: "checkedBy", label: "Checked By", type: "text" },
   ],
   ftdm: [

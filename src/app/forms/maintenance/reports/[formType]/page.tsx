@@ -648,13 +648,17 @@ export default function MaintenanceMonthlyReportPage() {
                     <thead>
                       <tr className="bg-gray-100 font-bold text-center border-b-2 border-black">
                         <th className="border-2 border-black p-1 w-[6%] align-middle" rowSpan={2}>DATE</th>
-                        <th className="border-2 border-black p-1" colSpan={18}>PEST CONTROL STATIONS</th>
+                        <th className="border-2 border-black p-1 bg-lime-50" colSpan={14}>EXBS (P1 - P14)</th>
+                        <th className="border-2 border-black p-1 bg-emerald-50" colSpan={4}>TRBS (G1 - G4)</th>
                         <th className="border-2 border-black p-1 w-[8%] align-middle" rowSpan={2}>CHECKED BY</th>
                         <th className="border-2 border-black p-1 w-[8%] align-middle" rowSpan={2}>VERIFIED BY</th>
                       </tr>
-                      <tr className="bg-gray-100 font-bold text-center border-b-2 border-black">
-                        {Array.from({ length: 18 }, (_, i) => (
-                          <th key={i} className="border-2 border-black p-0.5">S{i + 1}</th>
+                      <tr className="bg-gray-100 font-bold text-center border-b-2 border-black text-[11px]">
+                        {Array.from({ length: 14 }, (_, i) => (
+                          <th key={`exbs-${i}`} className="border-2 border-black p-0.5 bg-lime-50">P{i + 1}</th>
+                        ))}
+                        {Array.from({ length: 4 }, (_, i) => (
+                          <th key={`trbs-${i}`} className="border-2 border-black p-0.5 bg-emerald-50">G{i + 1}</th>
                         ))}
                       </tr>
                     </thead>

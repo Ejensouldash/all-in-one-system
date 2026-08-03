@@ -20,6 +20,7 @@ model User {
   googleEmail       String?
   dailyReports      DailyReport[]           @relation("DailyReportCreator")
   createdDOs        DistributionOrder[]     @relation("DOCreator")
+  distributionTrackingEvents DistributionTrackingEvent[] @relation("DistributionTrackingActor")
   assignedEvents    Event[]                 @relation("EventAssignee")
   events            Event[]                 @relation("EventCreator")
   eventInvites      EventAttendee[]
@@ -469,6 +470,28 @@ model DistributionOrder {
   items              DOLineItem[]
   createdBy          User              @relation("DOCreator", fields: [createdById], references: [id])
   returns            GoodsReturnNote[]
+  trackingEvents     DistributionTrackingEvent[]
+}
+
+// Append-only delivery milestones. These records enrich warehouse traceability without changing
+// production, inventory balance, handover, distribution deduction, or return calculations.
+model DistributionTrackingEvent {
+  id                  String            @id @default(uuid())
+  distributionOrderId String
+  eventType           String
+  latitude            Float?
+  longitude           Float?
+  accuracy            Float?
+  locationStatus      String            @default("UNAVAILABLE")
+  remarks             String?           @db.Text
+  recordedById        String
+  recordedAt          DateTime          @default(now())
+
+  distributionOrder   DistributionOrder @relation(fields: [distributionOrderId], references: [id], onDelete: Cascade)
+  recordedBy          User              @relation("DistributionTrackingActor", fields: [recordedById], references: [id])
+
+  @@index([distributionOrderId, recordedAt])
+  @@index([eventType, recordedAt])
 }
 
 model DOLineItem {

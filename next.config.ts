@@ -24,7 +24,9 @@ const nextConfig: NextConfig = {
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=self, microphone=(), geolocation=()' },
+          // Camera remains available for batch scanning. Geolocation is restricted to this origin
+          // and requested only when a warehouse user performs a delivery milestone check-in.
+          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(self)' },
         ],
       },
     ]

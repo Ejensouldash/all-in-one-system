@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation"
 import { QRCodeSVG } from "qrcode.react"
 import { ArrowLeft, Printer } from "lucide-react"
 import Link from "next/link"
-import { Suspense } from "react"
+import { Suspense, useSyncExternalStore } from "react"
 
 function formatSKU(sku: string | null) {
   if (!sku) return sku
@@ -15,6 +15,11 @@ function QRTagContent() {
   const searchParams = useSearchParams()
   const batch = searchParams.get("batch")
   const sku = searchParams.get("sku")
+  const origin = useSyncExternalStore(
+    () => () => undefined,
+    () => window.location.origin,
+    () => ""
+  )
 
   if (!batch || !sku) {
     return (
@@ -24,8 +29,9 @@ function QRTagContent() {
     )
   }
 
-  // Encode JSON payload with batch and sku for precise scanning
-  const qrValue = JSON.stringify({ batch, sku });
+  // V2 opens a live trace page in any phone camera. Existing in-app scanners remain compatible
+  // because they already read the batch and sku query parameters from URLs.
+  const qrValue = `${origin}/forms/warehouse/inventory/batch/${encodeURIComponent(batch)}?sku=${encodeURIComponent(sku)}&batch=${encodeURIComponent(batch)}&v=2`
 
   return (
     <div className="flex flex-col items-center w-full">
@@ -69,12 +75,15 @@ function QRTagContent() {
           </div>
           
           <div className="border-[5px] border-black p-3 mb-4 bg-white flex items-center justify-center">
-            <QRCodeSVG 
-              value={qrValue} 
-              size={230}
-              level="H"
-              includeMargin={false}
-            />
+            {origin ? (
+              <QRCodeSVG value={qrValue} size={230} level="H" includeMargin={false} />
+            ) : (
+              <div className="w-[230px] h-[230px] bg-gray-100 animate-pulse" />
+            )}
+          </div>
+
+          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-center mb-3">
+            Smart Batch QR · Scan to Trace
           </div>
           
           <div className="mt-auto w-full border-t-[3px] border-black pt-2 flex-none">

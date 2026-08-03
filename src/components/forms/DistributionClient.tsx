@@ -2,9 +2,20 @@
 
 import { useState, useMemo } from "react"
 import Link from "next/link"
-import { Search, Printer, AlertTriangle, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react"
+import { Search, Printer, AlertTriangle, ChevronLeft, ChevronRight, ArrowUpDown, MapPinned } from "lucide-react"
 
-export function DistributionClient({ distributionOrders }: { distributionOrders: any[] }) {
+type DistributionOrderRow = {
+  id: string
+  doNumber: string
+  distributionDate: Date | string
+  createdAt: Date | string
+  destination: string
+  distributionMethod: string
+  status: string
+  trackingEvents?: Array<{ eventType: string }>
+}
+
+export function DistributionClient({ distributionOrders }: { distributionOrders: DistributionOrderRow[] }) {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("ALL")
   const [sortField, setSortField] = useState("createdAt")
@@ -41,14 +52,14 @@ export function DistributionClient({ distributionOrders }: { distributionOrders:
 
     // Sort
     result.sort((a, b) => {
-      let aVal = a[sortField] ?? ""
-      let bVal = b[sortField] ?? ""
-
-      // Handle specific fields
-      if (sortField === 'distributionDate' || sortField === 'createdAt') {
-        aVal = new Date(a[sortField]).getTime()
-        bVal = new Date(b[sortField]).getTime()
+      const sortable = (row: DistributionOrderRow) => {
+        if (sortField === "distributionDate" || sortField === "createdAt") return new Date(row[sortField]).getTime()
+        if (sortField === "doNumber") return row.doNumber
+        if (sortField === "destination") return row.destination
+        return row.createdAt.toString()
       }
+      const aVal = sortable(a)
+      const bVal = sortable(b)
 
       if (aVal < bVal) return sortOrder === "asc" ? -1 : 1
       if (aVal > bVal) return sortOrder === "asc" ? 1 : -1
@@ -140,7 +151,9 @@ export function DistributionClient({ distributionOrders }: { distributionOrders:
                   </td>
                 </tr>
               ) : (
-                paginatedDOs.map((doOrder) => (
+                paginatedDOs.map((doOrder) => {
+                  const traceStatus = doOrder.trackingEvents?.[0]?.eventType || doOrder.status
+                  return (
                   <tr key={doOrder.id} className="hover:bg-blue-50/50">
                     <td className="px-6 py-4 whitespace-nowrap font-black text-blue-700">{doOrder.doNumber}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-600">
@@ -150,16 +163,20 @@ export function DistributionClient({ distributionOrders }: { distributionOrders:
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-600">{doOrder.distributionMethod}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <span className={`px-2 py-1 inline-flex text-[10px] leading-5 font-black uppercase rounded ${
-                        doOrder.status === 'SHIPPED' ? 'bg-blue-100 text-blue-800' :
-                        doOrder.status === 'DELIVERED' ? 'bg-emerald-100 text-emerald-800' :
+                        traceStatus === 'SHIPPED' || traceStatus === 'DISPATCHED' ? 'bg-blue-100 text-blue-800' :
+                        traceStatus === 'ARRIVED' ? 'bg-amber-100 text-amber-800' :
+                        traceStatus === 'DELIVERED' ? 'bg-emerald-100 text-emerald-800' :
                         doOrder.status === 'RETURNED' ? 'bg-red-100 text-red-800' :
                         'bg-gray-100 text-gray-800'
                       }`}>
-                        {doOrder.status}
+                        {traceStatus}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end space-x-3">
+                        <Link href={`/forms/warehouse/trace/do/${doOrder.id}`} className="text-sky-700 hover:text-white font-bold flex items-center bg-sky-50 hover:bg-sky-700 px-3 py-1 rounded border border-sky-200">
+                          <MapPinned className="w-4 h-4 mr-2" /> Trace
+                        </Link>
                         <Link href={`/forms/warehouse/distribution/${doOrder.id}/pod`} className="text-gray-500 hover:text-indigo-600 font-bold flex items-center bg-gray-100 hover:bg-indigo-50 px-3 py-1 rounded border border-gray-200">
                           <Printer className="w-4 h-4 mr-2" /> Print POD
                         </Link>
@@ -170,7 +187,8 @@ export function DistributionClient({ distributionOrders }: { distributionOrders:
                       </div>
                     </td>
                   </tr>
-                ))
+                  )
+                })
               )}
             </tbody>
           </table>

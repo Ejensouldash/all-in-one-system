@@ -13,7 +13,8 @@ export default async function DistributionIndex() {
     orderBy: { createdAt: 'desc' },
     include: {
       createdBy: true,
-      items: true
+      items: true,
+      trackingEvents: { orderBy: { recordedAt: 'desc' }, take: 1 }
     }
   })
 

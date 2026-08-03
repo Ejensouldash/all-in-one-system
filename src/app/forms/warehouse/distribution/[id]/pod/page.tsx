@@ -1,8 +1,35 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useSyncExternalStore } from "react"
+import { QRCodeSVG } from "qrcode.react"
+
+type PODItem = {
+  id: string
+  sku: string
+  batchNumber?: string | null
+  batchNo?: string | null
+  qtySent: number
+}
+
+type PODOrder = {
+  id: string
+  doNumber: string
+  distributionDate: string
+  destination: string
+  distributionMethod: string
+  sponsorshipDetails?: string | null
+  vehicleNo?: string | null
+  driverName?: string | null
+  createdBy?: { name: string } | null
+  items: PODItem[]
+}
 
 export default function PrintPODPage({ params }: { params: Promise<{ id: string }> }) {
-  const [doOrder, setDoOrder] = useState<any>(null)
+  const [doOrder, setDoOrder] = useState<PODOrder | "not_found" | null>(null)
+  const origin = useSyncExternalStore(
+    () => () => undefined,
+    () => window.location.origin,
+    () => ""
+  )
 
   useEffect(() => {
     params.then(({ id }) => {
@@ -28,7 +55,7 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
 
   // Aggregate items by SKU and Batch
   const aggregatedItems: Record<string, { qty: number, sku: string, batchNo: string }> = {}
-  doOrder.items.forEach((item: any) => {
+  doOrder.items.forEach((item) => {
     const batch = item.batchNumber || item.batchNo || 'N/A'
     const key = `${item.sku}_${batch}`
     if (!aggregatedItems[key]) {
@@ -186,7 +213,7 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
         }
         .info-card-body {
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: 1fr 1fr 124px;
           gap: 0;
           padding: 14px 16px;
         }
@@ -493,7 +520,7 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
             <div className="info-card">
               <div className="info-card-header">Distribution Order Details</div>
               <div className="info-card-body">
-                <div>
+              <div>
                   <div className="info-row">
                     <span className="info-label">DO Number</span>
                     <span className="info-value" style={{ color: '#003366', fontWeight: 800 }}>{doOrder.doNumber}</span>
@@ -531,6 +558,23 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
                     <span className="info-value">{doOrder.createdBy?.name}</span>
                   </div>
                 </div>
+                <div style={{
+                  borderLeft: '1px solid #d1dbe8',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  justifyContent: 'center', paddingLeft: 14, marginLeft: 8
+                }}>
+                  {origin ? (
+                    <QRCodeSVG
+                      value={`${origin}/forms/warehouse/trace/do/${doOrder.id}`}
+                      size={86}
+                      level="H"
+                      includeMargin={false}
+                    />
+                  ) : <div style={{ width: 86, height: 86, background: '#f5f8fc' }} />}
+                  <span style={{ marginTop: 5, fontSize: 7, fontWeight: 800, letterSpacing: 0.8, color: '#003366', textTransform: 'uppercase', textAlign: 'center' }}>
+                    Scan DO Tracking
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -541,6 +585,7 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
                   <th style={{ width: 40, textAlign: 'center' }}>No.</th>
                   <th>Item Description</th>
                   <th style={{ width: 130, textAlign: 'center' }}>Quantity (Box)</th>
+                  <th style={{ width: 58, textAlign: 'center' }}>Batch QR</th>
                 </tr>
               </thead>
               <tbody>
@@ -549,11 +594,21 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
                     <td style={{ textAlign: 'center', color: '#4a6080', fontWeight: 600 }}>{idx + 1}</td>
                     <td>{labels[item.sku] || item.sku} - {item.batchNo}</td>
                     <td className="qty-col">{item.qty as React.ReactNode}</td>
+                    <td style={{ textAlign: 'center' }}>
+                      {origin && (
+                        <QRCodeSVG
+                          value={`${origin}/forms/warehouse/inventory/batch/${encodeURIComponent(item.batchNo)}?sku=${encodeURIComponent(item.sku)}&batch=${encodeURIComponent(item.batchNo)}&v=2`}
+                          size={34}
+                          level="M"
+                          includeMargin={false}
+                        />
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {Object.entries(aggregatedItems).length === 0 && (
                   <tr>
-                    <td colSpan={3} style={{ textAlign: 'center', padding: 20, color: '#9aaabb', fontStyle: 'italic', fontSize: 11 }}>
+                    <td colSpan={4} style={{ textAlign: 'center', padding: 20, color: '#9aaabb', fontStyle: 'italic', fontSize: 11 }}>
                       No items recorded.
                     </td>
                   </tr>
@@ -563,6 +618,7 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
                 <tr>
                   <td colSpan={2}>Total</td>
                   <td className="total-qty">{totalBoxes}</td>
+                  <td></td>
                 </tr>
               </tfoot>
             </table>

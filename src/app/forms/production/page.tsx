@@ -9,7 +9,13 @@ export const metadata = {
   title: "Production Dashboard",
 }
 
-export default async function ProductionDashboard() {
+export default async function ProductionDashboard(props: {
+  searchParams?: Promise<{ page?: string }>
+}) {
+  const resolvedParams = await props.searchParams
+  const currentPage = Math.max(1, parseInt(resolvedParams?.page || "1", 10) || 1)
+  const pageSize = 5
+
   // Check module access with live DB data (Superadmin gets all by default)
   const access = await getAccessInfo()
   if (!access) redirect("/login")
@@ -21,10 +27,15 @@ export default async function ProductionDashboard() {
 
   const hasHandoverAccess = hasAnyModule(access, ["HANDOVER"])
 
-  // Fetch recent reports for the table
+  // Count total reports for pagination
+  const totalReports = await prisma.dailyReport.count()
+  const totalPages = Math.max(1, Math.ceil(totalReports / pageSize))
+
+  // Fetch paginated reports for the table
   const reports = await prisma.dailyReport.findMany({
     orderBy: { createdAt: 'desc' },
-    take: 10,
+    skip: (currentPage - 1) * pageSize,
+    take: pageSize,
   })
 
   return (
@@ -99,8 +110,6 @@ export default async function ProductionDashboard() {
             </div>
           )}
         </div>
-
-
 
         <div className="mb-6 flex items-center justify-between mt-12">
           <h2 className="text-2xl font-black uppercase tracking-tight text-gray-900 flex items-center">
@@ -179,6 +188,64 @@ export default async function ProductionDashboard() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+                <div className="flex-1 flex justify-between sm:hidden">
+                  <Link
+                    href={`/forms/production?page=${Math.max(1, currentPage - 1)}`}
+                    className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 ${currentPage === 1 ? 'pointer-events-none opacity-50' : ''}`}
+                  >
+                    Previous
+                  </Link>
+                  <Link
+                    href={`/forms/production?page=${Math.min(totalPages, currentPage + 1)}`}
+                    className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 ${currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}`}
+                  >
+                    Next
+                  </Link>
+                </div>
+                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Showing <span className="font-bold text-gray-900">{(currentPage - 1) * pageSize + 1}</span> to{" "}
+                      <span className="font-bold text-gray-900">{Math.min(currentPage * pageSize, totalReports)}</span> of{" "}
+                      <span className="font-bold text-gray-900">{totalReports}</span> reports
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                      <Link
+                        href={`/forms/production?page=${Math.max(1, currentPage - 1)}`}
+                        className={`relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${currentPage === 1 ? 'pointer-events-none opacity-50' : ''}`}
+                      >
+                        Previous
+                      </Link>
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                        <Link
+                          key={p}
+                          href={`/forms/production?page=${p}`}
+                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-bold ${
+                            p === currentPage
+                              ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                              : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                          }`}
+                        >
+                          {p}
+                        </Link>
+                      ))}
+                      <Link
+                        href={`/forms/production?page=${Math.min(totalPages, currentPage + 1)}`}
+                        className={`relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}`}
+                      >
+                        Next
+                      </Link>
+                    </nav>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

@@ -4,9 +4,13 @@ import { useState } from "react"
 import { ClipboardCheck, CheckCircle2, ChevronLeft, Save, Plus, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
+import { useMaintenanceDraft } from "../_components/useMaintenanceDraft"
+import { DraftBanner, SaveDraftButton } from "../_components/DraftControls"
 import { createQCDR, type QCDRRow } from "./actions"
 
 const EMPTY_ROW: QCDRRow = { description: "", results: "", conclusion: "", correctiveAction: "" }
+
+type QCDRDraft = { date: string; checkedBy: string; rows: QCDRRow[] }
 
 export function QCDRForm({ userName }: { userName: string }) {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
@@ -17,6 +21,15 @@ export function QCDRForm({ userName }: { userName: string }) {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
   const [signature, setSignature] = useState<string | null>(null)
+
+  const draft = useMaintenanceDraft<QCDRDraft>("qcdr", {
+    values: () => ({ date, checkedBy, rows }),
+    apply: (v) => {
+      setDate(v.date)
+      setCheckedBy(v.checkedBy)
+      setRows(v.rows)
+    },
+  })
 
   function updateRow(index: number, field: keyof QCDRRow, value: string) {
     setRows(prev => prev.map((r, i) => i === index ? { ...r, [field]: value } : r))
@@ -53,6 +66,7 @@ export function QCDRForm({ userName }: { userName: string }) {
     })
 
     if (res.success) {
+      await draft.clearDraft()
       setSuccess(true)
     } else {
       setError(res.error || "Failed to submit form.")
@@ -98,6 +112,8 @@ export function QCDRForm({ userName }: { userName: string }) {
         </div>
 
         <div className="p-6 sm:p-10 space-y-8">
+          <DraftBanner draft={draft} />
+
           {error && (
             <div className="bg-red-50 text-red-800 p-4 rounded-xl border border-red-200 font-bold text-sm">
               {error}
@@ -212,7 +228,8 @@ export function QCDRForm({ userName }: { userName: string }) {
             />
           </div>
 
-          <div className="pt-6 border-t border-gray-100 flex items-center justify-end">
+          <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-stretch sm:items-start justify-end gap-3">
+            <SaveDraftButton draft={draft} disabled={isSubmitting} />
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}

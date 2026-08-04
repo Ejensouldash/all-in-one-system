@@ -6,6 +6,8 @@ import { ArrowLeft, Check, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { createIVVI } from "./actions"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
+import { useMaintenanceDraft } from "../_components/useMaintenanceDraft"
+import { DraftBanner, SaveDraftButton } from "../_components/DraftControls"
 
 export function IVVIForm({ userName }: { userName: string }) {
   const router = useRouter()
@@ -24,6 +26,21 @@ export function IVVIForm({ userName }: { userName: string }) {
   const [verifiedBy, setVerifiedBy] = useState("")
   const [performedSignature, setPerformedSignature] = useState("")
   const [verifiedSignature, setVerifiedSignature] = useState("")
+
+  const draft = useMaintenanceDraft("ivvi", {
+    values: () => ({ date, vehicleNo, companyName, purpose, product, visualInspection, reason, furtherAction, verifiedBy }),
+    apply: (v) => {
+      setDate(v.date)
+      setVehicleNo(v.vehicleNo)
+      setCompanyName(v.companyName)
+      setPurpose(v.purpose)
+      setProduct(v.product)
+      setVisualInspection(v.visualInspection)
+      setReason(v.reason)
+      setFurtherAction(v.furtherAction)
+      setVerifiedBy(v.verifiedBy)
+    },
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -58,6 +75,7 @@ export function IVVIForm({ userName }: { userName: string }) {
       })
 
       if (result.success) {
+        await draft.clearDraft()
         setSuccess(true)
         setTimeout(() => {
           router.push("/forms/maintenance")
@@ -105,6 +123,7 @@ export function IVVIForm({ userName }: { userName: string }) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-8">
+          <DraftBanner draft={draft} />
           {error && (
             <div className="p-4 bg-red-50 text-red-600 rounded-lg text-sm border border-red-200">
               {error}
@@ -280,7 +299,8 @@ export function IVVIForm({ userName }: { userName: string }) {
             </div>
           </div>
 
-          <div className="pt-6 border-t border-slate-200 flex justify-end">
+          <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-start gap-3 sm:justify-end">
+            <SaveDraftButton draft={draft} disabled={isSubmitting} />
             <button
               type="submit"
               disabled={isSubmitting}

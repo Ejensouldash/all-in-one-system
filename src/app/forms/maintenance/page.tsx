@@ -3,6 +3,8 @@ import { ClipboardList, Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskC
 import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
 import { MaintenanceFormsGrid } from "./MaintenanceFormsGrid"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
+import { listMyMaintenanceDrafts } from "@/app/actions/maintenance-drafts"
+import { draftKeyToSlug } from "./_components/formTypes"
 
 export const metadata = {
   title: "Maintenance Forms",
@@ -253,6 +255,9 @@ export default async function MaintenanceDashboard() {
     redirect("/forms")
   }
 
+  const drafts = await listMyMaintenanceDrafts()
+  const draftHrefs = (drafts.data ?? []).map(d => `/forms/maintenance/${draftKeyToSlug(d.formType)}`)
+
   return (
     <div className="bg-gray-50 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
@@ -280,7 +285,7 @@ export default async function MaintenanceDashboard() {
                 Quality Control (QC)
               </h2>
             </div>
-            <MaintenanceFormsGrid forms={qcForms} />
+            <MaintenanceFormsGrid forms={qcForms} draftHrefs={draftHrefs} />
           </section>
 
           {/* Production Section */}
@@ -290,7 +295,7 @@ export default async function MaintenanceDashboard() {
                 Production
               </h2>
             </div>
-            <MaintenanceFormsGrid forms={productionForms} />
+            <MaintenanceFormsGrid forms={productionForms} draftHrefs={draftHrefs} />
           </section>
 
           {/* Maintenance Section */}
@@ -300,7 +305,7 @@ export default async function MaintenanceDashboard() {
                 Maintenance
               </h2>
             </div>
-            <MaintenanceFormsGrid forms={maintenanceForms} />
+            <MaintenanceFormsGrid forms={maintenanceForms} draftHrefs={draftHrefs} />
           </section>
 
           {/* Security Section */}
@@ -310,7 +315,7 @@ export default async function MaintenanceDashboard() {
                 Security
               </h2>
             </div>
-            <MaintenanceFormsGrid forms={securityForms} />
+            <MaintenanceFormsGrid forms={securityForms} draftHrefs={draftHrefs} />
           </section>
         </div>
       </div>

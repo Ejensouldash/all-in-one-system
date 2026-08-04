@@ -4,6 +4,8 @@ import { useState } from "react"
 import { Droplets, CheckCircle2, ChevronLeft } from "lucide-react"
 import Link from "next/link"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
+import { useMaintenanceDraft } from "../_components/useMaintenanceDraft"
+import { DraftBanner, SaveDraftButton } from "../_components/DraftControls"
 import { createFiltrationBackwashRecord } from "./actions"
 
 export function FBSRForm({ userName }: { userName: string }) {
@@ -27,6 +29,15 @@ export function FBSRForm({ userName }: { userName: string }) {
     setTimes(prev => ({ ...prev, [key]: value }))
   }
 
+  const draft = useMaintenanceDraft("fbsr", {
+    values: () => ({ date, times, doneBy }),
+    apply: (v) => {
+      setDate(v.date)
+      setTimes(v.times)
+      setDoneBy(v.doneBy)
+    },
+  })
+
   async function handleSubmit() {
     if (!signature) {
       setError("Digital signature is required.")
@@ -46,6 +57,7 @@ export function FBSRForm({ userName }: { userName: string }) {
     const res = await createFiltrationBackwashRecord(data)
 
     if (res.success) {
+      await draft.clearDraft()
       setSuccess(true)
     } else {
       setError(res.error || "Failed to submit form.")
@@ -91,6 +103,7 @@ export function FBSRForm({ userName }: { userName: string }) {
         </div>
 
         <div className="p-6 sm:p-10 space-y-8">
+          <DraftBanner draft={draft} />
           {error && (
             <div className="bg-red-50 text-red-800 p-4 rounded-xl border border-red-200 font-bold text-sm">
               {error}
@@ -207,7 +220,8 @@ export function FBSRForm({ userName }: { userName: string }) {
             />
           </div>
 
-          <div className="pt-6 border-t border-gray-100 flex items-center justify-end">
+          <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-stretch sm:items-start gap-3 sm:justify-end">
+            <SaveDraftButton draft={draft} disabled={isSubmitting} />
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}

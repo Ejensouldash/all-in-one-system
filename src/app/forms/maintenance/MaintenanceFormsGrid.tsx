@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { QRCodeSVG } from "qrcode.react"
-import { QrCode, X, Printer } from "lucide-react"
+import { FileClock, QrCode, X, Printer } from "lucide-react"
 
 type MaintenanceForm = {
   title: string
@@ -15,8 +15,16 @@ type MaintenanceForm = {
   accent: string
 }
 
-export function MaintenanceFormsGrid({ forms }: { forms: MaintenanceForm[] }) {
+export function MaintenanceFormsGrid({
+  forms,
+  draftHrefs = [],
+}: {
+  forms: MaintenanceForm[]
+  /** Form hrefs the current user has an unfinished draft for. */
+  draftHrefs?: string[]
+}) {
   const [qrForm, setQrForm] = useState<MaintenanceForm | null>(null)
+  const draftSet = new Set(draftHrefs)
 
   const origin = typeof window !== "undefined" ? window.location.origin : ""
   const qrUrl = qrForm ? `${origin}${qrForm.href}` : ""
@@ -27,9 +35,16 @@ export function MaintenanceFormsGrid({ forms }: { forms: MaintenanceForm[] }) {
         {forms.map((form, index) => (
           <div key={index} className={`bg-gradient-to-br ${form.gradient} rounded-2xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden flex flex-col justify-between border border-white/10 hover:-translate-y-1 transition-transform`}>
             <div className="relative z-10 mb-8">
-              <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-black/20 border border-white/10 text-white/90 text-xs font-bold uppercase tracking-widest mb-6 shadow-sm">
-                <span className={`w-2.5 h-2.5 rounded-full ${form.accent} mr-2 animate-pulse`}></span>
-                Maintenance Form
+              <div className="flex flex-wrap items-center gap-2 mb-6">
+                <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-black/20 border border-white/10 text-white/90 text-xs font-bold uppercase tracking-widest shadow-sm">
+                  <span className={`w-2.5 h-2.5 rounded-full ${form.accent} mr-2 animate-pulse`}></span>
+                  Maintenance Form
+                </div>
+                {draftSet.has(form.href) && (
+                  <div className="inline-flex items-center px-3 py-1.5 rounded-full bg-amber-400 text-amber-950 text-xs font-black uppercase tracking-widest shadow-sm">
+                    <FileClock className="w-3.5 h-3.5 mr-1.5" /> Draft
+                  </div>
+                )}
               </div>
               <h2 className="text-2xl font-black tracking-tight mb-2">{form.title}</h2>
               <p className="text-white/70 text-sm font-medium">

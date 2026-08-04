@@ -1,16 +1,44 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { submitLightingInspection } from "./actions"
 import { Loader2, CheckCircle2 } from "lucide-react"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
+import { applyFormValues, readFormValues, useMaintenanceDraft, type FormValues } from "../_components/useMaintenanceDraft"
+import { DraftBanner, SaveDraftButton } from "../_components/DraftControls"
 
 export function LightingForm({ userName }: { userName: string }) {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
   const [isOthers, setIsOthers] = useState(false)
+  const [resultsOption, setResultsOption] = useState("")
   const [signature, setSignature] = useState<string | null>(null)
+
+  const formRef = useRef<HTMLFormElement>(null)
+
+  // The "Others" free-text field only mounts once isOthers is true, so restoring runs in two
+  // phases: set the state, then write the field values on the render where they exist.
+  const pendingFieldsRef = useRef<FormValues | null>(null)
+  const [restoreTick, setRestoreTick] = useState(0)
+  useEffect(() => {
+    if (!pendingFieldsRef.current) return
+    applyFormValues(formRef.current, pendingFieldsRef.current)
+    pendingFieldsRef.current = null
+  }, [restoreTick])
+
+  const draft = useMaintenanceDraft<{ fields: FormValues; isOthers: boolean; resultsOption: string }>(
+    "lighting",
+    {
+      values: () => ({ fields: readFormValues(formRef.current), isOthers, resultsOption }),
+      apply: (v) => {
+        setIsOthers(v.isOthers)
+        setResultsOption(v.resultsOption ?? "")
+        pendingFieldsRef.current = v.fields
+        setRestoreTick(t => t + 1)
+      },
+    }
+  )
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -26,8 +54,11 @@ export function LightingForm({ userName }: { userName: string }) {
     const res = await submitLightingInspection(formData)
     
     if (res.success) {
+      await draft.clearDraft()
       setSuccess(true)
       setSignature(null)
+      setResultsOption("")
+      setIsOthers(false)
       ;(e.target as HTMLFormElement).reset()
       setTimeout(() => setSuccess(false), 5000)
     } else {
@@ -37,7 +68,9 @@ export function LightingForm({ userName }: { userName: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
+      <DraftBanner draft={draft} />
+
       {success && (
         <div className="bg-green-50 text-green-800 p-4 rounded-xl border border-green-200 flex items-center font-medium">
           <CheckCircle2 className="w-5 h-5 mr-3 text-green-500" />
@@ -82,9 +115,14 @@ export function LightingForm({ userName }: { userName: string }) {
 
         <div className="space-y-2">
           <label className="text-sm font-bold text-gray-700 uppercase tracking-wide">Results <span className="text-red-500">*</span></label>
-          <select 
-            name={isOthers ? undefined : "results"}
-            onChange={(e) => setIsOthers(e.target.value === "Others")}
+          {/* Named either way so a draft can capture the choice; the action only reads "results". */}
+          <select
+            name={isOthers ? "resultsOption" : "results"}
+            value={resultsOption}
+            onChange={(e) => {
+              setResultsOption(e.target.value)
+              setIsOthers(e.target.value === "Others")
+            }}
             required
             className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition-all bg-white"
           >
@@ -135,7 +173,8 @@ export function LightingForm({ userName }: { userName: string }) {
         </div>
       </div>
 
-      <div className="pt-6 border-t border-gray-100">
+      <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-stretch sm:items-start gap-3">
+        <SaveDraftButton draft={draft} disabled={loading} />
         <button 
           type="submit" 
           disabled={loading}

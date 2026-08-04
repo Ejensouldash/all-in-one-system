@@ -1,9 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { submitPestControlDailyForm } from "./actions"
 import { Loader2, CheckCircle2, CheckSquare } from "lucide-react"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
+import { useMaintenanceFormElementDraft } from "../_components/useMaintenanceDraft"
+import { DraftBanner, SaveDraftButton } from "../_components/DraftControls"
 
 const EXBS_STATIONS = Array.from({ length: 14 }, (_, i) => ({
   name: `station${i + 1}`,
@@ -21,6 +23,9 @@ export function PCDMForm({ userName }: { userName: string }) {
   const [error, setError] = useState("")
   const [signature, setSignature] = useState<string | null>(null)
 
+  const formRef = useRef<HTMLFormElement>(null)
+  const draft = useMaintenanceFormElementDraft("pcdm", formRef)
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!signature) {
@@ -35,6 +40,7 @@ export function PCDMForm({ userName }: { userName: string }) {
     const res = await submitPestControlDailyForm(formData)
 
     if (res.success) {
+      await draft.clearDraft()
       setSuccess(true)
       setSignature(null)
       ;(e.target as HTMLFormElement).reset()
@@ -46,7 +52,9 @@ export function PCDMForm({ userName }: { userName: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-8">
+      <DraftBanner draft={draft} />
+
       {success && (
         <div className="bg-green-50 text-green-800 p-4 rounded-xl border border-green-200 flex items-center font-medium">
           <CheckCircle2 className="w-5 h-5 mr-3 text-green-500" />
@@ -152,7 +160,8 @@ export function PCDMForm({ userName }: { userName: string }) {
         </div>
       </div>
 
-      <div className="pt-6 border-t border-gray-100">
+      <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-stretch sm:items-start gap-3">
+        <SaveDraftButton draft={draft} disabled={loading} />
         <button
           type="submit"
           disabled={loading}

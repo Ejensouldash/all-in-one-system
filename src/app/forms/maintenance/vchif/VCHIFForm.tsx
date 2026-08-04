@@ -6,6 +6,8 @@ import { ArrowLeft, Check, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { createVCHIF } from "./actions"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
+import { useMaintenanceDraft } from "../_components/useMaintenanceDraft"
+import { DraftBanner, SaveDraftButton } from "../_components/DraftControls"
 
 const CHECKLIST_ITEMS = [
   { key: "extClean", label: "1. Exterior of vehicle clean" },
@@ -50,6 +52,20 @@ export function VCHIFForm({ userName }: { userName: string }) {
     setChecklist((prev) => ({ ...prev, [key]: value }))
   }
 
+  const draft = useMaintenanceDraft("vchif", {
+    values: () => ({ date, companyName, vehicleNo, vehicleType, driverName, checklist, issues, correctiveAction }),
+    apply: (v) => {
+      setDate(v.date)
+      setCompanyName(v.companyName)
+      setVehicleNo(v.vehicleNo)
+      setVehicleType(v.vehicleType)
+      setDriverName(v.driverName)
+      setChecklist(v.checklist)
+      setIssues(v.issues)
+      setCorrectiveAction(v.correctiveAction)
+    },
+  })
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -90,6 +106,7 @@ export function VCHIFForm({ userName }: { userName: string }) {
       })
 
       if (result.success) {
+        await draft.clearDraft()
         setSuccess(true)
         setTimeout(() => {
           router.push("/forms/maintenance")
@@ -137,6 +154,7 @@ export function VCHIFForm({ userName }: { userName: string }) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-8">
+          <DraftBanner draft={draft} />
           {error && (
             <div className="p-4 bg-red-50 text-red-600 rounded-lg text-sm border border-red-200">
               {error}
@@ -296,7 +314,8 @@ export function VCHIFForm({ userName }: { userName: string }) {
             </div>
           </div>
 
-          <div className="pt-6 border-t border-slate-200 flex justify-end">
+          <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-start gap-3 sm:justify-end">
+            <SaveDraftButton draft={draft} disabled={isSubmitting} />
             <button
               type="submit"
               disabled={isSubmitting}

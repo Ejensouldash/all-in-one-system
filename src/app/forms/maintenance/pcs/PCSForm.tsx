@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import { Bug, CheckCircle2, ChevronLeft } from "lucide-react"
 import Link from "next/link"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
+import { useMaintenanceDraft } from "../_components/useMaintenanceDraft"
+import { DraftBanner, SaveDraftButton } from "../_components/DraftControls"
 import { createPestControlSchedule } from "./actions"
 
 export function PCSForm({ userName }: { userName: string }) {
@@ -19,6 +21,17 @@ export function PCSForm({ userName }: { userName: string }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
+
+  const draft = useMaintenanceDraft("pcs", {
+    values: () => ({ date, companyName, servicedBy, verifiedBy, remark }),
+    apply: (v) => {
+      setDate(v.date)
+      setCompanyName(v.companyName)
+      setServicedBy(v.servicedBy)
+      setVerifiedBy(v.verifiedBy)
+      setRemark(v.remark)
+    },
+  })
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -45,6 +58,7 @@ export function PCSForm({ userName }: { userName: string }) {
     })
 
     if (res.success) {
+      await draft.clearDraft()
       setSuccess(true)
       setTimeout(() => {
         router.push("/forms/maintenance")
@@ -87,6 +101,7 @@ export function PCSForm({ userName }: { userName: string }) {
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <DraftBanner draft={draft} />
           {error && (
             <div className="p-4 bg-red-50 text-red-800 rounded-xl border border-red-200 font-bold text-sm">
               {error}
@@ -151,7 +166,8 @@ export function PCSForm({ userName }: { userName: string }) {
             <SignaturePadClient onSave={setSignature} label="Staff Signature *" />
           </div>
 
-          <div className="pt-4 border-t border-gray-100 flex justify-end">
+          <div className="pt-4 border-t border-gray-100 flex flex-col sm:flex-row items-stretch sm:items-start gap-3 sm:justify-end">
+            <SaveDraftButton draft={draft} disabled={isSubmitting} />
             <button
               type="submit"
               disabled={isSubmitting}

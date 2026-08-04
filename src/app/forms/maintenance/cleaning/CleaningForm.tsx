@@ -1,9 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useRef, useState, useEffect } from "react"
 import { submitCleaningInspectionForm } from "./actions"
 import { Loader2, CheckCircle2, ClipboardCheck, Brush, RefreshCw } from "lucide-react"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
+import { applyFormValues, readFormValues, useMaintenanceDraft, type FormValues } from "../_components/useMaintenanceDraft"
+import { cleaningDraftKey } from "../_components/formTypes"
+import { DraftBanner, SaveDraftButton } from "../_components/DraftControls"
 
 // Section task definitions
 interface TaskDef {
@@ -99,6 +102,19 @@ export function CleaningForm({ userName }: { userName: string }) {
     setChecklist(initialChecklist)
   }, [selectedSection])
 
+  // Each section is its own checklist, so drafts are keyed per section rather than per form.
+  const formRef = useRef<HTMLFormElement>(null)
+  const draft = useMaintenanceDraft<{ fields: FormValues; checklist: Record<string, boolean> }>(
+    cleaningDraftKey(selectedSection),
+    {
+      values: () => ({ fields: readFormValues(formRef.current), checklist }),
+      apply: (v) => {
+        setChecklist(v.checklist || {})
+        applyFormValues(formRef.current, v.fields)
+      },
+    }
+  )
+
   const handleToggle = (key: string, val: boolean) => {
     setChecklist(prev => ({
       ...prev,
@@ -126,6 +142,7 @@ export function CleaningForm({ userName }: { userName: string }) {
     const res = await submitCleaningInspectionForm(formData)
 
     if (res.success) {
+      await draft.clearDraft()
       setSuccess(true)
       setSignature(null)
       ;(e.target as HTMLFormElement).reset()
@@ -143,7 +160,9 @@ export function CleaningForm({ userName }: { userName: string }) {
   const currentTasks = SECTION_TASKS[selectedSection] || []
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-8">
+      <DraftBanner draft={draft} />
+
       {success && (
         <div className="bg-green-50 text-green-800 p-4 rounded-xl border border-green-200 flex items-center font-medium">
           <CheckCircle2 className="w-5 h-5 mr-3 text-green-500" />
@@ -320,9 +339,10 @@ export function CleaningForm({ userName }: { userName: string }) {
       </div>
 
       {/* Action Buttons */}
-      <div className="pt-6 border-t border-gray-100 flex items-center gap-4">
-        <button 
-          type="submit" 
+      <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-stretch sm:items-start gap-4">
+        <SaveDraftButton draft={draft} disabled={loading} />
+        <button
+          type="submit"
           disabled={loading}
           className="w-full sm:w-auto px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white font-black uppercase tracking-wider rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center disabled:opacity-70"
         >

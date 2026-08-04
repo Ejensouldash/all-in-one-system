@@ -6,6 +6,8 @@ import { createLightingFixtureRecord } from "./actions"
 import { ChevronLeft, Save, Droplets, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
+import { useMaintenanceDraft } from "../_components/useMaintenanceDraft"
+import { DraftBanner, SaveDraftButton } from "../_components/DraftControls"
 
 export default function LFCRForm({ userName }: { userName: string }) {
   const router = useRouter()
@@ -23,6 +25,19 @@ export default function LFCRForm({ userName }: { userName: string }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
+
+  const draft = useMaintenanceDraft("lfcr", {
+    values: () => ({ date, cleaningLocation, activityPerformed, condition, nextCourseOfAction, supervisedBy, checkedBy }),
+    apply: (v) => {
+      setDate(v.date)
+      setCleaningLocation(v.cleaningLocation)
+      setActivityPerformed(v.activityPerformed)
+      setCondition(v.condition)
+      setNextCourseOfAction(v.nextCourseOfAction)
+      setSupervisedBy(v.supervisedBy)
+      setCheckedBy(v.checkedBy)
+    },
+  })
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -42,6 +57,7 @@ export default function LFCRForm({ userName }: { userName: string }) {
       })
 
       if (res.success) {
+        await draft.clearDraft()
         setSuccess(true)
         setTimeout(() => {
           router.push("/forms/production")
@@ -92,6 +108,7 @@ export default function LFCRForm({ userName }: { userName: string }) {
           <img src="/assets/BubblesO2_Logo.png" alt="BubblesO2 Logo" className="h-16 mt-4 md:mt-0 relative z-10 brightness-0 invert" />
         </div>
 
+        <DraftBanner draft={draft} className="m-6" />
         {error && (
           <div className="m-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-xl font-medium">
             {error}
@@ -200,7 +217,8 @@ export default function LFCRForm({ userName }: { userName: string }) {
             </div>
           </div>
 
-          <div className="pt-6">
+          <div className="pt-6 flex flex-col sm:flex-row items-stretch sm:items-start gap-3">
+            <SaveDraftButton draft={draft} disabled={isSubmitting} />
             <button
               type="submit"
               disabled={isSubmitting || !signature}

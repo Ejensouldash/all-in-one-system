@@ -50,6 +50,7 @@ const staffLinks: NavLink[] = [
     subLinks: [
       { name: "Production", href: "/forms/production", module: "FORMS" },
       { name: "Warehouse", href: "/forms/warehouse/dashboard", module: "WAREHOUSE", restrictToWarehouseUnit: true },
+      { name: "Sales Ordering", href: "/forms/sales-ordering", modules: ["SALES_ORDERING", "SALES_ORDERING_CUSTOMERS"] },
       // Production staff who take raw material off the rack. Deliberately not unit-restricted:
       // they are not in the Warehouse unit, which is the whole point of the narrow grant.
       { name: "Ambil Bahan", href: "/forms/warehouse/reports/raw-material", module: "RAW_MATERIAL_WITHDRAWAL" },
@@ -71,6 +72,7 @@ const adminLinks: NavLink[] = [
     subLinks: [
       { name: "Production", href: "/forms/production", module: "FORMS" },
       { name: "Warehouse", href: "/forms/warehouse/dashboard", module: "WAREHOUSE", restrictToWarehouseUnit: true },
+      { name: "Sales Ordering", href: "/forms/sales-ordering", modules: ["SALES_ORDERING", "SALES_ORDERING_CUSTOMERS"] },
       // Production staff who take raw material off the rack. Deliberately not unit-restricted:
       // they are not in the Warehouse unit, which is the whole point of the narrow grant.
       { name: "Ambil Bahan", href: "/forms/warehouse/reports/raw-material", module: "RAW_MATERIAL_WITHDRAWAL" },

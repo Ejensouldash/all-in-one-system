@@ -11,6 +11,7 @@ import {
   Users, Activity, Settings,
   Workflow, Factory, Building2, ShieldCheck,
   LayoutDashboard, FileSpreadsheet, BellRing,
+  ShoppingCart,
   type LucideIcon,
 } from "lucide-react"
 
@@ -27,6 +28,16 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "TICKETS", name: "IT Resolution Workspace (Tickets)", description: "Manage and resolve IT issues.", icon: Wrench },
       { id: "FORMS", name: "Digital Operations (Forms)", description: "Submit and approve daily production reports.", icon: ClipboardList },
       { id: "HANDOVER", name: "Production Handover Form", description: "Access to generate and send production handover forms.", icon: ArrowRightLeft },
+    ],
+  },
+  {
+    id: "SALES_ORDERING",
+    name: "Sales Ordering Department",
+    icon: ShoppingCart,
+    iconClass: "bg-emerald-50 text-emerald-600 border-emerald-100",
+    modules: [
+      { id: "SALES_ORDERING", name: "Sales Ordering", description: "Upload customer documents, review AI extraction, and create draft Sales Orders.", icon: ShoppingCart },
+      { id: "SALES_ORDERING_CUSTOMERS", name: "Customer Master Import", description: "Import and maintain the Sage X3 customer master used for order matching.", icon: Users },
     ],
   },
   {

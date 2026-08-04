@@ -17,6 +17,8 @@ export const FORM_MODULES = [
   "TRANSFER_IN_HISTORY",
   "DATABASE_MANAGER",
   "HANDOVER",
+  "SALES_ORDERING",
+  "SALES_ORDERING_CUSTOMERS",
   // Production staff who take raw material off the warehouse rack themselves. Grants the Daily
   // Raw Material screens only — not the rest of the warehouse module.
   "RAW_MATERIAL_WITHDRAWAL",

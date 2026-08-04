@@ -7,40 +7,43 @@ datasource db {
 }
 
 model User {
-  id                String                  @id @default(uuid())
-  name              String
-  email             String                  @unique
-  password          String
-  role              Role                    @default(STAFF)
-  branchId          String?
-  unitId            String?
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
-  modules           String[]                @default([])
-  googleEmail       String?
-  dailyReports      DailyReport[]           @relation("DailyReportCreator")
-  createdDOs        DistributionOrder[]     @relation("DOCreator")
+  id                         String                      @id @default(uuid())
+  name                       String
+  email                      String                      @unique
+  password                   String
+  role                       Role                        @default(STAFF)
+  branchId                   String?
+  unitId                     String?
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime                    @updatedAt
+  modules                    String[]                    @default([])
+  googleEmail                String?
+  dailyReports               DailyReport[]               @relation("DailyReportCreator")
+  createdDOs                 DistributionOrder[]         @relation("DOCreator")
   distributionTrackingEvents DistributionTrackingEvent[] @relation("DistributionTrackingActor")
-  assignedEvents    Event[]                 @relation("EventAssignee")
-  events            Event[]                 @relation("EventCreator")
-  eventInvites      EventAttendee[]
-  notices           Notice[]
-  receivedTransfers ProductionTransfer[]    @relation("TransferReceiver")
-  
+  assignedEvents             Event[]                     @relation("EventAssignee")
+  events                     Event[]                     @relation("EventCreator")
+  eventInvites               EventAttendee[]
+  notices                    Notice[]
+  receivedTransfers          ProductionTransfer[]        @relation("TransferReceiver")
+
   // Handover Relations
-  createdHandovers  ProductionHandover[]    @relation("HandoverCreator")
-  receivedHandovers ProductionHandover[]    @relation("HandoverReceiver")
-  
-  assignedTickets   Ticket[]                @relation("TicketAssignee")
-  tickets           Ticket[]                @relation("TicketCreator")
-  branch            Branch?                 @relation(fields: [branchId], references: [id])
-  unit              Unit?                   @relation(fields: [unitId], references: [id])
-  openingStocks     WarehouseOpeningStock[] @relation("OpeningStockSetter")
-  auditLogs         AuditLog[]
-  assetAssignments  AssetAssignment[]
-  createdReminders  Reminder[]              @relation("ReminderCreator")
-  reminderTargets   ReminderRecipient[]     @relation("ReminderTargetUser")
-  maintenanceDrafts MaintenanceFormDraft[]  @relation("MaintenanceDraftOwner")
+  createdHandovers  ProductionHandover[] @relation("HandoverCreator")
+  receivedHandovers ProductionHandover[] @relation("HandoverReceiver")
+
+  assignedTickets        Ticket[]                @relation("TicketAssignee")
+  tickets                Ticket[]                @relation("TicketCreator")
+  branch                 Branch?                 @relation(fields: [branchId], references: [id])
+  unit                   Unit?                   @relation(fields: [unitId], references: [id])
+  openingStocks          WarehouseOpeningStock[] @relation("OpeningStockSetter")
+  auditLogs              AuditLog[]
+  assetAssignments       AssetAssignment[]
+  createdReminders       Reminder[]              @relation("ReminderCreator")
+  reminderTargets        ReminderRecipient[]     @relation("ReminderTargetUser")
+  maintenanceDrafts      MaintenanceFormDraft[]  @relation("MaintenanceDraftOwner")
+  uploadedSalesDocuments SalesDocumentIntake[]   @relation("SalesDocumentUploader")
+  reviewedSalesDocuments SalesDocumentIntake[]   @relation("SalesDocumentReviewer")
+  createdSalesOrders     SalesOrder[]            @relation("SalesOrderCreator")
 }
 
 model Branch {
@@ -54,13 +57,13 @@ model Branch {
 }
 
 model Unit {
-  id        String   @id @default(uuid())
+  id        String     @id @default(uuid())
   name      String
   branchId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
   tickets   Ticket[]
-  branch    Branch   @relation(fields: [branchId], references: [id])
+  branch    Branch     @relation(fields: [branchId], references: [id])
   users     User[]
   reminders Reminder[]
 }
@@ -90,78 +93,78 @@ enum AssetType {
 }
 
 model Department {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  code      String?  @unique
-  assets    Asset[]
+  id     String  @id @default(uuid())
+  name   String  @unique
+  code   String? @unique
+  assets Asset[]
 }
 
 model Location {
-  id        String   @id @default(uuid())
-  name      String
-  block     String?
-  state     String?
-  city      String?
-  assets    Asset[]
+  id     String  @id @default(uuid())
+  name   String
+  block  String?
+  state  String?
+  city   String?
+  assets Asset[]
 }
 
 model Asset {
-  id             String      @id @default(uuid())
-  assetTag       String      @unique
-  name           String
-  brand          String?
-  model          String?
-  serialNumber   String?
-  deviceId       String?
-  description    String?     @db.Text
-  
-  type           AssetType   @default(OTHER)
-  status         AssetStatus @default(AVAILABLE)
-  
-  purchaseDate   DateTime?   @db.Date
-  price          Float?
-  supplier       String?
-  warrantyInfo   String?
-  
-  plateNumber    String?
-  
-  departmentId   String?
-  department     Department? @relation(fields: [departmentId], references: [id])
-  
-  locationId     String?
-  location       Location?   @relation(fields: [locationId], references: [id])
-  
-  assignments    AssetAssignment[]
-  maintenance    MaintenanceLog[]
-  tickets        Ticket[]
-  
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  id           String  @id @default(uuid())
+  assetTag     String  @unique
+  name         String
+  brand        String?
+  model        String?
+  serialNumber String?
+  deviceId     String?
+  description  String? @db.Text
+
+  type   AssetType   @default(OTHER)
+  status AssetStatus @default(AVAILABLE)
+
+  purchaseDate DateTime? @db.Date
+  price        Float?
+  supplier     String?
+  warrantyInfo String?
+
+  plateNumber String?
+
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id])
+
+  assignments AssetAssignment[]
+  maintenance MaintenanceLog[]
+  tickets     Ticket[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model AssetAssignment {
-  id             String    @id @default(uuid())
-  assetId        String
-  asset          Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  
-  userId         String
-  user           User      @relation(fields: [userId], references: [id])
-  
-  checkoutDate   DateTime  @default(now())
-  returnDate     DateTime?
-  remarks        String?
+  id      String @id @default(uuid())
+  assetId String
+  asset   Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  checkoutDate DateTime  @default(now())
+  returnDate   DateTime?
+  remarks      String?
 }
 
 model MaintenanceLog {
-  id             String    @id @default(uuid())
-  assetId        String
-  asset          Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  
-  date           DateTime  @default(now())
-  cost           Float?
-  vendor         String?
-  description    String
-  resolution     String?
+  id      String @id @default(uuid())
+  assetId String
+  asset   Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  date        DateTime @default(now())
+  cost        Float?
+  vendor      String?
+  description String
+  resolution  String?
 }
 
 model Ticket {
@@ -197,7 +200,7 @@ model Ticket {
 }
 
 model Event {
-  id            String   @id @default(uuid())
+  id            String          @id @default(uuid())
   title         String
   description   String?
   startDateTime DateTime
@@ -205,10 +208,10 @@ model Event {
   assigneeId    String?
   createdById   String
   googleEventId String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  assignee      User?    @relation("EventAssignee", fields: [assigneeId], references: [id])
-  createdBy     User     @relation("EventCreator", fields: [createdById], references: [id])
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  assignee      User?           @relation("EventAssignee", fields: [assigneeId], references: [id])
+  createdBy     User            @relation("EventCreator", fields: [createdById], references: [id])
   attendees     EventAttendee[]
 }
 
@@ -276,18 +279,18 @@ model DailyReport {
 }
 
 model ProductionHoldItem {
-  id             String       @id @default(uuid())
-  reportId       String
-  sectionKey     String
-  batchNo        String
-  qty            Float
-  mult           Int          @default(1)
-  reason         String
-  status         String       @default("PENDING") // PENDING, REJECT_BEFORE, REJECT_AFTER, REUSE, RETURN
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  resolvedAt     DateTime?
-  report         DailyReport  @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  id         String      @id @default(uuid())
+  reportId   String
+  sectionKey String
+  batchNo    String
+  qty        Float
+  mult       Int         @default(1)
+  reason     String
+  status     String      @default("PENDING") // PENDING, REJECT_BEFORE, REJECT_AFTER, REUSE, RETURN
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  resolvedAt DateTime?
+  report     DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 }
 
 model ProductionOutput {
@@ -393,53 +396,53 @@ model ProductionTransfer {
 }
 
 model ProductionHandover {
-  id                 String   @id @default(uuid())
-  handoverNumber     String   @unique
-  date               DateTime
-  
-  dailyReportId      String
-  dailyReport        DailyReport @relation(fields: [dailyReportId], references: [id], onDelete: Cascade)
-  
-  productionStaffId  String
-  productionStaff    User     @relation("HandoverCreator", fields: [productionStaffId], references: [id])
-  productionSign     String?  // Digital signature of production staff
-  
-  warehouseStaffId   String?  // Nullable until signed
-  warehouseStaff     User?    @relation("HandoverReceiver", fields: [warehouseStaffId], references: [id])
-  warehouseSign      String?  // Digital signature of warehouse staff
-  
-  status             String   @default("PENDING") // PENDING, ACKNOWLEDGED
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id             String   @id @default(uuid())
+  handoverNumber String   @unique
+  date           DateTime
 
-  items              HandoverItem[]
+  dailyReportId String
+  dailyReport   DailyReport @relation(fields: [dailyReportId], references: [id], onDelete: Cascade)
+
+  productionStaffId String
+  productionStaff   User    @relation("HandoverCreator", fields: [productionStaffId], references: [id])
+  productionSign    String? // Digital signature of production staff
+
+  warehouseStaffId String? // Nullable until signed
+  warehouseStaff   User?   @relation("HandoverReceiver", fields: [warehouseStaffId], references: [id])
+  warehouseSign    String? // Digital signature of warehouse staff
+
+  status    String   @default("PENDING") // PENDING, ACKNOWLEDGED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items HandoverItem[]
 }
 
 model HandoverItem {
-  id                 String   @id @default(uuid())
-  handoverId         String
-  category           String
-  batchNo            String
-  type               String   @default("Standard")
-  totalProducedPcs   Int
-  
+  id               String @id @default(uuid())
+  handoverId       String
+  category         String
+  batchNo          String
+  type             String @default("Standard")
+  totalProducedPcs Int
+
   // Deductions
-  deductions         HandoverDeduction[]
+  deductions HandoverDeduction[]
 
   // Final to warehouse
-  netToWarehousePcs  Int
+  netToWarehousePcs Int
 
-  handover           ProductionHandover @relation(fields: [handoverId], references: [id], onDelete: Cascade)
+  handover ProductionHandover @relation(fields: [handoverId], references: [id], onDelete: Cascade)
 }
 
 model HandoverDeduction {
-  id                 String   @id @default(uuid())
-  handoverItemId     String
-  destination        String   // e.g. "Budak Tahfiz", "Staff Purchase"
-  qtyPcs             Int
-  remarks            String?
+  id             String  @id @default(uuid())
+  handoverItemId String
+  destination    String // e.g. "Budak Tahfiz", "Staff Purchase"
+  qtyPcs         Int
+  remarks        String?
 
-  handoverItem       HandoverItem @relation(fields: [handoverItemId], references: [id], onDelete: Cascade)
+  handoverItem HandoverItem @relation(fields: [handoverItemId], references: [id], onDelete: Cascade)
 }
 
 model InventoryBatch {
@@ -456,20 +459,20 @@ model InventoryBatch {
 }
 
 model DistributionOrder {
-  id                 String            @id @default(uuid())
-  doNumber           String            @unique
+  id                 String                      @id @default(uuid())
+  doNumber           String                      @unique
   distributionDate   DateTime
   destination        String
   vehicleNo          String?
   driverName         String?
-  status             DOStatus          @default(PREPARING)
+  status             DOStatus                    @default(PREPARING)
   createdById        String
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
   sponsorshipDetails String?
   distributionMethod String
   items              DOLineItem[]
-  createdBy          User              @relation("DOCreator", fields: [createdById], references: [id])
+  createdBy          User                        @relation("DOCreator", fields: [createdById], references: [id])
   returns            GoodsReturnNote[]
   trackingEvents     DistributionTrackingEvent[]
 }
@@ -477,19 +480,19 @@ model DistributionOrder {
 // Append-only delivery milestones. These records enrich warehouse traceability without changing
 // production, inventory balance, handover, distribution deduction, or return calculations.
 model DistributionTrackingEvent {
-  id                  String            @id @default(uuid())
+  id                  String   @id @default(uuid())
   distributionOrderId String
   eventType           String
   latitude            Float?
   longitude           Float?
   accuracy            Float?
-  locationStatus      String            @default("UNAVAILABLE")
-  remarks             String?           @db.Text
+  locationStatus      String   @default("UNAVAILABLE")
+  remarks             String?  @db.Text
   recordedById        String
-  recordedAt          DateTime          @default(now())
+  recordedAt          DateTime @default(now())
 
-  distributionOrder   DistributionOrder @relation(fields: [distributionOrderId], references: [id], onDelete: Cascade)
-  recordedBy          User              @relation("DistributionTrackingActor", fields: [recordedById], references: [id])
+  distributionOrder DistributionOrder @relation(fields: [distributionOrderId], references: [id], onDelete: Cascade)
+  recordedBy        User              @relation("DistributionTrackingActor", fields: [recordedById], references: [id])
 
   @@index([distributionOrderId, recordedAt])
   @@index([eventType, recordedAt])
@@ -585,7 +588,7 @@ model AuditLog {
   details   String?  @db.Text
   createdAt DateTime @default(now())
 
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 // ==========================================
@@ -624,16 +627,16 @@ model MaintenanceFinishedGoods {
 }
 
 model MaintenanceWasteManagement {
-  id                 String   @id @default(uuid())
-  date               DateTime
-  
+  id   String   @id @default(uuid())
+  date DateTime
+
   // RECYCLE
   recyclePlasticBottle String?
   recycleCap           String?
   recycleCartonBox     String?
   recycleLabel         String?
   recycleOthers        String?
-  
+
   // DISPOSAL
   disposalPlasticBottle String?
   disposalCap           String?
@@ -701,29 +704,29 @@ model MaintenanceChemical {
 }
 
 model MaintenanceCleaning {
-  id                 String   @id @default(uuid())
-  date               DateTime
-  shift              String   // AM (Sesi Pagi) | PM (Sesi Petang)
-  section            String   // meeting-changing | filtration-uv | labelling | raw-material | packing | machine-3in1 | finishing | blower-buffer | auto-scrambler
-  line               String?  // Line 1 | Line 2 (null for meeting-changing and filtration-uv)
-  
+  id      String   @id @default(uuid())
+  date    DateTime
+  shift   String // AM (Sesi Pagi) | PM (Sesi Petang)
+  section String // meeting-changing | filtration-uv | labelling | raw-material | packing | machine-3in1 | finishing | blower-buffer | auto-scrambler
+  line    String? // Line 1 | Line 2 (null for meeting-changing and filtration-uv)
+
   // Cleaner type & quantity
-  floorCleaner       String?
-  platformCleaner    String?
-  trashCleaner       String?
-  mirrorCleaner      String?
-  ceilingCleaner     String?
-  machineCleaner     String?
-  shutterCleaner     String?
+  floorCleaner    String?
+  platformCleaner String?
+  trashCleaner    String?
+  mirrorCleaner   String?
+  ceilingCleaner  String?
+  machineCleaner  String?
+  shutterCleaner  String?
 
   // Checklist values
-  floorOk            Boolean  @default(false)
-  platformOk         Boolean  @default(false)
-  trashOk            Boolean  @default(false)
-  mirrorOk           Boolean  @default(false)
-  ceilingOk          Boolean  @default(false)
-  machineOk          Boolean  @default(false)
-  shutterOk          Boolean  @default(false)
+  floorOk    Boolean @default(false)
+  platformOk Boolean @default(false)
+  trashOk    Boolean @default(false)
+  mirrorOk   Boolean @default(false)
+  ceilingOk  Boolean @default(false)
+  machineOk  Boolean @default(false)
+  shutterOk  Boolean @default(false)
 
   checkedBy          String
   performedSignature String?
@@ -734,33 +737,33 @@ model MaintenanceCleaning {
 }
 
 model MaintenanceItem {
-  id          String                  @id @default(uuid())
-  name        String
-  location    String                  @default("Pedas")
-  quantity    Int                     @default(0)
-  unit        String                  @default("pcs")
-  createdAt   DateTime                @default(now())
-  updatedAt   DateTime                @updatedAt
-  logs        MaintenanceStockLog[]
+  id        String                @id @default(uuid())
+  name      String
+  location  String                @default("Pedas")
+  quantity  Int                   @default(0)
+  unit      String                @default("pcs")
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+  logs      MaintenanceStockLog[]
 
   @@unique([name, location])
 }
 
 model MaintenanceStockLog {
-  id          String           @id @default(uuid())
-  itemId      String
-  item        MaintenanceItem  @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  type        String           // IN | OUT
-  quantity    Int
-  handledBy   String
-  remarks     String?
-  createdAt   DateTime         @default(now())
+  id        String          @id @default(uuid())
+  itemId    String
+  item      MaintenanceItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  type      String // IN | OUT
+  quantity  Int
+  handledBy String
+  remarks   String?
+  createdAt DateTime        @default(now())
 }
 
 model MaintenanceEquipmentRecord {
   id                 String   @id @default(uuid())
   date               DateTime
-  activities         Json     
+  activities         Json
   checkedBy          String
   performedSignature String?
   verifiedBy         String?
@@ -771,30 +774,30 @@ model MaintenanceEquipmentRecord {
 }
 
 model MaintenancePreventiveInspection {
-  id                 String   @id @default(uuid())
-  date               DateTime
-  time               String
-  
-  autoScrambler      Boolean  @default(false)
-  threeInOne         Boolean  @default(false)
-  blower             Boolean  @default(false)
-  label              Boolean  @default(false)
-  printer            Boolean  @default(false)
-  steamGenerator     Boolean  @default(false)
-  weighing           Boolean  @default(false)
-  sealer             Boolean  @default(false)
-  roboticArm         Boolean  @default(false)
-  wrapping           Boolean  @default(false)
-  sandFilter         Boolean  @default(false)
-  carbonFilter       Boolean  @default(false)
-  hollowMembrane     Boolean  @default(false)
-  uvMachine          Boolean  @default(false)
-  airCompressor      Boolean  @default(false)
-  rawWaterPump       Boolean  @default(false)
-  rawTank            Boolean  @default(false)
-  filteredTank       Boolean  @default(false)
-  well               Boolean  @default(false)
-  
+  id   String   @id @default(uuid())
+  date DateTime
+  time String
+
+  autoScrambler  Boolean @default(false)
+  threeInOne     Boolean @default(false)
+  blower         Boolean @default(false)
+  label          Boolean @default(false)
+  printer        Boolean @default(false)
+  steamGenerator Boolean @default(false)
+  weighing       Boolean @default(false)
+  sealer         Boolean @default(false)
+  roboticArm     Boolean @default(false)
+  wrapping       Boolean @default(false)
+  sandFilter     Boolean @default(false)
+  carbonFilter   Boolean @default(false)
+  hollowMembrane Boolean @default(false)
+  uvMachine      Boolean @default(false)
+  airCompressor  Boolean @default(false)
+  rawWaterPump   Boolean @default(false)
+  rawTank        Boolean @default(false)
+  filteredTank   Boolean @default(false)
+  well           Boolean @default(false)
+
   checkedBy          String
   performedSignature String?
   verifiedBy         String?
@@ -804,27 +807,27 @@ model MaintenancePreventiveInspection {
 }
 
 model MaintenancePreventiveRecord {
-  id                 String   @id @default(uuid())
-  date               DateTime
-  line               String   
-  
-  autoScrambler      Boolean  @default(false)
-  threeInOne         Boolean  @default(false)
-  blower             Boolean  @default(false)
-  label              Boolean  @default(false)
-  laserPrinting      Boolean  @default(false)
-  weighing           Boolean  @default(false)
-  sealer             Boolean  @default(false)
-  roboticArm         Boolean  @default(false)
-  wrapping           Boolean  @default(false)
-  sandFilter         Boolean  @default(false)
-  carbonFilter       Boolean  @default(false)
-  hollowMembrane     Boolean  @default(false)
-  uvMachine          Boolean  @default(false)
-  airCompressor      Boolean  @default(false)
-  rawWaterPump       Boolean  @default(false)
-  rawTank            Boolean  @default(false)
-  filteredTank       Boolean  @default(false)
+  id   String   @id @default(uuid())
+  date DateTime
+  line String
+
+  autoScrambler  Boolean @default(false)
+  threeInOne     Boolean @default(false)
+  blower         Boolean @default(false)
+  label          Boolean @default(false)
+  laserPrinting  Boolean @default(false)
+  weighing       Boolean @default(false)
+  sealer         Boolean @default(false)
+  roboticArm     Boolean @default(false)
+  wrapping       Boolean @default(false)
+  sandFilter     Boolean @default(false)
+  carbonFilter   Boolean @default(false)
+  hollowMembrane Boolean @default(false)
+  uvMachine      Boolean @default(false)
+  airCompressor  Boolean @default(false)
+  rawWaterPump   Boolean @default(false)
+  rawTank        Boolean @default(false)
+  filteredTank   Boolean @default(false)
 
   checkedBy          String
   performedSignature String?
@@ -835,18 +838,18 @@ model MaintenancePreventiveRecord {
 }
 
 model MaintenanceFiltrationBackwash {
-  id                 String   @id @default(uuid())
-  date               DateTime
-  
-  quartzStart        String?
-  quartzStop         String?
-  
-  carbonStart        String?
-  carbonStop         String?
-  
-  membraneStart      String?
-  membraneStop       String?
-  
+  id   String   @id @default(uuid())
+  date DateTime
+
+  quartzStart String?
+  quartzStop  String?
+
+  carbonStart String?
+  carbonStop  String?
+
+  membraneStart String?
+  membraneStop  String?
+
   doneBy             String
   performedSignature String?
   verifiedBy         String?
@@ -854,7 +857,6 @@ model MaintenanceFiltrationBackwash {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
-
 
 // ==========================================
 // PRODUCTION FORMS MODELS
@@ -865,7 +867,7 @@ model ProductionLightingFixture {
   date               DateTime
   cleaningLocation   String
   activityPerformed  String
-  condition          String   // GOOD | NOT_GOOD
+  condition          String // GOOD | NOT_GOOD
   nextCourseOfAction String?
   supervisedBy       String
   checkedBy          String
@@ -963,7 +965,6 @@ model ProductionPlasticBreakage {
   updatedAt          DateTime @updatedAt
 }
 
-
 // ============================================================
 // Reminder Calendar (scheduled email reminders)
 // ============================================================
@@ -976,26 +977,26 @@ enum ReminderFrequency {
 }
 
 model Reminder {
-  id            String            @id @default(uuid())
+  id            String              @id @default(uuid())
   title         String
-  description   String?           @db.Text
-  category      String            @default("general")
-  frequency     ReminderFrequency @default(ONCE)
+  description   String?             @db.Text
+  category      String              @default("general")
+  frequency     ReminderFrequency   @default(ONCE)
   onceAt        DateTime?
   timeOfDay     String?
-  daysOfWeek    Int[]             @default([])
+  daysOfWeek    Int[]               @default([])
   dayOfMonth    Int?
-  enabled       Boolean           @default(true)
-  targetSelf    Boolean           @default(true)
+  enabled       Boolean             @default(true)
+  targetSelf    Boolean             @default(true)
   targetUnitId  String?
-  targetModules String[]          @default([])
+  targetModules String[]            @default([])
   actionLinks   Json?
-  seedKey       String?           @unique
+  seedKey       String?             @unique
   createdById   String
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  targetUnit    Unit?             @relation(fields: [targetUnitId], references: [id], onDelete: SetNull)
-  createdBy     User              @relation("ReminderCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  targetUnit    Unit?               @relation(fields: [targetUnitId], references: [id], onDelete: SetNull)
+  createdBy     User                @relation("ReminderCreator", fields: [createdById], references: [id], onDelete: Cascade)
   recipients    ReminderRecipient[]
   deliveries    ReminderDelivery[]
 
@@ -1036,10 +1037,10 @@ model SecurityIncomingVehicle {
   date               DateTime
   vehicleNo          String
   companyName        String
-  purpose            String   // Receive / Deliver
-  product            String   // Bottle / Box / Label / Finished Good
+  purpose            String // Receive / Deliver
+  product            String // Bottle / Box / Label / Finished Good
   visualInspection   Boolean  @default(true) // OK(true) / NOT OK(false)
-  reason             String?  // If NOT OK
+  reason             String? // If NOT OK
   furtherAction      String?
   checkedBy          String
   verifiedBy         String?
@@ -1050,44 +1051,44 @@ model SecurityIncomingVehicle {
 }
 
 model SecurityVehicleHygiene {
-  id                 String   @id @default(uuid())
-  date               DateTime
-  companyName        String
-  vehicleNo          String
-  vehicleType        String
-  driverName         String
-  inspectorName      String
-  
+  id            String   @id @default(uuid())
+  date          DateTime
+  companyName   String
+  vehicleNo     String
+  vehicleType   String
+  driverName    String
+  inspectorName String
+
   // Checklist (Yes=true, No=false)
-  extClean           Boolean  @default(false)
-  intClean           Boolean  @default(false)
-  noTrash            Boolean  @default(false)
-  seatsClean         Boolean  @default(false)
-  floorClean         Boolean  @default(false)
-  noOdor             Boolean  @default(false)
-  windowsClean       Boolean  @default(false)
-  noSpills           Boolean  @default(false)
-  wasteBinEmpty      Boolean  @default(false)
-  noPests            Boolean  @default(false)
-  noChemicals        Boolean  @default(false)
-  suitableCondition  Boolean  @default(false)
-  noHazardous        Boolean  @default(false)
-  noIllegal          Boolean  @default(false)
-  
-  issues             String?
-  correctiveAction   String?
-  
+  extClean          Boolean @default(false)
+  intClean          Boolean @default(false)
+  noTrash           Boolean @default(false)
+  seatsClean        Boolean @default(false)
+  floorClean        Boolean @default(false)
+  noOdor            Boolean @default(false)
+  windowsClean      Boolean @default(false)
+  noSpills          Boolean @default(false)
+  wasteBinEmpty     Boolean @default(false)
+  noPests           Boolean @default(false)
+  noChemicals       Boolean @default(false)
+  suitableCondition Boolean @default(false)
+  noHazardous       Boolean @default(false)
+  noIllegal         Boolean @default(false)
+
+  issues           String?
+  correctiveAction String?
+
   driverSignature    String?
   inspectorSignature String?
 
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model MaintenanceDQIP {
   id                 String   @id @default(uuid())
   date               DateTime
-  entries            Json     // { cap1881, emptyBottle425, emptyBottle800, filledBottle425, filledBottle800, taste, smell, particle }
+  entries            Json // { cap1881, emptyBottle425, emptyBottle800, filledBottle425, filledBottle800, taste, smell, particle }
   checkedBy          String
   performedSignature String?
   verifiedBy         String?
@@ -1099,7 +1100,7 @@ model MaintenanceDQIP {
 model MaintenanceQCDR {
   id                 String   @id @default(uuid())
   date               DateTime
-  rows               Json     // [{ description, results, conclusion, correctiveAction }]
+  rows               Json // [{ description, results, conclusion, correctiveAction }]
   checkedBy          String
   performedSignature String?
   verifiedBy         String?
@@ -1114,7 +1115,7 @@ model MaintenanceQCDR {
 model MaintenanceFPIR {
   id                 String   @id @default(uuid())
   date               DateTime
-  rows               Json     // [{ line, sku, time, weightKg, boxSealing, batchNumber, pallet }]
+  rows               Json // [{ line, sku, time, weightKg, boxSealing, batchNumber, pallet }]
   remarks            String?
   checkedBy          String
   performedSignature String?
@@ -1128,7 +1129,7 @@ model MaintenanceFPIR {
 model MaintenanceWQTR {
   id                 String   @id @default(uuid())
   date               DateTime
-  rows               Json     // [{ time, phUnfiltered, phFiltered, turbidity, colour }]
+  rows               Json // [{ time, phUnfiltered, phFiltered, turbidity, colour }]
   checkedBy          String
   performedSignature String?
   verifiedBy         String?
@@ -1153,24 +1154,24 @@ model MaintenancePestControlSchedule {
 model MaintenancePestControlDaily {
   id                 String   @id @default(uuid())
   date               DateTime
-  station1  Boolean @default(false)
-  station2  Boolean @default(false)
-  station3  Boolean @default(false)
-  station4  Boolean @default(false)
-  station5  Boolean @default(false)
-  station6  Boolean @default(false)
-  station7  Boolean @default(false)
-  station8  Boolean @default(false)
-  station9  Boolean @default(false)
-  station10 Boolean @default(false)
-  station11 Boolean @default(false)
-  station12 Boolean @default(false)
-  station13 Boolean @default(false)
-  station14 Boolean @default(false)
-  station15 Boolean @default(false)
-  station16 Boolean @default(false)
-  station17 Boolean @default(false)
-  station18 Boolean @default(false)
+  station1           Boolean  @default(false)
+  station2           Boolean  @default(false)
+  station3           Boolean  @default(false)
+  station4           Boolean  @default(false)
+  station5           Boolean  @default(false)
+  station6           Boolean  @default(false)
+  station7           Boolean  @default(false)
+  station8           Boolean  @default(false)
+  station9           Boolean  @default(false)
+  station10          Boolean  @default(false)
+  station11          Boolean  @default(false)
+  station12          Boolean  @default(false)
+  station13          Boolean  @default(false)
+  station14          Boolean  @default(false)
+  station15          Boolean  @default(false)
+  station16          Boolean  @default(false)
+  station17          Boolean  @default(false)
+  station18          Boolean  @default(false)
   checkedBy          String
   performedSignature String?
   verifiedBy         String?
@@ -1182,10 +1183,10 @@ model MaintenancePestControlDaily {
 model MaintenanceFlyTrapDaily {
   id                 String   @id @default(uuid())
   date               DateTime
-  station1 Boolean @default(false)
-  station2 Boolean @default(false)
-  station3 Boolean @default(false)
-  station4 Boolean @default(false)
+  station1           Boolean  @default(false)
+  station2           Boolean  @default(false)
+  station3           Boolean  @default(false)
+  station4           Boolean  @default(false)
   checkedBy          String
   performedSignature String?
   verifiedBy         String?
@@ -1195,20 +1196,20 @@ model MaintenanceFlyTrapDaily {
 }
 
 model PedasBatch {
-  id          String   @id @default(uuid())
-  sku         String
-  batchNo     String   @unique
-  qtyPerBag   Int      @default(0)
-  totalBags   Int      @default(1)
-  totalQty    Int      @default(0)
-  createdBy   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  sku       String
+  batchNo   String   @unique
+  qtyPerBag Int      @default(0)
+  totalBags Int      @default(1)
+  totalQty  Int      @default(0)
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // KBP fields. Nullable because rows created before the KBP module (free-text
   // "PDS-DDMMYY-NNN" batch numbers) have no machine/shift breakdown to backfill.
-  machine        String?   // BM1 | BM2 | BM3 | CM1 | CM2
-  productCode    String?   // 425 | 800 | CAP
+  machine        String? // BM1 | BM2 | BM3 | CM1 | CM2
+  productCode    String? // 425 | 800 | CAP
   productionDate DateTime? @db.Date
   dayCode        String? // "01" (Isnin) .. "07" (Ahad)
   weekNo         Int? // ISO 8601 week
@@ -1218,7 +1219,6 @@ model PedasBatch {
   @@index([productionDate])
   @@index([machine, productionDate, shift])
 }
-
 
 // ---------------------------------------------------------------------------------------------
 // Daily Raw Material (Warehouse) — form SGMP/15/DRM (W)
@@ -1348,4 +1348,169 @@ model MaintenanceFormDraft {
 
   @@unique([formType, userId])
   @@index([userId])
+}
+
+// ---------------------------------------------------------------------------------------------
+// SALES ORDERING
+// Commercial order intake is intentionally isolated from Production and Warehouse inventory.
+// A Sales Order never mutates InventoryBatch; stock remains controlled by DistributionOrder.
+// ---------------------------------------------------------------------------------------------
+
+model Customer {
+  id                    String   @id @default(uuid())
+  customerCode          String   @unique
+  sageCustomerId        String?
+  legalName             String
+  tradingName           String?
+  pic                   String?
+  email                 String?
+  phonePrimary          String?
+  phoneSecondary        String?
+  customerType          String?
+  customerSubtype       String?
+  categoryCode          String?
+  zone                  String?
+  region                String?
+  creditTermsRaw        String?
+  creditTermDays        Int?
+  paymentPolicy         String?
+  salesRep1             String?
+  salesRep2             String?
+  companyRegistrationNo String?
+  tinNo                 String?
+  sstNo                 String?
+  importStatus          String   @default("READY")
+  sourceData            Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  addresses       CustomerAddress[]
+  documentIntakes SalesDocumentIntake[]
+  salesOrders     SalesOrder[]
+
+  @@index([sageCustomerId])
+  @@index([legalName])
+  @@index([customerType, customerSubtype])
+  @@index([zone])
+}
+
+model CustomerAddress {
+  id                 String   @id @default(uuid())
+  customerId         String
+  addressType        String   @default("BILLING")
+  label              String   @default("Master Address")
+  attentionTo        String?
+  phone              String?
+  addressLine1       String?
+  addressLine2       String?
+  addressLine3       String?
+  city               String?
+  state              String?
+  postcode           String?
+  country            String?
+  fullAddress        String?  @db.Text
+  isDefaultBilling   Boolean  @default(true)
+  isDefaultDelivery  Boolean  @default(false)
+  sourceRowReference String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, label])
+  @@index([customerId, addressType])
+}
+
+model SalesDocumentIntake {
+  id                String    @id @default(uuid())
+  fileName          String
+  r2ObjectKey       String    @unique
+  mimeType          String
+  fileSize          Int
+  fileHash          String?
+  status            String    @default("UPLOADED")
+  documentType      String?
+  extractedData     Json?
+  validationIssues  Json?
+  aiModel           String?
+  aiProcessedAt     DateTime?
+  errorMessage      String?   @db.Text
+  matchedCustomerId String?
+  uploadedById      String
+  reviewedById      String?
+  reviewedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  matchedCustomer Customer?   @relation(fields: [matchedCustomerId], references: [id], onDelete: SetNull)
+  uploadedBy      User        @relation("SalesDocumentUploader", fields: [uploadedById], references: [id])
+  reviewedBy      User?       @relation("SalesDocumentReviewer", fields: [reviewedById], references: [id])
+  salesOrder      SalesOrder?
+
+  @@index([status, createdAt])
+  @@index([matchedCustomerId])
+  @@index([fileHash])
+}
+
+model SalesOrder {
+  id                      String    @id @default(uuid())
+  internalSoNo            String    @unique
+  sageSalesOrderNo        String?
+  sourceDocumentId        String?   @unique
+  customerId              String
+  status                  String    @default("DRAFT")
+  documentType            String?
+  customerDocumentNo      String?
+  poNumber                String?
+  orderDate               DateTime? @db.Date
+  requestedDeliveryDate   DateTime? @db.Date
+  paymentTermsSnapshot    String?
+  billingAddressSnapshot  Json?
+  deliveryAddressSnapshot Json?
+  deliveryContactSnapshot String?
+  deliveryPhoneSnapshot   String?
+  currency                String    @default("MYR")
+  subtotal                Decimal   @default(0) @db.Decimal(14, 2)
+  discountTotal           Decimal   @default(0) @db.Decimal(14, 2)
+  freightTotal            Decimal   @default(0) @db.Decimal(14, 2)
+  taxTotal                Decimal   @default(0) @db.Decimal(14, 2)
+  grandTotal              Decimal   @default(0) @db.Decimal(14, 2)
+  orderRemarks            String?   @db.Text
+  createdById             String
+  submittedToWarehouseAt  DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  customer       Customer             @relation(fields: [customerId], references: [id])
+  sourceDocument SalesDocumentIntake? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+  createdBy      User                 @relation("SalesOrderCreator", fields: [createdById], references: [id])
+  items          SalesOrderLineItem[]
+
+  @@index([customerId, createdAt])
+  @@index([status, createdAt])
+  @@index([poNumber])
+}
+
+model SalesOrderLineItem {
+  id                  String  @id @default(uuid())
+  salesOrderId        String
+  sku                 String?
+  itemCodeSnapshot    String?
+  barcodeSnapshot     String?
+  descriptionSnapshot String
+  uom                 String  @default("CTN")
+  qtyOrdered          Decimal @db.Decimal(14, 3)
+  qtyAllocated        Decimal @default(0) @db.Decimal(14, 3)
+  qtyDelivered        Decimal @default(0) @db.Decimal(14, 3)
+  unitPrice           Decimal @default(0) @db.Decimal(14, 4)
+  discountAmount      Decimal @default(0) @db.Decimal(14, 2)
+  taxAmount           Decimal @default(0) @db.Decimal(14, 2)
+  lineTotal           Decimal @default(0) @db.Decimal(14, 2)
+  isServiceCharge     Boolean @default(false)
+  remarks             String?
+
+  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+
+  @@index([salesOrderId])
+  @@index([sku])
 }

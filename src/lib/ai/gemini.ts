@@ -96,7 +96,7 @@ export async function runGeminiRequest<T>(
   throw new Error(geminiUserMessage(lastError))
 }
 
-function parseJsonResponse<T>(rawResponse: string): T {
+export function parseAiJsonResponse<T>(rawResponse: string): T {
   const cleaned = rawResponse.trim().replace(/^```json\s*/i, "").replace(/```$/i, "").trim()
   const objectStart = cleaned.indexOf("{")
   const arrayStart = cleaned.indexOf("[")
@@ -104,12 +104,12 @@ function parseJsonResponse<T>(rawResponse: string): T {
   const start = starts.length ? Math.min(...starts) : -1
   const end = start === arrayStart ? cleaned.lastIndexOf("]") : cleaned.lastIndexOf("}")
 
-  if (start < 0 || end <= start) throw new Error("Gemini response did not contain valid JSON")
+  if (start < 0 || end <= start) throw new Error("AI response did not contain valid JSON")
 
   try {
     return JSON.parse(cleaned.slice(start, end + 1)) as T
   } catch {
-    throw new Error("Gemini response did not contain valid JSON")
+    throw new Error("AI response did not contain valid JSON")
   }
 }
 
@@ -117,5 +117,5 @@ export async function generateGeminiJson<T>(
   generate: () => Promise<string>,
   onRetry?: (attempt: number) => Promise<void> | void,
 ) {
-  return runGeminiRequest(async () => parseJsonResponse<T>(await generate()), onRetry)
+  return runGeminiRequest(async () => parseAiJsonResponse<T>(await generate()), onRetry)
 }

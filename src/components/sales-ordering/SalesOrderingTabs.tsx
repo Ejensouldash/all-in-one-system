@@ -2,11 +2,12 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { FileSearch, LayoutDashboard, ShoppingCart, Users } from "lucide-react"
+import { FileSearch, LayoutDashboard, ShieldCheck, ShoppingCart, Users } from "lucide-react"
 
 const tabs = [
   { label: "Dashboard", href: "/forms/sales-ordering", icon: LayoutDashboard },
   { label: "AI Intake", href: "/forms/sales-ordering/intake", icon: FileSearch },
+  { label: "PO-SOA Check", href: "/forms/sales-ordering/credit-check", icon: ShieldCheck },
   { label: "Sales Orders", href: "/forms/sales-ordering/orders", icon: ShoppingCart },
 ]
 
@@ -17,7 +18,8 @@ export function SalesOrderingTabs({ permissions }: { permissions: TabPermissions
   const visibleTabs = [
     ...(permissions.dashboard ? [tabs[0]] : []),
     ...(permissions.intake ? [tabs[1]] : []),
-    ...(permissions.orders ? [tabs[2]] : []),
+    ...(permissions.intake ? [tabs[2]] : []),
+    ...(permissions.orders ? [tabs[3]] : []),
     ...(permissions.customers ? [{ label: "Customers", href: "/forms/sales-ordering/customers", icon: Users }] : []),
   ]
   return (

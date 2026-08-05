@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth"
 import { GoogleGenerativeAI } from "@google/generative-ai"
+import { GEMINI_MODEL, geminiUserMessage, runGeminiRequest } from "@/lib/ai/gemini"
 
 export async function summarizeTicketWithAI(description: string) {
   const session = await auth()
@@ -14,7 +15,7 @@ export async function summarizeTicketWithAI(description: string) {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" })
+    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL })
 
     const prompt = `
     You are BubblesO2 IT Support Chatbot... Read the following ticket description and provide:
@@ -28,13 +29,13 @@ export async function summarizeTicketWithAI(description: string) {
     "${description}"
     `
 
-    const result = await model.generateContent(prompt)
+    const result = await runGeminiRequest(() => model.generateContent(prompt))
     const text = result.response.text()
 
     return { success: true, summary: text }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("AI Summarization Error:", error)
-    return { success: false, error: error.message || "Failed to analyze with AI." }
+    return { success: false, error: geminiUserMessage(error, "AI gagal menganalisis tiket ini.") }
   }
 }
 
@@ -47,7 +48,7 @@ export async function chatWithAria(history: { role: string, text: string }[]) {
   try {
     const genAI = new GoogleGenerativeAI(apiKey)
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-3.6-flash",
+      model: GEMINI_MODEL,
       systemInstruction: `You are Aria, the ultimate BubblesO2 IT Support Chatbot. 
 Personality: Friendly, modern, highly empathetic professional female IT agent. Eager to assist, patient, knowledgeable.
 Language Rules: You MUST perfectly understand and respond naturally in colloquial Malay ("bahasa pasar") or broken English. Adjust tone to be conversational, warm, approachable (e.g. "Hi awak!", "Boleh, saya tolong tengokkan", "No worries!").
@@ -61,7 +62,7 @@ Format Rules:
 - NEVER use code blocks unless discussing actual code or commands.` 
     })
 
-    let formattedHistory = history.map(msg => ({
+    const formattedHistory = history.map(msg => ({
       role: msg.role === "user" ? "user" : "model",
       parts: [{ text: msg.text }]
     }))
@@ -80,15 +81,12 @@ Format Rules:
       history: formattedHistory,
     })
 
-    const result = await chat.sendMessage(lastMessage?.parts[0].text || "")
+    const result = await runGeminiRequest(() => chat.sendMessage(lastMessage?.parts[0].text || ""))
     const text = result.response.text()
 
     return { success: true, text }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Aria Chat Error Details:", error)
-    if (error.message?.includes("503")) {
-      return { success: false, error: "Aria is currently super busy helping other staff. Give her a minute and try again!" }
-    }
-    return { success: false, error: `Connection failed: ${error.message}` }
+    return { success: false, error: geminiUserMessage(error, "Aria tidak dapat menjawab sekarang. Sila cuba lagi sebentar nanti.") }
   }
 }

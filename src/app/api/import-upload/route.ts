@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as xlsx from 'xlsx';
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GEMINI_MODEL, geminiUserMessage, generateGeminiJson } from "@/lib/ai/gemini";
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
     
     const wb = xlsx.read(buffer, { type: 'buffer' });
-    const data = xlsx.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]) as any[];
+    const data = xlsx.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[wb.SheetNames[0]]);
 
     if (data.length === 0) {
       return NextResponse.json({ success: false, error: 'Excel file is empty' }, { status: 400 });
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-3.6-flash",
+      model: GEMINI_MODEL,
       generationConfig: { responseMimeType: "application/json" },
       systemInstruction: `You are an AI data parser. Your job is to convert raw Excel JSON rows into structured Asset objects.
 Return a JSON array of objects. Each object MUST have:
@@ -54,25 +55,25 @@ If a field is unknown, leave it empty. Extract details intelligently (e.g. separ
       const chunk = data.slice(i, i + chunkSize);
       
       const prompt = `Map these raw rows to the requested JSON schema:\n${JSON.stringify(chunk)}`;
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
-      
       try {
-        const json = JSON.parse(text);
+        const json = await generateGeminiJson<unknown>(async () => {
+          const result = await model.generateContent(prompt);
+          return result.response.text();
+        });
         if (Array.isArray(json)) {
           parsedAssets.push(...json);
-        } else if (json.assets && Array.isArray(json.assets)) {
+        } else if (json && typeof json === "object" && "assets" in json && Array.isArray(json.assets)) {
           parsedAssets.push(...json.assets);
         }
       } catch (e) {
-        console.error("AI JSON Parse Error:", e, "Text:", text);
-        // Best effort continue
+        console.error("AI import chunk failed:", e);
+        throw e;
       }
     }
 
     return NextResponse.json({ success: true, previewData: parsedAssets });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Import API Error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: geminiUserMessage(error, "Import gagal diproses. Sila semak fail dan cuba lagi.") }, { status: 500 });
   }
 }

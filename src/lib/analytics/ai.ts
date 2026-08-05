@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai"
+import { GEMINI_MODEL, generateGeminiJson } from "@/lib/ai/gemini"
 import type { AnalyticsPayload, ExecutiveSummary } from "./types"
 import { buildAnalyticsBrief, buildRuleBasedSummary } from "./summary"
 
@@ -19,7 +20,7 @@ export async function generateExecutiveSummary(data: AnalyticsPayload, useAi: bo
   try {
     const genAI = new GoogleGenerativeAI(apiKey)
     const model = genAI.getGenerativeModel({
-      model: "gemini-3.6-flash",
+      model: GEMINI_MODEL,
       generationConfig: { responseMimeType: "application/json" },
       systemInstruction: `Anda seorang penganalisis pengeluaran di kilang air minuman BubblesO2.
 Tugas anda menulis Executive Summary untuk laporan pengeluaran rasmi.
@@ -47,11 +48,12 @@ Balas HANYA dengan JSON yang sah mengikut bentuk ini:
     })
 
     const brief = buildAnalyticsBrief(data)
-    const result = await model.generateContent(
-      `Berikut data pengeluaran sebenar dalam format JSON. Hasilkan Executive Summary.\n\n${JSON.stringify(brief)}`
-    )
-
-    const parsed = JSON.parse(result.response.text())
+    const parsed = await generateGeminiJson<Record<string, unknown>>(async () => {
+      const result = await model.generateContent(
+        `Berikut data pengeluaran sebenar dalam format JSON. Hasilkan Executive Summary.\n\n${JSON.stringify(brief)}`
+      )
+      return result.response.text()
+    })
 
     const asList = (v: unknown): string[] =>
       Array.isArray(v) ? v.filter(x => typeof x === "string" && x.trim() !== "") : []
@@ -72,8 +74,8 @@ Balas HANYA dengan JSON yang sah mengikut bentuk ini:
     if (summary.recommendations.length === 0) summary.recommendations = fallback.recommendations
 
     return summary
-  } catch (error: any) {
-    console.error("Executive summary AI generation failed, using rule-based fallback:", error?.message)
+  } catch (error: unknown) {
+    console.error("Executive summary AI generation failed, using rule-based fallback:", error instanceof Error ? error.message : error)
     return fallback
   }
 }

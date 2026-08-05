@@ -20,7 +20,8 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     const { po, soa, result } = await analyseCreditCheck(poPdf, soaPdf, async stage => {
       await prisma.creditCheckCase.update({ where: { id }, data: { status: stage } })
     })
-    const updated = await prisma.creditCheckCase.update({ where: { id }, data: { status: "NEEDS_REVIEW", recommendation: result.recommendation, poData: po, soaData: soa, result, aiModel: SALES_AI_MODEL } })
+    const finalStatus = result.recommendation === "APPROVE" ? "READY_FOR_SO" : result.recommendation === "REJECT" ? "REJECTED" : "NEEDS_REVIEW"
+    const updated = await prisma.creditCheckCase.update({ where: { id }, data: { status: finalStatus, recommendation: result.recommendation, poData: po, soaData: soa, result, aiModel: SALES_AI_MODEL, finalDecision: null, justification: null, decidedById: null, decidedAt: null } })
     await prisma.auditLog.create({ data: { userId: access.userId, userName: access.name || "Sales Ordering User", action: "PO_SOA_CREDIT_CHECKED", details: JSON.stringify({ creditCheckId: id, recommendation: result.recommendation }) } })
     return NextResponse.json({ success: true, item: updated })
   } catch (error) {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getSalesOrderingAccess } from "@/lib/sales-ordering/access"
+import { canAccessSalesOrderingTab, getSalesOrderingAccess } from "@/lib/sales-ordering/access"
 import { createPdfUploadUrl, safePdfName } from "@/lib/sales-ordering/r2"
 
 export const runtime = "nodejs"
@@ -9,7 +9,7 @@ const MAX_PDF_SIZE = 20 * 1024 * 1024
 
 export async function POST(request: Request) {
   const access = await getSalesOrderingAccess()
-  if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!access || !canAccessSalesOrderingTab(access, "intake")) return NextResponse.json({ error: "Akses AI Intake diperlukan." }, { status: 403 })
 
   try {
     const body = await request.json() as { fileName?: string; fileSize?: number; mimeType?: string }
@@ -46,4 +46,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal menyediakan upload." }, { status: 500 })
   }
 }
-

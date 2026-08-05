@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import * as xlsx from "xlsx"
 import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
-import { canManageSalesOrderingCustomers, getSalesOrderingAccess } from "@/lib/sales-ordering/access"
+import { canAccessSalesOrderingTab, canManageSalesOrderingCustomers, getSalesOrderingAccess } from "@/lib/sales-ordering/access"
 
 export const runtime = "nodejs"
 export const maxDuration = 300
@@ -33,7 +33,7 @@ function parseCreditTerms(raw: string) {
 
 export async function POST(request: Request) {
   const access = await getSalesOrderingAccess()
-  if (!access || !canManageSalesOrderingCustomers(access)) {
+  if (!access || !canAccessSalesOrderingTab(access, "customers") || !canManageSalesOrderingCustomers(access)) {
     return NextResponse.json({ error: "Akses import Customer Master diperlukan." }, { status: 403 })
   }
 

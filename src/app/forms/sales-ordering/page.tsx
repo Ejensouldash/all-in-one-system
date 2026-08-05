@@ -2,6 +2,8 @@ import Link from "next/link"
 import { AlertTriangle, ArrowRight, FileCheck2, FileClock, Sparkles, Users } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 import { IntakeUploader } from "@/components/sales-ordering/IntakeUploader"
+import { canAccessSalesOrderingTab, firstSalesOrderingPath, getSalesOrderingAccess } from "@/lib/sales-ordering/access"
+import { redirect } from "next/navigation"
 
 const statusLabel: Record<string, string> = {
   UPLOADED: "Uploaded",
@@ -12,6 +14,10 @@ const statusLabel: Record<string, string> = {
 }
 
 export default async function SalesOrderingDashboard() {
+  const access = await getSalesOrderingAccess()
+  if (!access) redirect("/dashboard")
+  if (!canAccessSalesOrderingTab(access, "dashboard")) redirect(firstSalesOrderingPath(access))
+  const canUseIntake = canAccessSalesOrderingTab(access, "intake")
   const [customers, reviewCount, failedCount, salesOrders, recent] = await Promise.all([
     prisma.customer.count(),
     prisma.salesDocumentIntake.count({ where: { status: "NEEDS_REVIEW" } }),
@@ -40,9 +46,7 @@ export default async function SalesOrderingDashboard() {
             <h2 className="max-w-3xl text-3xl font-black tracking-tight sm:text-4xl">Upload dokumen customer, semak draft, kemudian create SO.</h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">AI membantu key-in. SOD kekal sebagai reviewer dan Warehouse kekal mengawal DO, batch dan stock-out.</p>
           </div>
-          <Link href="/forms/sales-ordering/intake" className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-cyan-400 px-4 py-3 text-sm font-black text-slate-950 hover:bg-cyan-300">
-            Open Intake Queue <ArrowRight className="h-4 w-4" />
-          </Link>
+          {canUseIntake && <Link href="/forms/sales-ordering/intake" className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-cyan-400 px-4 py-3 text-sm font-black text-slate-950 hover:bg-cyan-300">Open Intake Queue <ArrowRight className="h-4 w-4" /></Link>}
         </div>
       </section>
 
@@ -50,15 +54,15 @@ export default async function SalesOrderingDashboard() {
         {cards.map(card => <div key={card.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className={`inline-flex rounded-xl p-2.5 ${card.tone}`}><card.icon className="h-5 w-5" /></div><p className="mt-4 text-3xl font-black text-slate-950">{card.value.toLocaleString()}</p><p className="mt-1 text-xs font-black uppercase tracking-wider text-slate-500">{card.label}</p></div>)}
       </section>
 
-      <section>
+      {canUseIntake && <section>
         <div className="mb-3 flex items-center gap-2"><Sparkles className="h-5 w-5 text-cyan-600" /><h2 className="text-xl font-black text-slate-950">New AI Intake</h2></div>
         <IntakeUploader />
-      </section>
+      </section>}
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-black text-slate-950">Recent Documents</h2><Link href="/forms/sales-ordering/intake" className="text-sm font-black text-cyan-700">View all</Link></div>
+        <div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-black text-slate-950">Recent Documents</h2>{canUseIntake && <Link href="/forms/sales-ordering/intake" className="text-sm font-black text-cyan-700">View all</Link>}</div>
         {recent.length ? <div className="divide-y divide-slate-100">{recent.map(item => (
-          <Link key={item.id} href={`/forms/sales-ordering/intake/${item.id}`} className="flex flex-col gap-2 py-4 transition hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between sm:px-2">
+          <Link key={item.id} href={canUseIntake ? `/forms/sales-ordering/intake/${item.id}` : "/forms/sales-ordering"} className="flex flex-col gap-2 py-4 transition hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between sm:px-2">
             <div><p className="font-black text-slate-900">{item.fileName}</p><p className="mt-1 text-xs text-slate-500">{item.matchedCustomer?.legalName || "Customer belum matched"} · Uploaded by {item.uploadedBy.name}</p></div>
             <div className="flex items-center gap-3"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">{statusLabel[item.status] || item.status}</span><span className="text-xs font-bold text-slate-400">{item.createdAt.toLocaleString("en-MY")}</span></div>
           </Link>
@@ -67,4 +71,3 @@ export default async function SalesOrderingDashboard() {
     </div>
   )
 }
-

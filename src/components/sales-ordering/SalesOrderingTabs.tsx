@@ -10,11 +10,16 @@ const tabs = [
   { label: "Sales Orders", href: "/forms/sales-ordering/orders", icon: ShoppingCart },
 ]
 
-export function SalesOrderingTabs({ canManageCustomers }: { canManageCustomers: boolean }) {
+type TabPermissions = { dashboard: boolean; intake: boolean; orders: boolean; customers: boolean }
+
+export function SalesOrderingTabs({ permissions }: { permissions: TabPermissions }) {
   const pathname = usePathname()
-  const visibleTabs = canManageCustomers
-    ? [...tabs, { label: "Customers", href: "/forms/sales-ordering/customers", icon: Users }]
-    : tabs
+  const visibleTabs = [
+    ...(permissions.dashboard ? [tabs[0]] : []),
+    ...(permissions.intake ? [tabs[1]] : []),
+    ...(permissions.orders ? [tabs[2]] : []),
+    ...(permissions.customers ? [{ label: "Customers", href: "/forms/sales-ordering/customers", icon: Users }] : []),
+  ]
   return (
     <nav className="mb-7 flex gap-2 overflow-x-auto border-b border-slate-200" aria-label="Sales Ordering navigation">
       {visibleTabs.map(tab => {

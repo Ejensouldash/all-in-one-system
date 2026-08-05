@@ -2,26 +2,32 @@ import { prisma } from "@/lib/prisma"
 import type { ExtractedSalesDocument, SalesValidationIssue } from "./types"
 
 const moneyClose = (a: number, b: number) => Math.abs(a - b) <= 0.02
+const normaliseMatchText = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/g, "")
+
+async function matchCustomer(document: ExtractedSalesDocument) {
+  const reference = document.customerReference.trim()
+  const name = document.customerName.trim()
+  if (reference) {
+    const exact = await prisma.customer.findFirst({ where: { OR: [{ customerCode: { equals: reference, mode: "insensitive" } }, { sageCustomerId: { equals: reference, mode: "insensitive" } }] }, include: { addresses: true } })
+    if (exact) return exact
+  }
+  if (!name) return null
+  const candidates = await prisma.customer.findMany({
+    where: { OR: [{ legalName: { contains: name, mode: "insensitive" } }, { tradingName: { contains: name, mode: "insensitive" } }] },
+    include: { addresses: true },
+    take: 20,
+  })
+  const normalisedName = normaliseMatchText(name)
+  return candidates.find(customer => [customer.legalName, customer.tradingName || ""].some(candidate => {
+    const normalisedCandidate = normaliseMatchText(candidate)
+    return normalisedCandidate === normalisedName || (normalisedName.length >= 5 && (normalisedCandidate.includes(normalisedName) || normalisedName.includes(normalisedCandidate)))
+  })) || null
+}
 
 export async function validateExtractedSalesDocument(document: ExtractedSalesDocument) {
   const issues: SalesValidationIssue[] = []
 
-  const customer = document.customerReference
-    ? await prisma.customer.findFirst({
-        where: {
-          OR: [
-            { customerCode: { equals: document.customerReference, mode: "insensitive" } },
-            { sageCustomerId: { equals: document.customerReference, mode: "insensitive" } },
-          ],
-        },
-        include: { addresses: true },
-      })
-    : document.customerName
-      ? await prisma.customer.findFirst({
-          where: { legalName: { equals: document.customerName, mode: "insensitive" } },
-          include: { addresses: true },
-        })
-      : null
+  const customer = await matchCustomer(document)
 
   if (!customer) {
     issues.push({ code: "CUSTOMER_NOT_MATCHED", severity: "ERROR", field: "customer", message: "Customer tidak dapat dipadankan dengan Customer Master." })
@@ -59,4 +65,3 @@ export async function validateExtractedSalesDocument(document: ExtractedSalesDoc
   document.warnings.forEach(message => issues.push({ code: "AI_WARNING", severity: "WARNING", message }))
   return { customer, issues }
 }
-

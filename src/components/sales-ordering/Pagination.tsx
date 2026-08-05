@@ -1,0 +1,7 @@
+import Link from "next/link"
+import { ChevronLeft, ChevronRight } from "lucide-react"
+
+export function SalesOrderingPagination({ page, totalPages, hrefForPage }: { page: number; totalPages: number; hrefForPage: (page: number) => string }) {
+  if (totalPages <= 1) return null
+  return <nav className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-5 py-3" aria-label="Pagination"><p className="text-xs font-bold text-slate-500">Page {page} of {totalPages}</p><div className="flex items-center gap-2">{page > 1 ? <Link href={hrefForPage(page - 1)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:border-cyan-400"><ChevronLeft className="h-4 w-4" /> Previous</Link> : <span className="inline-flex cursor-not-allowed items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-300"><ChevronLeft className="h-4 w-4" /> Previous</span>}{page < totalPages ? <Link href={hrefForPage(page + 1)} className="inline-flex items-center gap-1 rounded-lg bg-slate-950 px-3 py-2 text-xs font-black text-white hover:bg-cyan-700">Next <ChevronRight className="h-4 w-4" /></Link> : <span className="inline-flex cursor-not-allowed items-center gap-1 rounded-lg bg-slate-200 px-3 py-2 text-xs font-black text-slate-400">Next <ChevronRight className="h-4 w-4" /></span>}</div></nav>
+}

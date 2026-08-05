@@ -1,6 +1,7 @@
 import "server-only"
 
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
@@ -65,3 +66,7 @@ export async function readR2Object(objectKey: string) {
   return Buffer.from(await response.Body.transformToByteArray())
 }
 
+export async function deleteR2Object(objectKey: string) {
+  const { bucket } = getR2Config()
+  await getR2Client().send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }))
+}

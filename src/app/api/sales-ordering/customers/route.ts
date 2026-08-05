@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getSalesOrderingAccess } from "@/lib/sales-ordering/access"
+import { canAccessSalesOrderingTab, getSalesOrderingAccess } from "@/lib/sales-ordering/access"
 
 export async function GET(request: Request) {
   const access = await getSalesOrderingAccess()
-  if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!access || (!canAccessSalesOrderingTab(access, "intake") && !canAccessSalesOrderingTab(access, "customers"))) return NextResponse.json({ error: "Akses AI Intake atau Customers diperlukan." }, { status: 403 })
 
   const query = new URL(request.url).searchParams.get("q")?.trim() || ""
   const customers = await prisma.customer.findMany({
@@ -22,4 +22,3 @@ export async function GET(request: Request) {
   })
   return NextResponse.json({ customers })
 }
-

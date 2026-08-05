@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto"
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getSalesOrderingAccess } from "@/lib/sales-ordering/access"
+import { canAccessSalesOrderingTab, canManageSalesOrderingDocuments, getSalesOrderingAccess } from "@/lib/sales-ordering/access"
 import { extractSalesDocument, SALES_AI_MODEL } from "@/lib/sales-ordering/extract"
 import { assertR2Object, readR2Object } from "@/lib/sales-ordering/r2"
 import { validateExtractedSalesDocument } from "@/lib/sales-ordering/validation"
@@ -11,12 +11,15 @@ export const maxDuration = 60
 
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   const access = await getSalesOrderingAccess()
-  if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!access || !canAccessSalesOrderingTab(access, "intake")) return NextResponse.json({ error: "Akses AI Intake diperlukan." }, { status: 403 })
   const { id } = await context.params
 
   const intake = await prisma.salesDocumentIntake.findUnique({ where: { id }, include: { salesOrder: { select: { id: true } } } })
   if (!intake) return NextResponse.json({ error: "Document intake tidak ditemui." }, { status: 404 })
   if (intake.salesOrder) return NextResponse.json({ error: "Sales Order sudah dicipta." }, { status: 409 })
+  if (intake.status !== "UPLOADED" && !canManageSalesOrderingDocuments(access)) {
+    return NextResponse.json({ error: "Akses Edit / Delete Documents diperlukan untuk proses semula AI." }, { status: 403 })
+  }
 
   try {
     await prisma.salesDocumentIntake.update({ where: { id }, data: { status: "AI_PROCESSING", errorMessage: null } })

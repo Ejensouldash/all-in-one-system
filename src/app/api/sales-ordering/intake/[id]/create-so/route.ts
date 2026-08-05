@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getSalesOrderingAccess } from "@/lib/sales-ordering/access"
+import { canAccessSalesOrderingTab, canManageSalesOrderingDocuments, getSalesOrderingAccess } from "@/lib/sales-ordering/access"
 import { normalizeExtractedDocument } from "@/lib/sales-ordering/types"
 import { validateExtractedSalesDocument } from "@/lib/sales-ordering/validation"
 
@@ -14,7 +14,8 @@ function optionalDate(value: string) {
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const access = await getSalesOrderingAccess()
-  if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!access || !canAccessSalesOrderingTab(access, "orders")) return NextResponse.json({ error: "Akses Sales Orders diperlukan." }, { status: 403 })
+  if (!canManageSalesOrderingDocuments(access)) return NextResponse.json({ error: "Akses Edit / Delete Documents diperlukan untuk approve dokumen." }, { status: 403 })
   const { id } = await context.params
 
   try {
@@ -113,4 +114,3 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal mencipta Sales Order." }, { status: 500 })
   }
 }
-

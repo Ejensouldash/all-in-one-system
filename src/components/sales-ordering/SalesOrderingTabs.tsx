@@ -8,14 +8,16 @@ const tabs = [
   { label: "Dashboard", href: "/forms/sales-ordering", icon: LayoutDashboard },
   { label: "AI Intake", href: "/forms/sales-ordering/intake", icon: FileSearch },
   { label: "Sales Orders", href: "/forms/sales-ordering/orders", icon: ShoppingCart },
-  { label: "Customers", href: "/forms/sales-ordering/customers", icon: Users },
 ]
 
-export function SalesOrderingTabs() {
+export function SalesOrderingTabs({ canManageCustomers }: { canManageCustomers: boolean }) {
   const pathname = usePathname()
+  const visibleTabs = canManageCustomers
+    ? [...tabs, { label: "Customers", href: "/forms/sales-ordering/customers", icon: Users }]
+    : tabs
   return (
     <nav className="mb-7 flex gap-2 overflow-x-auto border-b border-slate-200" aria-label="Sales Ordering navigation">
-      {tabs.map(tab => {
+      {visibleTabs.map(tab => {
         const active = tab.href === "/forms/sales-ordering"
           ? pathname === tab.href
           : pathname.startsWith(tab.href)
@@ -32,4 +34,3 @@ export function SalesOrderingTabs() {
     </nav>
   )
 }
-

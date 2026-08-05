@@ -36,8 +36,8 @@ const MODULE_CATEGORIES: CategoryDef[] = [
     icon: ShoppingCart,
     iconClass: "bg-emerald-50 text-emerald-600 border-emerald-100",
     modules: [
-      { id: "SALES_ORDERING", name: "Sales Ordering", description: "Upload customer documents, review AI extraction, and create draft Sales Orders.", icon: ShoppingCart },
-      { id: "SALES_ORDERING_CUSTOMERS", name: "Customer Master Import", description: "Import and maintain the Sage X3 customer master used for order matching.", icon: Users },
+      { id: "SALES_ORDERING", name: "Sales Ordering", description: "Give BD/SOD access to upload customer documents, review AI extraction, and create draft Sales Orders.", icon: ShoppingCart },
+      { id: "SALES_ORDERING_CUSTOMERS", name: "Customer Master Admin", description: "Additional permission for trusted staff to import and maintain the Sage X3 customer master. Requires Sales Ordering too.", icon: Users },
     ],
   },
   {

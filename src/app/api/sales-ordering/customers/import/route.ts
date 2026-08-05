@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import * as xlsx from "xlsx"
 import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
-import { getSalesOrderingAccess } from "@/lib/sales-ordering/access"
+import { canManageSalesOrderingCustomers, getSalesOrderingAccess } from "@/lib/sales-ordering/access"
 
 export const runtime = "nodejs"
 export const maxDuration = 300
@@ -11,6 +11,15 @@ type Row = Record<string, unknown>
 
 const value = (row: Row, key: string) => String(row[key] ?? "").trim()
 const cleanOptional = (input: string) => input && input !== "#N/A" ? input : null
+
+function findHeaderSheet(workbook: xlsx.WorkBook) {
+  for (const sheetName of workbook.SheetNames) {
+    const rows = xlsx.utils.sheet_to_json<unknown[]>(workbook.Sheets[sheetName], { header: 1, defval: "", raw: false, blankrows: false })
+    const headerRowIndex = rows.findIndex(row => Array.isArray(row) && row.some(cell => String(cell).trim() === "Customer ID"))
+    if (headerRowIndex >= 0) return { sheetName, sheet: workbook.Sheets[sheetName], headerRowIndex }
+  }
+  return null
+}
 
 function parseCreditTerms(raw: string) {
   const normal = raw.trim().toUpperCase()
@@ -24,7 +33,7 @@ function parseCreditTerms(raw: string) {
 
 export async function POST(request: Request) {
   const access = await getSalesOrderingAccess()
-  if (!access || (!access.isSuperAdmin && !access.modules.includes("SALES_ORDERING_CUSTOMERS"))) {
+  if (!access || !canManageSalesOrderingCustomers(access)) {
     return NextResponse.json({ error: "Akses import Customer Master diperlukan." }, { status: 403 })
   }
 
@@ -36,10 +45,10 @@ export async function POST(request: Request) {
     if (file.size > 25 * 1024 * 1024) return NextResponse.json({ error: "Fail melebihi 25 MB." }, { status: 400 })
 
     const workbook = xlsx.read(Buffer.from(await file.arrayBuffer()), { type: "buffer", cellDates: true })
-    const masterSheet = workbook.Sheets.Master
-    if (!masterSheet) return NextResponse.json({ error: "Tab Master tidak ditemui dalam workbook." }, { status: 400 })
+    const masterSource = findHeaderSheet(workbook)
+    if (!masterSource) return NextResponse.json({ error: "Lajur Customer ID tidak ditemui dalam workbook." }, { status: 400 })
 
-    const masterRows = xlsx.utils.sheet_to_json<Row>(masterSheet, { range: 2, defval: "", raw: false })
+    const masterRows = xlsx.utils.sheet_to_json<Row>(masterSource.sheet, { range: masterSource.headerRowIndex, defval: "", raw: false })
     const addressRows = workbook.Sheets.Address
       ? xlsx.utils.sheet_to_json<Row>(workbook.Sheets.Address, { range: 1, defval: "", raw: false })
       : []
@@ -172,7 +181,7 @@ export async function POST(request: Request) {
       },
     })
 
-    return NextResponse.json({ success: true, total: rows.length, created, updated, needsReview })
+    return NextResponse.json({ success: true, sheetName: masterSource.sheetName, total: rows.length, created, updated, needsReview })
   } catch (error) {
     console.error("Customer master import error", error)
     return NextResponse.json({ error: error instanceof Error ? error.message : "Import Customer Master gagal." }, { status: 500 })

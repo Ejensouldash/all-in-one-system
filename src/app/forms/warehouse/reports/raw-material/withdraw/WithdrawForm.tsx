@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   QrCode, Loader2, Send, AlertCircle, Trash2, PackageOpen, AlertTriangle, CheckCircle2, Search,
+  CalendarClock,
 } from "lucide-react"
 import { QRScannerModal } from "@/components/forms/QRScannerModal"
 import { recordWithdrawal } from "@/app/actions/rawMaterialWithdrawal"
@@ -23,24 +24,39 @@ const n = (v: string) => {
   return Number.isFinite(x) ? x : 0
 }
 
+const dmy = (iso: string) => {
+  const [y, m, d] = iso.split("-")
+  return `${d}/${m}/${y}`
+}
+
 export function WithdrawForm({
   stock,
   defaultTakenBy,
+  today,
+  earliestDate,
+  canBackdate,
 }: {
   stock: LiveStockRow[]
   defaultTakenBy: string
+  /** Today in Malaysia, decided by the server so it matches what createWithdrawal validates against. */
+  today: string
+  earliestDate: string
+  canBackdate: boolean
 }) {
   const router = useRouter()
-  const today = new Date()
+  const now = new Date()
 
-  const [date] = useState(today.toISOString().split("T")[0])
+  const [date, setDate] = useState(today)
   const [time, setTime] = useState(
-    `${String(today.getHours()).padStart(2, "0")}:${String(today.getMinutes()).padStart(2, "0")}`
+    `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
   )
-  const [shift, setShift] = useState(today.getHours() >= 19 || today.getHours() < 7 ? "PM" : "AM")
+  const [shift, setShift] = useState(now.getHours() >= 19 || now.getHours() < 7 ? "PM" : "AM")
   const [takenBy, setTakenBy] = useState(defaultTakenBy)
   const [purpose, setPurpose] = useState<string>("PRODUCTION")
   const [remarks, setRemarks] = useState("")
+  const [backdateReason, setBackdateReason] = useState("")
+
+  const isBackdated = date < today
 
   const [cart, setCart] = useState<CartLine[]>([])
   const [search, setSearch] = useState("")
@@ -108,6 +124,7 @@ export function WithdrawForm({
         takenBy,
         purpose: purpose as any,
         remarks: remarks || undefined,
+        backdateReason: isBackdated ? backdateReason.trim() : undefined,
         lines: cart.map(l => {
           const s = byKey.get(l.key)!
           return { sku: s.sku, batchNo: s.batchNo, qty: n(l.qty) }
@@ -127,6 +144,10 @@ export function WithdrawForm({
     const q = n(l.qty)
     return s && q > 0 && Number.isInteger(q) && q <= s.available
   })
+
+  // The server rejects a backdated entry with no reason; keep submit disabled rather than letting
+  // the user fill a whole cart and hit the error on submit.
+  const formValid = cartValid && takenBy.trim() !== "" && (!isBackdated || backdateReason.trim() !== "")
 
   const purposeInfo = PURPOSES.find(p => p.id === purpose)!
 
@@ -226,7 +247,18 @@ export function WithdrawForm({
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Tarikh">
-              <input value={date} disabled className={`${inputCls} bg-gray-100 text-gray-500`} />
+              {canBackdate ? (
+                <input
+                  type="date"
+                  value={date}
+                  min={earliestDate}
+                  max={today}
+                  onChange={e => setDate(e.target.value || today)}
+                  className={`${inputCls} ${isBackdated ? "border-amber-400 bg-amber-50" : ""}`}
+                />
+              ) : (
+                <input value={date} disabled className={`${inputCls} bg-gray-100 text-gray-500`} />
+              )}
             </Field>
             <Field label="Masa">
               <input type="time" value={time} onChange={e => setTime(e.target.value)} className={inputCls} />
@@ -263,6 +295,30 @@ export function WithdrawForm({
               {purposeInfo.note}
             </p>
           </div>
+
+          {isBackdated && (
+            <div className="space-y-2 p-3 rounded-lg border border-amber-300 bg-amber-50">
+              <div className="flex items-start gap-2">
+                <CalendarClock className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
+                <p className="text-[10px] font-bold leading-snug text-amber-900">
+                  Rekod lewat untuk <b>{dmy(date)}</b>. Baki warehouse akan ditolak sekarang juga.
+                  {purpose === "PRODUCTION" && (
+                    <>
+                      {" "}DO ke production akan dipos pada <b>{dmy(today)}</b> supaya borang harian
+                      hari ini masih boleh ambil DO itu.
+                    </>
+                  )}
+                </p>
+              </div>
+              <textarea
+                value={backdateReason}
+                onChange={e => setBackdateReason(e.target.value)}
+                rows={2}
+                placeholder="Sebab rekod lewat (wajib) — cth: shift malam lupa isi"
+                className="w-full p-2 border border-amber-300 rounded-lg text-xs outline-none focus:border-amber-500 bg-white"
+              />
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
@@ -345,7 +401,7 @@ export function WithdrawForm({
             <button
               type="button"
               onClick={submit}
-              disabled={busy || !cartValid || !takenBy.trim()}
+              disabled={busy || !formValid}
               className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-xs font-black uppercase tracking-wide rounded-lg"
             >
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

@@ -24,12 +24,17 @@ export class WithdrawalError extends Error {}
 export type WithdrawalLineInput = { sku: string; batchNo: string; qty: number }
 
 export type WithdrawalInput = {
-  date: string // YYYY-MM-DD
+  /** When the material actually left the rack (YYYY-MM-DD). May be in the past — see MAX_BACKDATE_DAYS. */
+  date: string
   time: string
   shift: string
   takenBy: string
   purpose: WithdrawalPurpose
   remarks?: string
+  /** Required when `date` is before today. Its presence is what marks the row as a late entry. */
+  backdateReason?: string
+  /** Set by the action layer from the RAW_MATERIAL_WITHDRAWAL_BACKDATE module. */
+  allowBackdate?: boolean
   createdById?: string | null
   lines: WithdrawalLineInput[]
 }
@@ -51,8 +56,47 @@ export type LiveStockRow = {
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 const round = (n: number) => Math.round(n * 1000) / 1000
 
+/** How far back a late entry may reach. Beyond this the paper trail is stale enough to warrant a
+ *  correction on the Daily Raw Material form instead. */
+export const MAX_BACKDATE_DAYS = 7
+
+/** Recording a withdrawal for a past date is a separate grant on top of the modules that allow
+ *  recording at all, the same way DAILY_REPORT_EDIT_APPROVED sits on top of daily report access.
+ *  Lives here rather than in the action file: a "use server" module may only export async functions. */
+export const BACKDATE_MODULE = "RAW_MATERIAL_WITHDRAWAL_BACKDATE"
+
 function toDbDate(dateStr: string): Date {
   return new Date(`${dateStr}T00:00:00.000Z`)
+}
+
+/**
+ * "Now" in Malaysia, regardless of the server's own timezone. Same +8 shift the daily report uses
+ * (toMalaysiaDateStr in app/actions/dailyReport.ts); read the UTC parts off the shifted instant.
+ */
+function malaysiaNow(): Date {
+  return new Date(Date.now() + 8 * 60 * 60 * 1000)
+}
+
+/** Today in Malaysia as YYYY-MM-DD. The single definition of "today" for the whole withdrawal flow. */
+export function malaysiaToday(): string {
+  return malaysiaNow().toISOString().split("T")[0]
+}
+
+/** Current Malaysian wall clock as HH:MM. */
+function malaysiaTimeNow(): string {
+  const d = malaysiaNow()
+  return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`
+}
+
+/** Which shift is running right now — the same 19:00–07:00 rule the withdraw form defaults to. */
+function malaysiaShiftNow(): "AM" | "PM" {
+  const h = malaysiaNow().getUTCHours()
+  return h >= 19 || h < 7 ? "PM" : "AM"
+}
+
+/** Whole days between two YYYY-MM-DD strings, `to` minus `from`. */
+function daysBetween(from: string, to: string): number {
+  return Math.round((toDbDate(to).getTime() - toDbDate(from).getTime()) / 86_400_000)
 }
 
 /**
@@ -225,14 +269,44 @@ export async function createWithdrawal(input: WithdrawalInput) {
   if (!input.takenBy?.trim()) throw new WithdrawalError("Nama pengambil wajib diisi")
   if (!PURPOSES.includes(input.purpose)) throw new WithdrawalError("Tujuan tidak sah")
 
+  // A late entry records the day the material left the rack, which is not the day it is booked in.
+  // Everything downstream needs to know which of the two it is looking at, so settle it here once.
+  const today = malaysiaToday()
+  if (input.date > today) throw new WithdrawalError("Tarikh tidak boleh pada masa hadapan")
+
+  const isBackdated = input.date < today
+  const backdateReason = input.backdateReason?.trim() || null
+  if (isBackdated) {
+    if (!input.allowBackdate) {
+      throw new WithdrawalError(
+        "Tiada kebenaran untuk merekod tarikh lepas. Minta admin beri akses 'Ambil Bahan — Rekod Tarikh Lepas'."
+      )
+    }
+    if (!backdateReason) throw new WithdrawalError("Sebab rekod lewat wajib diisi")
+    const late = daysBetween(input.date, today)
+    if (late > MAX_BACKDATE_DAYS) {
+      throw new WithdrawalError(
+        `Rekod lewat hanya dibenarkan sehingga ${MAX_BACKDATE_DAYS} hari ke belakang (tarikh ini ${late} hari lepas)`
+      )
+    }
+  }
+
   const stock = await getLiveWarehouseStock()
   const resolved = validateLines(input.lines, stock)
 
   const dateStamp = input.date.slice(2).replace(/-/g, "")
 
   return prisma.$transaction(async tx => {
-    const sameDay = await tx.rawMaterialWithdrawal.count({ where: { date: toDbDate(input.date) } })
-    const seq = String(sameDay + 1).padStart(3, "0")
+    // Counting rows for the date breaks once one has been hard-deleted (forceDeleteWithdrawal): the
+    // count goes back down and the next number collides with the unique withdrawalNo. Take the
+    // highest suffix already issued for the date instead, so gaps are skipped rather than reused.
+    const last = await tx.rawMaterialWithdrawal.findFirst({
+      where: { withdrawalNo: { startsWith: `WD-${dateStamp}-` } },
+      orderBy: { withdrawalNo: "desc" },
+      select: { withdrawalNo: true },
+    })
+    const lastSeq = last ? Number(last.withdrawalNo.slice(-3)) : 0
+    const seq = String((Number.isFinite(lastSeq) ? lastSeq : 0) + 1).padStart(3, "0")
     const withdrawalNo = `WD-${dateStamp}-${seq}`
 
     // Only a production withdrawal becomes stock for the daily report. Disposal, return and
@@ -249,6 +323,7 @@ export async function createWithdrawal(input: WithdrawalInput) {
         takenBy: input.takenBy.trim(),
         purpose: input.purpose,
         remarks: input.remarks?.trim() || null,
+        backdateReason,
         createdById: input.createdById || null,
         linkedDoNumber: doNumber,
         items: {
@@ -265,13 +340,21 @@ export async function createWithdrawal(input: WithdrawalInput) {
     })
 
     if (doNumber) {
+      // The DO carries the POSTING date, not the event date, even when the withdrawal is backdated.
+      // getActiveInventory only offers a DO to the report whose date and shift match receiveDate
+      // (isReceivedToday), so a DO stamped with a past date would be offered only to a report that
+      // is already submitted — unclaimable, and then wiped by the next report that declares that
+      // batch's Storeroom opening. Posting it now keeps it reachable. The event date stays visible
+      // in doNumber, in the receiver name, and on the withdrawal row itself.
       await tx.transferIn.create({
         data: {
           doNumber,
-          receiveDate: toDbDate(input.date),
-          receiveTime: input.time,
-          shift: input.shift,
-          receiverName: `Production Withdrawal - ${input.takenBy.trim()}`,
+          receiveDate: toDbDate(isBackdated ? today : input.date),
+          receiveTime: isBackdated ? malaysiaTimeNow() : input.time,
+          shift: isBackdated ? malaysiaShiftNow() : input.shift,
+          receiverName: isBackdated
+            ? `Production Withdrawal (rekod lewat ${input.date} ${input.shift}) - ${input.takenBy.trim()}`
+            : `Production Withdrawal - ${input.takenBy.trim()}`,
           items: {
             create: resolved.map(r => ({
               category: r.sku.category,

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Ban, ArrowRight, PackageOpen, Plus } from "lucide-react"
+import { ArrowLeft, Ban, ArrowRight, PackageOpen, Plus, CalendarClock } from "lucide-react"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
 import { getWithdrawalHistory } from "@/app/actions/rawMaterialWithdrawal"
 import { findSku } from "@/lib/warehouse/rawMaterialSkus"
@@ -11,6 +11,10 @@ const dmy = (d: Date) => {
   const [y, m, day] = iso.split("-")
   return `${day}/${m}/${y}`
 }
+
+/** For timestamps rather than @db.Date columns: shift to Malaysia before reading the calendar day,
+ *  otherwise anything logged after 8pm local shows the previous date. */
+const dmyStamp = (d: Date) => dmy(new Date(new Date(d).getTime() + 8 * 60 * 60 * 1000))
 
 const PURPOSE_LABEL: Record<string, string> = {
   PRODUCTION: "Production",
@@ -76,6 +80,11 @@ export default async function WithdrawalHistoryPage() {
                   <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-black uppercase">
                     {PURPOSE_LABEL[w.purpose] || w.purpose}
                   </span>
+                  {w.backdateReason && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-black uppercase">
+                      <CalendarClock className="w-3 h-3" /> Rekod Lewat
+                    </span>
+                  )}
                   {isVoid ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-200 text-gray-600 text-[10px] font-black">
                       <Ban className="w-3 h-3" /> VOID
@@ -112,6 +121,12 @@ export default async function WithdrawalHistoryPage() {
                     )
                   })}
                 </div>
+
+                {w.backdateReason && (
+                  <p className="px-5 py-2 text-[11px] font-medium text-amber-800 bg-amber-50 border-t border-amber-100">
+                    Rekod lewat — diisi {dmyStamp(w.createdAt)}: {w.backdateReason}
+                  </p>
+                )}
 
                 {isVoid && w.voidReason && (
                   <p className="px-5 py-2 text-[11px] font-medium text-gray-500 bg-gray-50 border-t border-gray-100">

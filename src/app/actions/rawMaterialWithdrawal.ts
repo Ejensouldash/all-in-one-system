@@ -10,6 +10,8 @@ import {
   voidWithdrawal as voidIt,
   getWithdrawalVoidability,
   listWithdrawals,
+  malaysiaToday,
+  BACKDATE_MODULE,
   WithdrawalError,
   type WithdrawalInput,
 } from "@/lib/warehouse/withdrawalService"
@@ -51,17 +53,25 @@ export async function getWarehouseLiveStock() {
   }
 }
 
-export async function recordWithdrawal(input: Omit<WithdrawalInput, "createdById">) {
+export async function recordWithdrawal(input: Omit<WithdrawalInput, "createdById" | "allowBackdate">) {
   const g = await guard()
   if (!g.ok) return { success: false as const, error: g.error }
 
   try {
-    const created = await createWithdrawal({ ...input, createdById: g.access.userId })
+    const created = await createWithdrawal({
+      ...input,
+      allowBackdate: hasAnyModule(g.access, [BACKDATE_MODULE]),
+      createdById: g.access.userId,
+    })
 
     revalidateAll()
+    const today = malaysiaToday()
+    const lateNote = created.backdateReason
+      ? `REKOD LEWAT (dipos ${today}): ${created.backdateReason} · `
+      : ""
     await logUserAction(
       "Recorded Raw Material Withdrawal",
-      `${created.withdrawalNo} · ${input.date} ${input.shift} · ${input.purpose} · ` +
+      `${created.withdrawalNo} · ${input.date} ${input.shift} · ${input.purpose} · ${lateNote}` +
         `Taken by: ${input.takenBy} · Lines: ${created.items.length} · ` +
         `DO: ${created.linkedDoNumber || "none"} · Payload: ${JSON.stringify(input)}`
     )

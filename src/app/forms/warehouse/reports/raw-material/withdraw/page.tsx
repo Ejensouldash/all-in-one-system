@@ -3,6 +3,7 @@ import Link from "next/link"
 import { ArrowLeft, History } from "lucide-react"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
 import { getWarehouseLiveStock } from "@/app/actions/rawMaterialWithdrawal"
+import { malaysiaToday, MAX_BACKDATE_DAYS, BACKDATE_MODULE } from "@/lib/warehouse/withdrawalService"
 import { WithdrawForm } from "./WithdrawForm"
 
 export default async function WithdrawPage() {
@@ -11,6 +12,12 @@ export default async function WithdrawPage() {
   if (!hasAnyModule(access, ["WAREHOUSE", "RAW_MATERIAL_WITHDRAWAL"])) redirect("/forms")
 
   const stock = await getWarehouseLiveStock()
+
+  // "Today" is settled on the server so the form and createWithdrawal's bound check agree on it —
+  // the browser's own clock could be in another timezone and read as a backdated entry.
+  const today = malaysiaToday()
+  const earliest = new Date(`${today}T00:00:00.000Z`)
+  earliest.setUTCDate(earliest.getUTCDate() - MAX_BACKDATE_DAYS)
 
   return (
     <div className="space-y-5">
@@ -36,7 +43,13 @@ export default async function WithdrawPage() {
         </Link>
       </div>
 
-      <WithdrawForm stock={stock.data} defaultTakenBy={access.name || ""} />
+      <WithdrawForm
+        stock={stock.data}
+        defaultTakenBy={access.name || ""}
+        today={today}
+        earliestDate={earliest.toISOString().split("T")[0]}
+        canBackdate={hasAnyModule(access, [BACKDATE_MODULE])}
+      />
     </div>
   )
 }

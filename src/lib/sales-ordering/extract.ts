@@ -2,6 +2,7 @@ import "server-only"
 
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import { normalizeExtractedDocument } from "./types"
+import { generateGeminiJson } from "./gemini-json"
 
 export const SALES_AI_MODEL = "gemini-3.6-flash"
 
@@ -39,7 +40,9 @@ Required JSON shape:
   "warnings": []
 }`
 
-export async function extractSalesDocument(pdf: Buffer) {
+type PoExtractionStage = "READING_PO" | "VERIFYING_PO" | "RETRYING_PO"
+
+export async function extractSalesDocument(pdf: Buffer, onStage?: (stage: PoExtractionStage) => Promise<void> | void) {
   const apiKey = process.env.GEMINI_API_KEY?.trim()
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured")
 
@@ -53,26 +56,26 @@ export async function extractSalesDocument(pdf: Buffer) {
     },
   })
 
-  const primaryResult = await model.generateContent([
-    {
-      inlineData: {
-        mimeType: "application/pdf",
-        data: pdf.toString("base64"),
-      },
-    },
-    { text: "Pass 1: Extract this customer order document using the required JSON shape. Carefully inspect every character in codes, names, item descriptions, quantities, prices and totals." },
-  ])
-
-  const primaryRaw = primaryResult.response.text().trim().replace(/^```json\s*/i, "").replace(/```$/, "").trim()
-  const primary = normalizeExtractedDocument(JSON.parse(primaryRaw))
+  await onStage?.("READING_PO")
+  const primaryRaw = await generateGeminiJson<unknown>(async () => {
+    const primaryResult = await model.generateContent([
+      { inlineData: { mimeType: "application/pdf", data: pdf.toString("base64") } },
+      { text: "Pass 1: Extract this customer order document using the required JSON shape. Carefully inspect every character in codes, names, item descriptions, quantities, prices and totals." },
+    ])
+    return primaryResult.response.text()
+  }, () => onStage?.("RETRYING_PO"))
+  const primary = normalizeExtractedDocument(primaryRaw)
 
   try {
-    const verificationResult = await model.generateContent([
-      { inlineData: { mimeType: "application/pdf", data: pdf.toString("base64") } },
-      { text: `Pass 2: Independently verify this draft JSON against the PDF. Correct only values you can visibly confirm. Pay special attention to spelling, customer identity, PO/document numbers, line descriptions, quantities, unit prices and totals. Return the complete required JSON shape only. Draft JSON:\n${JSON.stringify(primary)}` },
-    ])
-    const verifiedRaw = verificationResult.response.text().trim().replace(/^```json\s*/i, "").replace(/```$/, "").trim()
-    return normalizeExtractedDocument(JSON.parse(verifiedRaw))
+    await onStage?.("VERIFYING_PO")
+    const verifiedRaw = await generateGeminiJson<unknown>(async () => {
+      const verificationResult = await model.generateContent([
+        { inlineData: { mimeType: "application/pdf", data: pdf.toString("base64") } },
+        { text: `Pass 2: Independently verify this draft JSON against the PDF. Correct only values you can visibly confirm. Pay special attention to spelling, customer identity, PO/document numbers, line descriptions, quantities, unit prices and totals. Return the complete required JSON shape only. Draft JSON:\n${JSON.stringify(primary)}` },
+      ])
+      return verificationResult.response.text()
+    }, () => onStage?.("RETRYING_PO"))
+    return normalizeExtractedDocument(verifiedRaw)
   } catch {
     return { ...primary, warnings: [...primary.warnings, "AI verification pass gagal; semak semua field sebelum approve."] }
   }

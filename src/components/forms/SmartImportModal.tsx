@@ -27,7 +27,7 @@ export function SmartImportModal({ isOpen, isProcessing, previewData, onConfirm,
             Smart AI Asset Import
           </h2>
           <p className="text-teal-50 mt-1 opacity-90 font-medium">
-            Powered by Gemini AI
+            Powered by NVIDIA Kimi · Gemini fallback
           </p>
         </div>
 

@@ -9,12 +9,13 @@ export const runtime = "nodejs"
 export const maxDuration = 300
 
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const access = await getSalesOrderingAccess()
-  if (!access || !canAccessSalesOrderingTab(access, "intake")) return NextResponse.json({ error: "Akses AI Intake diperlukan." }, { status: 403 })
-  const { id } = await context.params
-  const item = await prisma.creditCheckCase.findUnique({ where: { id } })
-  if (!item) return NextResponse.json({ error: "Semakan tidak ditemui." }, { status: 404 })
+  let id = ""
   try {
+    const access = await getSalesOrderingAccess()
+    if (!access || !canAccessSalesOrderingTab(access, "intake")) return NextResponse.json({ error: "Akses AI Intake diperlukan." }, { status: 403 })
+    id = (await context.params).id
+    const item = await prisma.creditCheckCase.findUnique({ where: { id } })
+    if (!item) return NextResponse.json({ error: "Semakan tidak ditemui." }, { status: 404 })
     await prisma.creditCheckCase.update({ where: { id }, data: { status: "READING_FILES", errorMessage: null } })
     const [poPdf, soaPdf] = await Promise.all([readR2Object(item.poR2ObjectKey), readR2Object(item.soaR2ObjectKey)])
     const { po, soa, result } = await analyseCreditCheck(poPdf, soaPdf, async stage => {
@@ -27,7 +28,14 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   } catch (error) {
     const message = error instanceof Error ? error.message : "Semakan AI gagal"
     console.error("PO-SOA credit check processing failed", { id, message })
-    await prisma.creditCheckCase.update({ where: { id }, data: { status: "AI_FAILED", errorMessage: message } }).catch(() => undefined)
-    return NextResponse.json({ error: message }, { status: 500 })
+    if (id) await prisma.creditCheckCase.update({ where: { id }, data: { status: "AI_FAILED", errorMessage: message } }).catch(() => undefined)
+    const userMessage = message.includes("GEMINI_API_KEY")
+      ? "Gemini PDF extraction belum dikonfigurasi di server. Sila semak GEMINI_API_KEY di Vercel."
+      : message.includes("timeout") || message.includes("timed out")
+        ? "Pemprosesan PDF mengambil masa terlalu lama. Sila cuba semula; dokumen tidak perlu di-upload semula."
+        : message.includes("AI") || message.includes("Gemini")
+          ? "AI gagal membaca PDF ini. Sila cuba semula sebentar lagi."
+          : "Server gagal memproses semakan ini. Sila cuba semula; jika masih gagal, rujuk error ID pada rekod semakan."
+    return NextResponse.json({ error: userMessage }, { status: 500 })
   }
 }

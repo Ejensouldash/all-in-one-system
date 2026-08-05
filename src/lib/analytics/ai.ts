@@ -1,6 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import { GEMINI_MODEL, generateGeminiJson } from "@/lib/ai/gemini"
-import { generateNvidiaJson, hasNvidiaAi } from "@/lib/ai/nvidia"
 import type { AnalyticsPayload, ExecutiveSummary } from "./types"
 import { buildAnalyticsBrief, buildRuleBasedSummary } from "./summary"
 
@@ -46,8 +45,8 @@ async function generateAnalyticsWithGemini(prompt: string) {
 
 /**
  * Executive summary for the generated PDF report.
- * NVIDIA Kimi is primary, DeepSeek is the automatic NVIDIA fallback, Gemini is third,
- * and the deterministic rule-based summary keeps report generation available offline.
+ * Gemini generates the summary, while the deterministic rule-based summary keeps
+ * report generation available when AI is unavailable.
  */
 export async function generateExecutiveSummary(data: AnalyticsPayload, useAi: boolean): Promise<ExecutiveSummary> {
   const fallback = buildRuleBasedSummary(data)
@@ -57,24 +56,11 @@ export async function generateExecutiveSummary(data: AnalyticsPayload, useAi: bo
   const prompt = `Berikut data pengeluaran sebenar dalam format JSON. Hasilkan Executive Summary.\n\n${JSON.stringify(brief)}`
   let parsed: Record<string, unknown> | undefined
 
-  if (hasNvidiaAi()) {
-    try {
-      parsed = (await generateNvidiaJson<Record<string, unknown>>([
-        { role: "system", content: ANALYTICS_SYSTEM_INSTRUCTION },
-        { role: "user", content: prompt },
-      ], 4096)).value
-    } catch (error) {
-      console.warn("NVIDIA analytics generation failed; trying Gemini", error)
-    }
-  }
-
-  if (!parsed) {
-    try {
-      parsed = await generateAnalyticsWithGemini(prompt)
-    } catch (error) {
-      console.error("Executive summary AI generation failed, using rule-based fallback:", error instanceof Error ? error.message : error)
-      return fallback
-    }
+  try {
+    parsed = await generateAnalyticsWithGemini(prompt)
+  } catch (error) {
+    console.error("Executive summary AI generation failed, using rule-based fallback:", error instanceof Error ? error.message : error)
+    return fallback
   }
 
   const asList = (value: unknown): string[] =>

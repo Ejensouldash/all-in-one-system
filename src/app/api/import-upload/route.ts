@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import * as xlsx from "xlsx"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import { GEMINI_MODEL, geminiUserMessage, generateGeminiJson } from "@/lib/ai/gemini"
-import { generateNvidiaJson, hasNvidiaAi } from "@/lib/ai/nvidia"
 
 const IMPORT_SYSTEM_INSTRUCTION = `You are an AI data parser. Your job is to convert raw Excel JSON rows into structured Asset objects.
 Return a JSON array of objects. Each object MUST have:
@@ -42,8 +41,8 @@ export async function POST(request: NextRequest) {
       })
       : null
 
-    if (!hasNvidiaAi() && !geminiModel) {
-      return NextResponse.json({ success: false, error: "Tiada perkhidmatan AI yang dikonfigurasi." }, { status: 500 })
+    if (!geminiModel) {
+      return NextResponse.json({ success: false, error: "Gemini AI belum dikonfigurasi." }, { status: 500 })
     }
 
     const parsedAssets: unknown[] = []
@@ -52,27 +51,10 @@ export async function POST(request: NextRequest) {
     for (let index = 0; index < data.length; index += chunkSize) {
       const chunk = data.slice(index, index + chunkSize)
       const prompt = `Map these raw rows to the requested JSON schema:\n${JSON.stringify(chunk)}`
-      let json: unknown
-
-      if (hasNvidiaAi()) {
-        try {
-          json = (await generateNvidiaJson<unknown>([
-            { role: "system", content: IMPORT_SYSTEM_INSTRUCTION },
-            { role: "user", content: prompt },
-          ], 8192)).value
-        } catch (error) {
-          console.warn("NVIDIA asset import failed; trying Gemini", error)
-        }
-      }
-
-      if (json === undefined && geminiModel) {
-        json = await generateGeminiJson<unknown>(async () => {
-          const result = await geminiModel.generateContent(prompt)
-          return result.response.text()
-        })
-      }
-
-      if (json === undefined) throw new Error("Semua perkhidmatan AI gagal memproses import ini.")
+      const json = await generateGeminiJson<unknown>(async () => {
+        const result = await geminiModel.generateContent(prompt)
+        return result.response.text()
+      })
 
       if (Array.isArray(json)) {
         parsedAssets.push(...json)

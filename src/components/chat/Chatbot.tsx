@@ -240,7 +240,7 @@ export function Chatbot() {
                 <Send className="h-4 w-4" />
               </button>
             </form>
-            <p className="text-center text-[9px] text-slate-300 font-medium mt-2 tracking-wide">Powered by NVIDIA Kimi · Gemini fallback · BubblesO2 2026</p>
+            <p className="text-center text-[9px] text-slate-300 font-medium mt-2 tracking-wide">Powered by Gemini AI · BubblesO2 2026</p>
           </div>
           </div>
         </div>

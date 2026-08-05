@@ -3,7 +3,6 @@
 import { auth } from "@/auth"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import { GEMINI_MODEL, geminiUserMessage, runGeminiRequest } from "@/lib/ai/gemini"
-import { generateNvidiaText, hasNvidiaAi } from "@/lib/ai/nvidia"
 
 const ARIA_SYSTEM_INSTRUCTION = `You are Aria, the ultimate BubblesO2 IT Support Chatbot.
 Personality: Friendly, modern, highly empathetic professional female IT agent. Eager to assist, patient, knowledgeable.
@@ -33,20 +32,9 @@ export async function summarizeTicketWithAI(description: string) {
     "${description}"
     `
 
-  let nvidiaError: unknown
-  if (hasNvidiaAi()) {
-    try {
-      const result = await generateNvidiaText([{ role: "user", content: prompt }], 2048)
-      return { success: true, summary: result.value }
-    } catch (error) {
-      nvidiaError = error
-      console.warn("NVIDIA ticket summarization failed; trying Gemini", error)
-    }
-  }
-
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey || apiKey === "your-gemini-api-key") {
-    return { success: false, error: geminiUserMessage(nvidiaError, "Semua perkhidmatan AI tidak tersedia sekarang.") }
+    return { success: false, error: "Tetapan Gemini AI belum lengkap. Sila minta pentadbir menyemak GEMINI_API_KEY." }
   }
 
   try {
@@ -70,23 +58,9 @@ export async function chatWithAria(history: { role: string, text: string }[]) {
 
   if (formattedHistory.length > 0 && formattedHistory[0].role === "assistant") formattedHistory.shift()
 
-  let nvidiaError: unknown
-  if (hasNvidiaAi()) {
-    try {
-      const result = await generateNvidiaText([
-        { role: "system", content: ARIA_SYSTEM_INSTRUCTION },
-        ...formattedHistory,
-      ], 4096)
-      return { success: true, text: result.value }
-    } catch (error) {
-      nvidiaError = error
-      console.warn("NVIDIA Aria chat failed; trying Gemini", error)
-    }
-  }
-
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey || apiKey === "your-gemini-api-key") {
-    return { success: false, error: geminiUserMessage(nvidiaError, "Aria tidak dapat menjawab sekarang. Sila cuba lagi sebentar nanti.") }
+    return { success: false, error: "Tetapan Gemini AI belum lengkap. Sila minta pentadbir menyemak GEMINI_API_KEY." }
   }
 
   try {

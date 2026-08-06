@@ -2,25 +2,20 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { FileSearch, LayoutDashboard, ShieldCheck, ShoppingCart, Users } from "lucide-react"
+import { Database, FileCheck, FileSearch, LayoutDashboard, ShieldCheck, ShoppingCart, Users } from "lucide-react"
 
-const tabs = [
-  { label: "Dashboard", href: "/forms/sales-ordering", icon: LayoutDashboard },
-  { label: "AI Intake", href: "/forms/sales-ordering/intake", icon: FileSearch },
-  { label: "PO-SOA Check", href: "/forms/sales-ordering/credit-check", icon: ShieldCheck },
-  { label: "Sales Orders", href: "/forms/sales-ordering/orders", icon: ShoppingCart },
-]
-
-type TabPermissions = { dashboard: boolean; intake: boolean; orders: boolean; customers: boolean }
+type TabPermissions = { dashboard: boolean; intake: boolean; orders: boolean; customers: boolean; isSuperAdmin?: boolean }
 
 export function SalesOrderingTabs({ permissions }: { permissions: TabPermissions }) {
   const pathname = usePathname()
   const visibleTabs = [
-    ...(permissions.dashboard ? [tabs[0]] : []),
-    ...(permissions.intake ? [tabs[1]] : []),
-    ...(permissions.intake ? [tabs[2]] : []),
-    ...(permissions.orders ? [tabs[3]] : []),
+    ...(permissions.dashboard ? [{ label: "Dashboard", href: "/forms/sales-ordering", icon: LayoutDashboard }] : []),
+    ...(permissions.dashboard || permissions.intake ? [{ label: "PO Customer", href: "/forms/sales-ordering/po-customer", icon: FileCheck }] : []),
+    ...(permissions.intake ? [{ label: "AI Intake", href: "/forms/sales-ordering/intake", icon: FileSearch }] : []),
+    ...(permissions.intake ? [{ label: "PO-SOA Check", href: "/forms/sales-ordering/credit-check", icon: ShieldCheck }] : []),
+    ...(permissions.orders ? [{ label: "Sales Orders", href: "/forms/sales-ordering/orders", icon: ShoppingCart }] : []),
     ...(permissions.customers ? [{ label: "Customers", href: "/forms/sales-ordering/customers", icon: Users }] : []),
+    ...(permissions.isSuperAdmin ? [{ label: "Database", href: "/forms/sales-ordering/database", icon: Database }] : []),
   ]
   return (
     <nav className="mb-7 flex gap-2 overflow-x-auto border-b border-slate-200" aria-label="Sales Ordering navigation">

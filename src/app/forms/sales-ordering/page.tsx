@@ -2,7 +2,6 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { AlertOctagon, AlertTriangle, ArrowRight, CheckCircle2, FileCheck2, FileClock, ShieldAlert, Sparkles, Users } from "lucide-react"
 import { prisma } from "@/lib/prisma"
-import { IntakeUploader } from "@/components/sales-ordering/IntakeUploader"
 import { PoCustomerSection, type CustomerPoItem } from "@/components/sales-ordering/PoCustomerSection"
 import { canAccessSalesOrderingTab, firstSalesOrderingPath, getSalesOrderingAccess } from "@/lib/sales-ordering/access"
 
@@ -127,39 +126,42 @@ export default async function SalesOrderingDashboard() {
 
       {/* REJECTION WARNING BANNER UNTUK BD TEAM */}
       {rejectedCases.length > 0 && (
-        <section className="rounded-3xl border-2 border-rose-300 bg-rose-50 p-6 shadow-md animate-in fade-in duration-300">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-600 text-white shadow-sm">
-              <ShieldAlert className="h-6 w-6" />
+        <details className="group rounded-3xl border-2 border-rose-300 bg-rose-50 shadow-sm animate-in fade-in duration-300 open:pb-6">
+          <summary className="flex cursor-pointer select-none items-center gap-4 p-5 md:p-6 outline-none transition-colors hover:bg-rose-100/50">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white shadow-sm">
+              <ShieldAlert className="h-5 w-5" />
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-black text-rose-950">
-                Makluman Rejection Kewangan (Perhatian BD Team)
+              <h3 className="text-sm font-black text-rose-950 sm:text-base">
+                Amaran: Terdapat {rejectedCases.length} rekod PO yang telah di-REJECT
               </h3>
-              <p className="mt-1 text-xs font-bold text-rose-800">
-                Terdapat {rejectedCases.length} rekod PO yang telah di-REJECT oleh AI / SOD semasa semakan PO-SOA Check. Sila maklumkan kepada pelanggan atau kemaskini pembayaran.
+              <p className="mt-0.5 text-xs font-bold text-rose-800 hidden sm:block">
+                Sila klik untuk lihat senarai penuh dan maklumkan kepada pelanggan.
               </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {rejectedCases.map(item => {
-                  const resultData = (item.result as Record<string, any>) || {}
-                  const poData = (item.poData as Record<string, any>) || {}
-                  return (
-                    <div key={item.id} className="rounded-2xl border border-rose-200 bg-white p-4 shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="font-black text-xs text-rose-900">{poData.poNumber || item.poFileName}</span>
-                        <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-700">REJECTED</span>
-                      </div>
-                      <p className="mt-1 text-xs font-bold text-slate-800">{poData.customerName || "Customer Unknown"}</p>
-                      <p className="mt-2 text-xs font-semibold text-rose-700 line-clamp-2">
-                        Sebab: {resultData.primaryReason || item.justification || "Tunggakan hutang melepasi terma."}
-                      </p>
+            </div>
+            <div className="text-rose-600 text-sm font-bold opacity-70 group-open:hidden shrink-0">Lihat Senarai &darr;</div>
+          </summary>
+          <div className="px-5 md:px-6 pt-2">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {rejectedCases.map(item => {
+                const resultData = (item.result as Record<string, any>) || {}
+                const poData = (item.poData as Record<string, any>) || {}
+                return (
+                  <div key={item.id} className="rounded-2xl border border-rose-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="font-black text-xs text-rose-900">{poData.poNumber || item.poFileName}</span>
+                      <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-700">REJECTED</span>
                     </div>
-                  )
-                })}
-              </div>
+                    <p className="mt-1 text-xs font-bold text-slate-800">{poData.customerName || "Customer Unknown"}</p>
+                    <p className="mt-2 text-xs font-semibold text-rose-700 line-clamp-2">
+                      Sebab: {resultData.primaryReason || item.justification || "Tunggakan hutang melepasi terma."}
+                    </p>
+                  </div>
+                )
+              })}
             </div>
           </div>
-        </section>
+        </details>
       )}
 
       {/* METRICS CARDS */}
@@ -177,17 +179,6 @@ export default async function SalesOrderingDashboard() {
 
       {/* SECTION: PO CUSTOMER (APPROVED SOA & PENDING SOA TABS) */}
       <PoCustomerSection items={poCustomerItems} />
-
-      {/* SECTION: NEW AI INTAKE UPLOADER */}
-      {canUseIntake && (
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-cyan-600" />
-            <h2 className="text-xl font-black text-slate-950">Muat Naik Dokumen Baru (BD Team)</h2>
-          </div>
-          <IntakeUploader />
-        </section>
-      )}
 
       {/* SECTION: RECENT INTAKE DOCUMENTS */}
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">

@@ -51,7 +51,7 @@ async function readJson(response: Response) {
   }
 }
 
-export function CreditCheckUploader() {
+export function CreditCheckUploader({ existingCase }: { existingCase?: { id: string; poFileName: string } | null }) {
   const router = useRouter()
   const poRef = useRef<HTMLInputElement>(null)
   const soaRef = useRef<HTMLInputElement>(null)
@@ -92,25 +92,39 @@ export function CreditCheckUploader() {
   }
 
   async function start() {
-    if (!po || !soa || busy) return
+    if ((!existingCase && !po) || !soa || busy) return
     setStage("PREPARING")
     setProgress(4)
     setElapsed(0)
     setError("")
     let pollTimer: number | undefined
     try {
-      const preparedResponse = await fetch("/api/sales-ordering/credit-check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ poName: po.name, poSize: po.size, soaName: soa.name, soaSize: soa.size, checkMode }) })
+      const payload: any = { soaName: soa.name, soaSize: soa.size, checkMode }
+      if (existingCase) {
+        payload.existingCaseId = existingCase.id
+      } else {
+        payload.poName = po!.name
+        payload.poSize = po!.size
+      }
+
+      const preparedResponse = await fetch("/api/sales-ordering/credit-check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
       const prepared = await readJson(preparedResponse)
       if (!preparedResponse.ok) throw new Error(String(prepared.error || "Gagal menyediakan upload."))
 
       setStage("UPLOADING")
-      let poProgress = 0
+      let poProgress = existingCase ? 1 : 0
       let soaProgress = 0
       const updateUploadProgress = () => setProgress(8 + Math.round(((poProgress + soaProgress) / 2) * 20))
-      await Promise.all([
-        uploadToR2(String(prepared.poUploadUrl), po, value => { poProgress = value; updateUploadProgress() }),
-        uploadToR2(String(prepared.soaUploadUrl), soa, value => { soaProgress = value; updateUploadProgress() }),
-      ])
+      
+      const uploadTasks = [
+        uploadToR2(String(prepared.soaUploadUrl), soa, value => { soaProgress = value; updateUploadProgress() })
+      ]
+      
+      if (!existingCase && po) {
+        uploadTasks.push(uploadToR2(String(prepared.poUploadUrl), po, value => { poProgress = value; updateUploadProgress() }))
+      }
+
+      await Promise.all(uploadTasks)
 
       const caseId = String(prepared.id)
       setStage("READING_FILES")
@@ -190,11 +204,19 @@ export function CreditCheckUploader() {
     </div>
 
     <div className="flex flex-col gap-4 md:flex-row">
-      {tile(checkMode === "PO_CREDIT_CHECK" ? "Upload Purchase Order" : "Upload Invois Pembekal / Pelanggan", po, poRef, setPo)}
+      {existingCase ? (
+        <div className="flex min-h-44 flex-1 flex-col items-center justify-center rounded-2xl border-2 border-emerald-200 bg-emerald-50/50 p-5 text-center">
+          <FileCheck2 className="mb-3 h-9 w-9 text-emerald-600" />
+          <p className="font-black text-slate-950">{existingCase.poFileName}</p>
+          <p className="mt-1 text-xs font-semibold text-emerald-700">Dilampirkan dari AI Intake</p>
+        </div>
+      ) : (
+        tile(checkMode === "PO_CREDIT_CHECK" ? "Upload Purchase Order" : "Upload Invois Pembekal / Pelanggan", po, poRef, setPo)
+      )}
       {tile("Upload Statement of Account", soa, soaRef, setSoa)}
     </div>
 
-    <button type="button" disabled={!po || !soa || busy} onClick={start} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3.5 text-sm font-black text-white transition disabled:bg-slate-300">
+    <button type="button" disabled={(!existingCase && !po) || !soa || busy} onClick={start} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3.5 text-sm font-black text-white transition disabled:bg-slate-300">
       {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing {progress}%</> : checkMode === "PO_CREDIT_CHECK" ? "Run PO-SOA Credit Check" : "Run Invoice-SOA Reconciliation"}
     </button>
 

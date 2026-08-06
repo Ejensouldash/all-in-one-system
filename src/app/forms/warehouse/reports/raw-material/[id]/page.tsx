@@ -3,7 +3,7 @@ import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, ArrowRight, Lock, Ban, CheckCircle2 } from "lucide-react"
 import { PrintButton } from "@/components/ui/PrintButton"
-import { getRawMaterialReport, getReportEditability } from "@/app/actions/warehouseRawMaterial"
+import { getRawMaterialReport, getReportEditability, getWithdrawnSplit } from "@/app/actions/warehouseRawMaterial"
 import { findSku, sectionRank, skuRank } from "@/lib/warehouse/rawMaterialSkus"
 import { RawMaterialActions } from "../RawMaterialActions"
 
@@ -50,6 +50,16 @@ export default async function RawMaterialViewPage({ params }: { params: Promise<
     }))
 
   const outItems = report.items.filter(i => i.qtyOut > 0)
+
+  // How much of each row's stock-out already left on an Ambil Bahan DO, so the printed form can
+  // account for the gap between what it says went out and what its own DO carries.
+  const splitRes = await getWithdrawnSplit(id)
+  const split: Record<string, { withdrawnQty: number; withdrawalNos: string[] }> =
+    splitRes.success ? splitRes.data : {}
+
+  const doRowCount = outItems.filter(
+    i => i.qtyOut - (split[`${i.sku}|${i.batchNo}`]?.withdrawnQty || 0) > 0
+  ).length
 
   return (
     <div className="space-y-5">
@@ -100,7 +110,10 @@ export default async function RawMaterialViewPage({ params }: { params: Promise<
           )}
           <div>
             <p className={`text-xs font-black uppercase tracking-wide ${state.editable ? "text-indigo-900" : "text-amber-900"}`}>
-              {report.linkedDoNumber} · {outItems.length} baris dihantar ke production
+              {/* outItems counts every row with a stock-out; the DO only carries the hand-typed
+                  remainder of each. Naming both stops the banner from over-claiming. */}
+              {report.linkedDoNumber} · {doRowCount} baris dihantar ke production
+              {doRowCount !== outItems.length && ` (dari ${outItems.length} baris stock out)`}
             </p>
             <p className={`text-[11px] font-medium mt-0.5 leading-snug ${state.editable ? "text-indigo-700" : "text-amber-800"}`}>
               {state.editable
@@ -193,6 +206,26 @@ export default async function RawMaterialViewPage({ params }: { params: Promise<
                     </td>
                     <td className="border border-gray-500 px-2 py-1.5 text-right text-red-700 font-bold">
                       {item.qtyOut > 0 ? nf(item.qtyOut) : ""}
+                      {/* A row whose stock-out is partly covered by an Ambil Bahan DO must say so.
+                          Otherwise "2700 out" next to a 900-box DO looks like the system lost 1800. */}
+                      {(() => {
+                        const s = split[`${item.sku}|${item.batchNo}`]
+                        if (!s || s.withdrawnQty <= 0 || item.qtyOut <= 0) return null
+                        const manual = item.qtyOut - s.withdrawnQty
+                        return (
+                          <div className="text-[9px] font-medium text-gray-500 leading-tight mt-0.5 text-right">
+                            <div>
+                              {nf(s.withdrawnQty)} Ambil Bahan
+                              {s.withdrawalNos.length > 0 && ` (${s.withdrawalNos.join(", ")})`}
+                            </div>
+                            {manual > 0 && (
+                              <div>
+                                + {nf(manual)}{report.linkedDoNumber ? ` (${report.linkedDoNumber})` : ""}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
                     </td>
                     <td className="border border-gray-500 px-2 py-1.5 text-right font-black">{nf(item.carryForward)}</td>
                     <td className="border border-gray-500 px-2 py-1.5 text-[10px]">{item.remarks || ""}</td>

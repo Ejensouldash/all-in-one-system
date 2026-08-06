@@ -2,8 +2,9 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Eye, Pencil, Trash2, Loader2, CheckSquare, Square } from "lucide-react"
+import { Eye, Pencil, Trash2, Loader2, CheckSquare, Square, Lock } from "lucide-react"
 import { deleteTransferIn, bulkDeleteTransferIn } from "@/app/actions/transferIn"
+import { isSystemDo } from "@/lib/warehouse/systemDo"
 
 export function TransferInHistoryClient({ 
   transfers, 
@@ -48,11 +49,16 @@ export function TransferInHistoryClient({
     }
   }
 
+  // System DOs mirror a warehouse record and are rejected by the server, so they must never be
+  // swept into a bulk selection — the whole delete would fail because of a row the user did not
+  // knowingly pick.
+  const selectable = transfers.filter(t => !isSystemDo(t.doNumber))
+
   const toggleSelectAll = () => {
-    if (selectedIds.length === transfers.length) {
+    if (selectedIds.length === selectable.length && selectable.length > 0) {
       setSelectedIds([])
     } else {
-      setSelectedIds(transfers.map(t => t.id))
+      setSelectedIds(selectable.map(t => t.id))
     }
   }
 
@@ -68,7 +74,7 @@ export function TransferInHistoryClient({
         <tr>
           <th scope="col" className="w-12 px-6 py-4 text-left">
             <button onClick={toggleSelectAll} className="text-gray-400 hover:text-emerald-600 focus:outline-none">
-              {selectedIds.length === transfers.length && transfers.length > 0 ? (
+              {selectedIds.length === selectable.length && selectable.length > 0 ? (
                 <CheckSquare className="w-5 h-5 text-emerald-600" />
               ) : (
                 <Square className="w-5 h-5" />
@@ -86,20 +92,25 @@ export function TransferInHistoryClient({
       <tbody className="bg-white divide-y divide-gray-200">
         {transfers.map((t: any) => {
           const isWithin30Mins = Date.now() - new Date(t.createdAt).getTime() <= 30 * 60 * 1000
-          const isEditable = hasAdminAccess || isWithin30Mins
+          const isLocked = isSystemDo(t.doNumber)
+          const isEditable = !isLocked && (hasAdminAccess || isWithin30Mins)
           const isDeleting = deletingId === t.id
           const isSelected = selectedIds.includes(t.id)
 
           return (
             <tr key={t.id} className={`transition-colors ${isDeleting || (isBulkDeleting && isSelected) ? 'opacity-50' : 'hover:bg-gray-50'} ${isSelected ? 'bg-emerald-50/50' : ''}`}>
               <td className="px-6 py-4 whitespace-nowrap">
-                <button onClick={() => toggleSelect(t.id)} className="text-gray-400 hover:text-emerald-600 focus:outline-none">
-                  {isSelected ? (
-                    <CheckSquare className="w-5 h-5 text-emerald-600" />
-                  ) : (
-                    <Square className="w-5 h-5" />
-                  )}
-                </button>
+                {isLocked ? (
+                  <Lock className="w-5 h-5 text-gray-300" aria-label="DO dijana sistem" />
+                ) : (
+                  <button onClick={() => toggleSelect(t.id)} className="text-gray-400 hover:text-emerald-600 focus:outline-none">
+                    {isSelected ? (
+                      <CheckSquare className="w-5 h-5 text-emerald-600" />
+                    ) : (
+                      <Square className="w-5 h-5" />
+                    )}
+                  </button>
+                )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 {/* Locale and timeZone must both be pinned. Bare toLocaleDateString()
@@ -118,6 +129,14 @@ export function TransferInHistoryClient({
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm font-black text-emerald-600">{t.doNumber}</div>
+                {isLocked && (
+                  <div
+                    className="mt-1 inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded"
+                    title="Dijana sistem. Betulkan rekod asal di Ambil Bahan / borang Daily Raw Material."
+                  >
+                    <Lock className="w-3 h-3" /> Sistem
+                  </div>
+                )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate">
                 {t.receiverName}

@@ -11,6 +11,7 @@ import {
   voidRawMaterialReport as voidReport,
   getEditability,
   deleteReportAndLinkedDo,
+  getWithdrawnSplitForReport,
   RawMaterialError,
   type RawMaterialReportInput,
 } from "@/lib/warehouse/rawMaterialService"
@@ -40,6 +41,23 @@ export async function getCarryForwardPrefill() {
     return { success: true as const, data: await loadCarryForwardPrefill() }
   } catch (error: any) {
     console.error("Failed to load carry forward prefill:", error)
+    return { success: false as const, error: error.message }
+  }
+}
+
+/**
+ * Which part of each row's Quantity Stock Out already left on a withdrawal DO. Returned as a plain
+ * object (a Map cannot cross the server-action boundary) keyed `sku|batchNo`.
+ */
+export async function getWithdrawnSplit(reportId: string) {
+  const session = await auth()
+  if (!session) return { success: false as const, error: "Unauthorized" }
+
+  try {
+    const split = await getWithdrawnSplitForReport(reportId)
+    return { success: true as const, data: Object.fromEntries(split) }
+  } catch (error: any) {
+    console.error("Failed to load withdrawal split:", error)
     return { success: false as const, error: error.message }
   }
 }

@@ -1,6 +1,7 @@
 import { getTransferInById } from "@/app/actions/transferIn"
 import Link from "next/link"
 import { Package, Calendar, Clock, User, ArrowLeft } from "lucide-react"
+import { systemDoSource } from "@/lib/warehouse/systemDo"
 
 export default async function TransferInDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params
@@ -26,6 +27,7 @@ export default async function TransferInDetailPage({ params }: { params: Promise
   }
 
   const transfer = result.data
+  const doSource = systemDoSource(transfer.doNumber)
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 px-4 sm:px-6 lg:px-8 mt-8 pb-12">
@@ -47,6 +49,13 @@ export default async function TransferInDetailPage({ params }: { params: Promise
             <p className="text-emerald-200 font-medium text-lg">
               Detailed breakdown of items received in this Delivery Order.
             </p>
+            {doSource && (
+              <p className="mt-4 inline-block bg-amber-400/20 border border-amber-300/40 text-amber-100 text-sm font-bold px-3 py-2 rounded-lg">
+                Dijana sistem daripada{" "}
+                {doSource === "DRM" ? "borang Daily Raw Material (Warehouse)" : "rekod Ambil Bahan"}.
+                Tidak boleh diedit — betulkan rekod asal.
+              </p>
+            )}
           </div>
         </div>
 

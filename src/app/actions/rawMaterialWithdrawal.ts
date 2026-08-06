@@ -65,9 +65,10 @@ export async function recordWithdrawal(input: Omit<WithdrawalInput, "createdById
     })
 
     revalidateAll()
-    const today = malaysiaToday()
+    // Since 683d70f the DO is stamped with the date the material actually left the rack, not the
+    // day the record was keyed in. The log has to name the same date the DO carries.
     const lateNote = created.backdateReason
-      ? `REKOD LEWAT (dipos ${today}): ${created.backdateReason} · `
+      ? `REKOD LEWAT (dipos ${input.date} ${input.shift}, direkod ${malaysiaToday()}): ${created.backdateReason} · `
       : ""
     await logUserAction(
       "Recorded Raw Material Withdrawal",

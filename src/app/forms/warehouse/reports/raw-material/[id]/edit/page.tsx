@@ -2,7 +2,7 @@ import { auth } from "@/auth"
 import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Lock } from "lucide-react"
-import { getRawMaterialReport, getReportEditability } from "@/app/actions/warehouseRawMaterial"
+import { getRawMaterialReport, getReportEditability, getWithdrawnSplit } from "@/app/actions/warehouseRawMaterial"
 import { RawMaterialForm } from "../../new/RawMaterialForm"
 
 export default async function EditRawMaterialPage({ params }: { params: Promise<{ id: string }> }) {
@@ -18,6 +18,13 @@ export default async function EditRawMaterialPage({ params }: { params: Promise<
   // The same gate the server action enforces. Checking it here too means a locked report never
   // even renders an editable form.
   const state = await getReportEditability(id)
+
+  // Rows whose stock-out came from an Ambil Bahan withdrawal must stay marked as such while editing.
+  // They used to arrive with withdrawnQty 0 and locked false, which hid the split from the very
+  // person correcting the numbers — while the server carried on subtracting it.
+  const splitRes = await getWithdrawnSplit(id)
+  const split: Record<string, { withdrawnQty: number; withdrawalNos: string[] }> =
+    splitRes.success ? splitRes.data : {}
 
   const back = `/forms/warehouse/reports/raw-material/${id}`
 
@@ -74,6 +81,8 @@ export default async function EditRawMaterialPage({ params }: { params: Promise<
             qtyIn: i.qtyIn,
             qtyOut: i.qtyOut,
             remarks: i.remarks || "",
+            withdrawnQty: split[`${i.sku}|${i.batchNo}`]?.withdrawnQty || 0,
+            withdrawalNos: split[`${i.sku}|${i.batchNo}`]?.withdrawalNos || [],
           })),
         }}
       />

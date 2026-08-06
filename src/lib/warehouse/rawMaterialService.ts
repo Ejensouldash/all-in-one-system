@@ -173,6 +173,40 @@ export function buildItems(input: RawMaterialReportInput) {
   return items
 }
 
+type BuiltItem = ReturnType<typeof buildItems>[number]
+
+/**
+ * Splits each row's Quantity Stock Out into "already gone on a withdrawal DO" and "typed by hand",
+ * and returns only the hand-typed remainder — the portion that may mint a DO here. Stock that left
+ * through a recorded withdrawal already carries its own DO; without this the same boxes would reach
+ * production twice.
+ *
+ * A row typed BELOW what the withdrawal records already show is a contradiction, not a remainder:
+ * the warehouse is claiming less left the rack than production was handed. This used to be dropped
+ * silently by a `> 0` filter, leaving the report and the withdrawals disagreeing with nothing to
+ * show for it. Reject it and make the warehouse resolve which of the two is wrong.
+ */
+function assertCoversWithdrawals(items: BuiltItem[], withdrawnByKey: Map<string, number>) {
+  const rows = items.map(i => ({
+    ...i,
+    withdrawnQty: withdrawnByKey.get(`${i.sku}|${i.batchNo}`) || 0,
+    manualOut: round2(i.qtyOut - (withdrawnByKey.get(`${i.sku}|${i.batchNo}`) || 0)),
+  }))
+
+  const short = rows.filter(r => r.manualOut < 0)
+  if (short.length > 0) {
+    const detail = short
+      .map(r => `${r.sku} batch ${r.batchNo} (taip ${r.qtyOut}, sudah keluar ${r.withdrawnQty})`)
+      .join("; ")
+    throw new RawMaterialError(
+      `Quantity Stock Out lebih rendah daripada stok yang sudah keluar melalui Ambil Bahan: ${detail}. ` +
+      `Naikkan angka itu, atau batalkan pengeluaran yang salah dahulu.`
+    )
+  }
+
+  return rows.filter(r => r.manualOut > 0)
+}
+
 /** Saves the report and, when any stock out was typed by hand, the TransferIn document it feeds. */
 export async function saveRawMaterialReport(input: RawMaterialReportInput) {
   const items = buildItems(input)
@@ -182,7 +216,7 @@ export async function saveRawMaterialReport(input: RawMaterialReportInput) {
   // report, not one anchor applied to every row — see getBatchAnchors for why that distinction
   // matters. These withdrawals already carry their own DO.
   const anchors = await getBatchAnchors()
-  const withdrawnByKey = await getWithdrawnSincePerKey(anchors)
+  const withdrawnByKey = await getWithdrawnSincePerKey(anchors, input.date)
 
   return prisma.$transaction(async tx => {
     // Counts voided reports too, so a sequence is never reused and DO numbers cannot collide
@@ -193,9 +227,7 @@ export async function saveRawMaterialReport(input: RawMaterialReportInput) {
     // Stock that left through a recorded withdrawal already has its own DO, so only the portion
     // the warehouse typed by hand may generate one here. Without this the same boxes would reach
     // production twice.
-    const outRows = items
-      .map(i => ({ ...i, manualOut: round2(i.qtyOut - (withdrawnByKey.get(`${i.sku}|${i.batchNo}`) || 0)) }))
-      .filter(i => i.manualOut > 0)
+    const outRows = assertCoversWithdrawals(items, withdrawnByKey)
 
     // The "DO - " prefix with spaces matters: if a human later opens this DO in the Transfer In
     // edit form, that form rewrites the number to exactly this shape. Matching it up front keeps
@@ -394,6 +426,53 @@ export async function getEditability(reportId: string): Promise<Editability> {
   return { editable: true, reason: null, detail: "Borang ini boleh diubah atau dibatalkan.", isLatest, blockedBy: [] }
 }
 
+/**
+ * Per-row breakdown of a saved report's Quantity Stock Out: how much of it had already left on an
+ * Ambil Bahan withdrawal (which carries its own DO), and which withdrawals those were.
+ *
+ * This is the same arithmetic saveRawMaterialReport/updateRawMaterialReport use to decide how big
+ * the generated DO should be. It exists separately so the form and the printout can *show* the
+ * split. Warehouse staff typing 2700 and watching a 900-box DO come out the other end, with nothing
+ * on screen explaining the difference, is what made the 5 Aug 2026 discrepancy so hard to read.
+ *
+ * Keyed `sku|batchNo`, matching withdrawnByKey.
+ */
+export type WithdrawnSplit = { withdrawnQty: number; withdrawalNos: string[] }
+
+export async function getWithdrawnSplitForReport(reportId: string): Promise<Map<string, WithdrawnSplit>> {
+  const report = await prisma.warehouseRawMaterialReport.findUnique({
+    where: { id: reportId },
+    select: { date: true },
+  })
+  if (!report) return new Map()
+
+  const dateStr = report.date.toISOString().split("T")[0]
+  const anchors = await getBatchAnchors(reportId)
+  const withdrawnByKey = await getWithdrawnSincePerKey(anchors, dateStr)
+  if (withdrawnByKey.size === 0) return new Map()
+
+  // Name the withdrawals behind each number, using the same anchor/date window the totals used.
+  const withdrawals = await prisma.rawMaterialWithdrawal.findMany({
+    where: { status: ACTIVE, date: { lte: report.date } },
+    include: { items: true },
+  })
+
+  const split = new Map<string, WithdrawnSplit>()
+  for (const [key, withdrawnQty] of withdrawnByKey) {
+    split.set(key, { withdrawnQty, withdrawalNos: [] })
+  }
+  for (const w of withdrawals) {
+    for (const line of w.items) {
+      const key = `${line.sku}|${line.batchNo}`
+      const anchor = anchors.get(key)
+      if (anchor && w.createdAt <= anchor.createdAt) continue
+      const entry = split.get(key)
+      if (entry && !entry.withdrawalNos.includes(w.withdrawalNo)) entry.withdrawalNos.push(w.withdrawalNo)
+    }
+  }
+  return split
+}
+
 /** Throws unless the report passes every gate. Used by all three mutations. */
 async function assertEditable(reportId: string): Promise<Editability> {
   const state = await getEditability(reportId)
@@ -427,11 +506,9 @@ export async function updateRawMaterialReport(
   // remainder may generate one here. Excludes this report itself so it doesn't anchor off its
   // own prior values while being edited.
   const anchors = await getBatchAnchors(reportId)
-  const withdrawnByKey = await getWithdrawnSincePerKey(anchors)
+  const withdrawnByKey = await getWithdrawnSincePerKey(anchors, dateStr)
 
-  const outRows = items
-    .map(i => ({ ...i, manualOut: round2(i.qtyOut - (withdrawnByKey.get(`${i.sku}|${i.batchNo}`) || 0)) }))
-    .filter(i => i.manualOut > 0)
+  const outRows = assertCoversWithdrawals(items, withdrawnByKey)
 
   const doNumber = outRows.length > 0
     ? existing.linkedDoNumber || `DO - WH${dateStr.slice(2).replace(/-/g, "")}-${existing.sequence}`

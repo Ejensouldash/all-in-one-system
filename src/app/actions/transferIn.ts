@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
 import { logUserAction } from "./audit"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
+import { isSystemDo, systemDoLockMessage } from "@/lib/warehouse/systemDo"
 
 // Module access must come from the DB, never from session.user.modules: the JWT
 // snapshots modules at login, so a freshly granted module stays invisible to the
@@ -18,6 +19,17 @@ async function hasTransferInHistoryAccess() {
 export async function createTransferIn(data: any) {
   const session = await auth()
   if (!session) return { success: false, error: "Unauthorized" }
+
+  // Reserve the generated shapes. A hand-typed `DO - WD260804-002` would look like the withdrawal's
+  // own document to every reconciliation while having no record behind it.
+  if (isSystemDo(data.doNumber)) {
+    return {
+      success: false,
+      error:
+        `Nombor DO ${String(data.doNumber).trim()} berformat DO janaan sistem dan tidak boleh ditaip secara manual. ` +
+        `Guna nombor lain, atau rekod melalui Ambil Bahan / borang Daily Raw Material.`,
+    }
+  }
 
   try {
     const transferIn = await prisma.transferIn.create({
@@ -65,6 +77,12 @@ export async function updateTransferIn(id: string, data: any) {
     })
     
     if (!existing) return { success: false, error: "Not found" }
+
+    // Judge the DO stored in the database, never data.doNumber: rewriting the number is exactly how
+    // a system DO used to escape this check and lose its link to the record behind it.
+    if (isSystemDo(existing.doNumber)) {
+      return { success: false, error: systemDoLockMessage(existing.doNumber) }
+    }
 
     const hasAccess = await hasTransferInHistoryAccess()
 
@@ -129,6 +147,10 @@ export async function deleteTransferIn(id: string) {
     const existing = await prisma.transferIn.findUnique({ where: { id } })
     if (!existing) return { success: false, error: "Not found" }
 
+    if (isSystemDo(existing.doNumber)) {
+      return { success: false, error: systemDoLockMessage(existing.doNumber) }
+    }
+
     await prisma.transferIn.delete({ where: { id } })
     
     revalidatePath("/forms")
@@ -182,12 +204,24 @@ export async function bulkDeleteTransferIn(ids: string[]) {
   }
 
   try {
-    const existing = await prisma.transferIn.findMany({ 
+    const existing = await prisma.transferIn.findMany({
       where: { id: { in: ids } },
       select: { doNumber: true, receiveDate: true }
     })
-    
+
     if (existing.length === 0) return { success: false, error: "No records found" }
+
+    // All-or-nothing: a partial delete would leave the caller believing the whole selection went.
+    const locked = existing.filter(e => isSystemDo(e.doNumber))
+    if (locked.length > 0) {
+      return {
+        success: false,
+        error:
+          `${locked.length} DO dalam pilihan ini dijana oleh sistem dan tidak boleh dipadam: ` +
+          `${locked.map(e => e.doNumber.trim()).join(", ")}. Buang DO tersebut dari pilihan, ` +
+          `atau betulkan rekod asalnya (Ambil Bahan / borang Daily Raw Material).`,
+      }
+    }
 
     await prisma.transferIn.deleteMany({ where: { id: { in: ids } } })
     
@@ -263,6 +297,10 @@ export async function deleteTransferInItem(batchNo: string, doNumber: string) {
     const transferIn = await prisma.transferIn.findFirst({ where: { doNumber } })
     if (!transferIn) return { success: false, error: "DO Not found" }
 
+    if (isSystemDo(transferIn.doNumber)) {
+      return { success: false, error: systemDoLockMessage(transferIn.doNumber) }
+    }
+
     const item = await prisma.transferInItem.findFirst({
       where: { transferInId: transferIn.id, batchNo }
     })
@@ -313,10 +351,21 @@ export async function bulkDeleteTransferInItems(items: { batchNo: string, doNumb
     return { success: false, error: "Unauthorized. You do not have permission to delete stock items." }
   }
 
+  const lockedDos = [...new Set(items.map(i => i.doNumber).filter(isSystemDo))]
+  if (lockedDos.length > 0) {
+    return {
+      success: false,
+      error:
+        `${lockedDos.length} DO dalam pilihan ini dijana oleh sistem dan tidak boleh dipadam: ` +
+        `${lockedDos.map(d => d.trim()).join(", ")}. Buang DO tersebut dari pilihan, ` +
+        `atau betulkan rekod asalnya (Ambil Bahan / borang Daily Raw Material).`,
+    }
+  }
+
   try {
     let deletedCount = 0;
     const affectedDates: Date[] = []
-    
+
     for (const { batchNo, doNumber } of items) {
       if (!doNumber) continue;
       const transferIn = await prisma.transferIn.findFirst({ where: { doNumber } })

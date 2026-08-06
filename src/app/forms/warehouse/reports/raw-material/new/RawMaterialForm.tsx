@@ -24,6 +24,8 @@ type Row = {
   locked: boolean
   /** Already recorded as a withdrawal since the last report. Locks Qty Out when above zero. */
   withdrawnQty: number
+  /** Which Ambil Bahan records make up withdrawnQty, so the split can name itself on screen. */
+  withdrawalNos: string[]
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10)
@@ -38,6 +40,7 @@ const blankRow = (sku = RAW_MATERIAL_SKUS[0].key): Row => ({
   remarks: "",
   locked: false,
   withdrawnQty: 0,
+  withdrawalNos: [],
 })
 
 const n = (v: string) => {
@@ -53,7 +56,17 @@ export type RawMaterialInitialData = {
   preparedBy: string
   verifiedBy: string
   remarks: string
-  rows: { sku: string; batchNo: string; balanceIn: number; qtyIn: number; qtyOut: number; remarks: string }[]
+  rows: {
+    sku: string
+    batchNo: string
+    balanceIn: number
+    qtyIn: number
+    qtyOut: number
+    remarks: string
+    /** Portion of qtyOut that already left on an Ambil Bahan DO, and which withdrawals those were. */
+    withdrawnQty: number
+    withdrawalNos: string[]
+  }[]
 }
 
 export function RawMaterialForm({
@@ -86,7 +99,10 @@ export function RawMaterialForm({
 
   const [rows, setRows] = useState<Row[]>(() => {
     if (initialData) {
-      // Every field stays editable when correcting a mistake, including the opening balance.
+      // Every field stays editable when correcting a mistake, including the opening balance and
+      // Qty Out — that is the whole point of the edit screen. But withdrawnQty must carry the real
+      // figure, not 0: the server still subtracts it when regenerating the DO, so hiding it here
+      // meant staff could not see why 2700 typed in became a 900-box DO.
       return initialData.rows.map(r => ({
         uid: uid(),
         sku: r.sku,
@@ -96,7 +112,8 @@ export function RawMaterialForm({
         qtyOut: String(r.qtyOut),
         remarks: r.remarks,
         locked: false,
-        withdrawnQty: 0,
+        withdrawnQty: r.withdrawnQty || 0,
+        withdrawalNos: r.withdrawalNos || [],
       }))
     }
     return prefillRows.length > 0
@@ -110,6 +127,7 @@ export function RawMaterialForm({
           remarks: "",
           locked: true,
           withdrawnQty: p.withdrawnQty || 0,
+          withdrawalNos: [],
         }))
       : [blankRow()]
   })
@@ -348,14 +366,15 @@ export function RawMaterialForm({
                         />
                       </td>
                       <td className="px-3 py-2">
-                        {/* Stock production already took is recorded by whoever took it, so this
-                            figure is derived rather than typed. Only rows with no withdrawal stay
-                            editable, which keeps the old manual path working. */}
+                        {/* Stock production already took is recorded by whoever took it, so on a new
+                            form this figure is derived rather than typed. The edit screen must stay
+                            typeable — it exists to correct mistakes — so there the field unlocks and
+                            the split is spelled out underneath instead. */}
                         <input
                           type="number" min="0" step="1"
                           value={r.qtyOut}
                           onChange={e => patch(r.uid, { qtyOut: e.target.value })}
-                          disabled={r.withdrawnQty > 0}
+                          disabled={!isEdit && r.withdrawnQty > 0}
                           title={
                             r.withdrawnQty > 0
                               ? `${r.withdrawnQty} sudah direkod melalui Ambil Bahan. Untuk ubah, batalkan pengeluaran itu.`
@@ -363,11 +382,22 @@ export function RawMaterialForm({
                           }
                           className={`${cellCls} text-right disabled:bg-indigo-50 disabled:text-indigo-800 disabled:font-black disabled:border-indigo-200 ${n(r.qtyOut) > 0 && r.withdrawnQty === 0 ? "border-red-300 bg-red-50 font-bold" : ""}`}
                         />
-                        {r.withdrawnQty > 0 && (
-                          <p className="text-[9px] font-black uppercase text-indigo-600 mt-0.5 leading-none">
-                            dari Ambil Bahan
-                          </p>
-                        )}
+                        {r.withdrawnQty > 0 && (() => {
+                          const manual = n(r.qtyOut) - r.withdrawnQty
+                          return (
+                            <div className="mt-1 leading-tight">
+                              <p className="text-[9px] font-black uppercase text-indigo-600">
+                                {r.withdrawnQty.toLocaleString("en-MY")} dari Ambil Bahan
+                                {r.withdrawalNos.length > 0 && ` (${r.withdrawalNos.join(", ")})`}
+                              </p>
+                              <p className={`text-[9px] font-black uppercase ${manual < 0 ? "text-red-600" : "text-gray-500"}`}>
+                                {manual < 0
+                                  ? `Kurang ${Math.abs(manual).toLocaleString("en-MY")} dari rekod Ambil Bahan`
+                                  : `${manual.toLocaleString("en-MY")} manual → DO baharu`}
+                              </p>
+                            </div>
+                          )
+                        })()}
                       </td>
                       <td className="px-3 py-2 text-right">
                         <span className={`text-sm font-black ${negative ? "text-red-600" : cf === 0 ? "text-gray-300" : "text-indigo-700"}`}>

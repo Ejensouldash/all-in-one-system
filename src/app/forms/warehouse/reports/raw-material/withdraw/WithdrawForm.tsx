@@ -304,8 +304,9 @@ export function WithdrawForm({
                   Rekod lewat untuk <b>{dmy(date)}</b>. Baki warehouse akan ditolak sekarang juga.
                   {purpose === "PRODUCTION" && (
                     <>
-                      {" "}DO ke production akan dipos pada <b>{dmy(today)}</b> supaya borang harian
-                      hari ini masih boleh ambil DO itu.
+                      {" "}DO ke production akan dipos pada <b>{dmy(date)} shift {shift}</b> — tarikh
+                      bahan itu benar-benar keluar, bukan hari ini. Draf Daily Production Report untuk
+                      tarikh dan shift itu mesti sudah wujud, kalau tidak rekod ini akan ditolak.
                     </>
                   )}
                 </p>

@@ -179,10 +179,19 @@ export async function getBatchAnchors(excludeReportId?: string): Promise<Map<str
  * How much of each batch has been withdrawn since ITS OWN anchor report — not one anchor applied
  * uniformly to every batch. A batch with no anchor (never appeared in any ACTIVE report) counts
  * every active withdrawal against it, matching the very-first-report case.
+ *
+ * `upTo` (an ISO date) closes the window at the top. A DRM report dated D is a statement about the
+ * rack as it stood on D, so a withdrawal that physically happened after D has nothing to do with
+ * it. Without this bound, saving a backdated report — or re-saving an old one — would net out
+ * withdrawals from the future and quietly shrink the DO it hands to production. Live stock
+ * (getLiveWarehouseStock) deliberately passes nothing: "now" has no upper bound.
  */
-export async function getWithdrawnSincePerKey(anchors: Map<string, BatchAnchor>): Promise<Map<string, number>> {
+export async function getWithdrawnSincePerKey(
+  anchors: Map<string, BatchAnchor>,
+  upTo?: string
+): Promise<Map<string, number>> {
   const withdrawals = await prisma.rawMaterialWithdrawal.findMany({
-    where: { status: ACTIVE },
+    where: { status: ACTIVE, ...(upTo ? { date: { lte: toDbDate(upTo) } } : {}) },
     include: { items: true },
   })
 
@@ -334,6 +343,17 @@ export async function createWithdrawal(input: WithdrawalInput) {
             throw new WithdrawalError(
               `Daily Production Report ${input.date} ${input.shift} untuk line ${lineSize}ml sudah ${statuses}. ` +
               "Buka semula atau buat pembetulan laporan tersebut dahulu sebelum merekod pengeluaran lewat."
+            )
+          }
+
+          // No report at all for that date/shift/line means there is nothing to receive the DO.
+          // getActiveInventory only offers a Transfer In whose receiveDate AND shift match the form
+          // being filled, so a DO stamped 4/8 PM will never appear on the 5/8 PM form — it would
+          // simply vanish, taking the stock with it. Refuse rather than release into nowhere.
+          if (matching.length === 0) {
+            throw new WithdrawalError(
+              `Tiada Daily Production Report untuk ${input.date} ${input.shift} line ${lineSize}ml. ` +
+              "Buat draf laporan tersebut dahulu, barulah DO pengeluaran ini ada tempat untuk masuk."
             )
           }
 

@@ -54,6 +54,20 @@ export async function createPdfUploadUrl(objectKey: string, contentType: string)
   )
 }
 
+export async function createPdfViewUrl(objectKey: string) {
+  const { bucket } = getR2Config()
+  return getSignedUrl(
+    getR2Client(),
+    new GetObjectCommand({
+      Bucket: bucket,
+      Key: objectKey,
+      ResponseContentType: "application/pdf",
+      ResponseContentDisposition: "inline",
+    }),
+    { expiresIn: 3600 },
+  )
+}
+
 export async function assertR2Object(objectKey: string) {
   const { bucket } = getR2Config()
   return getR2Client().send(new HeadObjectCommand({ Bucket: bucket, Key: objectKey }))

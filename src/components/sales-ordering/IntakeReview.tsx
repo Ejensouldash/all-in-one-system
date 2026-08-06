@@ -114,10 +114,29 @@ export function IntakeReview({
     } finally { setBusy(false) }
   }
 
+  async function forwardToCreditCheck() {
+    setBusy(true)
+    setError("")
+    try {
+      const saveRes = await fetch(`/api/sales-ordering/intake/${intakeId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerId: customer?.id, document }) })
+      if (!saveRes.ok) {
+        const saveErr = await saveRes.json()
+        throw new Error(saveErr.error || "Simpan semakan gagal sebelum hantar.")
+      }
+      const response = await fetch(`/api/sales-ordering/intake/${intakeId}/forward-credit-check`, { method: "POST" })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || "Hantar ke PO-SOA Check gagal.")
+      router.push(`/forms/sales-ordering/credit-check?highlight=${result.creditCheckId}`)
+      router.refresh()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Gagal menghantar ke PO-SOA Check.")
+    } finally { setBusy(false) }
+  }
+
   const inputClass = "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
 
   return <div className="space-y-6">
-    {issues.length > 0 && <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><div className="flex items-center gap-2 font-black text-amber-900"><AlertTriangle className="h-5 w-5" /> Perkara yang perlu disemak</div><ul className="mt-3 space-y-1 text-sm font-semibold text-amber-800">{issues.map((issue, index) => <li key={`${issue.code}-${index}`}>• {issue.message}</li>)}</ul></section>}
+    {issues.length > 0 && <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><div className="flex items-center gap-2 font-black text-amber-900"><AlertTriangle className="h-5 w-5" /> Perkara yang perlu disemak (Wajib diisi/dibetulkan)</div><ul className="mt-3 space-y-1 text-sm font-semibold text-amber-800">{issues.map((issue, index) => <li key={`${issue.code}-${index}`}>• {issue.message}</li>)}</ul></section>}
 
     {!canManageDocuments && <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-600">Read-only review. Minta admin beri permission <span className="font-black">Edit / Delete Documents</span> untuk betulkan atau approve data dokumen.</section>}
     <fieldset disabled={!canManageDocuments} className="contents disabled:opacity-70">
@@ -139,7 +158,7 @@ export function IntakeReview({
     <section className="grid gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-5">{(["subtotal", "discount", "freight", "tax", "grandTotal"] as const).map(key => <label key={key} className="text-xs font-black uppercase tracking-wider text-slate-500">{key}<input type="number" step="0.01" value={document.totals[key]} onChange={event => updateTotal(key, Number(event.target.value))} className={inputClass} /></label>)}<label className="text-xs font-black uppercase tracking-wider text-slate-500 sm:col-span-2 lg:col-span-5">Remarks<textarea rows={2} value={document.remarks} onChange={event => setField("remarks", event.target.value)} className={inputClass} /></label></section>
 
     </fieldset>
-    <section className="sticky bottom-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-xl backdrop-blur sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-2 text-sm font-bold text-slate-600"><CheckCircle2 className="h-5 w-5 text-emerald-600" /> AI data belum rasmi sehingga SOD approve.</div>{canManageDocuments && <div className="flex flex-col gap-2 sm:flex-row"><button onClick={deleteDocument} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-3 text-sm font-black text-rose-700 transition hover:bg-rose-50 disabled:opacity-60"><Trash2 className="h-4 w-4" /> Delete</button><button onClick={saveReview} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-black text-cyan-700 transition hover:bg-cyan-100 disabled:opacity-60">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save review</button>{canCreateSalesOrder && <button onClick={createSalesOrder} disabled={busy || !customer} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-500 disabled:bg-slate-300">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Create Draft SO</button>}</div>}</section>
+    <section className="sticky bottom-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-xl backdrop-blur sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-2 text-sm font-bold text-slate-600"><CheckCircle2 className="h-5 w-5 text-emerald-600" /> SOD Review & pengesahan maklumat.</div>{canManageDocuments && <div className="flex flex-wrap items-center gap-2"><button onClick={deleteDocument} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-3 text-sm font-black text-rose-700 transition hover:bg-rose-50 disabled:opacity-60"><Trash2 className="h-4 w-4" /> Delete</button><button onClick={saveReview} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-black text-cyan-700 transition hover:bg-cyan-100 disabled:opacity-60">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Simpan Draft</button><button onClick={forwardToCreditCheck} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-600 px-5 py-3 text-sm font-black text-white transition hover:bg-cyan-500 disabled:bg-slate-300 shadow-md">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Luluskan & Hantar ke PO-SOA Check</button>{canCreateSalesOrder && <button onClick={createSalesOrder} disabled={busy || !customer} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-500 disabled:bg-slate-300">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Create SO</button>}</div>}</section>
     {error && <p className="rounded-xl bg-rose-50 p-4 text-sm font-black text-rose-700">{error}</p>}
   </div>
 }

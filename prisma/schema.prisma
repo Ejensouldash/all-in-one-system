@@ -1299,8 +1299,8 @@ model RawMaterialWithdrawal {
   takenBy        String
   purpose        String    @default("PRODUCTION") // PRODUCTION | DISPOSAL | RETURN | ADJUSTMENT
   remarks        String?
-  // Non-null means this was recorded after the fact: `date` is the day the material actually left
-  // the rack, while createdAt (and the linked DO's receiveDate) is the day it was booked in.
+  // Non-null means this was recorded after the fact. `date` and the linked DO's receiveDate remain
+  // the day the material left the rack; createdAt records when staff entered it into the system.
   backdateReason String?
   createdById    String?
   linkedDoNumber String? // the TransferIn DO generated, PRODUCTION purpose only

@@ -82,18 +82,6 @@ export function malaysiaToday(): string {
   return malaysiaNow().toISOString().split("T")[0]
 }
 
-/** Current Malaysian wall clock as HH:MM. */
-function malaysiaTimeNow(): string {
-  const d = malaysiaNow()
-  return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`
-}
-
-/** Which shift is running right now — the same 19:00–07:00 rule the withdraw form defaults to. */
-function malaysiaShiftNow(): "AM" | "PM" {
-  const h = malaysiaNow().getUTCHours()
-  return h >= 19 || h < 7 ? "PM" : "AM"
-}
-
 /** Whole days between two YYYY-MM-DD strings, `to` minus `from`. */
 function daysBetween(from: string, to: string): number {
   return Math.round((toDbDate(to).getTime() - toDbDate(from).getTime()) / 86_400_000)
@@ -108,6 +96,31 @@ function batchAgeKey(batchNo: string): string {
   if (!m) return "999999" + batchNo
   const [, dd, mm, yy] = m
   return `${yy}${mm}${dd}`
+}
+
+type ProductionLineSize = "425" | "800"
+
+/** The production line a raw-material SKU belongs to. CAP is shared by both lines, so it is
+ * deliberately left unsynchronised rather than guessing a destination draft. */
+function productionLineForSku(sku: RawMaterialSku): ProductionLineSize | null {
+  const identity = `${sku.key} ${sku.category} ${sku.section}`.toUpperCase()
+  if (identity.includes("425")) return "425"
+  if (identity.includes("800")) return "800"
+  return null
+}
+
+function matchesProductionLine(line: string, size: ProductionLineSize) {
+  return (line || "").toUpperCase().includes(size)
+}
+
+/** Keep these section keys aligned with DailyReportForm's inventory mapping. */
+function dailyReportSectionForSku(sku: RawMaterialSku): string | null {
+  if (sku.category.includes("BOTTLE")) return "BOTTLE"
+  if (sku.category === "LABEL") return "LABEL"
+  if (sku.category === "CAP") return "CAP"
+
+  const box = /^BOX\s+(425|800)x(6|12|20|24)$/i.exec(sku.key)
+  return box ? `BOX_p${box[1]}_${box[2]}` : null
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -297,6 +310,45 @@ export async function createWithdrawal(input: WithdrawalInput) {
   const dateStamp = input.date.slice(2).replace(/-/g, "")
 
   return prisma.$transaction(async tx => {
+    // A late production withdrawal belongs to the shift in which the material physically moved.
+    // It may be added straight into that shift's draft, but never silently changes a submitted
+    // GMP report. CAP has no 425/800 identity, so it remains available as a historical DO rather
+    // than being guessed into either line's draft.
+    const draftsByLine = new Map<ProductionLineSize, { id: string }>()
+    if (isBackdated && input.purpose === "PRODUCTION") {
+      const affectedLines = [...new Set(
+        resolved.map(r => productionLineForSku(r.sku)).filter((line): line is ProductionLineSize => line !== null)
+      )]
+
+      if (affectedLines.length > 0) {
+        const reports = await tx.dailyReport.findMany({
+          where: { date: toDbDate(input.date), shift: input.shift },
+          select: { id: true, line: true, status: true },
+        })
+
+        for (const lineSize of affectedLines) {
+          const matching = reports.filter(report => matchesProductionLine(report.line, lineSize))
+          const locked = matching.filter(report => report.status !== "DRAFT")
+          if (locked.length > 0) {
+            const statuses = [...new Set(locked.map(report => report.status))].join(", ")
+            throw new WithdrawalError(
+              `Daily Production Report ${input.date} ${input.shift} untuk line ${lineSize}ml sudah ${statuses}. ` +
+              "Buka semula atau buat pembetulan laporan tersebut dahulu sebelum merekod pengeluaran lewat."
+            )
+          }
+
+          const drafts = matching.filter(report => report.status === "DRAFT")
+          if (drafts.length > 1) {
+            throw new WithdrawalError(
+              `Terdapat lebih daripada satu Daily Production Report DRAFT untuk ${input.date} ${input.shift} line ${lineSize}ml. ` +
+              "Sila kekalkan satu draf sahaja sebelum merekod pengeluaran lewat."
+            )
+          }
+          if (drafts[0]) draftsByLine.set(lineSize, drafts[0])
+        }
+      }
+    }
+
     // Counting rows for the date breaks once one has been hard-deleted (forceDeleteWithdrawal): the
     // count goes back down and the next number collides with the unique withdrawalNo. Take the
     // highest suffix already issued for the date instead, so gaps are skipped rather than reused.
@@ -340,18 +392,14 @@ export async function createWithdrawal(input: WithdrawalInput) {
     })
 
     if (doNumber) {
-      // The DO carries the POSTING date, not the event date, even when the withdrawal is backdated.
-      // getActiveInventory only offers a DO to the report whose date and shift match receiveDate
-      // (isReceivedToday), so a DO stamped with a past date would be offered only to a report that
-      // is already submitted — unclaimable, and then wiped by the next report that declares that
-      // batch's Storeroom opening. Posting it now keeps it reachable. The event date stays visible
-      // in doNumber, in the receiver name, and on the withdrawal row itself.
+      // The DO belongs to the moment the material actually left the warehouse.
+      // A matching DRAFT report is synchronised below in this same transaction.
       await tx.transferIn.create({
         data: {
           doNumber,
-          receiveDate: toDbDate(isBackdated ? today : input.date),
-          receiveTime: isBackdated ? malaysiaTimeNow() : input.time,
-          shift: isBackdated ? malaysiaShiftNow() : input.shift,
+          receiveDate: toDbDate(input.date),
+          receiveTime: input.time,
+          shift: input.shift,
           receiverName: isBackdated
             ? `Production Withdrawal (rekod lewat ${input.date} ${input.shift}) - ${input.takenBy.trim()}`
             : `Production Withdrawal - ${input.takenBy.trim()}`,
@@ -365,6 +413,29 @@ export async function createWithdrawal(input: WithdrawalInput) {
           },
         },
       })
+
+      if (isBackdated) {
+        const inventoryRows = resolved.flatMap(r => {
+          const line = productionLineForSku(r.sku)
+          const report = line ? draftsByLine.get(line) : undefined
+          const sectionKey = dailyReportSectionForSku(r.sku)
+          if (!report || !sectionKey) return []
+
+          return [{
+            reportId: report.id,
+            sectionKey,
+            type: "TransferIn",
+            batchNo: r.batchNo,
+            bags: Math.round(r.qty),
+            mult: r.sku.mult,
+            labelType: doNumber,
+          }]
+        })
+
+        if (inventoryRows.length > 0) {
+          await tx.inventoryLog.createMany({ data: inventoryRows })
+        }
+      }
     }
 
     return withdrawal

@@ -3,7 +3,7 @@ import "server-only"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import { extractSalesDocument, SALES_AI_MODEL } from "./extract"
 import { generateGeminiJson } from "./gemini-json"
-import { decideCreditCheck } from "./decision-engine"
+import { decideCreditCheck, type CheckMode } from "./decision-engine"
 
 export type SoaInvoice = { invoiceNumber: string; invoiceDate: string; amount: number; settledDate: string }
 export type SoaExtract = { accountName: string; stationName: string; supplierName: string; statementDate: string; creditTermDays: number; closingBalance: number; invoices: SoaInvoice[]; warnings: string[] }
@@ -29,9 +29,10 @@ export async function extractSoa(pdf: Buffer, onStage?: StageReporter): Promise<
   return { accountName: clean(raw.accountName), stationName: clean(raw.stationName), supplierName: clean(raw.supplierName), statementDate: date(clean(raw.statementDate)), creditTermDays: Math.max(0, Math.round(money(raw.creditTermDays))), closingBalance: money(raw.closingBalance), invoices: Array.isArray(raw.invoices) ? raw.invoices.map(value => { const row = value as Record<string, unknown>; return { invoiceNumber: clean(row.invoiceNumber), invoiceDate: date(clean(row.invoiceDate)), amount: money(row.amount), settledDate: date(clean(row.settledDate)) } }).filter(row => row.invoiceNumber && row.invoiceDate && row.amount) : [], warnings: Array.isArray(raw.warnings) ? raw.warnings.map(clean).filter(Boolean) : [] }
 }
 
-export async function analyseCreditCheck(poPdf: Buffer, soaPdf: Buffer, onStage?: StageReporter): Promise<{ po: Awaited<ReturnType<typeof extractSalesDocument>>; soa: SoaExtract; result: CreditResult }> {
+export async function analyseCreditCheck(poPdf: Buffer, soaPdf: Buffer, checkMode: CheckMode = "PO_CREDIT_CHECK", onStage?: StageReporter): Promise<{ po: Awaited<ReturnType<typeof extractSalesDocument>>; soa: SoaExtract; result: CreditResult }> {
   const po = await extractSalesDocument(poPdf, onStage)
   const soa = await extractSoa(soaPdf, onStage)
   await onStage?.("RECONCILING")
-  return { po, soa, result: decideCreditCheck(po, soa) }
+  return { po, soa, result: decideCreditCheck(po, soa, checkMode) }
 }
+

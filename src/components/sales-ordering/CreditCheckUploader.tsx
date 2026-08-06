@@ -2,17 +2,18 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { CheckCircle2, FileText, Loader2, RefreshCw, ShieldCheck, UploadCloud } from "lucide-react"
+import { CheckCircle2, FileText, Loader2, RefreshCw, ShieldCheck, UploadCloud, FileCheck2, Scale } from "lucide-react"
+import type { CheckMode } from "@/lib/sales-ordering/decision-engine"
 
 type ProgressStage = "IDLE" | "PREPARING" | "UPLOADING" | "READING_FILES" | "READING_PO" | "VERIFYING_PO" | "RETRYING_PO" | "READING_SOA" | "RETRYING_SOA" | "RECONCILING" | "COMPLETING"
 
 const stages = [
-  { key: "UPLOADING", label: "Upload PO dan SOA ke secure storage", progress: 28 },
+  { key: "UPLOADING", label: "Upload fail ke secure storage", progress: 28 },
   { key: "READING_FILES", label: "Membuka dan mengesahkan kedua-dua PDF", progress: 36 },
-  { key: "READING_PO", label: "AI membaca Purchase Order", progress: 48 },
-  { key: "VERIFYING_PO", label: "AI verify nombor, item dan jumlah PO", progress: 62 },
-  { key: "READING_SOA", label: "AI membaca invoice dan payment dalam SOA", progress: 78 },
-  { key: "RECONCILING", label: "Mengira aging dan keputusan pada tarikh PO", progress: 94 },
+  { key: "READING_PO", label: "AI membaca PDF PO / Invois", progress: 48 },
+  { key: "VERIFYING_PO", label: "AI verify nombor, item dan jumlah", progress: 62 },
+  { key: "READING_SOA", label: "AI membaca lejar invoice dan payment SOA", progress: 78 },
+  { key: "RECONCILING", label: "Mengira aging dan keputusan mengikut mod kewangan", progress: 94 },
 ] as const
 
 const stageAlias: Record<ProgressStage, string> = {
@@ -54,6 +55,7 @@ export function CreditCheckUploader() {
   const router = useRouter()
   const poRef = useRef<HTMLInputElement>(null)
   const soaRef = useRef<HTMLInputElement>(null)
+  const [checkMode, setCheckMode] = useState<CheckMode>("PO_CREDIT_CHECK")
   const [po, setPo] = useState<File | null>(null)
   const [soa, setSoa] = useState<File | null>(null)
   const [stage, setStage] = useState<ProgressStage>("IDLE")
@@ -97,7 +99,7 @@ export function CreditCheckUploader() {
     setError("")
     let pollTimer: number | undefined
     try {
-      const preparedResponse = await fetch("/api/sales-ordering/credit-check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ poName: po.name, poSize: po.size, soaName: soa.name, soaSize: soa.size }) })
+      const preparedResponse = await fetch("/api/sales-ordering/credit-check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ poName: po.name, poSize: po.size, soaName: soa.name, soaSize: soa.size, checkMode }) })
       const prepared = await readJson(preparedResponse)
       if (!preparedResponse.ok) throw new Error(String(prepared.error || "Gagal menyediakan upload."))
 
@@ -121,7 +123,7 @@ export function CreditCheckUploader() {
           const status = await readJson(statusResponse)
           applyServerStage(status.status)
         } catch {
-          // The processing request remains authoritative; polling can safely retry.
+          // Polling can safely retry
         }
       }, 1400)
 
@@ -143,5 +145,77 @@ export function CreditCheckUploader() {
 
   const tile = (label: string, file: File | null, ref: React.RefObject<HTMLInputElement | null>, setter: (file: File | null) => void) => <button type="button" onClick={() => ref.current?.click()} disabled={busy} className="flex min-h-44 flex-1 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-cyan-200 bg-cyan-50/50 p-5 text-center transition hover:border-cyan-500 disabled:cursor-not-allowed disabled:opacity-70"><input ref={ref} type="file" accept="application/pdf" className="hidden" onChange={choose(setter)} />{file ? <FileText className="mb-3 h-9 w-9 text-emerald-600" /> : <UploadCloud className="mb-3 h-9 w-9 text-cyan-700" />}<p className="font-black text-slate-950">{file?.name || label}</p><p className="mt-1 text-xs font-semibold text-slate-500">PDF sahaja - maksimum 20 MB</p></button>
 
-  return <section className="rounded-3xl border border-cyan-200 bg-white p-5 shadow-sm sm:p-7"><div className="mb-5 flex items-center gap-3"><span className="rounded-xl bg-cyan-50 p-2 text-cyan-700"><ShieldCheck className="h-5 w-5" /></span><div><h2 className="font-black text-slate-950">Mulakan PO-SOA Check</h2><p className="text-sm text-slate-500">Kedua-dua dokumen diproses sebagai satu kes semakan.</p></div></div><div className="flex flex-col gap-4 md:flex-row">{tile("Upload Purchase Order", po, poRef, setPo)}{tile("Upload Statement of Account", soa, soaRef, setSoa)}</div><button type="button" disabled={!po || !soa || busy} onClick={start} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3.5 text-sm font-black text-white transition disabled:bg-slate-300">{busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing {progress}%</> : "Run PO-SOA Credit Check"}</button>{busy && <div className="mt-4 rounded-2xl border border-cyan-100 bg-slate-50 p-4" aria-live="polite"><div className="flex items-center justify-between gap-3"><div><p className="text-sm font-black text-slate-950">{retrying ? "Gemini sibuk - sistem sedang retry automatik" : stages[Math.max(0, activeIndex)]?.label || "Menyediakan semakan"}</p><p className="mt-1 text-xs font-semibold text-slate-500">Masa berjalan: {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}{retrying ? " - dokumen tidak perlu di-upload semula" : ""}</p></div>{retrying ? <RefreshCw className="h-5 w-5 animate-spin text-amber-600" /> : <Loader2 className="h-5 w-5 animate-spin text-cyan-600" />}</div><div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-200"><div className={`h-full rounded-full bg-gradient-to-r from-violet-600 via-cyan-500 to-emerald-500 transition-all duration-700 ${busy ? "animate-pulse" : ""}`} style={{ width: `${progress}%` }} /></div><div className="mt-4 grid gap-2 sm:grid-cols-2">{stages.map((item, index) => <div key={item.key} className={`flex items-center gap-2 text-xs font-bold ${index < activeIndex ? "text-emerald-700" : index === activeIndex ? "text-cyan-800" : "text-slate-400"}`}>{index < activeIndex ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${index === activeIndex ? "animate-pulse bg-cyan-500" : "bg-slate-300"}`} />}{item.label}</div>)}</div><p className="mt-4 text-xs font-semibold text-slate-500">Gemini boleh mengambil 1-3 minit ketika permintaan tinggi. Jangan tutup halaman sehingga selesai.</p></div>}{error && <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}</section>
+  return <section className="rounded-3xl border border-cyan-200 bg-white p-5 shadow-sm sm:p-7">
+    <div className="mb-6">
+      <div className="flex items-center gap-3">
+        <span className="rounded-xl bg-cyan-50 p-2 text-cyan-700"><ShieldCheck className="h-5 w-5" /></span>
+        <div>
+          <h2 className="font-black text-slate-950">Mulakan PO-SOA Smart Checking</h2>
+          <p className="text-sm text-slate-500">Pilih mod kawalan kewangan sebelum memproses dokumen PDF.</p>
+        </div>
+      </div>
+
+      {/* Mode Selector Tabs */}
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => setCheckMode("PO_CREDIT_CHECK")}
+          className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition ${checkMode === "PO_CREDIT_CHECK" ? "border-cyan-600 bg-cyan-50/70 shadow-sm" : "border-slate-200 bg-white hover:border-slate-300"}`}
+        >
+          <span className={`mt-0.5 rounded-lg p-2 ${checkMode === "PO_CREDIT_CHECK" ? "bg-cyan-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+            <FileCheck2 className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-sm font-black text-slate-950">Semakan Kredit PO Baharu</p>
+            <p className="mt-1 text-xs font-semibold text-slate-500">Kelulusan pelepasan Sales Order baharu berdasarkan padanan identiti & tunggakan overdue SOA.</p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => setCheckMode("INVOICE_SOA_RECONCILIATION")}
+          className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition ${checkMode === "INVOICE_SOA_RECONCILIATION" ? "border-purple-600 bg-purple-50/70 shadow-sm" : "border-slate-200 bg-white hover:border-slate-300"}`}
+        >
+          <span className={`mt-0.5 rounded-lg p-2 ${checkMode === "INVOICE_SOA_RECONCILIATION" ? "bg-purple-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+            <Scale className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-sm font-black text-slate-950">Padanan Invois vs SOA</p>
+            <p className="mt-1 text-xs font-semibold text-slate-500">Penyelarasan lejar invois spesifik berbanding penyata akaun (SOA) pembekal.</p>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <div className="flex flex-col gap-4 md:flex-row">
+      {tile(checkMode === "PO_CREDIT_CHECK" ? "Upload Purchase Order" : "Upload Invois Pembekal / Pelanggan", po, poRef, setPo)}
+      {tile("Upload Statement of Account", soa, soaRef, setSoa)}
+    </div>
+
+    <button type="button" disabled={!po || !soa || busy} onClick={start} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3.5 text-sm font-black text-white transition disabled:bg-slate-300">
+      {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing {progress}%</> : checkMode === "PO_CREDIT_CHECK" ? "Run PO-SOA Credit Check" : "Run Invoice-SOA Reconciliation"}
+    </button>
+
+    {busy && <div className="mt-4 rounded-2xl border border-cyan-100 bg-slate-50 p-4" aria-live="polite">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-black text-slate-950">{retrying ? "Gemini sibuk - sistem sedang retry automatik" : stages[Math.max(0, activeIndex)]?.label || "Menyediakan semakan"}</p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">Masa berjalan: {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}{retrying ? " - dokumen tidak perlu di-upload semula" : ""}</p>
+        </div>
+        {retrying ? <RefreshCw className="h-5 w-5 animate-spin text-amber-600" /> : <Loader2 className="h-5 w-5 animate-spin text-cyan-600" />}
+      </div>
+      <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-200">
+        <div className={`h-full rounded-full bg-gradient-to-r from-violet-600 via-cyan-500 to-emerald-500 transition-all duration-700 ${busy ? "animate-pulse" : ""}`} style={{ width: `${progress}%` }} />
+      </div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        {stages.map((item, index) => <div key={item.key} className={`flex items-center gap-2 text-xs font-bold ${index < activeIndex ? "text-emerald-700" : index === activeIndex ? "text-cyan-800" : "text-slate-400"}`}>{index < activeIndex ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${index === activeIndex ? "animate-pulse bg-cyan-500" : "bg-slate-300"}`} />}{item.label}</div>)}
+      </div>
+      <p className="mt-4 text-xs font-semibold text-slate-500">Gemini AI sedang membaca dan menguji kedua-dua PDF. Sila tunggu sehingga selesai.</p>
+    </div>}
+
+    {error && <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
+  </section>
 }
+

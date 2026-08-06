@@ -53,13 +53,14 @@ export function decideCreditCheck(
   checkMode: CheckMode = "PO_CREDIT_CHECK"
 ): DecisionResult {
   const poDate = /^\d{4}-\d{2}-\d{2}$/.test(po.documentDate) ? po.documentDate : ""
+  const evalDate = soa.statementDate || poDate || new Date().toISOString().slice(0, 10)
   const terms = soa.creditTermDays || 30
   const identity = compareIdentity(po.customerName, [soa.accountName, soa.stationName, soa.supplierName].filter(Boolean))
   
   const aging = soa.invoices.map(invoice => {
     const dueDate = addDays(invoice.invoiceDate, terms)
-    const settledBeforePo = Boolean(invoice.settledDate && poDate && invoice.settledDate <= poDate)
-    return { ...invoice, dueDate, statusAtPoDate: settledBeforePo ? "Selesai dibayar" : (poDate && dueDate > poDate) ? "Belum matang" : "Overdue" }
+    const settled = Boolean(invoice.settledDate && invoice.settledDate <= evalDate)
+    return { ...invoice, dueDate, statusAtPoDate: settled ? "Selesai dibayar" : (dueDate > evalDate) ? "Belum matang" : "Overdue" }
   })
 
   const active = aging.filter(invoice => invoice.statusAtPoDate !== "Selesai dibayar")
@@ -77,10 +78,10 @@ export function decideCreditCheck(
     if (inv.statusAtPoDate === "Belum matang") {
       current += inv.amount
     } else {
-      // Calculate days overdue at PO date
-      const poDateTime = new Date(`${poDate || new Date().toISOString().slice(0,10)}T00:00:00Z`).getTime()
+      // Calculate days overdue at evaluation date (SOA statement date)
+      const evalDateTime = new Date(`${evalDate}T00:00:00Z`).getTime()
       const dueDateTime = new Date(`${inv.dueDate}T00:00:00Z`).getTime()
-      const daysOverdue = Math.max(0, Math.floor((poDateTime - dueDateTime) / (1000 * 60 * 60 * 24)))
+      const daysOverdue = Math.max(0, Math.floor((evalDateTime - dueDateTime) / (1000 * 60 * 60 * 24)))
 
       if (daysOverdue <= 30) {
         month1 += inv.amount
@@ -91,6 +92,7 @@ export function decideCreditCheck(
       }
     }
   })
+
 
   const agingSummary: AgingSummary = {
     current,

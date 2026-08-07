@@ -113,14 +113,26 @@ function matchesProductionLine(line: string, size: ProductionLineSize) {
   return (line || "").toUpperCase().includes(size)
 }
 
-/** Keep these section keys aligned with DailyReportForm's inventory mapping. */
-function dailyReportSectionForSku(sku: RawMaterialSku): string | null {
-  if (sku.category.includes("BOTTLE")) return "BOTTLE"
-  if (sku.category === "LABEL") return "LABEL"
-  if (sku.category === "CAP") return "CAP"
+/**
+ * Keep these section keys aligned with DailyReportForm's inventory mapping.
+ *
+ * Driven by the Transfer In category, because that is the only identifier that survives onto
+ * TransferInItem and InventoryLog — getActiveInventory has nothing else to map from. A null
+ * result means the category has no section of its own (CARTON, WRAPPING, TAPE...).
+ */
+export function dailyReportSectionForCategory(category: string): string | null {
+  const c = category || ""
+  if (c.includes("BOTTLE")) return "BOTTLE"
+  if (c === "LABEL") return "LABEL"
+  if (c === "CAP") return "CAP"
 
-  const box = /^BOX\s+(425|800)x(6|12|20|24)$/i.exec(sku.key)
+  const box = /^BOX\s+(425|800)x(6|12|20|24)$/i.exec(c)
   return box ? `BOX_p${box[1]}_${box[2]}` : null
+}
+
+/** Every BOX SKU's catalogue key and category are the same string (rawMaterialSkus.ts:32-35). */
+function dailyReportSectionForSku(sku: RawMaterialSku): string | null {
+  return dailyReportSectionForCategory(sku.category)
 }
 
 // ---------------------------------------------------------------------------------------------

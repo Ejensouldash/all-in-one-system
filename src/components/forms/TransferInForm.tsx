@@ -1,10 +1,10 @@
 "use client"
 
 import { useForm, useFieldArray } from "react-hook-form"
-import { Plus, Trash2, Save, ArrowLeft, Truck, Loader2, QrCode, CheckCircle2 } from "lucide-react"
+import { Plus, Trash2, Save, ArrowLeft, Truck, Loader2, QrCode, CheckCircle2, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { createTransferIn } from "@/app/actions/transferIn"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { QRScannerModal } from "@/components/forms/QRScannerModal"
 import { isKbpBatchNo } from "@/lib/kbp/batchNumber"
 
@@ -47,9 +47,26 @@ const normaliseBatchNo = (raw: string, category: string) => {
   return needsBatchMask(category) ? maskBatchNo(upper) : upper
 }
 
+// Which shift a delivery belongs to, read from the time it was RECEIVED.
+//
+// This must agree with getActiveInventory's own fallback (src/app/actions/dailyReport.ts) — the
+// daily report only ever offers a DO whose shift matches the shift being filled, so a DO stamped
+// with the wrong one is invisible to production. It used to be defaulted from the clerk's wall
+// clock at page load and never revisited, so a morning delivery keyed in after 7pm was saved as PM.
+const PM_FROM_HOUR = 19
+const AM_FROM_HOUR = 7
+const shiftForTime = (time: string) => {
+  const hour = parseInt((time || "").split(":")[0], 10)
+  if (isNaN(hour)) return "AM"
+  return hour >= PM_FROM_HOUR || hour < AM_FROM_HOUR ? "PM" : "AM"
+}
+
 export function TransferInForm({ userName, initialData }: { userName: string, initialData?: any }) {
   const isEditing = !!initialData;
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  // Once the clerk picks a shift by hand, stop second-guessing them.
+  const shiftPickedByHand = useRef(isEditing);
+  const defaultReceiveTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: "2-digit", minute: "2-digit" });
   const { register, control, handleSubmit, watch, setValue } = useForm({
     defaultValues: initialData ? {
       ...initialData,
@@ -60,8 +77,8 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
       }))
     } : {
       receiveDate: new Date().toISOString().split('T')[0],
-      receiveTime: new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric" }),
-      shift: new Date().getHours() >= 19 || new Date().getHours() < 7 ? "PM" : "AM",
+      receiveTime: defaultReceiveTime,
+      shift: shiftForTime(defaultReceiveTime),
       receiverName: userName || "",
       doNumber: "",
       
@@ -159,6 +176,12 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
   }
   
   const isBoxDO = watchItems.some((item: any) => (item.category || "").includes("BOX"))
+
+  const shiftReg = register("shift")
+  const watchReceiveTime = watch("receiveTime")
+  const watchShift = watch("shift")
+  const impliedShift = shiftForTime(watchReceiveTime)
+  const shiftMismatch = !!watchReceiveTime && watchShift !== impliedShift
 
   const showErrorAndScroll = (elementId: string, message: string) => {
     alert(message)
@@ -332,12 +355,36 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
           <div id="field-receiveTime">
             <label className="block text-xs font-black uppercase tracking-wider mb-2">Receive Time</label>
             <div className="flex space-x-2">
-              <input type="time" {...register("receiveTime")} className="w-full border-2 border-black p-3 font-bold focus:outline-none focus:ring-2 focus:ring-black bg-white" />
-              <select {...register("shift")} className="border-2 border-black p-3 font-bold focus:outline-none focus:ring-2 focus:ring-black bg-white cursor-pointer">
+              <input
+                type="time"
+                {...register("receiveTime")}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setValue("receiveTime", val, { shouldValidate: true, shouldDirty: true })
+                  if (!shiftPickedByHand.current) {
+                    setValue("shift", shiftForTime(val), { shouldValidate: true, shouldDirty: true })
+                  }
+                }}
+                className="w-full border-2 border-black p-3 font-bold focus:outline-none focus:ring-2 focus:ring-black bg-white"
+              />
+              <select
+                {...shiftReg}
+                onChange={(e) => { shiftPickedByHand.current = true; shiftReg.onChange(e) }}
+                className="border-2 border-black p-3 font-bold focus:outline-none focus:ring-2 focus:ring-black bg-white cursor-pointer"
+              >
                 <option value="AM">AM</option>
                 <option value="PM">PM</option>
               </select>
             </div>
+            {shiftMismatch && (
+              <p className="mt-2 text-[11px] font-black uppercase tracking-wide text-amber-700 flex items-start gap-1.5 leading-snug">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-px" />
+                <span>
+                  Masa {watchReceiveTime} jatuh pada shift {impliedShift}, tapi shift dipilih {watchShift}.
+                  Daily Production Report shift {impliedShift} takkan nampak DO ini.
+                </span>
+              </p>
+            )}
           </div>
           <div id="field-doNumber">
             <label className="block text-xs font-black uppercase tracking-wider mb-2">DO Number</label>

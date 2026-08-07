@@ -3,7 +3,7 @@
 import { useForm, useFieldArray, useWatch, Control, UseFormRegister } from "react-hook-form"
 import { Plus, Trash2, Save, ArrowLeft, Info, AlertTriangle, CheckCircle2, CloudDownload, Loader2, History, PenTool } from "lucide-react"
 import Link from "next/link"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useMemo, useState, useRef } from "react"
 import { getActiveInventory, createDailyReport, updateDailyReport } from "@/app/actions/dailyReport"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
 
@@ -97,6 +97,9 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
 
   const [syncedDOs, setSyncedDOs] = useState<any[]>(initialData?.syncedDOs || [])
   const [allTodayDOs, setAllTodayDOs] = useState<any[]>([])
+  // Received today but stamped for the other shift. Offered in the "add" dropdown only — never
+  // auto-synced, so a wrongly stamped DO is recoverable without silently landing in this report.
+  const [otherShiftDOs, setOtherShiftDOs] = useState<any[]>([])
   const [availableCarryForward, setAvailableCarryForward] = useState<any[]>([])
   const [isFetchingSync, setIsFetchingSync] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -164,6 +167,10 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
   const watchDate = watch("date")
   const watchShift = watch("shift")
 
+  // Everything a section may offer under "Select Transfer In to Add": this shift's DOs, plus DOs
+  // received today that were stamped for the other shift and that no report has claimed.
+  const selectableDOs = useMemo(() => [...allTodayDOs, ...otherShiftDOs], [allTodayDOs, otherShiftDOs])
+
   const isInitialMount = useRef(true)
 
   // Fetch Global Inventory on mount and when date changes
@@ -174,7 +181,8 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       
       if (res.success) {
         setAllTodayDOs(res.data.todayDOs)
-        
+        setOtherShiftDOs(res.data.otherShiftDOs || [])
+
         if (isInitialMount.current && ((initialData?.syncedDOs !== undefined) || (localStorage.getItem("dailyReportDraft") && JSON.parse(localStorage.getItem("dailyReportDraft")!).syncedDOs))) {
           // Do not overwrite syncedDOs if we just loaded them from draft or edit
         } else {
@@ -681,7 +689,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             availableCarryForward={availableCarryForward.filter(b => b.category.includes("BOTTLE") && b.category.includes(watchLine.includes("800") ? "800" : "425"))}
             multipliers={watchLine.includes("800") ? MULTIPLIERS.BOTTLE_800 : MULTIPLIERS.BOTTLE_425}
             syncedDOs={syncedDOs.filter(d => d.category.includes("BOTTLE") && d.category.includes(watchLine.includes("800") ? "800" : "425"))}
-            availableDOsToSync={allTodayDOs.filter(d => d.category.includes("BOTTLE") && d.category.includes(watchLine.includes("800") ? "800" : "425"))}
+            availableDOsToSync={selectableDOs.filter(d => d.category.includes("BOTTLE") && d.category.includes(watchLine.includes("800") ? "800" : "425"))}
           />
           
           <AdvancedInventorySection 
@@ -692,7 +700,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             multipliers={[1]}
             isLabel={true}
             syncedDOs={syncedDOs.filter(d => d.category.includes("LABEL"))}
-            availableDOsToSync={allTodayDOs.filter(d => d.category.includes("LABEL"))}
+            availableDOsToSync={selectableDOs.filter(d => d.category.includes("LABEL"))}
           />
 
           <AdvancedInventorySection 
@@ -702,25 +710,32 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             availableCarryForward={availableCarryForward.filter(b => b.category.includes("CAP") && !b.category.includes("CARTON"))}
             multipliers={MULTIPLIERS.CAP}
             syncedDOs={syncedDOs.filter(d => d.category.includes("CAP") && !d.category.includes("CARTON"))}
-            availableDOsToSync={allTodayDOs.filter(d => d.category.includes("CAP") && !d.category.includes("CARTON"))}
+            availableDOsToSync={selectableDOs.filter(d => d.category.includes("CAP") && !d.category.includes("CARTON"))}
           />
 
           {(PRODUCTION_CONFIG[watchLine as keyof typeof PRODUCTION_CONFIG] || []).map(prod => {
             const isChecked = productionCheckboxes[prod.id as keyof typeof productionCheckboxes]?.checked
-            
+
             const size = prod.id.replace("p", "").split("_")[0];
             const pack = prod.id.split("_")[1];
-            
+
+            const isThisBox = (d: any) => d.category.includes("BOX") && !d.category.includes("CARTON") && d.category.includes(size) && d.category.includes(pack)
+            // Same bottle size, different pack — these render in the neighbouring BOX block. A DO that
+            // landed there looks identical to a lost one from in here, so name it rather than leave
+            // this section saying only "no incoming deliveries".
+            const siblingDOs = selectableDOs.filter(d => d.category.includes("BOX") && !d.category.includes("CARTON") && d.category.includes(size) && !isThisBox(d))
+
             return (
-              <AdvancedInventorySection 
+              <AdvancedInventorySection
                 key={prod.id}
-                sectionKey={`BOX_${prod.id}`} 
-                title={`BOX INVENTORY (${prod.label})`} 
+                sectionKey={`BOX_${prod.id}`}
+                title={`BOX INVENTORY (${prod.label})`}
                 control={control} register={register} watch={watch} setValue={setValue}
                 availableCarryForward={availableCarryForward.filter(b => b.category.includes("BOX") && !b.category.includes("CARTON") && b.category.includes(size) && b.category.includes(pack))}
-                multipliers={[1]} 
-                syncedDOs={syncedDOs.filter(d => d.category.includes("BOX") && !d.category.includes("CARTON") && d.category.includes(size) && d.category.includes(pack))}
-                availableDOsToSync={allTodayDOs.filter(d => d.category.includes("BOX") && !d.category.includes("CARTON") && d.category.includes(size) && d.category.includes(pack))}
+                multipliers={[1]}
+                syncedDOs={syncedDOs.filter(isThisBox)}
+                availableDOsToSync={selectableDOs.filter(isThisBox)}
+                siblingDOs={siblingDOs}
               />
             )
           })}
@@ -923,7 +938,7 @@ function ProductionBatchDistribution({ prodId, label, isChecked, totalQty, contr
 }
 
 // --- SUB COMPONENT FOR ADVANCED INVENTORY SECTION V4.0 (Bags Logic) ---
-const AdvancedInventorySection = ({ title, sectionKey, control, register, setValue, watch, availableCarryForward = [], multipliers = [1], isLabel = false, syncedDOs = [], availableDOsToSync = undefined }: any) => {
+const AdvancedInventorySection = ({ title, sectionKey, control, register, setValue, watch, availableCarryForward = [], multipliers = [1], isLabel = false, syncedDOs = [], availableDOsToSync = undefined, siblingDOs = [] }: any) => {
   const isCap = sectionKey === "CAP";
   const isBox = sectionKey.startsWith("BOX");
   const unit = isLabel ? 'Rolls' : (isCap || isBox) ? 'Boxes' : 'Bags';
@@ -935,23 +950,22 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
     const watchUsages = useWatch({ control, name: `inventory.${sectionKey}.usages` }) || []
     const watchHolds = useWatch({ control, name: `inventory.${sectionKey}.holds` }) || []
 
-    // Filter available carry forward batches for this specific section
+    // Filter available carry forward batches for this specific section.
+    //
+    // A row that HAS a category is judged on that category alone. It used to fall through to the
+    // multiplier rules below when no branch matched, and since BOX carries mult 1 the LABEL rule
+    // `d.mult === 1` accepted every BOX batch: staff picked one inside the LABEL block, and the
+    // report then wrote that batch's opening balance twice — once under LABEL, once under its own
+    // BOX section — which the balance replay summed into double the stock actually on the floor.
     const sectionAvailableBatches = availableCarryForward.filter((d: any) => {
-      // Use category if available, otherwise fallback to multipliers
       if (d.category) {
-        if (sectionKey === "BOTTLE" && d.category.includes("BOTTLE")) return true
-        if (sectionKey === "CAP" && d.category.includes("CAP")) return true
-        if (sectionKey === "LABEL" && d.category.includes("LABEL")) return true
-        if (sectionKey.startsWith("BOX") && d.category.includes("BOX")) {
-          // ensure the multiplier matches the box type if possible
-          if (sectionKey.includes("12") && d.category.includes("12")) return true
-          if (sectionKey.includes("20") && d.category.includes("20")) return true
-          if (sectionKey.includes("24") && d.category.includes("24")) return true
-          if (sectionKey.includes("6") && d.category.includes("6")) return true
-          return true // Fallback
-        }
+        if (sectionKey === "BOTTLE") return d.category.includes("BOTTLE")
+        if (sectionKey === "CAP") return d.category.includes("CAP") && !d.category.includes("CARTON")
+        if (sectionKey === "LABEL") return d.category.includes("LABEL")
+        if (sectionKey.startsWith("BOX")) return d.category.includes("BOX") && !d.category.includes("CARTON")
+        return false
       }
-      // Fallback multiplier logic
+      // Only rows with no category at all fall back to the multipliers.
       if (sectionKey === "BOTTLE") return d.mult === 225 || d.mult === 181 || d.mult === 162
       if (sectionKey === "CAP") return d.mult === 4000
       if (sectionKey === "LABEL") return d.mult === 1
@@ -1074,7 +1088,15 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
               <span className="bg-emerald-600 text-white px-2 py-0.5 mr-2">1</span> Transfer In (Received Today)
             </h3>
             {syncedDOs.length === 0 ? (
-              <p className="text-xs font-bold text-gray-400 italic">No incoming deliveries for this section today.</p>
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-gray-400 italic">No incoming deliveries for this section today.</p>
+                {siblingDOs.length > 0 && (
+                  <p className="text-[11px] font-black uppercase tracking-wide text-indigo-700 leading-snug">
+                    Ada {siblingDOs.length} DO {[...new Set(siblingDOs.map((d: any) => d.category))].join(", ")} hari ini —
+                    ia berada di bahagian BOX INVENTORY yang satu lagi, bukan hilang.
+                  </p>
+                )}
+              </div>
             ) : (
               <div className="space-y-2">
                 {syncedDOs.map((doItem: any, idx: number) => {
@@ -1130,10 +1152,16 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                   <option value="">-- SELECT DO --</option>
                   {availableDOsToSync.filter((d: any) => !syncedDOs.some((s: any) => s.batchNo === d.batchNo && (s.doNumber === d.doNumber || s.doNumber === d.transferIn?.doNumber) && Number(s.mult) === Number(d.mult))).map((d: any) => (
                     <option key={d.id} value={d.id}>
-                      {d.doNumber} - {d.batchNo} ({d.bags} {unit})
+                      {d.offShift ? `[SHIFT ${d.doShift || "?"}${d.receiveTime ? ` ${d.receiveTime}` : ""}] ` : ""}{d.doNumber} - {d.batchNo} ({d.bags} {unit})
                     </option>
                   ))}
                 </select>
+                {availableDOsToSync.some((d: any) => d.offShift) && (
+                  <p className="mt-1.5 text-[10px] font-bold text-amber-700 leading-snug">
+                    DO bertanda [SHIFT …] diterima hari ini tetapi dicap untuk shift yang lain.
+                    Tarik masuk hanya jika barang itu memang masuk shift ini.
+                  </p>
+                )}
               </div>
             )}
           </div>

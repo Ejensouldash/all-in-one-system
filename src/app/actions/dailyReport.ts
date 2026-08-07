@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
 import { logUserAction } from "./audit"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
+import { dailyReportSectionForCategory } from "@/lib/warehouse/withdrawalService"
 
 // CAP conversion constants (must stay in sync with DailyReportForm)
 const CAP_PCS_PER_BOX = 4000
@@ -288,40 +289,55 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
     // "4stdf-130526" / "4STDF-130526" become separate batches whose usage logs never match.
     const normBatch = (b: string | null | undefined) => (b || "").trim().toUpperCase()
 
-    // Set of DO item identifiers already claimed by an existing submitted/approved report
+    // Set of DO item identifiers already claimed by an existing submitted/approved report.
+    //
+    // Only claims made by a report DATED THE SAME DAY count. A report can only ever sync a DO whose
+    // receiveDate equals its own date (see isReceivedToday below), so a claim filed on any other
+    // date is provably about a different delivery. Without that bound the key below collides:
+    // doNumber is not unique on TransferIn, and the Transfer In form strips a BOX DO down to its
+    // digits, so short reused names like "DO - 80020" recur every few days. A DO received
+    // 2026-08-07 was being hidden by the 2026-08-06 report's claim on a same-named document —
+    // invisible to every shift, taking its stock with it.
+    //
+    // sectionKey is part of the key because InventoryLog has no category column and all four BOX
+    // SKUs plus LABEL share mult 1, so batchNo|mult cannot tell them apart.
     const claimedDOs = new Set<string>()
     allLogs.forEach(log => {
       if (log.type === "TransferIn" && log.labelType) {
         if (!excludeReportId || log.reportId !== excludeReportId) {
           // Draft reports should not lock Transfer In DOs globally for other reports
           if (log.report && log.report.status !== "DRAFT") {
-            claimedDOs.add(`${normBatch(log.batchNo)}|${log.mult}|${log.labelType}`)
+            if (toMalaysiaDateStr(log.report.date) !== reportDateString) return
+            claimedDOs.add(`${log.sectionKey}|${normBatch(log.batchNo)}|${log.mult}|${log.labelType}`)
           }
         }
       }
     })
 
-    // Helper: was this Transfer In item RECEIVED TODAY (on the report date) and does it match the shift?
-    const isReceivedToday = (item: any) => {
-      if (toMalaysiaDateStr(item.transferIn.receiveDate) !== reportDateString) return false
-      
-      // Filter by shift if provided
-      if (shift) {
-        if (item.transferIn.shift) {
-          // New DOs with explicit shift
-          if (shift !== item.transferIn.shift) return false
-        } else if (item.transferIn.receiveTime) {
-          // Fallback for old DOs without explicit shift (assume >= 19:00 is PM)
-          const hour = parseInt(item.transferIn.receiveTime.split(':')[0], 10)
-          if (!isNaN(hour)) {
-            const isPM = hour >= 19
-            if (shift === "AM" && isPM) return false
-            if (shift === "PM" && !isPM) return false
-          }
-        }
+    /** The claim key for a Transfer In item, matching how the report writes its log rows. */
+    const claimKey = (item: any) =>
+      `${dailyReportSectionForCategory(item.category) || ""}|${normBatch(item.batchNo)}|${item.mult}|${item.transferIn.doNumber}`
+
+    // Helper: was this Transfer In item RECEIVED TODAY (on the report date)?
+    const isReceivedOnReportDate = (item: any) =>
+      toMalaysiaDateStr(item.transferIn.receiveDate) === reportDateString
+
+    // Helper: does the DO belong to the shift being filled? Only a matching one may auto-sync.
+    const matchesShift = (item: any) => {
+      if (!shift) return true
+      if (item.transferIn.shift) {
+        // New DOs with explicit shift
+        return shift === item.transferIn.shift
+      }
+      if (item.transferIn.receiveTime) {
+        // Fallback for old DOs without explicit shift (assume >= 19:00 is PM)
+        const hour = parseInt(item.transferIn.receiveTime.split(':')[0], 10)
+        if (!isNaN(hour)) return shift === (hour >= 19 ? "PM" : "AM")
       }
       return true
     }
+
+    const isReceivedToday = (item: any) => isReceivedOnReportDate(item) && matchesShift(item)
 
     const batchInfo: Record<string, {
       totalBalance: number,
@@ -373,7 +389,7 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
         }
       }
       // Only offer under "Transfer In Received Today" if it is received today AND not claimed by another report yet
-      if (isReceivedToday(item) && !claimedDOs.has(`${normBatch(item.batchNo)}|${item.mult}|${item.transferIn.doNumber}`)) {
+      if (isReceivedToday(item) && !claimedDOs.has(claimKey(item))) {
         batchInfo[key].todayItems.push(item)
       }
     })
@@ -383,9 +399,22 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       const info = batchInfo[batchKey]
       
       const batchDOs = allDOItems.filter(item => `${item.category}|${normBatch(item.batchNo)}|${item.mult}` === batchKey)
+
+      // InventoryLog carries no category, so a log can only be matched on batchNo|mult — which
+      // separates nothing inside the mult-1 family: all four BOX SKUs and LABEL share mult 1.
+      // Usage booked against BOX_p800_12 was therefore being subtracted from BOX_p800_20 and from
+      // LABEL too whenever they shared a batch number, driving carry forward to zero and dropping
+      // the batch out of the dropdown entirely. sectionKey does separate them, so use it — but only
+      // within that family, and only when both sides actually carry one, so BOTTLE and CAP balances
+      // (already separated by their multipliers) and pre-existing rows stay exactly as they were.
+      const infoSection = dailyReportSectionForCategory(info.category)
+      const multOneFamily = (k: string | null) => !!k && (k.startsWith("BOX") || k === "LABEL")
+
       const batchLogs = allLogs.filter(log => {
         if (excludeReportId && log.reportId === excludeReportId) return false
-        return batchKey.endsWith(`|${normBatch(log.batchNo)}|${log.mult}`)
+        if (!batchKey.endsWith(`|${normBatch(log.batchNo)}|${log.mult}`)) return false
+        if (!multOneFamily(infoSection) || !multOneFamily(log.sectionKey)) return true
+        return log.sectionKey === infoSection
       })
 
       // storeroomByReport keeps each report's declared opening separate. Both production lines draw
@@ -462,6 +491,31 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
     const storeroomBatches: any[] = []
     const addedBatchKeys = new Set<string>()
 
+    // Received on the report date but stamped for the OTHER shift, and still unclaimed. These are
+    // never auto-synced — the shift on the DO is taken at its word — but they are offered for the
+    // report to pull in explicitly. Before this they were simply dropped, and because the same
+    // filter fed the "Select Transfer In to Add" list there was no way to reach them from anywhere:
+    // a delivery keyed in with the wrong shift took its stock out of production's sight for good.
+    const otherShiftDOs = allDOItems
+      .filter(item =>
+        item.bags > 0 &&
+        isReceivedOnReportDate(item) &&
+        !matchesShift(item) &&
+        !claimedDOs.has(claimKey(item))
+      )
+      .map(item => ({
+        batchNo: normBatch(item.batchNo),
+        bags: item.bags,
+        mult: item.mult,
+        category: item.category,
+        doNumber: item.transferIn.doNumber,
+        transferInId: item.transferIn.id,
+        id: item.id,
+        offShift: true,
+        doShift: item.transferIn.shift || "",
+        receiveTime: item.transferIn.receiveTime || ""
+      }))
+
     Object.keys(batchInfo).forEach(batchKey => {
       const info = batchInfo[batchKey]
 
@@ -520,11 +574,11 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       }
     })
 
-    return { success: true, data: { storeroomBatches, todayDOs } }
+    return { success: true, data: { storeroomBatches, todayDOs, otherShiftDOs } }
 
   } catch (error: any) {
     console.error("Failed to fetch Active Inventory:", error)
-    return { success: false, data: { storeroomBatches: [], todayDOs: [] } }
+    return { success: false, data: { storeroomBatches: [], todayDOs: [], otherShiftDOs: [] } }
   }
 }
 

@@ -1390,11 +1390,53 @@ model Customer {
   addresses       CustomerAddress[]
   documentIntakes SalesDocumentIntake[]
   salesOrders     SalesOrder[]
+  registrations   CustomerRegistration[]
 
   @@index([sageCustomerId])
   @@index([legalName])
   @@index([customerType, customerSubtype])
   @@index([zone])
+}
+
+model CustomerRegistration {
+  id                       String    @id @default(uuid())
+  registrationNo           String    @unique
+  companyName              String
+  companyRegNoNew          String?
+  companyRegNoOld          String?
+  tinNo                    String?
+  sstNo                    String?
+  businessType             String?
+  natureOfBusiness         String?
+  businessAddress          String?   @db.Text
+  registeredAddress        String?   @db.Text
+  businessCommencementDate String?
+  annualTurnover           String?
+  paidUpCapital            String?
+  contactOffice            String?
+  contactFax               String?
+  emailInvoice             String?
+  msicCode                 String?
+
+  contacts            Json?
+  financial           Json?
+  tradeReferences     Json?
+  directors           Json?
+  supportingDocuments Json?
+  guarantors          Json?
+
+  status            String    @default("PENDING")
+  rejectionReason   String?
+  createdCustomerId String?
+  reviewedAt        DateTime?
+  reviewedById      String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  createdCustomer Customer? @relation(fields: [createdCustomerId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([companyName])
 }
 
 model CustomerAddress {

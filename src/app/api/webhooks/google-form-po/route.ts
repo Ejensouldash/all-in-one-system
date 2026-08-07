@@ -19,26 +19,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-
-    /*
-      Expected Payload Structure from Google Apps Script:
-      {
-        "poNumber": "2025/12/001",
-        "orderDate": "2026-08-07",
-        "customerCode": "CUST-001",
-        "companyName": "Kedai ABC",
-        "stationOutlet": "Branch A",
-        "address": "No 123 Jalan Test",
-        "picName": "John Doe",
-        "phone": "0123456789",
-        "email": "john@example.com",
-        "salesPerson": "Sarah",
-        "item425ml24Qty": 10,
-        "item800ml20Qty": 5,
-        "item800ml12Qty": 2,
-        "remarks": "Delivery urgent"
-      }
-    */
+    console.log("Received Google Form Payload:", JSON.stringify(body, null, 2))
 
     const {
       poNumber,
@@ -57,7 +38,7 @@ export async function POST(request: Request) {
       remarks,
     } = body
 
-    // Find customer by code or company name
+    // 1. Attempt to find customer, but don't fail if we can't. BD team can match it later.
     let customer = null
     if (customerCode) {
       customer = await prisma.customer.findUnique({
@@ -67,29 +48,16 @@ export async function POST(request: Request) {
     }
 
     if (!customer && companyName) {
+      // Find exact match first to prevent assigning to random customers
       customer = await prisma.customer.findFirst({
         where: {
           legalName: {
-            contains: String(companyName).trim(),
+            equals: String(companyName).trim(),
             mode: "insensitive",
           },
         },
         include: { addresses: true },
       })
-    }
-
-    // Fallback: If no customer found, find any system default or first customer
-    if (!customer) {
-      customer = await prisma.customer.findFirst({
-        include: { addresses: true },
-      })
-    }
-
-    if (!customer) {
-      return NextResponse.json(
-        { error: "Tiada rekod Customer dalam sistem AIO. Sila tambah customer dahulu." },
-        { status: 400 }
-      )
     }
 
     // Find a system user to associate as creator (e.g. SUPERADMIN or first user)
@@ -101,22 +69,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Tiada User sistem ditemui." }, { status: 500 })
     }
 
-    const todayStr = new Date().toISOString().slice(0, 10).replaceAll("-", "")
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000)
-    const internalSoNo = `SO-GF-${todayStr}-${randomSuffix}`
-
-    const parsedOrderDate = orderDate ? new Date(orderDate) : new Date()
-    const year = parsedOrderDate.getFullYear()
-    const month = String(parsedOrderDate.getMonth() + 1).padStart(2, "0")
-    const monthPrefix = `${year}/${month}/`
-
+    // 2. Generate PO Number if empty
     let finalPoNumber = poNumber ? String(poNumber).trim() : ""
+    const parsedOrderDate = orderDate ? new Date(orderDate) : new Date()
 
     if (!finalPoNumber) {
-      const countThisMonth = await prisma.salesOrder.count({
+      const year = parsedOrderDate.getFullYear()
+      const month = String(parsedOrderDate.getMonth() + 1).padStart(2, "0")
+      const monthPrefix = `${year}/${month}/`
+      const countThisMonth = await prisma.salesDocumentIntake.count({
         where: {
-          poNumber: {
-            startsWith: monthPrefix,
+          r2ObjectKey: {
+            startsWith: `google-form-submissions/${monthPrefix}`,
           },
         },
       })
@@ -124,79 +88,104 @@ export async function POST(request: Request) {
       finalPoNumber = `${monthPrefix}${nextSeq}`
     }
 
-    // Build line items based on quantities
+    // 3. Build line items
     const lineItemsData = []
 
     const q1 = Number(item425ml24Qty) || 0
     if (q1 > 0) {
       lineItemsData.push({
+        barcode: "9555978700267",
+        itemCode: "B2O2-425-24",
         sku: "B2O2-425-24",
-        barcodeSnapshot: "9555978700267",
-        descriptionSnapshot: "BUBBLES O2 425ML (24 BOTTLE / CARTON)",
-        uom: "CTN/BTL",
-        qtyOrdered: q1,
+        description: "BUBBLES O2 425ML (24 BOTTLE / CARTON)",
+        uom: "CTN",
+        quantity: q1,
         unitPrice: 0,
-        lineTotal: 0,
+        discount: 0,
+        tax: 0,
+        amount: 0,
+        isServiceCharge: false
       })
     }
 
     const q2 = Number(item800ml20Qty) || 0
     if (q2 > 0) {
       lineItemsData.push({
+        barcode: "9555978700274",
+        itemCode: "B2O2-800-20",
         sku: "B2O2-800-20",
-        barcodeSnapshot: "9555978700274",
-        descriptionSnapshot: "BUBBLES O2 800ML (20 BOTTLE / CARTON)",
-        uom: "CTN/BTL",
-        qtyOrdered: q2,
+        description: "BUBBLES O2 800ML (20 BOTTLE / CARTON)",
+        uom: "CTN",
+        quantity: q2,
         unitPrice: 0,
-        lineTotal: 0,
+        discount: 0,
+        tax: 0,
+        amount: 0,
+        isServiceCharge: false
       })
     }
 
     const q3 = Number(item800ml12Qty) || 0
     if (q3 > 0) {
       lineItemsData.push({
+        barcode: "9555978700359",
+        itemCode: "B2O2-800-12",
         sku: "B2O2-800-12",
-        barcodeSnapshot: "9555978700359",
-        descriptionSnapshot: "BUBBLES O2 800ML (12 BOTTLE / CARTON)",
-        uom: "CTN/BTL",
-        qtyOrdered: q3,
+        description: "BUBBLES O2 800ML (12 BOTTLE / CARTON)",
+        uom: "CTN",
+        quantity: q3,
         unitPrice: 0,
-        lineTotal: 0,
+        discount: 0,
+        tax: 0,
+        amount: 0,
+        isServiceCharge: false
       })
     }
 
-    const salesOrder = await prisma.salesOrder.create({
+    // 4. Construct ExtractedSalesDocument
+    const extractedData = {
+      documentType: "PURCHASE_ORDER",
+      documentNumber: finalPoNumber,
+      poNumber: finalPoNumber,
+      documentDate: parsedOrderDate.toISOString().slice(0, 10),
+      requestedDeliveryDate: "",
+      customerReference: customerCode || "",
+      customerName: companyName || customer?.legalName || "",
+      paymentTermsRaw: "",
+      billingAddress: address || "",
+      deliveryAddress: address || "",
+      deliveryContact: picName || "",
+      deliveryPhone: phone || "",
+      currency: "MYR",
+      lines: lineItemsData,
+      charges: [],
+      totals: {
+        subtotal: 0,
+        discount: 0,
+        freight: 0,
+        tax: 0,
+        grandTotal: 0
+      },
+      remarks: remarks ? `[Google Form Submission] ${remarks}` : "[Google Form Submission]",
+      confidence: 1,
+      warnings: []
+    }
+
+    // 5. Create SalesDocumentIntake
+    const internalId = `GF-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`
+    
+    const intake = await prisma.salesDocumentIntake.create({
       data: {
-        internalSoNo,
-        customerId: customer.id,
-        status: "DRAFT",
-        documentType: "GOOGLE_FORM_PO",
-        poNumber: finalPoNumber,
-        orderDate: parsedOrderDate,
-        deliveryContactSnapshot: picName ? String(picName) : customer.pic,
-        deliveryPhoneSnapshot: phone ? String(phone) : customer.phonePrimary,
-        deliveryAddressSnapshot: {
-          stationOutlet: stationOutlet || "",
-          companyName: companyName || customer.legalName,
-          address: address || "",
-          salesPerson: salesPerson || "",
-          email: email || "",
-        },
-        billingAddressSnapshot: {
-          companyName: companyName || customer.legalName,
-          address: address || "",
-        },
-        orderRemarks: remarks ? `[Google Form Submission] ${remarks}` : "[Google Form Submission]",
-        createdById: systemUser.id,
-        items: {
-          create: lineItemsData,
-        },
-      },
-      include: {
-        items: true,
-        customer: true,
-      },
+        fileName: `Google Form - ${finalPoNumber || companyName || "Unknown"}.json`,
+        r2ObjectKey: `google-form-submissions/${finalPoNumber.replace(/\//g, "-") || internalId}.json`,
+        mimeType: "application/json",
+        fileSize: JSON.stringify(extractedData).length,
+        status: "REVIEW",
+        documentType: "PURCHASE_ORDER",
+        extractedData: extractedData as any,
+        matchedCustomerId: customer?.id || null,
+        uploadedById: systemUser.id,
+      }
     })
 
     // Create Audit Log
@@ -204,17 +193,16 @@ export async function POST(request: Request) {
       data: {
         userId: systemUser.id,
         userName: "Google Form Webhook",
-        action: "CREATE_SALES_ORDER_FROM_GOOGLE_FORM",
-        details: `Sales Order ${salesOrder.internalSoNo} created via Google Form submission for Customer ${customer.customerCode} (${customer.legalName}). PO Number: ${salesOrder.poNumber}`,
+        action: "CREATE_INTAKE_FROM_GOOGLE_FORM",
+        details: `Intake Document ${intake.id} created via Google Form submission. PO Number: ${finalPoNumber}`,
       },
     })
 
     return NextResponse.json({
       success: true,
-      message: "Sales Order berjaya dicipta dari Google Form submission.",
-      internalSoNo: salesOrder.internalSoNo,
-      salesOrderId: salesOrder.id,
-      poNumber: salesOrder.poNumber,
+      message: "Order Form berjaya masuk ke dalam Pending SOA (Intake Queue).",
+      intakeId: intake.id,
+      poNumber: finalPoNumber,
       itemCount: lineItemsData.length,
     })
   } catch (error) {

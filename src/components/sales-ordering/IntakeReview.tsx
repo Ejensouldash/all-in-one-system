@@ -60,11 +60,77 @@ export function IntakeReview({
   }
 
   function updateLine(index: number, key: keyof ExtractedSalesLine, value: string | number | boolean) {
-    setDocument(previous => ({ ...previous, lines: previous.lines.map((line, current) => current === index ? { ...line, [key]: value } : line) }))
+    setDocument(previous => {
+      const lines = previous.lines.map((line, current) => {
+        if (current !== index) return line
+        const updated = { ...line, [key]: value }
+
+        if (["quantity", "unitPrice", "discount", "tax", "amount"].includes(key as string)) {
+          const qty = Number(updated.quantity) || 0
+          const price = Number(updated.unitPrice) || 0
+          const disc = Number(updated.discount) || 0
+          const tax = Number(updated.tax) || 0
+
+          if (key !== "amount") {
+            updated.amount = Math.max(0, Math.round(((qty * price) - disc + tax) * 100) / 100)
+          }
+        }
+        return updated
+      })
+
+      const newSubtotal = lines.reduce((sum, l) => sum + (Number(l.amount) || 0), 0)
+      const freight = Number(previous.totals.freight) || 0
+      const totalTax = Number(previous.totals.tax) || 0
+      const totalDisc = Number(previous.totals.discount) || 0
+      const newGrandTotal = Math.max(0, Math.round((newSubtotal + freight + totalTax - totalDisc) * 100) / 100)
+
+      return {
+        ...previous,
+        lines,
+        totals: {
+          ...previous.totals,
+          subtotal: Math.round(newSubtotal * 100) / 100,
+          grandTotal: newGrandTotal
+        }
+      }
+    })
+  }
+
+  function removeLine(index: number) {
+    setDocument(previous => {
+      const lines = previous.lines.filter((_, current) => current !== index)
+      const newSubtotal = lines.reduce((sum, l) => sum + (Number(l.amount) || 0), 0)
+      const freight = Number(previous.totals.freight) || 0
+      const totalTax = Number(previous.totals.tax) || 0
+      const totalDisc = Number(previous.totals.discount) || 0
+      const newGrandTotal = Math.max(0, Math.round((newSubtotal + freight + totalTax - totalDisc) * 100) / 100)
+
+      return {
+        ...previous,
+        lines,
+        totals: {
+          ...previous.totals,
+          subtotal: Math.round(newSubtotal * 100) / 100,
+          grandTotal: newGrandTotal
+        }
+      }
+    })
   }
 
   function updateTotal(key: keyof ExtractedSalesDocument["totals"], value: number) {
-    setDocument(previous => ({ ...previous, totals: { ...previous.totals, [key]: value } }))
+    setDocument(previous => {
+      const totals = { ...previous.totals, [key]: value }
+      const subtotal = Number(totals.subtotal) || 0
+      const freight = Number(totals.freight) || 0
+      const tax = Number(totals.tax) || 0
+      const discount = Number(totals.discount) || 0
+      totals.grandTotal = Math.max(0, Math.round((subtotal + freight + tax - discount) * 100) / 100)
+
+      return {
+        ...previous,
+        totals
+      }
+    })
   }
 
   async function createSalesOrder() {
@@ -153,9 +219,170 @@ export function IntakeReview({
       <label className="text-xs font-black uppercase tracking-wider text-slate-500">Delivery Phone<input value={document.deliveryPhone} onChange={event => setField("deliveryPhone", event.target.value)} className={inputClass} /></label>
     </section>
 
-    <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-slate-100 px-5 py-4"><div><h3 className="font-black text-slate-950">Order Items</h3><p className="text-xs text-slate-500">Semak SKU, quantity dan harga daripada dokumen.</p></div><button type="button" onClick={() => setDocument(previous => ({ ...previous, lines: [...previous.lines, emptyLine()] }))} className="inline-flex items-center gap-1 rounded-lg bg-cyan-50 px-3 py-2 text-xs font-black text-cyan-700"><Plus className="h-4 w-4" /> Add item</button></div><div className="overflow-x-auto"><table className="min-w-[1050px] w-full text-sm"><thead className="bg-slate-50 text-left text-[10px] uppercase tracking-wider text-slate-500"><tr><th className="px-3 py-3">SKU / Item</th><th className="px-3 py-3">Description</th><th className="px-3 py-3">Qty</th><th className="px-3 py-3">UOM</th><th className="px-3 py-3">Unit Price</th><th className="px-3 py-3">Discount</th><th className="px-3 py-3">Tax</th><th className="px-3 py-3">Amount</th><th></th></tr></thead><tbody className="divide-y divide-slate-100">{document.lines.map((line, index) => <tr key={index}><td className="p-2"><input value={line.sku} onChange={event => updateLine(index, "sku", event.target.value)} className={inputClass} /><input value={line.barcode} onChange={event => updateLine(index, "barcode", event.target.value)} className={`${inputClass} text-xs`} placeholder="Barcode" /></td><td className="p-2"><textarea rows={2} value={line.description} onChange={event => updateLine(index, "description", event.target.value)} className={inputClass} /></td>{(["quantity", "unitPrice", "discount", "tax", "amount"] as const).map(key => <td className="p-2" key={key}><input type="number" step="0.01" value={line[key]} onChange={event => updateLine(index, key, Number(event.target.value))} className={`${inputClass} min-w-24`} /></td>).reduce((cells, cell, cellIndex) => cellIndex === 1 ? [...cells, <td className="p-2" key="uom"><input value={line.uom} onChange={event => updateLine(index, "uom", event.target.value)} className={`${inputClass} min-w-20`} /></td>, cell] : [...cells, cell], [] as React.ReactNode[])}<td className="p-2"><button type="button" onClick={() => setDocument(previous => ({ ...previous, lines: previous.lines.filter((_, current) => current !== index) }))} className="rounded-lg p-2 text-rose-600 hover:bg-rose-50"><Trash2 className="h-4 w-4" /></button></td></tr>)}</tbody></table></div></section>
+    <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+        <div>
+          <h3 className="font-black text-slate-950">Order Items</h3>
+          <p className="text-xs text-slate-500">Semak SKU, quantity dan harga daripada dokumen. Jumlah akan dikira secara automatik.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            const newLine = emptyLine()
+            newLine.quantity = 1
+            setDocument(previous => ({ ...previous, lines: [...previous.lines, newLine] }))
+          }}
+          className="inline-flex items-center gap-1 rounded-lg bg-cyan-50 px-3 py-2 text-xs font-black text-cyan-700 hover:bg-cyan-100 transition"
+        >
+          <Plus className="h-4 w-4" /> Add item
+        </button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-[1050px] w-full text-sm">
+          <thead className="bg-slate-50 text-left text-[10px] uppercase tracking-wider text-slate-500">
+            <tr>
+              <th className="px-3 py-3">SKU / Item</th>
+              <th className="px-3 py-3">Description</th>
+              <th className="px-3 py-3">Qty</th>
+              <th className="px-3 py-3">UOM</th>
+              <th className="px-3 py-3">Unit Price (RM)</th>
+              <th className="px-3 py-3">Discount (RM)</th>
+              <th className="px-3 py-3">Tax (RM)</th>
+              <th className="px-3 py-3">Amount (RM)</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {document.lines.map((line, index) => (
+              <tr key={`${line.sku || "line"}-${index}`}>
+                <td className="p-2">
+                  <input
+                    value={line.sku}
+                    onChange={event => updateLine(index, "sku", event.target.value)}
+                    className={inputClass}
+                    placeholder="SKU Code"
+                  />
+                  <input
+                    value={line.barcode}
+                    onChange={event => updateLine(index, "barcode", event.target.value)}
+                    className={`${inputClass} text-xs`}
+                    placeholder="Barcode"
+                  />
+                </td>
+                <td className="p-2">
+                  <textarea
+                    rows={2}
+                    value={line.description}
+                    onChange={event => updateLine(index, "description", event.target.value)}
+                    className={inputClass}
+                    placeholder="Keterangan Produk"
+                  />
+                </td>
+                <td className="p-2">
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    placeholder="0"
+                    value={line.quantity === 0 ? "" : line.quantity}
+                    onFocus={e => e.target.select()}
+                    onChange={event => updateLine(index, "quantity", event.target.value === "" ? 0 : Number(event.target.value))}
+                    className={`${inputClass} min-w-20 text-center font-bold`}
+                  />
+                </td>
+                <td className="p-2">
+                  <input
+                    value={line.uom}
+                    onChange={event => updateLine(index, "uom", event.target.value)}
+                    className={`${inputClass} min-w-16 text-center`}
+                    placeholder="CTN"
+                  />
+                </td>
+                <td className="p-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={line.unitPrice === 0 ? "" : line.unitPrice}
+                    onFocus={e => e.target.select()}
+                    onChange={event => updateLine(index, "unitPrice", event.target.value === "" ? 0 : Number(event.target.value))}
+                    className={`${inputClass} min-w-24 text-right`}
+                  />
+                </td>
+                <td className="p-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={line.discount === 0 ? "" : line.discount}
+                    onFocus={e => e.target.select()}
+                    onChange={event => updateLine(index, "discount", event.target.value === "" ? 0 : Number(event.target.value))}
+                    className={`${inputClass} min-w-20 text-right`}
+                  />
+                </td>
+                <td className="p-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={line.tax === 0 ? "" : line.tax}
+                    onFocus={e => e.target.select()}
+                    onChange={event => updateLine(index, "tax", event.target.value === "" ? 0 : Number(event.target.value))}
+                    className={`${inputClass} min-w-20 text-right`}
+                  />
+                </td>
+                <td className="p-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={line.amount === 0 ? "" : line.amount}
+                    onFocus={e => e.target.select()}
+                    onChange={event => updateLine(index, "amount", event.target.value === "" ? 0 : Number(event.target.value))}
+                    className={`${inputClass} min-w-28 text-right font-black text-slate-900 bg-slate-50 border-slate-300`}
+                  />
+                </td>
+                <td className="p-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => removeLine(index)}
+                    title="Padam Baris Item Ini"
+                    className="rounded-xl p-2.5 text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
 
-    <section className="grid gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-5">{(["subtotal", "discount", "freight", "tax", "grandTotal"] as const).map(key => <label key={key} className="text-xs font-black uppercase tracking-wider text-slate-500">{key}<input type="number" step="0.01" value={document.totals[key]} onChange={event => updateTotal(key, Number(event.target.value))} className={inputClass} /></label>)}<label className="text-xs font-black uppercase tracking-wider text-slate-500 sm:col-span-2 lg:col-span-5">Remarks<textarea rows={2} value={document.remarks} onChange={event => setField("remarks", event.target.value)} className={inputClass} /></label></section>
+    <section className="grid gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
+      {(["subtotal", "discount", "freight", "tax", "grandTotal"] as const).map(key => (
+        <label key={key} className="text-xs font-black uppercase tracking-wider text-slate-500">
+          {key}
+          <input
+            type="number"
+            step="0.01"
+            placeholder="0.00"
+            value={document.totals[key] === 0 ? "" : document.totals[key]}
+            onFocus={e => e.target.select()}
+            onChange={event => updateTotal(key, event.target.value === "" ? 0 : Number(event.target.value))}
+            className={`${inputClass} ${key === "grandTotal" ? "bg-cyan-50 font-black text-cyan-900 border-cyan-300 text-base" : ""}`}
+          />
+        </label>
+      ))}
+      <label className="text-xs font-black uppercase tracking-wider text-slate-500 sm:col-span-2 lg:col-span-5">
+        Remarks
+        <textarea rows={2} value={document.remarks} onChange={event => setField("remarks", event.target.value)} className={inputClass} />
+      </label>
+    </section>
 
     </fieldset>
     <section className="sticky bottom-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-xl backdrop-blur sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-2 text-sm font-bold text-slate-600"><CheckCircle2 className="h-5 w-5 text-emerald-600" /> SOD Review & pengesahan maklumat.</div>{canManageDocuments && <div className="flex flex-wrap items-center gap-2"><button onClick={deleteDocument} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-3 text-sm font-black text-rose-700 transition hover:bg-rose-50 disabled:opacity-60"><Trash2 className="h-4 w-4" /> Delete</button><button onClick={saveReview} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-black text-cyan-700 transition hover:bg-cyan-100 disabled:opacity-60">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Simpan Draft</button><button onClick={forwardToCreditCheck} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-600 px-5 py-3 text-sm font-black text-white transition hover:bg-cyan-500 disabled:bg-slate-300 shadow-md">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Luluskan & Hantar ke PO-SOA Check</button>{canCreateSalesOrder && <button onClick={createSalesOrder} disabled={busy || !customer} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-500 disabled:bg-slate-300">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Create SO</button>}</div>}</section>

@@ -1,11 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { CheckCircle2, Clock, Eye, FileText, Filter, Search, ShieldAlert, Sparkles } from "lucide-react"
+import Link from "next/link"
+import { CheckCircle2, Clock, Eye, FileText, Search, ShieldAlert, Sparkles, PenSquare } from "lucide-react"
 import { PdfPreviewModal } from "./PdfPreviewModal"
 
 export type CustomerPoItem = {
   id: string
+  type: "SALES_ORDER" | "CREDIT_CASE" | "INTAKE"
   poNumber: string
   customerName: string
   documentDate: string
@@ -149,24 +151,61 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
                     </span>
                   </div>
 
-                  {/* PDF Interactive Preview Icon */}
-                  {item.poR2ObjectKey ? (
-                    <button
-                      onClick={() => {
-                        setPreviewKey(item.poR2ObjectKey || null)
-                        setPreviewTitle(`Pratinjau PO - ${item.customerName} (${item.poNumber})`)
-                      }}
-                      title="Pratinjau PDF Asal (Cloudflare R2)"
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-black text-cyan-800 transition hover:bg-cyan-100 hover:scale-105 active:scale-95 shadow-sm"
-                    >
-                      <Eye className="h-4 w-4 text-cyan-600" />
-                      PDF
-                    </button>
-                  ) : (
-                    <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
-                      Form Order
-                    </span>
-                  )}
+                  {/* Actions Container */}
+                  <div className="flex items-center gap-2">
+                    {/* PDF Interactive Preview Icon */}
+                    {(item.poR2ObjectKey || item.uploadedBy === "Google Form Webhook" || (item.poR2ObjectKey && item.poR2ObjectKey.startsWith("google-form-submissions/"))) ? (
+                      <button
+                        onClick={() => {
+                          if (item.poR2ObjectKey && item.poR2ObjectKey.startsWith("google-form-submissions/")) {
+                            // Map the R2 key (json) to our new dynamic PDF route URL instead of letting the modal fetch R2
+                            setPreviewKey(`/api/sales-ordering/pdf/po/${item.id}`)
+                          } else {
+                            setPreviewKey(item.poR2ObjectKey || null)
+                          }
+                          setPreviewTitle(`Pratinjau PO - ${item.customerName} (${item.poNumber})`)
+                        }}
+                        title="Pratinjau PDF Asal"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-black text-cyan-800 transition hover:bg-cyan-100 hover:scale-105 active:scale-95 shadow-sm"
+                      >
+                        <Eye className="h-4 w-4 text-cyan-600" />
+                        PDF
+                      </button>
+                    ) : (
+                      <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
+                        Form Order
+                      </span>
+                    )}
+
+                    {/* Review/View Link */}
+                    {item.type === "INTAKE" && (
+                      <Link
+                        href={`/forms/sales-ordering/intake/${item.id}`}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-800 transition hover:bg-amber-100 hover:scale-105 active:scale-95 shadow-sm"
+                      >
+                        <PenSquare className="h-4 w-4 text-amber-600" />
+                        Review
+                      </Link>
+                    )}
+                    {item.type === "CREDIT_CASE" && (
+                      <Link
+                        href={`/forms/sales-ordering/credit-check?highlight=${item.id}`}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50 hover:scale-105 active:scale-95 shadow-sm"
+                      >
+                        <Eye className="h-4 w-4 text-slate-500" />
+                        View
+                      </Link>
+                    )}
+                    {item.type === "SALES_ORDER" && (
+                      <Link
+                        href={`/forms/sales-ordering/orders/${item.id}`}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-800 transition hover:bg-emerald-100 hover:scale-105 active:scale-95 shadow-sm"
+                      >
+                        <Eye className="h-4 w-4 text-emerald-600" />
+                        View
+                      </Link>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

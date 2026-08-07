@@ -8,5 +8,71 @@ export default async function SalesOrdersPage() {
   if (!access) redirect("/dashboard")
   if (!canAccessSalesOrderingTab(access, "orders")) redirect(firstSalesOrderingPath(access))
   const orders = await prisma.salesOrder.findMany({ orderBy: { createdAt: "desc" }, take: 100, include: { customer: true, items: true, createdBy: { select: { name: true } } } })
-  return <div className="space-y-6"><div><h2 className="text-2xl font-black text-slate-950">Sales Orders</h2><p className="mt-1 text-sm text-slate-500">Commercial drafts only. Creating these records does not deduct stock.</p></div><div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="min-w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-5 py-3">SO Number</th><th className="px-5 py-3">Customer</th><th className="px-5 py-3">PO</th><th className="px-5 py-3">Items</th><th className="px-5 py-3">Total</th><th className="px-5 py-3">Status</th><th></th></tr></thead><tbody className="divide-y divide-slate-100">{orders.map(order => <tr key={order.id} className="hover:bg-slate-50"><td className="px-5 py-4"><p className="font-black text-slate-900">{order.internalSoNo}</p><p className="text-xs text-slate-400">{order.createdAt.toLocaleDateString("en-MY")}</p></td><td className="px-5 py-4"><p className="font-bold text-slate-800">{order.customer.legalName}</p><p className="text-xs text-slate-400">{order.customer.customerCode}</p></td><td className="px-5 py-4 text-slate-600">{order.poNumber || "-"}</td><td className="px-5 py-4 text-slate-600">{order.items.length}</td><td className="px-5 py-4 font-black text-slate-900">RM {Number(order.grandTotal).toLocaleString("en-MY", { minimumFractionDigits: 2 })}</td><td className="px-5 py-4"><span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">{order.status}</span></td><td className="px-5 py-4 text-right"><Link href={`/forms/sales-ordering/orders/${order.id}`} className="font-black text-cyan-700">View</Link></td></tr>)}</tbody></table></div>{!orders.length && <p className="p-10 text-center text-sm text-slate-500">No Sales Orders yet.</p>}</div></div>
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-black text-slate-950">Sales Orders</h2>
+          <p className="mt-1 text-sm text-slate-500">Commercial drafts only. Creating these records does not deduct stock.</p>
+        </div>
+        <a
+          href="/api/sales-ordering/export/orders"
+          className="inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-black text-white hover:bg-cyan-500 transition shadow-sm"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          Export Excel
+        </a>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+              <tr>
+                <th className="px-5 py-3">SO Number</th>
+                <th className="px-5 py-3">Customer</th>
+                <th className="px-5 py-3">PO</th>
+                <th className="px-5 py-3">Items</th>
+                <th className="px-5 py-3">Total</th>
+                <th className="px-5 py-3">Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {orders.map(order => (
+                <tr key={order.id} className="hover:bg-slate-50">
+                  <td className="px-5 py-4">
+                    <p className="font-black text-slate-900">{order.internalSoNo}</p>
+                    <p className="text-xs text-slate-400">{order.createdAt.toLocaleDateString("en-MY")}</p>
+                  </td>
+                  <td className="px-5 py-4">
+                    <p className="font-bold text-slate-800">{order.customer.legalName}</p>
+                    <p className="text-xs text-slate-400">{order.customer.customerCode}</p>
+                  </td>
+                  <td className="px-5 py-4 text-slate-600">{order.poNumber || "-"}</td>
+                  <td className="px-5 py-4 text-slate-600">{order.items.length}</td>
+                  <td className="px-5 py-4 font-black text-slate-900">
+                    RM {Number(order.grandTotal).toLocaleString("en-MY", { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="px-5 py-4">
+                    <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">
+                      {order.status}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 text-right">
+                    <Link href={`/forms/sales-ordering/orders/${order.id}`} className="font-black text-cyan-700">
+                      View
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {!orders.length && <p className="p-10 text-center text-sm text-slate-500">No Sales Orders yet.</p>}
+      </div>
+    </div>
+  )
 }

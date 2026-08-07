@@ -35,6 +35,7 @@ export default async function PoCustomerPage() {
   const poCustomerItems: CustomerPoItem[] = [
     ...salesOrders.map(so => ({
       id: so.id,
+      type: "SALES_ORDER" as const,
       poNumber: so.poNumber || so.internalSoNo,
       customerName: so.customer?.legalName || "Customer PO",
       documentDate: so.orderDate ? so.orderDate.toISOString().slice(0, 10) : so.createdAt.toISOString().slice(0, 10),
@@ -52,6 +53,7 @@ export default async function PoCustomerPage() {
 
       return {
         id: c.id,
+        type: "CREDIT_CASE" as const,
         poNumber: poData.poNumber || poData.documentNumber || c.poFileName.replace(".pdf", ""),
         customerName: poData.customerName || "Customer SOA Check",
         documentDate: poData.documentDate || c.createdAt.toISOString().slice(0, 10),
@@ -71,6 +73,7 @@ export default async function PoCustomerPage() {
         const totals = poData.totals || {}
         return {
           id: i.id,
+          type: "INTAKE" as const,
           poNumber: poData.poNumber || poData.documentNumber || i.fileName.replace(".pdf", ""),
           customerName: i.matchedCustomer?.legalName || poData.customerName || "Pending Matching",
           documentDate: poData.documentDate || i.createdAt.toISOString().slice(0, 10),

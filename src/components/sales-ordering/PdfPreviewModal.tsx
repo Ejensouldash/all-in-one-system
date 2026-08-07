@@ -16,7 +16,9 @@ export function PdfPreviewModal({ isOpen, onClose, r2ObjectKey, title }: PdfPrev
 
   if (!isOpen || !r2ObjectKey) return null
 
-  const pdfUrl = `/api/sales-ordering/pdf?key=${encodeURIComponent(r2ObjectKey)}&direct=true`
+  const pdfUrl = r2ObjectKey.startsWith("/") 
+    ? r2ObjectKey 
+    : `/api/sales-ordering/pdf?key=${encodeURIComponent(r2ObjectKey)}&direct=true`
 
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 25, 200))
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 25, 50))

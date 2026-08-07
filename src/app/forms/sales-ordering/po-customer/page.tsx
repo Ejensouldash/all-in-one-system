@@ -10,7 +10,7 @@ export default async function PoCustomerPage() {
     redirect(firstSalesOrderingPath(access))
   }
 
-  const [creditCases, recentIntakes] = await Promise.all([
+  const [creditCases, recentIntakes, salesOrders] = await Promise.all([
     prisma.creditCheckCase.findMany({
       orderBy: { createdAt: "desc" },
       take: 50,
@@ -23,9 +23,26 @@ export default async function PoCustomerPage() {
         uploadedBy: { select: { name: true } },
       },
     }),
+    prisma.salesOrder.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: {
+        customer: true,
+      },
+    }),
   ])
 
   const poCustomerItems: CustomerPoItem[] = [
+    ...salesOrders.map(so => ({
+      id: so.id,
+      poNumber: so.poNumber || so.internalSoNo,
+      customerName: so.customer?.legalName || "Customer PO",
+      documentDate: so.orderDate ? so.orderDate.toISOString().slice(0, 10) : so.createdAt.toISOString().slice(0, 10),
+      amount: Number(so.grandTotal || 0),
+      status: (so.status === "APPROVED" ? "APPROVED" : "PENDING_SOA") as CustomerPoItem["status"],
+      createdAt: so.createdAt.toLocaleString("en-MY"),
+      uploadedBy: so.documentType === "GOOGLE_FORM_PO" ? "Google Form Webhook" : "Sales Order System",
+    })),
     ...creditCases.map(c => {
       const poData = (c.poData as Record<string, any>) || {}
       const totals = poData.totals || {}

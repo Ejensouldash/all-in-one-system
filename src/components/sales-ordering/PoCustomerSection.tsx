@@ -11,7 +11,7 @@ export type CustomerPoItem = {
   documentDate: string
   amount: number
   status: "APPROVED" | "PENDING_SOA" | "REJECTED" | "HOLD"
-  poR2ObjectKey: string
+  poR2ObjectKey?: string | null
   soaR2ObjectKey?: string | null
   rejectionReason?: string | null
   createdAt: string
@@ -150,17 +150,23 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
                   </div>
 
                   {/* PDF Interactive Preview Icon */}
-                  <button
-                    onClick={() => {
-                      setPreviewKey(item.poR2ObjectKey)
-                      setPreviewTitle(`Pratinjau PO - ${item.customerName} (${item.poNumber})`)
-                    }}
-                    title="Pratinjau PDF Asal (Cloudflare R2)"
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-black text-cyan-800 transition hover:bg-cyan-100 hover:scale-105 active:scale-95 shadow-sm"
-                  >
-                    <Eye className="h-4 w-4 text-cyan-600" />
-                    PDF
-                  </button>
+                  {item.poR2ObjectKey ? (
+                    <button
+                      onClick={() => {
+                        setPreviewKey(item.poR2ObjectKey || null)
+                        setPreviewTitle(`Pratinjau PO - ${item.customerName} (${item.poNumber})`)
+                      }}
+                      title="Pratinjau PDF Asal (Cloudflare R2)"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-black text-cyan-800 transition hover:bg-cyan-100 hover:scale-105 active:scale-95 shadow-sm"
+                    >
+                      <Eye className="h-4 w-4 text-cyan-600" />
+                      PDF
+                    </button>
+                  ) : (
+                    <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
+                      Form Order
+                    </span>
+                  )}
                 </div>
               </div>
             ))}

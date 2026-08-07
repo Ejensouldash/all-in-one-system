@@ -66,8 +66,8 @@ const formatCurrency = (val: number) =>
 
 const POTemplate = ({ data, logoPath }: { data: any, logoPath: string }) => {
   const extracted = data.extractedData as ExtractedSalesDocument
-  const items = extracted.items || []
-  const subtotal = items.reduce((acc, item) => acc + Number(item.totalPrice || 0), 0)
+  const lines = extracted.lines || (extracted as any).items || []
+  const subtotal = lines.reduce((acc, line) => acc + Number(line.amount || (line as any).totalPrice || 0), 0)
   const grandTotal = Number(extracted.totals?.grandTotal || subtotal)
 
   return (
@@ -114,16 +114,16 @@ const POTemplate = ({ data, logoPath }: { data: any, logoPath: string }) => {
             <View style={styles.colAmount}><Text style={styles.tableHeaderCell}>JUMLAH (RM)</Text></View>
           </View>
           
-          {items.length > 0 ? items.map((item, index) => (
+          {lines.length > 0 ? lines.map((lineItem: any, index: number) => (
             <View key={index} style={[styles.tableRow, index % 2 === 1 ? styles.tableRowEven : {}]}>
               <View style={styles.colNo}><Text style={styles.colText}>{index + 1}</Text></View>
               <View style={styles.colDesc}>
-                <Text style={styles.colTextBold}>{item.productCode || "SKU PRODUK"}</Text>
-                {item.description ? <Text style={{ fontSize: 8, color: '#64748b', marginTop: 1 }}>{item.description}</Text> : null}
+                <Text style={styles.colTextBold}>{lineItem.sku || lineItem.itemCode || lineItem.productCode || "SKU PRODUK"}</Text>
+                {lineItem.description ? <Text style={{ fontSize: 8, color: '#64748b', marginTop: 1 }}>{lineItem.description}</Text> : null}
               </View>
-              <View style={styles.colQty}><Text style={styles.colTextBold}>{item.quantity}</Text></View>
-              <View style={styles.colPrice}><Text style={styles.colText}>{formatCurrency(item.unitPrice || 0)}</Text></View>
-              <View style={styles.colAmount}><Text style={styles.colTextBold}>{formatCurrency(item.totalPrice || 0)}</Text></View>
+              <View style={styles.colQty}><Text style={styles.colTextBold}>{lineItem.quantity}</Text></View>
+              <View style={styles.colPrice}><Text style={styles.colText}>{formatCurrency(lineItem.unitPrice || 0)}</Text></View>
+              <View style={styles.colAmount}><Text style={styles.colTextBold}>{formatCurrency(lineItem.amount ?? lineItem.totalPrice ?? 0)}</Text></View>
             </View>
           )) : (
             <View style={styles.tableRow}>

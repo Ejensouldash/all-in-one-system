@@ -1,113 +1,75 @@
 "use client"
 
-import { Fragment, useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Printer, Calendar, FileSpreadsheet, ChevronLeft } from "lucide-react"
 import Link from "next/link"
 import { MaintenanceHeader } from "@/components/forms/MaintenanceHeader"
-import { getDQIPRecords, type DQIPEntries, type DQIPMaterialRow, type DQIPSensoryRow } from "../../dqip/actions"
+import { getDQIPRecords, type DQIPRow } from "../../dqip/actions"
 
 function formatSignatureDate(d: string | Date | null) {
   if (!d) return ""
-  const date = new Date(d)
-  return date.toLocaleDateString("en-GB")
+  return new Date(d).toLocaleDateString("en-GB")
 }
 
-const MATERIAL_SECTIONS: { key: keyof Pick<DQIPEntries, "cap1881" | "emptyBottle425" | "emptyBottle800" | "filledBottle425" | "filledBottle800">, label: string }[] = [
-  { key: "cap1881", label: "CAP 1881" },
-  { key: "emptyBottle425", label: "EMPTY BOTTLE 425ML (18.5G)" },
-  { key: "emptyBottle800", label: "EMPTY BOTTLE 800ML (31.0G)" },
-  { key: "filledBottle425", label: "FILLED BOTTLE 425ML" },
-  { key: "filledBottle800", label: "FILLED BOTTLE 800ML" },
-]
+const tick = (ok: boolean) => (ok ? "/" : "X")
 
-const SENSORY_SECTIONS: { key: keyof Pick<DQIPEntries, "taste" | "smell" | "particle">, label: string }[] = [
-  { key: "taste", label: "TASTE" },
-  { key: "smell", label: "SMELL" },
-  { key: "particle", label: "PARTICLE" },
-]
+function extractDQIPRows(record: any): { rows: DQIPRow[], remarks: string } {
+  const entries = record.entries || {}
+  if (Array.isArray(entries.rows)) {
+    return { rows: entries.rows, remarks: entries.remarks || "" }
+  }
 
-function MaterialTable({ label, rows }: { label: string, rows: DQIPMaterialRow[] }) {
-  if (!rows || rows.length === 0) return null
-  return (
-    <div className="mb-3">
-      <p className="text-[10px] font-black uppercase mb-1">{label}</p>
-      <table className="w-full text-[8px] border-collapse border border-black text-center print-compact-table">
-        <thead>
-          <tr className="bg-gray-200 print:bg-gray-200">
-            <th rowSpan={2} className="border border-black p-1 align-middle">Time</th>
-            <th rowSpan={2} className="border border-black p-1 align-middle">Qty</th>
-            {[1, 2, 3, 4, 5].map(n => (
-              <th key={n} colSpan={2} className="border border-black p-1">Sample {n}</th>
-            ))}
-          </tr>
-          <tr className="bg-gray-200 print:bg-gray-200">
-            {[1, 2, 3, 4, 5].map(n => (
-              <Fragment key={n}>
-                <th className="border border-black p-0.5">Weight</th>
-                <th className="border border-black p-0.5">Cond.</th>
-              </Fragment>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, idx) => (
-            <tr key={idx}>
-              <td className="border border-black p-1 font-mono">{row.time || "-"}</td>
-              <td className="border border-black p-1">{row.quantity || "-"}</td>
-              {row.samples.map((s, si) => (
-                <Fragment key={si}>
-                  <td className="border border-black p-1">{s.weight || "-"}</td>
-                  <td className="border border-black p-1">{s.condition || "-"}</td>
-                </Fragment>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
+  // Fallback conversion for legacy entries structure
+  const legacyRows: DQIPRow[] = []
+  const materialKeys = [
+    { key: "cap1881", name: "Cap 1881", line: "LINE 1" },
+    { key: "emptyBottle425", name: "Empty Bottle 425ML (18.5G)", line: "LINE 2" },
+    { key: "emptyBottle800", name: "Empty Bottle 800ML (31.0G)", line: "LINE 1" },
+    { key: "filledBottle425", name: "Filled Bottle 425ML", line: "LINE 2" },
+    { key: "filledBottle800", name: "Filled Bottle 800ML", line: "LINE 1" },
+  ]
+  materialKeys.forEach(m => {
+    if (Array.isArray(entries[m.key])) {
+      entries[m.key].forEach((r: any) => {
+        if (r.time || r.quantity) {
+          legacyRows.push({
+            line: m.line,
+            item: m.name,
+            time: r.time || "",
+            weightQty: r.quantity || "",
+            condition: "OKAY",
+            batchNumber: "AVAILABLE",
+            status: "OKAY",
+          })
+        }
+      })
+    }
+  })
 
-function SensoryTable({ label, rows }: { label: string, rows: DQIPSensoryRow[] }) {
-  if (!rows || rows.length === 0) return null
-  return (
-    <div className="mb-3">
-      <p className="text-[10px] font-black uppercase mb-1">{label}</p>
-      <table className="w-full text-[8px] border-collapse border border-black text-center print-compact-table">
-        <thead>
-          <tr className="bg-gray-200 print:bg-gray-200">
-            <th rowSpan={2} className="border border-black p-1 align-middle">SKU</th>
-            <th rowSpan={2} className="border border-black p-1 align-middle">Qty</th>
-            {[1, 2, 3, 4, 5].map(n => (
-              <th key={n} colSpan={2} className="border border-black p-1">Sample {n}</th>
-            ))}
-          </tr>
-          <tr className="bg-gray-200 print:bg-gray-200">
-            {[1, 2, 3, 4, 5].map(n => (
-              <Fragment key={n}>
-                <th className="border border-black p-0.5">Time</th>
-                <th className="border border-black p-0.5">Cond.</th>
-              </Fragment>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, idx) => (
-            <tr key={idx}>
-              <td className="border border-black p-1 font-bold">{row.sku}</td>
-              <td className="border border-black p-1">{row.quantity || "-"}</td>
-              {row.samples.map((s, si) => (
-                <Fragment key={si}>
-                  <td className="border border-black p-1 font-mono">{s.time || "-"}</td>
-                  <td className="border border-black p-1">{s.condition || "-"}</td>
-                </Fragment>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
+  const sensoryKeys = [
+    { key: "taste", name: "Taste", line: "LINE 1" },
+    { key: "smell", name: "Smell", line: "LINE 1" },
+    { key: "particle", name: "Particle", line: "LINE 1" },
+  ]
+  sensoryKeys.forEach(s => {
+    if (Array.isArray(entries[s.key])) {
+      entries[s.key].forEach((r: any) => {
+        if (r.quantity || r.sku) {
+          legacyRows.push({
+            line: s.line,
+            item: s.name,
+            time: "",
+            weightQty: r.quantity || "",
+            condition: "OKAY",
+            batchNumber: "AVAILABLE",
+            status: "OKAY",
+          })
+        }
+      })
+    }
+  })
+
+  return { rows: legacyRows, remarks: "" }
 }
 
 export function MaintenanceDQIPReportClient() {
@@ -207,10 +169,9 @@ export function MaintenanceDQIPReportClient() {
           <p className="text-gray-500 font-medium">There are no daily quality in-process records submitted for {monthNames[month - 1]} {year}.</p>
         </div>
       ) : (
-        <div ref={printRef} className="print-layout landscape">
-          <style>{`@page { size: A4 landscape; margin: 8mm 10mm; }`}</style>
+        <div ref={printRef} className="print-layout">
           {records.map((record, index) => {
-            const entries: Partial<DQIPEntries> = record.entries || {}
+            const { rows, remarks } = extractDQIPRows(record)
             return (
               <div key={record.id} className="print-page bg-white p-8 sm:p-12 shadow-sm border border-gray-100 mb-8 rounded-2xl print:shadow-none print:border-none print:p-0 print:m-0 print:rounded-none overflow-x-auto print:overflow-visible">
 
@@ -227,18 +188,51 @@ export function MaintenanceDQIPReportClient() {
                   <div>DATE: <span className="underline ml-1 px-4">{formatSignatureDate(record.date)}</span></div>
                 </div>
 
-                {MATERIAL_SECTIONS.map(section => (
-                  <MaterialTable key={section.key} label={section.label} rows={entries[section.key] || []} />
-                ))}
+                <table className="w-full text-xs border-collapse border border-black text-left print-compact-table">
+                  <thead>
+                    <tr className="bg-gray-200 print:bg-gray-200 text-center">
+                      <th className="border border-black p-1" rowSpan={2}>LINE</th>
+                      <th className="border border-black p-1" rowSpan={2}>CATEGORY / ITEM</th>
+                      <th className="border border-black p-1" rowSpan={2}>TIME</th>
+                      <th className="border border-black p-1" rowSpan={2}>WEIGHT / QTY</th>
+                      <th className="border border-black p-1">CONDITION</th>
+                      <th className="border border-black p-1">BATCH NUMBER</th>
+                      <th className="border border-black p-1">STATUS</th>
+                    </tr>
+                    <tr className="bg-gray-200 print:bg-gray-200 text-center text-[9px]">
+                      <th className="border border-black p-1">OKAY (/) &nbsp; NOT OKAY (X)</th>
+                      <th className="border border-black p-1">AVAILABLE (/) &nbsp; NOT AVAILABLE (X)</th>
+                      <th className="border border-black p-1">OKAY (/) &nbsp; NOT OKAY (X)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.length > 0 ? rows.map((row, idx) => (
+                      <tr key={idx} className="text-center">
+                        <td className="border border-black p-2">{row.line || ""}</td>
+                        <td className="border border-black p-2 font-bold">{row.item || ""}</td>
+                        <td className="border border-black p-2">{row.time || ""}</td>
+                        <td className="border border-black p-2">{row.weightQty || ""}</td>
+                        <td className="border border-black p-2 font-black">{tick(row.condition === "OKAY")}</td>
+                        <td className="border border-black p-2 font-black">{tick(row.batchNumber === "AVAILABLE")}</td>
+                        <td className="border border-black p-2 font-black">{tick(row.status === "OKAY")}</td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan={7} className="border border-black p-4 text-center">No quality checks recorded</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
 
-                {SENSORY_SECTIONS.map(section => (
-                  <SensoryTable key={section.key} label={section.label} rows={entries[section.key] || []} />
-                ))}
+                <div className="mt-4 text-xs text-black font-sans">
+                  <p className="font-black uppercase">Remarks:</p>
+                  <p className="border-b border-black min-h-[1.5rem] whitespace-pre-wrap">{remarks}</p>
+                </div>
 
                 {/* Signature Block */}
-                <div className="mt-8 grid grid-cols-2 gap-10 text-black font-sans">
+                <div className="mt-10 grid grid-cols-2 gap-10 text-black font-sans">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-wider mb-1">Checked By (Signature & Name)</p>
+                    <p className="text-[10px] font-black uppercase tracking-wider mb-1">Checked By (Signature &amp; Name)</p>
                     <div className="h-16 border-b-2 border-black flex items-end pb-1">
                       {record.performedSignature && (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -248,7 +242,7 @@ export function MaintenanceDQIPReportClient() {
                     <p className="text-[10px] font-bold uppercase mt-1">{record.checkedBy || "-"}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-wider mb-1">Verified By (Signature & Name)</p>
+                    <p className="text-[10px] font-black uppercase tracking-wider mb-1">Verified By (Signature &amp; Name)</p>
                     <div className="h-16 border-b-2 border-black flex items-end pb-1">
                       {record.verifiedSignature && (
                         // eslint-disable-next-line @next/next/no-img-element

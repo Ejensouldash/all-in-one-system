@@ -195,6 +195,7 @@ const FIELD_CONFIG: Record<string, FieldConfig[]> = {
     { key: "inspectorName", label: "Inspector", type: "text" },
   ],
   dqip: [
+    { key: "remarks", label: "Remarks", type: "text" },
     { key: "checkedBy", label: "Checked By", type: "text" },
   ],
   qcdr: [

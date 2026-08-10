@@ -1,71 +1,70 @@
 "use client"
 
 import { useState } from "react"
-import { FlaskConical, CheckCircle2, ChevronLeft, Save } from "lucide-react"
+import { FlaskConical, CheckCircle2, ChevronLeft, Save, Plus, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
 import { useMaintenanceDraft } from "../_components/useMaintenanceDraft"
 import { DraftBanner, SaveDraftButton } from "../_components/DraftControls"
-import { createDQIP, type DQIPEntries, type DQIPMaterialRow, type DQIPSensoryRow } from "./actions"
-import { MaterialRowsEditor, emptyMaterialRows } from "./MaterialRowsEditor"
-import { SensoryRowsEditor, emptySensoryRows } from "./SensoryRowsEditor"
+import { createDQIP, type DQIPRow } from "./actions"
 
-const MATERIAL_SECTIONS: { key: keyof Pick<DQIPEntries, "cap1881" | "emptyBottle425" | "emptyBottle800" | "filledBottle425" | "filledBottle800">, label: string }[] = [
-  { key: "cap1881", label: "Cap 1881" },
-  { key: "emptyBottle425", label: "Empty Bottle 425ML (18.5G)" },
-  { key: "emptyBottle800", label: "Empty Bottle 800ML (31.0G)" },
-  { key: "filledBottle425", label: "Filled Bottle 425ML" },
-  { key: "filledBottle800", label: "Filled Bottle 800ML" },
+const ITEM_OPTIONS = [
+  { item: "Cap 1881", line: "LINE 1" },
+  { item: "Empty Bottle 425ML (18.5G)", line: "LINE 2" },
+  { item: "Empty Bottle 800ML (31.0G)", line: "LINE 1" },
+  { item: "Filled Bottle 425ML", line: "LINE 2" },
+  { item: "Filled Bottle 800ML", line: "LINE 1" },
+  { item: "Taste", line: "LINE 1" },
+  { item: "Smell", line: "LINE 1" },
+  { item: "Particle", line: "LINE 1" },
 ]
 
-const SENSORY_SECTIONS: { key: keyof Pick<DQIPEntries, "taste" | "smell" | "particle">, label: string }[] = [
-  { key: "taste", label: "Taste" },
-  { key: "smell", label: "Smell" },
-  { key: "particle", label: "Particle" },
-]
+const lineForItem = (item: string) => ITEM_OPTIONS.find(o => o.item === item)?.line ?? "LINE 1"
 
-function isMaterialRowFilled(row: DQIPMaterialRow) {
-  return row.time.trim() !== "" || row.quantity.trim() !== "" || row.samples.some(s => s.weight.trim() !== "" || s.condition.trim() !== "")
-}
-
-function isSensoryRowFilled(row: DQIPSensoryRow) {
-  return row.quantity.trim() !== "" || row.samples.some(s => s.time.trim() !== "" || s.condition.trim() !== "")
+const EMPTY_ROW: DQIPRow = {
+  line: ITEM_OPTIONS[0].line,
+  item: ITEM_OPTIONS[0].item,
+  time: "",
+  weightQty: "",
+  condition: "OKAY",
+  batchNumber: "AVAILABLE",
+  status: "OKAY",
 }
 
 export function DQIPForm({ userName }: { userName: string }) {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
   const [checkedBy, setCheckedBy] = useState(userName)
-
-  const [entries, setEntries] = useState<DQIPEntries>({
-    cap1881: emptyMaterialRows(),
-    emptyBottle425: emptyMaterialRows(),
-    emptyBottle800: emptyMaterialRows(),
-    filledBottle425: emptyMaterialRows(),
-    filledBottle800: emptyMaterialRows(),
-    taste: emptySensoryRows(),
-    smell: emptySensoryRows(),
-    particle: emptySensoryRows(),
-  })
+  const [remarks, setRemarks] = useState("")
+  const [rows, setRows] = useState<DQIPRow[]>([{ ...EMPTY_ROW }])
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
   const [signature, setSignature] = useState<string | null>(null)
 
-  function updateMaterial(key: typeof MATERIAL_SECTIONS[number]["key"], rows: DQIPMaterialRow[]) {
-    setEntries(prev => ({ ...prev, [key]: rows }))
+  function updateRow(index: number, field: keyof DQIPRow, value: string) {
+    setRows(prev => prev.map((r, i) => {
+      if (i !== index) return r
+      if (field === "item") return { ...r, item: value, line: lineForItem(value) }
+      return { ...r, [field]: value }
+    }))
   }
 
-  function updateSensory(key: typeof SENSORY_SECTIONS[number]["key"], rows: DQIPSensoryRow[]) {
-    setEntries(prev => ({ ...prev, [key]: rows }))
+  function addRow() {
+    setRows(prev => [...prev, { ...EMPTY_ROW }])
+  }
+
+  function removeRow(index: number) {
+    setRows(prev => prev.filter((_, i) => i !== index))
   }
 
   const draft = useMaintenanceDraft("dqip", {
-    values: () => ({ date, checkedBy, entries }),
+    values: () => ({ date, checkedBy, remarks, rows }),
     apply: (v) => {
       setDate(v.date)
       setCheckedBy(v.checkedBy)
-      setEntries(v.entries)
+      setRemarks(v.remarks || "")
+      setRows(v.rows || [{ ...EMPTY_ROW }])
     },
   })
 
@@ -75,20 +74,9 @@ export function DQIPForm({ userName }: { userName: string }) {
       return
     }
 
-    const filteredEntries: DQIPEntries = {
-      cap1881: entries.cap1881.filter(isMaterialRowFilled),
-      emptyBottle425: entries.emptyBottle425.filter(isMaterialRowFilled),
-      emptyBottle800: entries.emptyBottle800.filter(isMaterialRowFilled),
-      filledBottle425: entries.filledBottle425.filter(isMaterialRowFilled),
-      filledBottle800: entries.filledBottle800.filter(isMaterialRowFilled),
-      taste: entries.taste.filter(isSensoryRowFilled),
-      smell: entries.smell.filter(isSensoryRowFilled),
-      particle: entries.particle.filter(isSensoryRowFilled),
-    }
-
-    const hasAnyData = Object.values(filteredEntries).some(rows => rows.length > 0)
-    if (!hasAnyData) {
-      setError("Please fill in at least one sample entry.")
+    const filledRows = rows.filter(r => r.time.trim() !== "" || r.weightQty.trim() !== "")
+    if (filledRows.length === 0) {
+      setError("Please fill in at least one inspection row (time or weight/quantity).")
       return
     }
 
@@ -97,7 +85,8 @@ export function DQIPForm({ userName }: { userName: string }) {
 
     const res = await createDQIP({
       date: new Date(date),
-      entries: filteredEntries,
+      rows: filledRows,
+      remarks: remarks.trim() || undefined,
       checkedBy,
       performedSignature: signature,
     })
@@ -127,7 +116,7 @@ export function DQIPForm({ userName }: { userName: string }) {
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-6xl mx-auto">
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
         {/* Header */}
         <div className="bg-slate-900 p-6 sm:p-10 text-white relative overflow-hidden">
@@ -143,12 +132,12 @@ export function DQIPForm({ userName }: { userName: string }) {
                 </div>
               </div>
               <h1 className="text-2xl sm:text-4xl font-black tracking-tight mb-2 uppercase">Daily Quality In-Process</h1>
-              <p className="text-slate-400 font-medium">Record in-process weight, condition, and sensory sample checks.</p>
+              <p className="text-slate-400 font-medium">Inspect weight, condition, batch number and status per category.</p>
             </div>
           </div>
         </div>
 
-        <div className="p-6 sm:p-10 space-y-10">
+        <div className="p-6 sm:p-10 space-y-8">
           <DraftBanner draft={draft} />
           {error && (
             <div className="bg-red-50 text-red-800 p-4 rounded-xl border border-red-200 font-bold text-sm">
@@ -178,28 +167,118 @@ export function DQIPForm({ userName }: { userName: string }) {
             </div>
           </div>
 
-          <div className="space-y-8">
-            <h2 className="text-lg font-black uppercase tracking-widest text-gray-800 pb-2 border-b-2 border-gray-100">Weight &amp; Condition Samples</h2>
-            {MATERIAL_SECTIONS.map((section) => (
-              <MaterialRowsEditor
-                key={section.key}
-                label={section.label}
-                rows={entries[section.key]}
-                onChange={(rows) => updateMaterial(section.key, rows)}
-              />
-            ))}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b-2 border-gray-100">
+              <h2 className="text-lg font-black uppercase tracking-widest text-gray-800">Inspection Rows</h2>
+              <button
+                type="button"
+                onClick={addRow}
+                className="flex items-center px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-black uppercase tracking-wider transition-colors"
+              >
+                <Plus className="w-4 h-4 mr-1" /> Add Row
+              </button>
+            </div>
+
+            <div className="overflow-x-auto rounded-2xl border border-gray-200 shadow-sm">
+              <table className="w-full text-sm text-left min-w-[1000px]">
+                <thead className="bg-slate-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-3 font-black uppercase tracking-wider text-xs text-slate-600">Line</th>
+                    <th className="px-4 py-3 font-black uppercase tracking-wider text-xs text-slate-600">Category / Item</th>
+                    <th className="px-4 py-3 font-black uppercase tracking-wider text-xs text-slate-600">Time</th>
+                    <th className="px-4 py-3 font-black uppercase tracking-wider text-xs text-slate-600">Weight / Qty</th>
+                    <th className="px-4 py-3 font-black uppercase tracking-wider text-xs text-slate-600">Condition</th>
+                    <th className="px-4 py-3 font-black uppercase tracking-wider text-xs text-slate-600">Batch Number</th>
+                    <th className="px-4 py-3 font-black uppercase tracking-wider text-xs text-slate-600">Status</th>
+                    <th className="px-2 py-3 w-10"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {rows.map((row, index) => (
+                    <tr key={index} className="hover:bg-blue-50/30 transition-colors group">
+                      <td className="px-4 py-2 font-black text-slate-500 whitespace-nowrap">{row.line}</td>
+                      <td className="p-1 border-r border-gray-100">
+                        <select
+                          value={row.item}
+                          onChange={(e) => updateRow(index, "item", e.target.value)}
+                          className="w-full p-2 outline-none bg-transparent focus:bg-blue-50 font-bold text-slate-700 rounded-lg"
+                        >
+                          {ITEM_OPTIONS.map(o => <option key={o.item} value={o.item}>{o.item}</option>)}
+                        </select>
+                      </td>
+                      <td className="p-1 border-r border-gray-100">
+                        <input
+                          type="time"
+                          value={row.time}
+                          onChange={(e) => updateRow(index, "time", e.target.value)}
+                          className="w-full p-2 outline-none bg-transparent focus:bg-blue-50 font-medium text-slate-700 rounded-lg"
+                        />
+                      </td>
+                      <td className="p-1 border-r border-gray-100">
+                        <input
+                          type="text"
+                          value={row.weightQty}
+                          onChange={(e) => updateRow(index, "weightQty", e.target.value)}
+                          placeholder="e.g. 18.5g / 20"
+                          className="w-full p-2 outline-none bg-transparent focus:bg-blue-50 font-medium text-slate-700 rounded-lg"
+                        />
+                      </td>
+                      <td className="p-1 border-r border-gray-100">
+                        <select
+                          value={row.condition}
+                          onChange={(e) => updateRow(index, "condition", e.target.value as any)}
+                          className={`w-full p-2 outline-none bg-transparent focus:bg-blue-50 font-bold rounded-lg ${row.condition === "OKAY" ? "text-emerald-700" : "text-red-700"}`}
+                        >
+                          <option value="OKAY">Okay</option>
+                          <option value="NOT_OKAY">Not Okay</option>
+                        </select>
+                      </td>
+                      <td className="p-1 border-r border-gray-100">
+                        <select
+                          value={row.batchNumber}
+                          onChange={(e) => updateRow(index, "batchNumber", e.target.value as any)}
+                          className={`w-full p-2 outline-none bg-transparent focus:bg-blue-50 font-bold rounded-lg ${row.batchNumber === "AVAILABLE" ? "text-emerald-700" : "text-red-700"}`}
+                        >
+                          <option value="AVAILABLE">Available</option>
+                          <option value="NOT_AVAILABLE">Not Available</option>
+                        </select>
+                      </td>
+                      <td className="p-1">
+                        <select
+                          value={row.status}
+                          onChange={(e) => updateRow(index, "status", e.target.value as any)}
+                          className={`w-full p-2 outline-none bg-transparent focus:bg-blue-50 font-bold rounded-lg ${row.status === "OKAY" ? "text-emerald-700" : "text-red-700"}`}
+                        >
+                          <option value="OKAY">Okay</option>
+                          <option value="NOT_OKAY">Not Okay</option>
+                        </select>
+                      </td>
+                      <td className="p-1 text-center">
+                        <button
+                          type="button"
+                          onClick={() => removeRow(index)}
+                          disabled={rows.length === 1}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          <div className="space-y-8">
-            <h2 className="text-lg font-black uppercase tracking-widest text-gray-800 pb-2 border-b-2 border-gray-100">Sensory Samples</h2>
-            {SENSORY_SECTIONS.map((section) => (
-              <SensoryRowsEditor
-                key={section.key}
-                label={section.label}
-                rows={entries[section.key]}
-                onChange={(rows) => updateSensory(section.key, rows)}
-              />
-            ))}
+          <div className="space-y-2">
+            <label className="text-xs font-black uppercase tracking-wider text-gray-500">Remarks</label>
+            <textarea
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
+              rows={3}
+              placeholder="Any observations or corrective actions..."
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 text-gray-900 font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-y"
+            />
           </div>
 
           <div className="space-y-2 border-t border-gray-100 pt-6">
@@ -214,7 +293,7 @@ export function DQIPForm({ userName }: { userName: string }) {
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="flex items-center px-8 py-4 bg-blue-700 hover:bg-blue-800 text-white font-black uppercase tracking-wider rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-70"
+              className="flex items-center px-8 py-4 bg-purple-700 hover:bg-purple-800 text-white font-black uppercase tracking-wider rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-70"
             >
               <Save className="w-5 h-5 mr-2" />
               {isSubmitting ? "Submitting..." : "Submit Record"}

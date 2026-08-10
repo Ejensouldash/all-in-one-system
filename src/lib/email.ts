@@ -71,3 +71,20 @@ export function generateTicketStatusUpdateEmail(userName: string, logNumber: str
     </div>
   `
 }
+
+export function generateCreditCheckRejectedEmail(bdName: string, poNumber: string, customerName: string, financeRemarks: string) {
+  return `
+    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+      <h2 style="color: #dc2626;">PO Credit Hold Rejected: ${poNumber}</h2>
+      <p>Hi ${bdName || "Team BD"},</p>
+      <p>Finance has reviewed the credit check case for <strong>${customerName}</strong> (PO No: <strong>${poNumber}</strong>) and marked it as <strong>REJECTED (Credit Not Released)</strong>.</p>
+      <p><strong>Finance Remarks:</strong></p>
+      <blockquote style="border-left: 4px solid #fca5a5; padding-left: 12px; color: #991b1b; background-color: #fef2f2; padding-top: 8px; padding-bottom: 8px;">
+        ${financeRemarks}
+      </blockquote>
+      <p><strong>Action Required:</strong> Please follow up with the customer regarding outstanding payments or credit arrangements before the order can be processed.</p>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+      <p style="font-size: 12px; color: #9ca3af;">BubblesO2 Sales Ordering System - Automated Notification</p>
+    </div>
+  `
+}

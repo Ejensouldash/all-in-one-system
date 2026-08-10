@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import crypto from "crypto"
 
 export const runtime = "nodejs"
 
@@ -7,37 +8,87 @@ export const runtime = "nodejs"
  * Webhook Endpoint to receive Google Form submissions for Customer Registration
  * Endpoint: POST /api/webhooks/customer-registration
  */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const secret = searchParams.get("secret") || request.headers.get("x-google-form-secret")
+    // 1. Webhook Secret Verification
+    const secretFromQuery = request.nextUrl.searchParams.get("secret")
+    const secretFromHeader = request.headers.get("x-google-form-secret")
+    const receivedSecret = secretFromHeader || secretFromQuery
     const expectedSecret = process.env.GOOGLE_FORM_WEBHOOK_SECRET
 
-    if (expectedSecret && secret !== expectedSecret) {
-      return NextResponse.json({ error: "Unauthorized. Invalid secret token." }, { status: 401 })
+    if (expectedSecret && receivedSecret !== expectedSecret) {
+      console.warn("[Webhook Customer Registration] 401 Unauthorized attempt from IP:", request.headers.get("x-forwarded-for") || "unknown")
+      return NextResponse.json({ error: "Unauthorized. Invalid or missing secret token." }, { status: 401 })
     }
 
-    const body = await request.json()
-    console.log("Received Customer Registration Payload:", JSON.stringify(body, null, 2))
+    // 2. Parse JSON Payload safely
+    let body: any
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 })
+    }
 
-    const companyName = body.companyName ? String(body.companyName).trim() : "Unknown Company"
+    // 3. Validate Minimum Data: companyName required
+    const companyName = body.companyName ? String(body.companyName).trim() : ""
     if (!companyName) {
-      return NextResponse.json({ error: "Company Name is required." }, { status: 400 })
+      return NextResponse.json({ error: "Validation failed: companyName is required and cannot be empty." }, { status: 400 })
     }
 
-    // Generate unique Registration No (REG-YYYYMM-XXX)
+    // 4. Idempotency Key computation for retry prevention
+    const rawResponseId = body.formResponseId || body.responseId || body.idempotencyKey
+    const respondentEmail = body.respondentEmail ? String(body.respondentEmail).trim().toLowerCase() : ""
+    const submittedAt = body.submittedAt ? String(body.submittedAt).slice(0, 10) : new Date().toISOString().slice(0, 10)
+
+    const idempotencyKey = rawResponseId 
+      ? String(rawResponseId).trim() 
+      : crypto.createHash("sha256").update(`${companyName}|${respondentEmail}|${submittedAt}`).digest("hex")
+
+    // Check duplicate submission
+    const existingRegistration = await prisma.customerRegistration.findUnique({
+      where: { idempotencyKey }
+    })
+
+    if (existingRegistration) {
+      console.log(`[Webhook Customer Registration] Duplicate submission ignored for idempotencyKey: ${idempotencyKey.slice(0, 12)}... (Company: ${companyName})`)
+      return NextResponse.json({
+        success: true,
+        message: "Submission already processed previously.",
+        registrationId: existingRegistration.id,
+        registrationNo: existingRegistration.registrationNo,
+        isDuplicate: true,
+      })
+    }
+
+    // 5. Generate Collision-Free Registration Number (REG-YYYYMM-XXX)
     const now = new Date()
     const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`
     const prefix = `REG-${yearMonth}-`
-    
-    const countThisMonth = await prisma.customerRegistration.count({
-      where: {
-        registrationNo: { startsWith: prefix }
-      }
-    })
-    const registrationNo = `${prefix}${String(countThisMonth + 1).padStart(3, "0")}`
 
-    // Structure contacts
+    let registrationNo = ""
+    let attempts = 0
+    while (attempts < 10) {
+      attempts++
+      const countThisMonth = await prisma.customerRegistration.count({
+        where: { registrationNo: { startsWith: prefix } }
+      })
+      const nextSeq = String(countThisMonth + attempts).padStart(3, "0")
+      const candidateNo = `${prefix}${nextSeq}`
+
+      const collisionCheck = await prisma.customerRegistration.findUnique({
+        where: { registrationNo: candidateNo }
+      })
+      if (!collisionCheck) {
+        registrationNo = candidateNo
+        break
+      }
+    }
+
+    if (!registrationNo) {
+      registrationNo = `${prefix}${Date.now().toString().slice(-4)}`
+    }
+
+    // 6. Structure contacts
     const contacts = [
       {
         department: "Account Department",
@@ -53,8 +104,11 @@ export async function POST(request: Request) {
       }
     ].filter(c => c.name || c.email || c.phone)
 
-    // Financial
+    // Financial metadata & Operational details
     const financial = {
+      paymentTermsRequested: body.paymentTermsRequested || body.paymentTerms || "",
+      officeOperatingHours: body.officeOperatingHours || "",
+      preferredDeliveryTime: body.preferredDeliveryTime || "",
       bankName: body.bankName || "",
       accountNo: body.bankAccountNo || "",
       bankAddress: body.bankAddress || "",
@@ -62,15 +116,19 @@ export async function POST(request: Request) {
       swiftCode: body.swiftCode || "",
     }
 
-    // Documents from Google Drive
+    // Supporting Documents Metadata
     const supportingDocuments = Array.isArray(body.supportingDocuments) 
       ? body.supportingDocuments 
-      : body.driveFiles || []
+      : Array.isArray(body.driveFiles) ? body.driveFiles : []
 
-    // Save record to DB
+    // Safe redacted log summary
+    console.log(`[Webhook Customer Registration] Processing submission: No=${registrationNo}, Company="${companyName}", Docs=${supportingDocuments.length}`)
+
+    // 7. Save CustomerRegistration record in PENDING status
     const registration = await prisma.customerRegistration.create({
       data: {
         registrationNo,
+        idempotencyKey,
         companyName,
         companyRegNoNew: body.companyRegNoNew || body.companyRegistrationNo || "",
         companyRegNoOld: body.companyRegNoOld || "",
@@ -99,15 +157,20 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: "Customer Registration successfully received.",
+      message: "Customer Registration successfully recorded.",
       registrationId: registration.id,
       registrationNo: registration.registrationNo,
     })
+
   } catch (error) {
-    console.error("Customer Registration Webhook Error:", error)
+    console.error("[Webhook Customer Registration] Error:", error instanceof Error ? error.message : String(error))
     return NextResponse.json(
-      { error: "Failed to process customer registration: " + (error instanceof Error ? error.message : String(error)) },
+      { error: "Failed to process customer registration webhook." },
       { status: 500 }
     )
   }
+}
+
+export async function GET() {
+  return NextResponse.json({ error: "Method not allowed. Use POST." }, { status: 405 })
 }

@@ -53,7 +53,7 @@ export function decideCreditCheck(
   checkMode: CheckMode = "PO_CREDIT_CHECK"
 ): DecisionResult {
   const poDate = /^\d{4}-\d{2}-\d{2}$/.test(po.documentDate) ? po.documentDate : ""
-  const evalDate = soa.statementDate || poDate || new Date().toISOString().slice(0, 10)
+  const evalDate = soa.statementDate || new Date().toISOString().slice(0, 10)
   const terms = soa.creditTermDays || 30
   const identity = compareIdentity(po.customerName, [soa.accountName, soa.stationName, soa.supplierName].filter(Boolean))
   

@@ -1,13 +1,15 @@
 "use client"
 
 import { useState } from "react"
-import { CheckCircle2, XCircle, FileText, ExternalLink, Eye, Building2, User, Landmark, ShieldAlert, X, Loader2 } from "lucide-react"
+import { CheckCircle2, XCircle, FileText, ExternalLink, Eye, Building2, User, Landmark, X, Loader2, AlertCircle } from "lucide-react"
 
 type DocumentItem = {
   docType?: string
   fileName?: string
   driveUrl?: string
   fileId?: string
+  previewUrl?: string
+  mimeType?: string
 }
 
 type CustomerRegistrationData = {
@@ -53,7 +55,9 @@ export function CustomerRegistrationReviewModal({
   onRefresh: () => void
 }) {
   const [activeDocUrl, setActiveDocUrl] = useState<string | null>(null)
+  const [activeDriveDirectUrl, setActiveDriveDirectUrl] = useState<string | null>(null)
   const [docTitle, setDocTitle] = useState("")
+  const [iframeError, setIframeError] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
 
@@ -67,13 +71,20 @@ export function CustomerRegistrationReviewModal({
   const guarantors = Array.isArray(item.guarantors) ? item.guarantors : []
 
   // Transform Google Drive URL to preview iframe URL
-  const getEmbedUrl = (url?: string, fileId?: string) => {
+  const getEmbedUrl = (url?: string, fileId?: string, previewUrl?: string) => {
+    if (previewUrl) return previewUrl
     if (fileId) return `https://drive.google.com/file/d/${fileId}/preview`
     if (!url) return ""
     if (url.includes("drive.google.com")) {
       return url.replace(/\/view.*$/, "/preview").replace(/\/edit.*$/, "/preview")
     }
     return url
+  }
+
+  const getDirectDriveUrl = (url?: string, fileId?: string) => {
+    if (url) return url
+    if (fileId) return `https://drive.google.com/file/d/${fileId}/view`
+    return "#"
   }
 
   const handleApprove = async () => {
@@ -97,15 +108,20 @@ export function CustomerRegistrationReviewModal({
   }
 
   const handleReject = async () => {
-    const reason = prompt("Masukkan sebab penolakan permohonan ini:")
+    const reason = prompt("Sebab Penolakan (Rejection Reason) WAJIB diisi:")
     if (reason === null) return
+    if (!reason.trim()) {
+      alert("⚠️ Sebab penolakan tidak boleh dibiarkan kosong.")
+      return
+    }
+
     setBusy(true)
     setError("")
     try {
       const res = await fetch(`/api/sales-ordering/customer-registrations/${item.id}/reject`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason })
+        body: JSON.stringify({ reason: reason.trim() })
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Gagal menolak permohonan.")
@@ -153,6 +169,12 @@ export function CustomerRegistrationReviewModal({
           
           {error && <div className="rounded-2xl bg-rose-50 p-4 border border-rose-200 text-rose-700 font-bold text-sm">{error}</div>}
 
+          {item.status === "REJECTED" && item.rejectionReason && (
+            <div className="rounded-2xl bg-rose-50/80 p-4 border border-rose-200 text-rose-900 text-xs font-semibold">
+              <span className="font-black text-rose-700 uppercase">Sebab Penolakan (Rejection Reason):</span> {item.rejectionReason}
+            </div>
+          )}
+
           {/* Section A: Company Details */}
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
             <h4 className="flex items-center gap-2 font-black text-slate-900 border-b border-slate-100 pb-3 text-sm">
@@ -188,6 +210,14 @@ export function CustomerRegistrationReviewModal({
                 <p className="font-bold text-slate-800 mt-0.5">{item.businessAddress || "-"}</p>
               </div>
               <div>
+                <p className="font-bold text-slate-500 uppercase">Waktu Operasi Pejabat</p>
+                <p className="font-black text-cyan-800 mt-0.5">{financial.officeOperatingHours || "-"}</p>
+              </div>
+              <div>
+                <p className="font-bold text-slate-500 uppercase">Waktu Penghantaran Pilihan</p>
+                <p className="font-black text-emerald-800 mt-0.5">{financial.preferredDeliveryTime || "-"}</p>
+              </div>
+              <div>
                 <p className="font-bold text-slate-500 uppercase">Turnover & Modal Berbayar</p>
                 <p className="font-bold text-slate-900 mt-0.5">Turnover: {item.annualTurnover || "-"} · Capital: {item.paidUpCapital || "-"}</p>
               </div>
@@ -212,12 +242,16 @@ export function CustomerRegistrationReviewModal({
             </section>
           )}
 
-          {/* Section C: Financial Information */}
+          {/* Section C: Financial Information & Payment Terms */}
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
             <h4 className="flex items-center gap-2 font-black text-slate-900 border-b border-slate-100 pb-3 text-sm">
-              <Landmark className="h-4 w-4 text-cyan-600" /> C. Maklumat Perbankan (Bank Details)
+              <Landmark className="h-4 w-4 text-cyan-600" /> C. Maklumat Perbankan & Terma Pembayaran
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
+              <div>
+                <p className="font-bold text-slate-500 uppercase">Terma Pembayaran</p>
+                <p className="font-black text-cyan-800 text-sm mt-0.5">{financial.paymentTermsRequested || "COD / Standard"}</p>
+              </div>
               <div>
                 <p className="font-bold text-slate-500 uppercase">Nama Bank</p>
                 <p className="font-black text-slate-900 text-sm mt-0.5">{financial.bankName || "-"}</p>
@@ -241,7 +275,8 @@ export function CustomerRegistrationReviewModal({
             {supportingDocs.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {supportingDocs.map((doc, idx) => {
-                  const embedUrl = getEmbedUrl(doc.driveUrl, doc.fileId)
+                  const embedUrl = getEmbedUrl(doc.driveUrl, doc.fileId, doc.previewUrl)
+                  const directUrl = getDirectDriveUrl(doc.driveUrl, doc.fileId)
                   return (
                     <div key={idx} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3 hover:border-cyan-300 transition">
                       <div className="flex items-center gap-3 overflow-hidden">
@@ -259,7 +294,9 @@ export function CustomerRegistrationReviewModal({
                           <button
                             onClick={() => {
                               setActiveDocUrl(embedUrl)
+                              setActiveDriveDirectUrl(directUrl)
                               setDocTitle(doc.docType || doc.fileName || "Pratinjau Dokumen")
+                              setIframeError(false)
                             }}
                             className="inline-flex items-center gap-1 rounded-lg border border-cyan-300 bg-cyan-50 px-2.5 py-1.5 text-xs font-black text-cyan-800 hover:bg-cyan-100 transition shadow-sm"
                           >
@@ -267,17 +304,15 @@ export function CustomerRegistrationReviewModal({
                           </button>
                         ) : null}
 
-                        {doc.driveUrl && (
-                          <a
-                            href={doc.driveUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="rounded-lg bg-slate-200 p-1.5 text-slate-700 hover:bg-slate-300 transition"
-                            title="Buka di Google Drive"
-                          >
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </a>
-                        )}
+                        <a
+                          href={directUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+                          title="Buka terus di Google Drive"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" /> Drive
+                        </a>
                       </div>
                     </div>
                   )
@@ -327,14 +362,33 @@ export function CustomerRegistrationReviewModal({
                 <FileText className="h-5 w-5 text-cyan-400" />
                 <h4 className="font-black text-base text-white">{docTitle}</h4>
               </div>
-              <button onClick={() => setActiveDocUrl(null)} className="rounded-xl bg-slate-800 p-2 text-slate-400 hover:text-white transition">
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                {activeDriveDirectUrl && (
+                  <a
+                    href={activeDriveDirectUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-slate-700 transition"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" /> Buka di Google Drive
+                  </a>
+                )}
+                <button onClick={() => setActiveDocUrl(null)} className="rounded-xl bg-slate-800 p-2 text-slate-400 hover:text-white transition">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
-            <div className="flex-1 bg-slate-950 p-2">
+
+            <div className="relative flex-1 bg-slate-950 p-2">
+              <div className="absolute top-4 left-4 right-4 z-10 rounded-xl bg-slate-900/90 p-2.5 text-xs text-slate-300 border border-slate-800 flex items-center justify-between backdrop-blur">
+                <span className="flex items-center gap-2 text-[11px]">
+                  <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" /> Jika paparan pratinjau disekat oleh kebenaran Google Drive, sila tekan butang **"Buka di Google Drive"**.
+                </span>
+              </div>
+
               <iframe
                 src={activeDocUrl}
-                className="h-full w-full rounded-2xl border border-slate-800 bg-white"
+                className="h-full w-full rounded-2xl border border-slate-800 bg-white pt-10"
                 title={docTitle}
                 allow="autoplay"
               />

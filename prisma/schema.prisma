@@ -1401,6 +1401,7 @@ model Customer {
 model CustomerRegistration {
   id                       String    @id @default(uuid())
   registrationNo           String    @unique
+  idempotencyKey           String?   @unique
   companyName              String
   companyRegNoNew          String?
   companyRegNoOld          String?
@@ -1437,6 +1438,7 @@ model CustomerRegistration {
 
   @@index([status])
   @@index([companyName])
+  @@index([idempotencyKey])
 }
 
 model CustomerAddress {
@@ -1563,25 +1565,29 @@ model SalesOrderLineItem {
 // PO-SOA checks are deliberately separate from SalesDocumentIntake so a review
 // retains both original PDFs and its finance decision as one audit record.
 model CreditCheckCase {
-  id                    String   @id @default(uuid())
+  id                    String    @id @default(uuid())
   poFileName            String
-  poR2ObjectKey         String   @unique
+  poR2ObjectKey         String    @unique
   soaFileName           String
-  soaR2ObjectKey        String   @unique
-  status                String   @default("UPLOADED")
+  soaR2ObjectKey        String    @unique
+  status                String    @default("UPLOADED")
   recommendation        String?
   poData                Json?
   soaData               Json?
   result                Json?
-  justification         String?  @db.Text
+  justification         String?   @db.Text
+  financeRemarks        String?   @db.Text
+  financeEvidenceUrl    String?
+  financeEvidenceName   String?
+  bdFollowUpRemarks     String?   @db.Text
   finalDecision         String?
   decidedById           String?
   decidedAt             DateTime?
   uploadedById          String
   aiModel               String?
-  errorMessage          String?  @db.Text
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  errorMessage          String?   @db.Text
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   @@index([status, createdAt])
   @@index([recommendation, createdAt])

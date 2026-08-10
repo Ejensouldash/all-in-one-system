@@ -1,19 +1,29 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { canManageSalesOrderingCustomers, getSalesOrderingAccess } from "@/lib/sales-ordering/access"
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const access = await getSalesOrderingAccess()
+    if (!access || !canManageSalesOrderingCustomers(access)) {
+      return NextResponse.json({ error: "Akses tidak dibenarkan. Kebenaran pengurusan pelanggan diperlukan." }, { status: 403 })
+    }
+
     const { id } = await params
     const registration = await prisma.customerRegistration.findUnique({
       where: { id }
     })
 
     if (!registration) {
-      return NextResponse.json({ error: "Registration not found." }, { status: 404 })
+      return NextResponse.json({ error: "Permohonan pendaftaran tidak ditemui." }, { status: 404 })
     }
 
-    if (registration.status === "APPROVED") {
-      return NextResponse.json({ error: "Permohonan ini telah diluluskan sebelumnya." }, { status: 400 })
+    if (registration.status === "APPROVED" || registration.createdCustomerId) {
+      return NextResponse.json({ error: "Permohonan ini telah diluluskan sebelumnya. Rekod Customer Master sudah ada." }, { status: 400 })
+    }
+
+    if (registration.status === "REJECTED") {
+      return NextResponse.json({ error: "Permohonan ini telah ditolak dan tidak boleh diluluskan semula." }, { status: 400 })
     }
 
     // Generate Customer Code: CUST-YYYY-XXX
@@ -29,7 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const contacts = Array.isArray(registration.contacts) ? (registration.contacts as any[]) : []
     const primaryContact = contacts[0] || {}
 
-    // Create Customer in Customer Master
+    // Create Customer in Customer Master ONCE
     const customer = await prisma.customer.create({
       data: {
         customerCode,
@@ -61,6 +71,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         status: "APPROVED",
         createdCustomerId: customer.id,
         reviewedAt: new Date(),
+        reviewedById: access.userId,
+      }
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        userId: access.userId,
+        userName: access.name || "BD User",
+        action: "APPROVE_CUSTOMER_REGISTRATION",
+        details: `Approved Customer Registration ${registration.registrationNo} -> Created Customer ${customer.customerCode} (${customer.legalName})`
       }
     })
 

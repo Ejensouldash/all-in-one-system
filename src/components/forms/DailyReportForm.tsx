@@ -249,7 +249,9 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             batchNo: `${b.batchNo}|${b.mult}`,
             bags: b.bags,
             mult: b.mult,
-            labelType: b.labelType || "Standard Front"
+            // LABEL only — copying this onto every section is how bottle/cap/box rows ended up
+            // saved with a "Standard Front" they never had.
+            ...(sectionKey === "LABEL" && { labelType: b.labelType || "Standard Front" })
           }))
         } else {
           updatedInventory[sectionKey].sources = [{ batchNo: "", bags: 0, mult: 1 }]

@@ -147,7 +147,11 @@ async function AsyncEditForm({ id, userName }: { id: string; userName: string })
       bags: i.bags,
       mult: i.mult,
       period: i.period || undefined,
-      labelType: i.labelType === "Standard" ? "Standard Front" : (i.labelType || undefined)
+      // Non-LABEL sections never have a meaningful label type — dropping it here stops a
+      // legacy row from carrying its stale value back into the form and being re-saved.
+      labelType: i.sectionKey === "LABEL"
+        ? (i.labelType === "Standard" ? "Standard Front" : (i.labelType || undefined))
+        : undefined
     }
 
     if (i.sectionKey === "CAP" && i.type === "Usage") {

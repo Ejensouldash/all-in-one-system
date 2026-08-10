@@ -406,6 +406,13 @@ async function AsyncReportContent({ id, session }: { id: string; session: any })
                       const is800 = report.line.includes("800");
                       const is425 = report.line.includes("425");
                       const allowedBottleMults = is800 ? [225] : is425 ? [181, 162] : [];
+
+                      // labelType only ever means "label type" for the LABEL section. On other
+                      // sections it is either unused or holds an unrelated payload (DO number on
+                      // TransferIn, CAP's JSON stash), so printing it there leaked a bogus
+                      // "(Standard Front)" onto every bottle/cap/box row. The form has always
+                      // gated this on isLabel; the view never did.
+                      const showLabelType = key === 'LABEL';
                       
                       // 1. Hide boxes that don't belong to this line
                       if (key.startsWith('BOX_')) {
@@ -531,7 +538,7 @@ async function AsyncReportContent({ id, session }: { id: string; session: any })
                       };
                       
                       // CAP usage rows keep a JSON stash in labelType — group those by mult only
-                      const getGroupKey = (item: any) => (item.labelType && !isJsonLabelType(item.labelType)) ? `${item.mult}|${item.labelType}` : `${item.mult}`;
+                      const getGroupKey = (item: any) => (showLabelType && item.labelType && !isJsonLabelType(item.labelType)) ? `${item.mult}|${item.labelType}` : `${item.mult}`;
 
                       sectionDOItems.forEach((s: any) => { const k = getGroupKey(s); rowTotals.transferIn[k] = (rowTotals.transferIn[k] || 0) + s.bags; });
                       sources.forEach((s: any) => { const k = getGroupKey(s); rowTotals.storeroom[k] = (rowTotals.storeroom[k] || 0) + s.bags; });
@@ -544,7 +551,7 @@ async function AsyncReportContent({ id, session }: { id: string; session: any })
                         const effBags = fmtBags(effectiveUsageBags(u, key))
                         return (
                           <div key={u.id} className="text-[10px] print:text-[8pt] font-bold leading-tight border-b border-dashed border-gray-200 print:border-gray-300 pb-1 last:border-0 last:pb-0 break-inside-avoid">
-                            <div>{u.batchNo} {u.labelType && !isJsonLabelType(u.labelType) ? `(${u.labelType})` : ''}</div>
+                            <div>{u.batchNo} {showLabelType && u.labelType && !isJsonLabelType(u.labelType) ? `(${u.labelType})` : ''}</div>
                             <div className="text-blue-700 print:text-black">{effBags} <span className="text-[8px] print:text-[6pt] text-gray-500">(x{u.mult})</span></div>
                             {capMeta && (capMeta.boxes > 0 || capMeta.weight > 0) && (
                               <div className="text-[8px] print:text-[6pt] text-gray-500">
@@ -569,7 +576,7 @@ async function AsyncReportContent({ id, session }: { id: string; session: any })
                               <div className="space-y-1.5">
                                 {sources.map((s: any) => (
                                   <div key={s.id} className="text-[10px] print:text-[8pt] font-bold leading-tight border-b border-dashed border-gray-200 print:border-gray-300 pb-1 last:border-0 last:pb-0 break-inside-avoid">
-                                    <div>{s.batchNo} {holdBatchSet.has(s.batchNo) ? <span className="text-amber-600 print:text-black font-black">(HOLD)</span> : ''} {s.labelType ? `(${s.labelType})` : ''}</div>
+                                    <div>{s.batchNo} {holdBatchSet.has(s.batchNo) ? <span className="text-amber-600 print:text-black font-black">(HOLD)</span> : ''} {showLabelType && s.labelType ? `(${s.labelType})` : ''}</div>
                                     <div>{s.bags} <span className="text-[8px] print:text-[6pt] text-gray-500">(x{s.mult})</span></div>
                                   </div>
                                 ))}
@@ -611,8 +618,8 @@ async function AsyncReportContent({ id, session }: { id: string; session: any })
                             {carryForwardSummaries.length === 0 ? <span className="text-gray-400 italic font-normal text-[10px] print:text-[8pt]">Nil</span> : (
                               <div className="space-y-1.5">
                                 {carryForwardSummaries.map((summary: any) => (
-                                  <div key={summary.batchNo} className="text-[10px] print:text-[8pt] font-bold leading-tight border-b border-dashed border-yellow-200 print:border-gray-300 pb-1 last:border-0 last:pb-0 break-inside-avoid">
-                                    <div className="uppercase mb-0.5">{summary.batchNo} {summary.isHold ? <span className="text-amber-600 print:text-black font-black">(HOLD)</span> : ''} {summary.labelType ? `(${summary.labelType})` : ''}</div>
+                                  <div key={`${summary.batchNo}|${summary.mult}`} className="text-[10px] print:text-[8pt] font-bold leading-tight border-b border-dashed border-yellow-200 print:border-gray-300 pb-1 last:border-0 last:pb-0 break-inside-avoid">
+                                    <div className="uppercase mb-0.5">{summary.batchNo} {summary.isHold ? <span className="text-amber-600 print:text-black font-black">(HOLD)</span> : ''} {showLabelType && summary.labelType ? `(${summary.labelType})` : ''}</div>
                                     <div className="whitespace-nowrap bg-yellow-100 print:bg-transparent px-1 print:px-0 py-0.5 rounded text-[9px] print:text-[7pt] text-gray-800">
                                       Av: {fmtBags(summary.startBags)} - {fmtBags(summary.usedBags)} = <span className="font-black text-[10px] print:text-[8pt] text-black">{fmtBags(summary.carryFwdBags)}</span> <span className="text-[8px] print:text-[6pt] text-gray-600">(x{summary.mult})</span>
                                     </div>

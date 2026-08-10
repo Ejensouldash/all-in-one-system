@@ -74,7 +74,10 @@ function buildSourceRows(sectionKey: string, sources: any[], isDraft: boolean) {
     batchNo: (s.batchNo || "").trim(),
     bags: Number(s.bags) || 0,
     mult: Number(s.mult) || 1,
-    labelType: s.labelType
+    // Only LABEL rows carry a real label type. Other sections used to inherit a bogus
+    // "Standard Front" from the carry-forward dropdown and persist it here, which the
+    // report view then printed on every bottle/cap/box row.
+    labelType: sectionKey === "LABEL" ? s.labelType : null
   })).filter((s: any) => {
     if (s.batchNo !== "") return true
     return isDraft && s.bags > 0
@@ -364,10 +367,13 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
     const reportTp = getTimePoint(new Date(reportDateString), shift || "AM")
 
     // Latest known label type per batch|mult from prior report logs, so carry-forward
-    // batches keep their real type (Standard Front/Back, ...) instead of a hardcoded one
+    // batches keep their real type (Standard Front/Back, ...) instead of a hardcoded one.
+    // LABEL rows only: the key has no sectionKey, and LABEL shares mult 1 with all four BOX
+    // SKUs, so without this filter a BOX batch could hand its neighbour a label type.
     const latestLabelTypes: Record<string, { labelType: string, tp: number }> = {}
     allLogs.forEach(log => {
       if (!log.labelType || !log.report) return
+      if (log.sectionKey !== "LABEL") return
       if (log.type !== "Storeroom" && log.type !== "Usage") return
       const raw = log.labelType.trim()
       if (raw.startsWith("{") || raw === "(HOLD)" || raw === "HOLD") return // CAP JSON stash / hold markers
@@ -545,7 +551,13 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
           mult: info.mult,
           category: info.category,
           doNumber: info.doNumber,
-          labelType: isHold ? "(HOLD)" : (latestLabelTypes[`${info.batchNo}|${info.mult}`]?.labelType || "Standard Front"),
+          // Only LABEL batches get a label type. Stamping the "Standard Front" fallback onto
+          // every category was what seeded bottle/cap/box rows with a label type they never had.
+          labelType: isHold
+            ? "(HOLD)"
+            : (info.category?.includes("LABEL")
+                ? (latestLabelTypes[`${info.batchNo}|${info.mult}`]?.labelType || "Standard Front")
+                : undefined),
           isHold,
           transferInId: info.transferInId
         })

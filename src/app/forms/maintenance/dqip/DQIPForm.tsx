@@ -8,6 +8,8 @@ import { useMaintenanceDraft } from "../_components/useMaintenanceDraft"
 import { DraftBanner, SaveDraftButton } from "../_components/DraftControls"
 import { createDQIP, type DQIPRow } from "./actions"
 
+const LINE_OPTIONS = ["LINE 1", "LINE 2"]
+
 const ITEM_OPTIONS = [
   { item: "Cap 1881", line: "LINE 1" },
   { item: "Empty Bottle 425ML (18.5G)", line: "LINE 2" },
@@ -196,7 +198,17 @@ export function DQIPForm({ userName }: { userName: string }) {
                 <tbody className="divide-y divide-gray-200">
                   {rows.map((row, index) => (
                     <tr key={index} className="hover:bg-blue-50/30 transition-colors group">
-                      <td className="px-4 py-2 font-black text-slate-500 whitespace-nowrap">{row.line}</td>
+                      <td className="p-1 border-r border-gray-100">
+                        <select
+                          value={row.line}
+                          onChange={(e) => updateRow(index, "line", e.target.value)}
+                          className="w-full p-2 outline-none bg-transparent focus:bg-blue-50 font-black text-slate-700 rounded-lg"
+                        >
+                          {LINE_OPTIONS.map(l => (
+                            <option key={l} value={l}>{l}</option>
+                          ))}
+                        </select>
+                      </td>
                       <td className="p-1 border-r border-gray-100">
                         <select
                           value={row.item}

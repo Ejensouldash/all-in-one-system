@@ -10,6 +10,8 @@ import { createFPIR, type FPIRRow } from "./actions"
 
 // The printed form lists three SKUs; 425 ML X 6 is included because it is produced
 // on Line 2 and inspected the same way. Line is derived from the SKU, never typed.
+const LINE_OPTIONS = ["LINE 1", "LINE 2"]
+
 const SKU_OPTIONS = [
   { sku: "800 ML X 20", line: "LINE 1" },
   { sku: "800 ML X 12", line: "LINE 1" },
@@ -194,7 +196,17 @@ export function FPIRForm({ userName }: { userName: string }) {
                 <tbody className="divide-y divide-gray-200">
                   {rows.map((row, index) => (
                     <tr key={index} className="hover:bg-blue-50/30 transition-colors group">
-                      <td className="px-4 py-2 font-black text-slate-500 whitespace-nowrap">{row.line}</td>
+                      <td className="p-1 border-r border-gray-100">
+                        <select
+                          value={row.line}
+                          onChange={(e) => updateRow(index, "line", e.target.value)}
+                          className="w-full p-2 outline-none bg-transparent focus:bg-blue-50 font-black text-slate-700 rounded-lg"
+                        >
+                          {LINE_OPTIONS.map(l => (
+                            <option key={l} value={l}>{l}</option>
+                          ))}
+                        </select>
+                      </td>
                       <td className="p-1 border-r border-gray-100">
                         <select
                           value={row.sku}

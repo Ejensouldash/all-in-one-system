@@ -6,6 +6,7 @@ import Link from "next/link"
 import { useEffect, useMemo, useState, useRef } from "react"
 import { getActiveInventory, createDailyReport, updateDailyReport } from "@/app/actions/dailyReport"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
+import { carryForwardBelongsToSection, isOtherLineBottle, isOtherLineLabel } from "@/lib/production/lineScope"
 
 const MULTIPLIERS = {
   BOTTLE_800: [225],
@@ -225,23 +226,12 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       // Auto-populate availableCarryForward to inventory.sources and clear usages/holds
       const updatedInventory = { ...getValues("inventory") }
       Object.keys(updatedInventory).forEach(sectionKey => {
-        const sectionAvailableBatches = availableCarryForward.filter((d: any) => {
-          if (d.category) {
-            if (sectionKey === "BOTTLE" && d.category.includes("BOTTLE")) return true
-            if (sectionKey === "CAP" && d.category.includes("CAP")) return true
-            if (sectionKey === "LABEL" && d.category.includes("LABEL")) return true
-            if (sectionKey.startsWith("BOX_")) {
-              const size = sectionKey.replace("BOX_p", "").split("_")[0];
-              const pack = sectionKey.split("_")[2];
-              if (d.category.includes(size) && d.category.includes(pack)) return true
-              return false
-            }
-          }
-          if (sectionKey === "BOTTLE") return d.mult === 225 || d.mult === 181 || d.mult === 162
-          if (sectionKey === "CAP") return d.mult === 4000
-          if (sectionKey === "LABEL") return d.mult === 1
-          return false
-        })
+        // Same scope test as every section's dropdown below. This used to be a looser third copy
+        // that ignored the line entirely, so ticking "Tiada Production" on an 800ml report poured
+        // every 425ml bottle batch (x181/x162) straight into the BOTTLE section.
+        const sectionAvailableBatches = availableCarryForward.filter(
+          (d: any) => carryForwardBelongsToSection(d, sectionKey, watchLine)
+        )
 
         // Map them
         if (sectionAvailableBatches.length > 0) {
@@ -687,8 +677,8 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
           <AdvancedInventorySection 
             sectionKey="BOTTLE" 
             title={`BOTTLE INVENTORY (${watchLine.includes("800") ? "800ml" : "425ml"})`} 
-            control={control} register={register} watch={watch} setValue={setValue}
-            availableCarryForward={availableCarryForward.filter(b => b.category.includes("BOTTLE") && b.category.includes(watchLine.includes("800") ? "800" : "425"))}
+            control={control} register={register} watch={watch} setValue={setValue} line={watchLine}
+            availableCarryForward={availableCarryForward.filter(b => carryForwardBelongsToSection(b, "BOTTLE", watchLine))}
             multipliers={watchLine.includes("800") ? MULTIPLIERS.BOTTLE_800 : MULTIPLIERS.BOTTLE_425}
             syncedDOs={syncedDOs.filter(d => d.category.includes("BOTTLE") && d.category.includes(watchLine.includes("800") ? "800" : "425"))}
             availableDOsToSync={selectableDOs.filter(d => d.category.includes("BOTTLE") && d.category.includes(watchLine.includes("800") ? "800" : "425"))}
@@ -697,8 +687,8 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
           <AdvancedInventorySection 
             sectionKey="LABEL" 
             title={`LABEL INVENTORY (${watchLine.includes("800") ? "800ml" : "425ml"})`} 
-            control={control} register={register} watch={watch} setValue={setValue}
-            availableCarryForward={availableCarryForward.filter(b => b.category.includes("LABEL"))}
+            control={control} register={register} watch={watch} setValue={setValue} line={watchLine}
+            availableCarryForward={availableCarryForward.filter(b => carryForwardBelongsToSection(b, "LABEL", watchLine))}
             multipliers={[1]}
             isLabel={true}
             syncedDOs={syncedDOs.filter(d => d.category.includes("LABEL"))}
@@ -708,8 +698,8 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
           <AdvancedInventorySection 
             sectionKey="CAP" 
             title="CAP INVENTORY" 
-            control={control} register={register} watch={watch} setValue={setValue}
-            availableCarryForward={availableCarryForward.filter(b => b.category.includes("CAP") && !b.category.includes("CARTON"))}
+            control={control} register={register} watch={watch} setValue={setValue} line={watchLine}
+            availableCarryForward={availableCarryForward.filter(b => carryForwardBelongsToSection(b, "CAP", watchLine))}
             multipliers={MULTIPLIERS.CAP}
             syncedDOs={syncedDOs.filter(d => d.category.includes("CAP") && !d.category.includes("CARTON"))}
             availableDOsToSync={selectableDOs.filter(d => d.category.includes("CAP") && !d.category.includes("CARTON"))}
@@ -732,8 +722,8 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
                 key={prod.id}
                 sectionKey={`BOX_${prod.id}`}
                 title={`BOX INVENTORY (${prod.label})`}
-                control={control} register={register} watch={watch} setValue={setValue}
-                availableCarryForward={availableCarryForward.filter(b => b.category.includes("BOX") && !b.category.includes("CARTON") && b.category.includes(size) && b.category.includes(pack))}
+                control={control} register={register} watch={watch} setValue={setValue} line={watchLine}
+                availableCarryForward={availableCarryForward.filter(b => carryForwardBelongsToSection(b, `BOX_p${size}_${pack}`, watchLine))}
                 multipliers={[1]}
                 syncedDOs={syncedDOs.filter(isThisBox)}
                 availableDOsToSync={selectableDOs.filter(isThisBox)}
@@ -940,10 +930,20 @@ function ProductionBatchDistribution({ prodId, label, isChecked, totalQty, contr
 }
 
 // --- SUB COMPONENT FOR ADVANCED INVENTORY SECTION V4.0 (Bags Logic) ---
-const AdvancedInventorySection = ({ title, sectionKey, control, register, setValue, watch, availableCarryForward = [], multipliers = [1], isLabel = false, syncedDOs = [], availableDOsToSync = undefined, siblingDOs = [] }: any) => {
+const AdvancedInventorySection = ({ title, sectionKey, control, register, setValue, watch, line = "", availableCarryForward = [], multipliers = [1], isLabel = false, syncedDOs = [], availableDOsToSync = undefined, siblingDOs = [] }: any) => {
   const isCap = sectionKey === "CAP";
   const isBox = sectionKey.startsWith("BOX");
   const unit = isLabel ? 'Rolls' : (isCap || isBox) ? 'Boxes' : 'Bags';
+
+  // A stored row can belong to the other production line — either it predates the line-aware
+  // filters, or the Line dropdown was switched after the form was filled. The server drops these
+  // on save, so they must be visible here rather than disappearing silently.
+  const isOtherLineRow = (batchNoWithMult: string, mult: number | string) => {
+    if (!batchNoWithMult) return false
+    if (sectionKey === "BOTTLE") return isOtherLineBottle(mult, line)
+    if (sectionKey === "LABEL") return isOtherLineLabel(String(batchNoWithMult).split('|')[0], line)
+    return false
+  };
     const { fields: sourceFields, append: appendSource, remove: removeSource } = useFieldArray({ control, name: `inventory.${sectionKey}.sources` })
     const { fields: usageFields, append: appendUsage, remove: removeUsage } = useFieldArray({ control, name: `inventory.${sectionKey}.usages` })
     const { fields: holdFields, append: appendHold, remove: removeHold } = useFieldArray({ control, name: `inventory.${sectionKey}.holds` })
@@ -952,27 +952,11 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
     const watchUsages = useWatch({ control, name: `inventory.${sectionKey}.usages` }) || []
     const watchHolds = useWatch({ control, name: `inventory.${sectionKey}.holds` }) || []
 
-    // Filter available carry forward batches for this specific section.
-    //
-    // A row that HAS a category is judged on that category alone. It used to fall through to the
-    // multiplier rules below when no branch matched, and since BOX carries mult 1 the LABEL rule
-    // `d.mult === 1` accepted every BOX batch: staff picked one inside the LABEL block, and the
-    // report then wrote that batch's opening balance twice — once under LABEL, once under its own
-    // BOX section — which the balance replay summed into double the stock actually on the floor.
-    const sectionAvailableBatches = availableCarryForward.filter((d: any) => {
-      if (d.category) {
-        if (sectionKey === "BOTTLE") return d.category.includes("BOTTLE")
-        if (sectionKey === "CAP") return d.category.includes("CAP") && !d.category.includes("CARTON")
-        if (sectionKey === "LABEL") return d.category.includes("LABEL")
-        if (sectionKey.startsWith("BOX")) return d.category.includes("BOX") && !d.category.includes("CARTON")
-        return false
-      }
-      // Only rows with no category at all fall back to the multipliers.
-      if (sectionKey === "BOTTLE") return d.mult === 225 || d.mult === 181 || d.mult === 162
-      if (sectionKey === "CAP") return d.mult === 4000
-      if (sectionKey === "LABEL") return d.mult === 1
-      return false
-    })
+    // The caller already narrowed this list with carryForwardBelongsToSection for exactly this
+    // section and line, so there is nothing left to filter. A second, looser copy used to live
+    // here — that divergence is what let out-of-scope batches through, so it is deliberately gone
+    // rather than restated.
+    const sectionAvailableBatches = availableCarryForward
 
     const handleBatchSelect = (index: number, e: React.ChangeEvent<HTMLSelectElement>) => {
       const selectedBatchKey = e.target.value
@@ -1173,7 +1157,23 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
             <h3 className="font-black uppercase tracking-wider text-sm mb-4 flex items-center">
               <span className="bg-black text-white px-2 py-0.5 mr-2">2</span> Storeroom Balance (Carry Fwd / Manual)
             </h3>
-            
+
+            {(() => {
+              const strays = watchSources.filter((s: any) => isOtherLineRow(s?.batchNo, s?.mult)).length
+              if (strays === 0) return null
+              return (
+                <div className="mb-4 border-2 border-red-500 bg-red-50 p-3">
+                  <p className="text-xs font-black uppercase tracking-wider text-red-800">
+                    ⚠️ {strays} baris bukan {line}
+                  </p>
+                  <p className="mt-1 text-[11px] font-bold text-red-700 leading-snug">
+                    Baris bertanda merah di bawah milik line yang lain, jadi ia akan dibuang bila
+                    report ini disimpan. Padam sendiri jika anda mahu pastikan tiada yang tersalah.
+                  </p>
+                </div>
+              )
+            })()}
+
             <div className="space-y-3">
               {sourceFields.map((field, index) => {
                 const bags = Number(watchSources[index]?.bags) || 0
@@ -1181,9 +1181,10 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                 const calculatedPcs = bags * mult
                 const selectedBatchVal = watchSources[index]?.batchNo || ""
                 const isSelectedHold = selectedBatchVal && sectionAvailableBatches.some((b: any) => `${b.batchNo}|${b.mult}` === selectedBatchVal && (b.isHold || b.labelType === "(HOLD)" || b.labelType === "HOLD"))
+                const isStrayLine = isOtherLineRow(selectedBatchVal, mult)
 
                 return (
-                  <div key={field.id} className={`flex flex-col sm:flex-row gap-2 items-start sm:items-center p-3 px-4 border ${isSelectedHold ? 'bg-amber-50 border-amber-400 border-2 shadow-sm' : 'bg-gray-50 border-gray-300'}`}>
+                  <div key={field.id} className={`flex flex-col sm:flex-row gap-2 items-start sm:items-center p-3 px-4 border ${isStrayLine ? 'bg-red-50 border-red-500 border-2 shadow-sm' : isSelectedHold ? 'bg-amber-50 border-amber-400 border-2 shadow-sm' : 'bg-gray-50 border-gray-300'}`}>
                     {isLabel && (
                       <select {...register(`inventory.${sectionKey}.sources.${index}.labelType`)} className="w-full sm:w-32 p-2 border border-gray-300 bg-white text-xs font-bold outline-none focus:border-black uppercase">
                         <option value="Standard Front">Standard Front</option>
@@ -1216,12 +1217,14 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                         {...register(`inventory.${sectionKey}.sources.${index}.batchNo`, {
                           onChange: (e: any) => handleBatchSelect(index, e)
                         })} 
-                        className={`w-full p-2 border text-xs font-bold outline-none uppercase ${isSelectedHold ? 'border-amber-500 bg-amber-100 text-amber-900 font-black' : 'border-gray-300 bg-white'}`}
+                        className={`w-full p-2 border text-xs font-bold outline-none uppercase ${isStrayLine ? 'border-red-500 bg-red-100 text-red-900 font-black' : isSelectedHold ? 'border-amber-500 bg-amber-100 text-amber-900 font-black' : 'border-gray-300 bg-white'}`}
                       >
                         <option value="">-- SELECT CARRY FORWARD --</option>
+                        {/* A stored value the dropdown no longer offers. Without this option the
+                            select would silently snap to the placeholder and lose the saved row. */}
                         {selectedBatchVal && !sectionAvailableBatches.some((b: any) => `${b.batchNo}|${b.mult}` === selectedBatchVal) && (
                           <option value={selectedBatchVal}>
-                            {selectedBatchVal.split('|')[0]} (x{selectedBatchVal.split('|')[1]})
+                            {selectedBatchVal.split('|')[0]} {isStrayLine ? "⚠️ BUKAN LINE INI" : ""} (x{selectedBatchVal.split('|')[1]})
                           </option>
                         )}
                         {sectionAvailableBatches.map((b: any) => {
@@ -1238,7 +1241,12 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                           );
                         })}
                       </select>
-                      {isSelectedHold && (
+                      {isStrayLine && (
+                        <span className="inline-block bg-red-600 text-white font-black text-[9px] px-1.5 py-0.5 rounded w-max uppercase tracking-wider">
+                          ⚠️ BUKAN {line} — AKAN DIBUANG
+                        </span>
+                      )}
+                      {!isStrayLine && isSelectedHold && (
                         <span className="inline-block bg-amber-600 text-white font-black text-[9px] px-1.5 py-0.5 rounded w-max uppercase tracking-wider">
                           ⚠️ ON HOLD STOCK
                         </span>

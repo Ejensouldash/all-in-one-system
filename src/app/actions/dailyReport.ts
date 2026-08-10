@@ -6,6 +6,7 @@ import { auth } from "@/auth"
 import { logUserAction } from "./audit"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
 import { dailyReportSectionForCategory } from "@/lib/warehouse/withdrawalService"
+import { isOtherLineBottle, isOtherLineLabel } from "@/lib/production/lineScope"
 
 // CAP conversion constants (must stay in sync with DailyReportForm)
 const CAP_PCS_PER_BOX = 4000
@@ -22,10 +23,21 @@ function capPcsFromInput(weight: number, boxes: number) {
   return 0
 }
 
+// A row that belongs to the OTHER production line must never be persisted against this report.
+// The same test already guards syncedDOs below; sources and usages had no guard at all, which is
+// how an 800ml report ended up holding 425ml bottles (x181/x162) in its Storeroom Balance while
+// its Transfer In column stayed correctly x225. Mirrors that filter's "reject only the opposite
+// line" rule, so anything unclassifiable is kept rather than silently dropped.
+function belongsToReportLine(row: { batchNo?: string, mult?: number }, sectionKey: string, line: string) {
+  if (sectionKey === "BOTTLE") return !isOtherLineBottle(row.mult, line)
+  if (sectionKey === "LABEL") return !isOtherLineLabel(row.batchNo || "", line)
+  return true
+}
+
 // Builds InventoryLog "Usage" rows for one section. The server recomputes CAP bags
 // from weight/boxes so a client-side bug can never persist 0 bags for a filled row.
 // Draft saves keep rows that carry data even without a batch, so drafts are lossless.
-function buildUsageRows(sectionKey: string, usages: any[], sources: any[], isDraft: boolean) {
+function buildUsageRows(sectionKey: string, usages: any[], sources: any[], isDraft: boolean, line: string) {
   return (usages || []).map((u: any) => {
     let labelType = u.labelType
     let bags = Number(u.bags) || 0
@@ -59,6 +71,7 @@ function buildUsageRows(sectionKey: string, usages: any[], sources: any[], isDra
       labelType
     }
   }).filter((u: any) => {
+    if (!belongsToReportLine(u, sectionKey, line)) return false
     if (u.batchNo !== "") return true
     return isDraft && u.bags > 0
   })
@@ -67,7 +80,7 @@ function buildUsageRows(sectionKey: string, usages: any[], sources: any[], isDra
 // Builds InventoryLog "Storeroom" rows for one section. Mirrors buildUsageRows:
 // a draft keeps a row that carries a quantity even when no batch was picked yet,
 // so a half-filled draft survives a reload instead of vanishing on save.
-function buildSourceRows(sectionKey: string, sources: any[], isDraft: boolean) {
+function buildSourceRows(sectionKey: string, sources: any[], isDraft: boolean, line: string) {
   return (sources || []).map((s: any) => ({
     sectionKey,
     type: "Storeroom", // Technically we only submit Storeroom now, as TransferIn comes from DO
@@ -79,20 +92,10 @@ function buildSourceRows(sectionKey: string, sources: any[], isDraft: boolean) {
     // report view then printed on every bottle/cap/box row.
     labelType: sectionKey === "LABEL" ? s.labelType : null
   })).filter((s: any) => {
+    if (!belongsToReportLine(s, sectionKey, line)) return false
     if (s.batchNo !== "") return true
     return isDraft && s.bags > 0
   })
-}
-
-// A label batch's FIRST DIGIT identifies its line: 8… = 800ml, 4… = 425ml.
-// Batch numbers arrive mixed-case with optional separators (8STDF-130526,
-// 8-stdf-130526, 4stdf-130526), so normalise before reading that digit.
-// Reject ONLY the opposite line — anything unclassifiable is kept, because
-// silently dropping it is exactly what lost the data.
-function isOtherLineLabel(batchNo: string, line: string) {
-  const d = (batchNo || "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase()[0]
-  if (d !== "8" && d !== "4") return false
-  return line.includes("800") ? d === "4" : d === "8"
 }
 
 export async function createDailyReport(data: any) {
@@ -178,9 +181,9 @@ export async function createDailyReport(data: any) {
           create: Object.keys(data.inventory || {}).flatMap(sectionKey => {
             if (data.line.includes('800') && sectionKey.startsWith('BOX_') && !sectionKey.includes('800')) return [];
             if (data.line.includes('425') && sectionKey.startsWith('BOX_') && !sectionKey.includes('425')) return [];
-            const sources = buildSourceRows(sectionKey, data.inventory[sectionKey].sources, !!data.isDraft)
+            const sources = buildSourceRows(sectionKey, data.inventory[sectionKey].sources, !!data.isDraft, data.line)
 
-            const usages = buildUsageRows(sectionKey, data.inventory[sectionKey].usages, sources, !!data.isDraft)
+            const usages = buildUsageRows(sectionKey, data.inventory[sectionKey].usages, sources, !!data.isDraft, data.line)
 
             const holds = (data.inventory[sectionKey].holds || []).map((h: any) => ({
               sectionKey,
@@ -798,9 +801,9 @@ export async function updateDailyReport(id: string, data: any) {
             create: Object.keys(data.inventory || {}).flatMap(sectionKey => {
               if (data.line.includes('800') && sectionKey.startsWith('BOX_') && !sectionKey.includes('800')) return [];
               if (data.line.includes('425') && sectionKey.startsWith('BOX_') && !sectionKey.includes('425')) return [];
-              const sources = buildSourceRows(sectionKey, data.inventory[sectionKey].sources, !!data.isDraft)
+              const sources = buildSourceRows(sectionKey, data.inventory[sectionKey].sources, !!data.isDraft, data.line)
 
-              const usages = buildUsageRows(sectionKey, data.inventory[sectionKey].usages, sources, !!data.isDraft)
+              const usages = buildUsageRows(sectionKey, data.inventory[sectionKey].usages, sources, !!data.isDraft, data.line)
 
               const holds = (data.inventory[sectionKey].holds || []).map((h: any) => ({
                 sectionKey,

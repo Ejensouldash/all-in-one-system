@@ -203,7 +203,11 @@ export async function POST(request: Request) {
     // 5. Serialize manual PO intake creation. The re-check inside this transaction
     // makes retries and two near-simultaneous webhook requests idempotent.
     const result = await prisma.$transaction(async tx => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${"google-form-manual-po-intake"}))`
+      const [lock] = await tx.$queryRaw<Array<{ lockAcquired: number }>>`
+        SELECT 1::int AS "lockAcquired"
+        FROM pg_advisory_xact_lock(hashtext(${"google-form-manual-po-intake"}))
+      `
+      if (lock?.lockAcquired !== 1) throw new Error("Gagal mendapatkan database lock untuk Manual PO.")
 
       const manualIntakes = await tx.salesDocumentIntake.findMany({
         where: {

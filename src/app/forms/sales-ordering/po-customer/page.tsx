@@ -3,6 +3,18 @@ import { prisma } from "@/lib/prisma"
 import { PoCustomerSection, type CustomerPoItem } from "@/components/sales-ordering/PoCustomerSection"
 import { canAccessSalesOrderingTab, firstSalesOrderingPath, getSalesOrderingAccess } from "@/lib/sales-ordering/access"
 
+type PoSummaryData = {
+  poNumber?: string
+  documentNumber?: string
+  customerName?: string
+  documentDate?: string
+  totals?: { grandTotal?: number | string }
+}
+
+type CreditResultSummary = {
+  primaryReason?: string
+}
+
 export default async function PoCustomerPage() {
   const access = await getSalesOrderingAccess()
   if (!access) redirect("/dashboard")
@@ -16,6 +28,7 @@ export default async function PoCustomerPage() {
       take: 50,
     }),
     prisma.salesDocumentIntake.findMany({
+      where: { status: { not: "DUPLICATE" } },
       orderBy: { createdAt: "desc" },
       take: 50,
       include: {
@@ -45,9 +58,9 @@ export default async function PoCustomerPage() {
       uploadedBy: so.documentType === "GOOGLE_FORM_PO" ? "Google Form Webhook" : "Sales Order System",
     })),
     ...creditCases.map(c => {
-      const poData = (c.poData as Record<string, any>) || {}
+      const poData = (c.poData as PoSummaryData | null) || {}
       const totals = poData.totals || {}
-      const resultData = (c.result as Record<string, any>) || {}
+      const resultData = (c.result as CreditResultSummary | null) || {}
       const isApproved = c.recommendation === "APPROVE" || c.finalDecision === "APPROVE_EXCEPTION"
       const isRejected = c.recommendation === "REJECT" || c.finalDecision === "REJECT"
 
@@ -69,7 +82,7 @@ export default async function PoCustomerPage() {
     ...recentIntakes
       .filter(i => !creditCases.some(c => c.poR2ObjectKey === i.r2ObjectKey))
       .map(i => {
-        const poData = (i.extractedData as Record<string, any>) || {}
+        const poData = (i.extractedData as PoSummaryData | null) || {}
         const totals = poData.totals || {}
         return {
           id: i.id,

@@ -1,5 +1,14 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import {
+  isManualPoObjectKey,
+  getManualPoNumber,
+  manualPoContentHash,
+  manualPoObjectKey,
+  manualPoSubmissionHash,
+  nextManualPoNumber,
+  withManualPoNumber,
+} from "@/lib/sales-ordering/manual-po"
 
 export const runtime = "nodejs"
 
@@ -26,12 +35,9 @@ export async function POST(request: Request) {
       orderDate,
       customerCode,
       companyName,
-      stationOutlet,
       address,
       picName,
       phone,
-      email,
-      salesPerson,
       item425ml24Qty = 0,
       item425ml = 0,
       qty425 = 0,
@@ -42,6 +48,9 @@ export async function POST(request: Request) {
       item800ml12 = 0,
       qty800_12 = 0,
       remarks,
+      submissionId,
+      responseId,
+      formResponseId,
     } = body
 
     // 1. Attempt to find customer, but don't fail if we can't. BD team can match it later.
@@ -75,23 +84,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Tiada User sistem ditemui." }, { status: 500 })
     }
 
-    // 2. Generate PO Number if empty
-    let finalPoNumber = poNumber ? String(poNumber).trim() : ""
+    // 2. Normalize the requested PO number and order date. Auto numbering is
+    // performed later inside a database lock to avoid concurrent duplicates.
+    const requestedPoNumber = poNumber ? String(poNumber).trim() : ""
     const parsedOrderDate = orderDate ? new Date(orderDate) : new Date()
 
-    if (!finalPoNumber) {
-      const year = parsedOrderDate.getFullYear()
-      const month = String(parsedOrderDate.getMonth() + 1).padStart(2, "0")
-      const monthPrefix = `${year}/${month}/`
-      const countThisMonth = await prisma.salesDocumentIntake.count({
-        where: {
-          r2ObjectKey: {
-            startsWith: `google-form-submissions/${monthPrefix}`,
-          },
-        },
-      })
-      const nextSeq = String(countThisMonth + 1).padStart(3, "0")
-      finalPoNumber = `${monthPrefix}${nextSeq}`
+    if (Number.isNaN(parsedOrderDate.getTime())) {
+      return NextResponse.json({ error: "Tarikh pesanan tidak sah." }, { status: 400 })
     }
 
     // Default prices per CTN (used when unit price is not passed from form)
@@ -164,11 +163,12 @@ export async function POST(request: Request) {
     const subtotal = lineItemsData.reduce((acc, item) => acc + item.amount, 0)
     const grandTotal = Number(subtotal.toFixed(2))
 
-    // 4. Construct ExtractedSalesDocument
-    const extractedData = {
+    // 4. Construct the stored document first without an auto-generated number.
+    // The content fingerprint deliberately excludes generated PO numbers.
+    const extractedDataWithoutNumber = {
       documentType: "PURCHASE_ORDER",
-      documentNumber: finalPoNumber,
-      poNumber: finalPoNumber,
+      documentNumber: requestedPoNumber,
+      poNumber: requestedPoNumber,
       documentDate: parsedOrderDate.toISOString().slice(0, 10),
       requestedDeliveryDate: "",
       customerReference: customerCode || "",
@@ -193,40 +193,107 @@ export async function POST(request: Request) {
       warnings: []
     }
 
-    // 5. Create SalesDocumentIntake with unique r2ObjectKey
-    const internalId = `GF-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`
-    const safePoKey = finalPoNumber ? finalPoNumber.replace(/\//g, "-") : internalId
-    const uniqueR2Key = `google-form-submissions/${safePoKey}-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}.json`
+    const sourceSubmissionId = [submissionId, responseId, formResponseId]
+      .map(value => typeof value === "string" ? value.trim() : "")
+      .find(Boolean)
+    const contentHash = manualPoContentHash(extractedDataWithoutNumber)
+    const submissionHash = manualPoSubmissionHash(extractedDataWithoutNumber, sourceSubmissionId)
+    const uniqueR2Key = manualPoObjectKey(submissionHash)
 
-    const intake = await prisma.salesDocumentIntake.create({
-      data: {
-        fileName: `Google Form - ${finalPoNumber || companyName || "Unknown"}.json`,
-        r2ObjectKey: uniqueR2Key,
-        mimeType: "application/json",
-        fileSize: JSON.stringify(extractedData).length,
-        status: "REVIEW",
-        documentType: "PURCHASE_ORDER",
-        extractedData: extractedData as any,
-        matchedCustomerId: customer?.id || null,
-        uploadedById: systemUser.id,
+    // 5. Serialize manual PO intake creation. The re-check inside this transaction
+    // makes retries and two near-simultaneous webhook requests idempotent.
+    const result = await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${"google-form-manual-po-intake"}))`
+
+      const manualIntakes = await tx.salesDocumentIntake.findMany({
+        where: {
+          r2ObjectKey: { startsWith: "google-form-submissions/" },
+          status: { not: "DUPLICATE" },
+        },
+        select: { id: true, r2ObjectKey: true, fileHash: true, extractedData: true },
+        orderBy: { createdAt: "asc" },
+      })
+
+      const existing = manualIntakes.find(intake =>
+        intake.r2ObjectKey === uniqueR2Key
+        || intake.fileHash === submissionHash
+        || (!sourceSubmissionId
+          && isManualPoObjectKey(intake.r2ObjectKey)
+          && manualPoContentHash(intake.extractedData) === contentHash),
+      )
+
+      if (existing) {
+        return {
+          intakeId: existing.id,
+          poNumber: getManualPoNumber(existing.extractedData) || requestedPoNumber,
+          duplicate: true,
+        }
       }
+
+      const finalPoNumber = requestedPoNumber || nextManualPoNumber(
+        manualIntakes.map(intake => intake.extractedData),
+        parsedOrderDate,
+      )
+
+      const poNumberAlreadyUsed = manualIntakes.find(intake => {
+        const existingDocument = intake.extractedData && typeof intake.extractedData === "object"
+          ? intake.extractedData as Record<string, unknown>
+          : {}
+        return String(existingDocument.poNumber || "").trim() === finalPoNumber
+      })
+
+      if (requestedPoNumber && poNumberAlreadyUsed) {
+        return {
+          conflict: true as const,
+          intakeId: poNumberAlreadyUsed.id,
+          poNumber: finalPoNumber,
+        }
+      }
+
+      const extractedData = withManualPoNumber(extractedDataWithoutNumber, finalPoNumber)
+      const intake = await tx.salesDocumentIntake.create({
+        data: {
+          fileName: `Google Form - ${finalPoNumber || companyName || "Unknown"}.json`,
+          r2ObjectKey: uniqueR2Key,
+          mimeType: "application/json",
+          fileSize: JSON.stringify(extractedData).length,
+          fileHash: submissionHash,
+          status: "REVIEW",
+          documentType: "PURCHASE_ORDER",
+          extractedData,
+          matchedCustomerId: customer?.id || null,
+          uploadedById: systemUser.id,
+        },
+      })
+
+      await tx.auditLog.create({
+        data: {
+          userId: systemUser.id,
+          userName: "Google Form Webhook",
+          action: "CREATE_INTAKE_FROM_GOOGLE_FORM",
+          details: `Intake Document ${intake.id} created via Google Form submission. PO Number: ${finalPoNumber}`,
+        },
+      })
+
+      return { intakeId: intake.id, poNumber: finalPoNumber, duplicate: false }
     })
 
-    // Create Audit Log
-    await prisma.auditLog.create({
-      data: {
-        userId: systemUser.id,
-        userName: "Google Form Webhook",
-        action: "CREATE_INTAKE_FROM_GOOGLE_FORM",
-        details: `Intake Document ${intake.id} created via Google Form submission. PO Number: ${finalPoNumber}`,
-      },
-    })
+    if ("conflict" in result) {
+      return NextResponse.json({
+        error: `Nombor PO ${result.poNumber} sudah digunakan oleh rekod lain.`,
+        intakeId: result.intakeId,
+        poNumber: result.poNumber,
+      }, { status: 409 })
+    }
 
     return NextResponse.json({
       success: true,
-      message: "Order Form berjaya masuk ke dalam Pending SOA (Intake Queue).",
-      intakeId: intake.id,
-      poNumber: finalPoNumber,
+      duplicate: result.duplicate,
+      message: result.duplicate
+        ? "Submission ini telah diterima sebelum ini. Rekod sedia ada digunakan."
+        : "Order Form berjaya masuk ke dalam Pending SOA (Intake Queue).",
+      intakeId: result.intakeId,
+      poNumber: result.poNumber,
       itemCount: lineItemsData.length,
     })
   } catch (error) {

@@ -33,8 +33,14 @@ export async function POST(request: Request) {
       email,
       salesPerson,
       item425ml24Qty = 0,
+      item425ml = 0,
+      qty425 = 0,
       item800ml20Qty = 0,
+      item800ml20 = 0,
+      qty800_20 = 0,
       item800ml12Qty = 0,
+      item800ml12 = 0,
+      qty800_12 = 0,
       remarks,
     } = body
 
@@ -88,11 +94,20 @@ export async function POST(request: Request) {
       finalPoNumber = `${monthPrefix}${nextSeq}`
     }
 
-    // 3. Build line items
+    // Default prices per CTN (used when unit price is not passed from form)
+    const DEFAULT_PRICES: Record<string, number> = {
+      "B2O2-425-24": 36.00,
+      "B2O2-800-20": 45.00,
+      "B2O2-800-12": 32.00,
+    }
+
+    // 3. Build line items with computed pricing
     const lineItemsData = []
 
-    const q1 = Number(item425ml24Qty) || 0
+    const q1 = Number(item425ml24Qty || item425ml || qty425) || 0
     if (q1 > 0) {
+      const unitPrice = DEFAULT_PRICES["B2O2-425-24"]
+      const amount = Number((q1 * unitPrice).toFixed(2))
       lineItemsData.push({
         barcode: "9555978700267",
         itemCode: "B2O2-425-24",
@@ -100,16 +115,18 @@ export async function POST(request: Request) {
         description: "BUBBLES O2 425ML (24 BOTTLE / CARTON)",
         uom: "CTN",
         quantity: q1,
-        unitPrice: 0,
+        unitPrice,
         discount: 0,
         tax: 0,
-        amount: 0,
+        amount,
         isServiceCharge: false
       })
     }
 
-    const q2 = Number(item800ml20Qty) || 0
+    const q2 = Number(item800ml20Qty || item800ml20 || qty800_20) || 0
     if (q2 > 0) {
+      const unitPrice = DEFAULT_PRICES["B2O2-800-20"]
+      const amount = Number((q2 * unitPrice).toFixed(2))
       lineItemsData.push({
         barcode: "9555978700274",
         itemCode: "B2O2-800-20",
@@ -117,16 +134,18 @@ export async function POST(request: Request) {
         description: "BUBBLES O2 800ML (20 BOTTLE / CARTON)",
         uom: "CTN",
         quantity: q2,
-        unitPrice: 0,
+        unitPrice,
         discount: 0,
         tax: 0,
-        amount: 0,
+        amount,
         isServiceCharge: false
       })
     }
 
-    const q3 = Number(item800ml12Qty) || 0
+    const q3 = Number(item800ml12Qty || item800ml12 || qty800_12) || 0
     if (q3 > 0) {
+      const unitPrice = DEFAULT_PRICES["B2O2-800-12"]
+      const amount = Number((q3 * unitPrice).toFixed(2))
       lineItemsData.push({
         barcode: "9555978700359",
         itemCode: "B2O2-800-12",
@@ -134,13 +153,16 @@ export async function POST(request: Request) {
         description: "BUBBLES O2 800ML (12 BOTTLE / CARTON)",
         uom: "CTN",
         quantity: q3,
-        unitPrice: 0,
+        unitPrice,
         discount: 0,
         tax: 0,
-        amount: 0,
+        amount,
         isServiceCharge: false
       })
     }
+
+    const subtotal = lineItemsData.reduce((acc, item) => acc + item.amount, 0)
+    const grandTotal = Number(subtotal.toFixed(2))
 
     // 4. Construct ExtractedSalesDocument
     const extractedData = {
@@ -160,11 +182,11 @@ export async function POST(request: Request) {
       lines: lineItemsData,
       charges: [],
       totals: {
-        subtotal: 0,
+        subtotal: grandTotal,
         discount: 0,
         freight: 0,
         tax: 0,
-        grandTotal: 0
+        grandTotal: grandTotal
       },
       remarks: remarks ? `[Google Form Submission] ${remarks}` : "[Google Form Submission]",
       confidence: 1,

@@ -34,6 +34,112 @@ function belongsToReportLine(row: { batchNo?: string, mult?: number }, sectionKe
   return true
 }
 
+const normText = (value: unknown) => String(value || "").trim().toUpperCase()
+
+function syncedDOSection(category: unknown): string | null {
+  const value = normText(category)
+  if (value.includes("BOTTLE")) return "BOTTLE"
+  if (value === "CAP") return "CAP"
+  if (value.includes("LABEL")) return "LABEL"
+
+  // New Transfer In rows use `BOX 425x24`; rows reconstructed from an existing report use
+  // `BOX_425_24`. Treat both as the same controlled section.
+  const box = /BOX\D*(425|800)\D*(6|12|20|24)/.exec(value)
+  return box ? `BOX_p${box[1]}_${box[2]}` : null
+}
+
+function syncedDOBelongsToReport(row: any, line: string) {
+  const section = syncedDOSection(row?.category)
+  if (!section) return false
+  if (section === "BOTTLE") return normText(row.category).includes(line.includes("800") ? "800" : "425")
+  if (section === "LABEL") return !isOtherLineLabel(String(row.batchNo || ""), line)
+  if (section.startsWith("BOX_")) return section.includes(line.includes("800") ? "800" : "425")
+  return true // CAP is shared by both production lines.
+}
+
+/**
+ * A client can hide or alter fields, so the shift boundary must be enforced again on the server.
+ * Existing report rows have `explicit-<InventoryLog id>` identifiers; new selections carry the
+ * actual TransferInItem id. Both shapes are verified against their database source.
+ */
+async function validateSyncedDOsForReport(data: any, existingReportId?: string) {
+  const syncedDOs = Array.isArray(data.syncedDOs)
+    ? data.syncedDOs.filter((row: any) => syncedDOBelongsToReport(row, data.line || ""))
+    : []
+  if (syncedDOs.length === 0) return
+
+  const reportDateString = new Date(data.date).toISOString().split("T")[0]
+  const reportShift = data.shift === "PM" ? "PM" : "AM"
+  const directIds: string[] = syncedDOs
+    .map((row: any) => String(row.id || ""))
+    .filter((id: string) => Boolean(id) && !id.startsWith("explicit-"))
+  const doNumbers: string[] = Array.from(new Set<string>(
+    syncedDOs.map((row: any) => String(row.doNumber || "").trim()).filter((value: string) => Boolean(value))
+  ))
+
+  const [sourceItems, existingLogs] = await Promise.all([
+    prisma.transferInItem.findMany({
+      where: {
+        OR: [
+          ...(directIds.length ? [{ id: { in: directIds } }] : []),
+          ...(doNumbers.length ? [{ transferIn: { doNumber: { in: doNumbers } } }] : []),
+        ],
+      },
+      include: { transferIn: true },
+    }),
+    existingReportId
+      ? prisma.inventoryLog.findMany({ where: { reportId: existingReportId, type: "TransferIn" } })
+      : Promise.resolve([]),
+  ])
+
+  for (const row of syncedDOs) {
+    const rowId = String(row.id || "")
+    const isExistingLog = rowId.startsWith("explicit-")
+    if (isExistingLog) {
+      const logId = rowId.slice("explicit-".length)
+      const unchangedLog = existingLogs.some(log =>
+        log.id === logId &&
+        normText(log.labelType) === normText(row.doNumber) &&
+        normText(log.batchNo) === normText(row.batchNo) &&
+        Number(log.mult) === Number(row.mult) &&
+        Number(log.bags) === Number(row.bags)
+      )
+      if (!unchangedLog) {
+        throw new Error(`Transfer In ${row.doNumber || "(tanpa DO)"} telah diubah atau tidak lagi wujud dalam report ini.`)
+      }
+    }
+
+    const expectedSection = syncedDOSection(row.category)
+    const naturalMatches = sourceItems.filter(item =>
+      normText(item.transferIn.doNumber) === normText(row.doNumber) &&
+      normText(item.batchNo) === normText(row.batchNo) &&
+      Number(item.mult) === Number(row.mult) &&
+      dailyReportSectionForCategory(item.category) === expectedSection
+    )
+    const identityMatches = isExistingLog
+      ? naturalMatches
+      : naturalMatches.filter(item => item.id === rowId && Number(item.bags) === Number(row.bags))
+
+    if (identityMatches.length === 0) {
+      throw new Error(`Sumber Transfer In ${row.doNumber || "(tanpa DO)"}, batch ${row.batchNo || "-"}, tidak sah atau telah berubah.`)
+    }
+
+    const sameDate = identityMatches.filter(item =>
+      item.transferIn.receiveDate.toISOString().split("T")[0] === reportDateString
+    )
+    const sameShift = sameDate.find(item => (item.transferIn.shift || "AM") === reportShift)
+    if (!sameShift) {
+      const source = sameDate[0] || identityMatches[0]
+      const sourceShift = source.transferIn.shift || "AM"
+      const sourceDate = source.transferIn.receiveDate.toISOString().split("T")[0]
+      throw new Error(
+        `DO ${source.transferIn.doNumber} ialah ${sourceDate} shift ${sourceShift} dan tidak boleh dimasukkan ` +
+        `ke report ${reportDateString} shift ${reportShift}. Betulkan tarikh/shift DO terlebih dahulu.`
+      )
+    }
+  }
+}
+
 // Builds InventoryLog "Usage" rows for one section. The server recomputes CAP bags
 // from weight/boxes so a client-side bug can never persist 0 bags for a filled row.
 // Draft saves keep rows that carry data even without a batch, so drafts are lossless.
@@ -103,6 +209,8 @@ export async function createDailyReport(data: any) {
   if (!session) return { success: false, error: "Unauthorized" }
 
   try {
+    await validateSyncedDOsForReport(data)
+
     // Note: Usage rejects are already aggregated into data.rejectsScrap and data.rejectsReturn
     // by the frontend form logic. We just map them directly.
 
@@ -500,31 +608,6 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
     const storeroomBatches: any[] = []
     const addedBatchKeys = new Set<string>()
 
-    // Received on the report date but stamped for the OTHER shift, and still unclaimed. These are
-    // never auto-synced — the shift on the DO is taken at its word — but they are offered for the
-    // report to pull in explicitly. Before this they were simply dropped, and because the same
-    // filter fed the "Select Transfer In to Add" list there was no way to reach them from anywhere:
-    // a delivery keyed in with the wrong shift took its stock out of production's sight for good.
-    const otherShiftDOs = allDOItems
-      .filter(item =>
-        item.bags > 0 &&
-        isReceivedOnReportDate(item) &&
-        !matchesShift(item) &&
-        !claimedDOs.has(claimKey(item))
-      )
-      .map(item => ({
-        batchNo: normBatch(item.batchNo),
-        bags: item.bags,
-        mult: item.mult,
-        category: item.category,
-        doNumber: item.transferIn.doNumber,
-        transferInId: item.transferIn.id,
-        id: item.id,
-        offShift: true,
-        doShift: item.transferIn.shift || "",
-        receiveTime: item.transferIn.receiveTime || ""
-      }))
-
     Object.keys(batchInfo).forEach(batchKey => {
       const info = batchInfo[batchKey]
 
@@ -589,11 +672,11 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       }
     })
 
-    return { success: true, data: { storeroomBatches, todayDOs, otherShiftDOs } }
+    return { success: true, data: { storeroomBatches, todayDOs } }
 
   } catch (error: any) {
     console.error("Failed to fetch Active Inventory:", error)
-    return { success: false, data: { storeroomBatches: [], todayDOs: [], otherShiftDOs: [] } }
+    return { success: false, data: { storeroomBatches: [], todayDOs: [] } }
   }
 }
 
@@ -720,6 +803,8 @@ export async function updateDailyReport(id: string, data: any) {
       isApprovedEdit = existing.status === "APPROVED" && !!access && hasAnyModule(access, ["DAILY_REPORT_EDIT_APPROVED"])
       if (!isApprovedEdit) return { success: false, error: "Cannot edit an approved report." }
     }
+
+    await validateSyncedDOsForReport(data, id)
 
     // Note: Usage rejects are already aggregated into data.rejectsScrap and data.rejectsReturn
     // by the frontend form logic. We just map them directly.

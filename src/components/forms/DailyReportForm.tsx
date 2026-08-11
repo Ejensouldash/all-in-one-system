@@ -3,7 +3,7 @@
 import { useForm, useFieldArray, useWatch, Control, UseFormRegister } from "react-hook-form"
 import { Plus, Trash2, Save, ArrowLeft, Info, AlertTriangle, CheckCircle2, CloudDownload, Loader2, History, PenTool } from "lucide-react"
 import Link from "next/link"
-import { useEffect, useMemo, useState, useRef } from "react"
+import { useEffect, useState, useRef } from "react"
 import { getActiveInventory, createDailyReport, updateDailyReport } from "@/app/actions/dailyReport"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
 import { carryForwardBelongsToSection, isOtherLineBottle, isOtherLineLabel } from "@/lib/production/lineScope"
@@ -98,9 +98,6 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
 
   const [syncedDOs, setSyncedDOs] = useState<any[]>(initialData?.syncedDOs || [])
   const [allTodayDOs, setAllTodayDOs] = useState<any[]>([])
-  // Received today but stamped for the other shift. Offered in the "add" dropdown only — never
-  // auto-synced, so a wrongly stamped DO is recoverable without silently landing in this report.
-  const [otherShiftDOs, setOtherShiftDOs] = useState<any[]>([])
   const [availableCarryForward, setAvailableCarryForward] = useState<any[]>([])
   const [isFetchingSync, setIsFetchingSync] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -168,9 +165,8 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
   const watchDate = watch("date")
   const watchShift = watch("shift")
 
-  // Everything a section may offer under "Select Transfer In to Add": this shift's DOs, plus DOs
-  // received today that were stamped for the other shift and that no report has claimed.
-  const selectableDOs = useMemo(() => [...allTodayDOs, ...otherShiftDOs], [allTodayDOs, otherShiftDOs])
+  // Shift is a hard boundary: only DOs received for this report's date/shift are selectable.
+  const selectableDOs = allTodayDOs
 
   const isInitialMount = useRef(true)
 
@@ -182,7 +178,6 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       
       if (res.success) {
         setAllTodayDOs(res.data.todayDOs)
-        setOtherShiftDOs(res.data.otherShiftDOs || [])
 
         if (isInitialMount.current && ((initialData?.syncedDOs !== undefined) || (localStorage.getItem("dailyReportDraft") && JSON.parse(localStorage.getItem("dailyReportDraft")!).syncedDOs))) {
           // Do not overwrite syncedDOs if we just loaded them from draft or edit
@@ -1138,16 +1133,10 @@ const AdvancedInventorySection = ({ title, sectionKey, control, register, setVal
                   <option value="">-- SELECT DO --</option>
                   {availableDOsToSync.filter((d: any) => !syncedDOs.some((s: any) => s.batchNo === d.batchNo && (s.doNumber === d.doNumber || s.doNumber === d.transferIn?.doNumber) && Number(s.mult) === Number(d.mult))).map((d: any) => (
                     <option key={d.id} value={d.id}>
-                      {d.offShift ? `[SHIFT ${d.doShift || "?"}${d.receiveTime ? ` ${d.receiveTime}` : ""}] ` : ""}{d.doNumber} - {d.batchNo} ({d.bags} {unit})
+                      {d.doNumber} - {d.batchNo} ({d.bags} {unit})
                     </option>
                   ))}
                 </select>
-                {availableDOsToSync.some((d: any) => d.offShift) && (
-                  <p className="mt-1.5 text-[10px] font-bold text-amber-700 leading-snug">
-                    DO bertanda [SHIFT …] diterima hari ini tetapi dicap untuk shift yang lain.
-                    Tarik masuk hanya jika barang itu memang masuk shift ini.
-                  </p>
-                )}
               </div>
             )}
           </div>

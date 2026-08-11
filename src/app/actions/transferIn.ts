@@ -16,6 +16,23 @@ async function hasTransferInHistoryAccess() {
   return hasAnyModule(access, ["TRANSFER_IN_HISTORY"])
 }
 
+const normTransferValue = (value: unknown) => String(value || "").trim().toUpperCase()
+
+function transferItemSignature(items: any[]) {
+  return (items || [])
+    .map(item => ({
+      category: normTransferValue(item.category),
+      batchNo: normTransferValue(item.batchNo),
+      bags: Number(item.bags),
+      mult: Number(item.mult),
+    }))
+    .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
+}
+
+function sameTransferItems(left: any[], right: any[]) {
+  return JSON.stringify(transferItemSignature(left)) === JSON.stringify(transferItemSignature(right))
+}
+
 export async function createTransferIn(data: any) {
   const session = await auth()
   if (!session) return { success: false, error: "Unauthorized" }
@@ -32,11 +49,30 @@ export async function createTransferIn(data: any) {
   }
 
   try {
+    const receiveDate = new Date(data.receiveDate)
+    const shift = data.shift || "AM"
+    const sameDayShift = await prisma.transferIn.findMany({
+      where: { receiveDate, shift },
+      include: { items: true },
+    })
+    const exactDuplicate = sameDayShift.find(existing =>
+      normTransferValue(existing.doNumber) === normTransferValue(data.doNumber) &&
+      sameTransferItems(existing.items, data.items)
+    )
+    if (exactDuplicate) {
+      return {
+        success: false,
+        error:
+          `Exact duplicate dikesan untuk ${exactDuplicate.doNumber} pada ${data.receiveDate} shift ${shift}. ` +
+          `Rekod sedia ada: ${exactDuplicate.id.split("-")[0]}. Split delivery dengan item atau kuantiti berbeza masih dibenarkan.`,
+      }
+    }
+
     const transferIn = await prisma.transferIn.create({
       data: {
-        receiveDate: new Date(data.receiveDate),
+        receiveDate,
         receiveTime: data.receiveTime,
-        shift: data.shift || "AM",
+        shift,
         doNumber: data.doNumber,
         receiverName: data.receiverName,
         items: {

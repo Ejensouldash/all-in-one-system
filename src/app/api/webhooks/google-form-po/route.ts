@@ -193,13 +193,15 @@ export async function POST(request: Request) {
       warnings: []
     }
 
-    // 5. Create SalesDocumentIntake
+    // 5. Create SalesDocumentIntake with unique r2ObjectKey
     const internalId = `GF-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`
-    
+    const safePoKey = finalPoNumber ? finalPoNumber.replace(/\//g, "-") : internalId
+    const uniqueR2Key = `google-form-submissions/${safePoKey}-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}.json`
+
     const intake = await prisma.salesDocumentIntake.create({
       data: {
         fileName: `Google Form - ${finalPoNumber || companyName || "Unknown"}.json`,
-        r2ObjectKey: `google-form-submissions/${finalPoNumber.replace(/\//g, "-") || internalId}.json`,
+        r2ObjectKey: uniqueR2Key,
         mimeType: "application/json",
         fileSize: JSON.stringify(extractedData).length,
         status: "REVIEW",

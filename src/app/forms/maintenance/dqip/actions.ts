@@ -6,47 +6,42 @@ import { revalidatePath } from "next/cache"
 export type DQIPCondition = "OKAY" | "NOT_OKAY"
 export type DQIPAvailability = "AVAILABLE" | "NOT_AVAILABLE"
 
-export type DQIPRow = {
-  line: string
-  item: string
+export type DQIPMaterialRow = {
   time: string
-  weightQty: string
-  condition: DQIPCondition
+  quantity: string
   batchNumber: DQIPAvailability
-  status: DQIPCondition
+  samples: { weight: string; condition: DQIPCondition }[]
+}
+
+export type DQIPSensoryRow = {
+  sku: string
+  quantity: string
+  samples: { time: string; condition: DQIPCondition }[]
 }
 
 export type DQIPEntries = {
-  rows?: DQIPRow[]
+  cap1881: DQIPMaterialRow[]
+  emptyBottle425: DQIPMaterialRow[]
+  emptyBottle800: DQIPMaterialRow[]
+  filledBottle425: DQIPMaterialRow[]
+  filledBottle800: DQIPMaterialRow[]
+  taste: DQIPSensoryRow[]
+  smell: DQIPSensoryRow[]
+  particle: DQIPSensoryRow[]
   remarks?: string
-  // Legacy fields preserved for existing database records reading
-  cap1881?: any[]
-  emptyBottle425?: any[]
-  emptyBottle800?: any[]
-  filledBottle425?: any[]
-  filledBottle800?: any[]
-  taste?: any[]
-  smell?: any[]
-  particle?: any[]
 }
 
 export async function createDQIP(data: {
   date: Date
-  rows: DQIPRow[]
-  remarks?: string
+  entries: DQIPEntries
   checkedBy: string
   performedSignature?: string
 }) {
   try {
-    const payload: DQIPEntries = {
-      rows: data.rows,
-      remarks: data.remarks,
-    }
-
     const record = await prisma.maintenanceDQIP.create({
       data: {
         date: data.date,
-        entries: payload as any,
+        entries: data.entries as any,
         checkedBy: data.checkedBy,
         performedSignature: data.performedSignature,
       }

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma"
 import {
   ManualPurchaseOrderDocument,
   type ManualPurchaseOrderData,
+  type ManualPoVariant,
 } from "@/lib/pdf/ManualPurchaseOrderDocument"
 import { getManualPoNumber, isManualPoObjectKey } from "@/lib/sales-ordering/manual-po"
 
@@ -16,15 +17,19 @@ function safeFilename(value: string) {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params
+    const variantParam = request.nextUrl.searchParams.get("variant")?.toLowerCase()
+    const variant: ManualPoVariant = variantParam === "external" ? "external" : "internal"
+
     const intake = await prisma.salesDocumentIntake.findUnique({
       where: { id },
       include: {
         uploadedBy: { select: { name: true } },
+        reviewedBy: { select: { name: true } },
         matchedCustomer: {
           select: {
             customerCode: true,
@@ -53,10 +58,13 @@ export async function GET(
     const logoPath = path.join(process.cwd(), "public", "assets", "BubblesO2_Logo.png")
     const logoBuffer = await readFile(logoPath)
     const logoSource = `data:image/png;base64,${logoBuffer.toString("base64")}`
-    const pdfStream = await renderToStream(ManualPurchaseOrderDocument({
-      data: intake as ManualPurchaseOrderData,
-      logoSource,
-    }))
+    const pdfStream = await renderToStream(
+      ManualPurchaseOrderDocument({
+        data: intake as ManualPurchaseOrderData,
+        logoSource,
+        variant,
+      })
+    )
 
     const readableStream = new ReadableStream({
       start(controller) {
@@ -66,7 +74,10 @@ export async function GET(
       },
     })
 
-    const filename = `Manual_PO_${safeFilename(getManualPoNumber(intake.extractedData))}.pdf`
+    const basePoNumber = safeFilename(getManualPoNumber(intake.extractedData))
+    const variantSuffix = variant === "external" ? "External" : "Internal"
+    const filename = `Manual_PO_${basePoNumber}_${variantSuffix}.pdf`
+
     return new NextResponse(readableStream, {
       headers: {
         "Cache-Control": "private, no-store",

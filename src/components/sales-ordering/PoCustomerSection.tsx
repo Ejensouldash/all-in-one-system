@@ -1,8 +1,17 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { CheckCircle2, Clock, Eye, FileText, Search, ShieldAlert, Sparkles, PenSquare } from "lucide-react"
+import {
+  CheckCircle2,
+  ChevronDown,
+  Clock,
+  Eye,
+  FileText,
+  PenSquare,
+  Search,
+  Sparkles,
+} from "lucide-react"
 import { PdfPreviewModal } from "./PdfPreviewModal"
 
 export type CustomerPoItem = {
@@ -25,6 +34,19 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
   const [searchQuery, setSearchQuery] = useState("")
   const [previewKey, setPreviewKey] = useState<string | null>(null)
   const [previewTitle, setPreviewTitle] = useState("")
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!openMenuId) return
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null
+      if (!target?.closest("[data-pdf-menu]")) {
+        setOpenMenuId(null)
+      }
+    }
+    document.addEventListener("click", handleOutsideClick)
+    return () => document.removeEventListener("click", handleOutsideClick)
+  }, [openMenuId])
 
   const approvedItems = items.filter(item => item.status === "APPROVED")
   const pendingItems = items.filter(item => item.status === "PENDING_SOA" || item.status === "HOLD")
@@ -110,105 +132,179 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
       <div className="mt-6">
         {filteredList.length ? (
           <div className="divide-y divide-slate-100 border-t border-slate-100">
-            {filteredList.map(item => (
-              <div
-                key={item.id}
-                className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between px-2 transition hover:bg-slate-50/80 rounded-xl"
-              >
-                <div className="flex items-start gap-3">
-                  <div
-                    className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold ${
-                      item.status === "APPROVED"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-amber-100 text-amber-700"
-                    }`}
-                  >
-                    <FileText className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-black text-slate-950 text-sm">{item.poNumber || "PO No. N/A"}</p>
-                      <span className="text-xs font-bold text-slate-400">·</span>
-                      <p className="font-black text-slate-700 text-sm">{item.customerName}</p>
-                    </div>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      Tarikh: {item.documentDate || "N/A"} · Uploaded oleh {item.uploadedBy}
-                    </p>
-                  </div>
-                </div>
+            {filteredList.map(item => {
+              const isManualPo = Boolean(
+                (item.poR2ObjectKey && item.poR2ObjectKey.startsWith("google-form-submissions/")) ||
+                item.uploadedBy === "Google Form Webhook"
+              )
 
-                <div className="flex items-center gap-4 self-end sm:self-center">
-                  <div className="text-right">
-                    <p className="text-sm font-black text-slate-950">{formatCurrency(item.amount)}</p>
-                    <span
-                      className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+              return (
+                <div
+                  key={item.id}
+                  className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between px-2 transition hover:bg-slate-50/80 rounded-xl"
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold ${
                         item.status === "APPROVED"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-amber-100 text-amber-800"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-amber-100 text-amber-700"
                       }`}
                     >
-                      {item.status === "APPROVED" ? "Lulus SOA" : "Pending SOA"}
-                    </span>
+                      <FileText className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-black text-slate-950 text-sm">{item.poNumber || "PO No. N/A"}</p>
+                        <span className="text-xs font-bold text-slate-400">·</span>
+                        <p className="font-black text-slate-700 text-sm">{item.customerName}</p>
+                      </div>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        Tarikh: {item.documentDate || "N/A"} · Uploaded oleh {item.uploadedBy}
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Actions Container */}
-                  <div className="flex items-center gap-2">
-                    {/* PDF Interactive Preview Icon */}
-                    {(item.poR2ObjectKey || item.uploadedBy === "Google Form Webhook" || (item.poR2ObjectKey && item.poR2ObjectKey.startsWith("google-form-submissions/"))) ? (
-                      <button
-                        onClick={() => {
-                          if (item.poR2ObjectKey && item.poR2ObjectKey.startsWith("google-form-submissions/")) {
-                            // Map the R2 key (json) to our new dynamic PDF route URL instead of letting the modal fetch R2
-                            setPreviewKey(`/api/sales-ordering/pdf/po/${item.id}`)
-                          } else {
-                            setPreviewKey(item.poR2ObjectKey || null)
-                          }
-                          setPreviewTitle(`Pratinjau PO - ${item.customerName} (${item.poNumber})`)
-                        }}
-                        title="Pratinjau PDF Asal"
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-black text-cyan-800 transition hover:bg-cyan-100 hover:scale-105 active:scale-95 shadow-sm"
+                  <div className="flex items-center gap-4 self-end sm:self-center">
+                    <div className="text-right">
+                      <p className="text-sm font-black text-slate-950">{formatCurrency(item.amount)}</p>
+                      <span
+                        className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                          item.status === "APPROVED"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-amber-100 text-amber-800"
+                        }`}
                       >
-                        <Eye className="h-4 w-4 text-cyan-600" />
-                        PDF
-                      </button>
-                    ) : (
-                      <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
-                        Form Order
+                        {item.status === "APPROVED" ? "Lulus SOA" : "Pending SOA"}
                       </span>
-                    )}
+                    </div>
 
-                    {/* Review/View Link */}
-                    {item.type === "INTAKE" && (
-                      <Link
-                        href={`/forms/sales-ordering/intake/${item.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-800 transition hover:bg-amber-100 hover:scale-105 active:scale-95 shadow-sm"
-                      >
-                        <PenSquare className="h-4 w-4 text-amber-600" />
-                        Review
-                      </Link>
-                    )}
-                    {item.type === "CREDIT_CASE" && (
-                      <Link
-                        href={`/forms/sales-ordering/credit-check?highlight=${item.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50 hover:scale-105 active:scale-95 shadow-sm"
-                      >
-                        <Eye className="h-4 w-4 text-slate-500" />
-                        View
-                      </Link>
-                    )}
-                    {item.type === "SALES_ORDER" && (
-                      <Link
-                        href={`/forms/sales-ordering/orders/${item.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-800 transition hover:bg-emerald-100 hover:scale-105 active:scale-95 shadow-sm"
-                      >
-                        <Eye className="h-4 w-4 text-emerald-600" />
-                        View
-                      </Link>
-                    )}
+                    {/* Actions Container */}
+                    <div className="flex items-center gap-2">
+                      {/* PDF Interactive Preview Menu / Button */}
+                      {isManualPo ? (
+                        <div className="relative" data-pdf-menu>
+                          <button
+                            type="button"
+                            onClick={e => {
+                              e.stopPropagation()
+                              setOpenMenuId(openMenuId === item.id ? null : item.id)
+                            }}
+                            aria-haspopup="menu"
+                            aria-expanded={openMenuId === item.id}
+                            title="Pilihan Varian PDF Manual PO"
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-black text-cyan-800 transition hover:bg-cyan-100 shadow-sm"
+                          >
+                            <FileText className="h-4 w-4 text-cyan-600" />
+                            <span>PDF</span>
+                            <ChevronDown
+                              className={`h-3.5 w-3.5 text-cyan-600 transition-transform duration-200 ${
+                                openMenuId === item.id ? "rotate-180" : ""
+                              }`}
+                            />
+                          </button>
+
+                          {openMenuId === item.id && (
+                            <div
+                              role="menu"
+                              aria-orientation="vertical"
+                              onKeyDown={e => {
+                                if (e.key === "Escape") setOpenMenuId(null)
+                              }}
+                              className="absolute right-0 top-full z-30 mt-1.5 w-52 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl animate-in fade-in zoom-in-95 duration-150"
+                            >
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                  setOpenMenuId(null)
+                                  setPreviewKey(`/api/sales-ordering/pdf/po/${item.id}?variant=internal`)
+                                  setPreviewTitle(`Internal Copy - ${item.customerName} (${item.poNumber})`)
+                                }}
+                                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-bold text-slate-800 transition hover:bg-cyan-50 hover:text-cyan-900"
+                              >
+                                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-cyan-100 text-cyan-700 font-black text-[10px]">
+                                  IN
+                                </div>
+                                <div>
+                                  <p className="font-black text-slate-900 text-xs">Internal Copy</p>
+                                  <p className="text-[10px] text-slate-500 font-normal">Semakan SOA & Audit Trail</p>
+                                </div>
+                              </button>
+
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                  setOpenMenuId(null)
+                                  setPreviewKey(`/api/sales-ordering/pdf/po/${item.id}?variant=external`)
+                                  setPreviewTitle(`External Copy - ${item.customerName} (${item.poNumber})`)
+                                }}
+                                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-bold text-slate-800 transition hover:bg-slate-100 hover:text-slate-900 mt-1"
+                              >
+                                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700 font-black text-[10px]">
+                                  EX
+                                </div>
+                                <div>
+                                  <p className="font-black text-slate-900 text-xs">External Copy</p>
+                                  <p className="text-[10px] text-slate-500 font-normal">Salinan Rasmi Pelanggan</p>
+                                </div>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ) : item.poR2ObjectKey ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPreviewKey(item.poR2ObjectKey || null)
+                            setPreviewTitle(`Pratinjau PO Asal - ${item.customerName} (${item.poNumber})`)
+                          }}
+                          title="Pratinjau PDF Asal"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-100 shadow-sm"
+                        >
+                          <Eye className="h-4 w-4 text-slate-500" />
+                          PDF
+                        </button>
+                      ) : (
+                        <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
+                          Form Order
+                        </span>
+                      )}
+
+                      {/* Review/View Link */}
+                      {item.type === "INTAKE" && (
+                        <Link
+                          href={`/forms/sales-ordering/intake/${item.id}`}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-800 transition hover:bg-amber-100 shadow-sm"
+                        >
+                          <PenSquare className="h-4 w-4 text-amber-600" />
+                          Review
+                        </Link>
+                      )}
+                      {item.type === "CREDIT_CASE" && (
+                        <Link
+                          href={`/forms/sales-ordering/credit-check?highlight=${item.id}`}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50 shadow-sm"
+                        >
+                          <Eye className="h-4 w-4 text-slate-500" />
+                          View
+                        </Link>
+                      )}
+                      {item.type === "SALES_ORDER" && (
+                        <Link
+                          href={`/forms/sales-ordering/orders/${item.id}`}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-800 transition hover:bg-emerald-100 shadow-sm"
+                        >
+                          <Eye className="h-4 w-4 text-emerald-600" />
+                          View
+                        </Link>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-10 text-center">

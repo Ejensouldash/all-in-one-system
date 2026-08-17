@@ -89,20 +89,21 @@ const styles = StyleSheet.create({
     paddingBottom: 5,
     borderBottomWidth: 0.8,
     borderBottomColor: palette.borderLight,
+    width: "100%",
   },
   headerLeft: {
     flexDirection: "row",
     alignItems: "flex-start",
-    maxWidth: 350,
-    gap: 8,
+    width: 365,
   },
   logo: {
-    width: 90,
-    height: 28,
+    width: 95,
+    height: 30,
+    marginRight: 10,
     objectFit: "contain",
   },
   companyDetails: {
-    flex: 1,
+    width: 260,
   },
   companyName: {
     fontSize: 8.5,
@@ -128,8 +129,8 @@ const styles = StyleSheet.create({
     lineHeight: 1.2,
   },
   headerRight: {
+    width: 170,
     alignItems: "flex-end",
-    minWidth: 145,
   },
   docTitle: {
     fontSize: 15,
@@ -200,11 +201,12 @@ const styles = StyleSheet.create({
   },
   partyGrid: {
     flexDirection: "row",
-    gap: 6,
+    justifyContent: "space-between",
     marginBottom: 6,
+    width: "100%",
   },
   partyCard: {
-    flex: 1,
+    width: "49.3%",
     minHeight: 58,
     borderWidth: 0.8,
     borderColor: palette.border,
@@ -396,12 +398,12 @@ const styles = StyleSheet.create({
   },
   lowerGrid: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "flex-start",
-    gap: 7,
+    width: "100%",
   },
   notesColumn: {
-    flex: 1,
-    gap: 4.5,
+    width: 350,
   },
   card: {
     borderWidth: 0.8,
@@ -409,6 +411,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     padding: 5,
     backgroundColor: palette.white,
+    marginBottom: 4.5,
   },
   cardTitle: {
     fontSize: 5.8,
@@ -445,7 +448,7 @@ const styles = StyleSheet.create({
     lineHeight: 1.25,
   },
   totalsColumn: {
-    width: 180,
+    width: 185,
   },
   totalsCard: {
     borderWidth: 0.8,
@@ -500,6 +503,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: palette.white,
     padding: 4.5,
+    width: "100%",
   },
   internalNoticeBar: {
     flexDirection: "row",
@@ -523,10 +527,11 @@ const styles = StyleSheet.create({
   },
   auditGrid: {
     flexDirection: "row",
-    gap: 5,
+    justifyContent: "space-between",
+    width: "100%",
   },
   auditCell: {
-    flex: 1,
+    width: "32%",
     borderWidth: 0.6,
     borderColor: palette.borderLight,
     borderRadius: 3,
@@ -576,13 +581,15 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: palette.white,
     padding: 4.5,
+    width: "100%",
   },
   signGrid: {
     flexDirection: "row",
-    gap: 7,
+    justifyContent: "space-between",
+    width: "100%",
   },
   signBox: {
-    flex: 1,
+    width: "48.8%",
     borderWidth: 0.6,
     borderColor: palette.borderLight,
     borderRadius: 3,

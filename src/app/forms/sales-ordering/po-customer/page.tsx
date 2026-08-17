@@ -41,19 +41,26 @@ export default async function PoCustomerPage() {
       take: 50,
       include: {
         customer: true,
+        sourceDocument: {
+          select: {
+            id: true,
+            r2ObjectKey: true,
+          },
+        },
       },
     }),
   ])
 
   const poCustomerItems: CustomerPoItem[] = [
     ...salesOrders.map(so => ({
-      id: so.id,
+      id: so.sourceDocument?.id || so.id,
       type: "SALES_ORDER" as const,
       poNumber: so.poNumber || so.internalSoNo,
       customerName: so.customer?.legalName || "Customer PO",
       documentDate: so.orderDate ? so.orderDate.toISOString().slice(0, 10) : so.createdAt.toISOString().slice(0, 10),
       amount: Number(so.grandTotal || 0),
       status: (so.status === "APPROVED" ? "APPROVED" : "PENDING_SOA") as CustomerPoItem["status"],
+      poR2ObjectKey: so.sourceDocument?.r2ObjectKey || null,
       createdAt: so.createdAt.toLocaleString("en-MY"),
       uploadedBy: so.documentType === "GOOGLE_FORM_PO" ? "Google Form Webhook" : "Sales Order System",
     })),

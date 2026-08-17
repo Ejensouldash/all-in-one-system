@@ -133,10 +133,12 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   docTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontFamily: "Helvetica-Bold",
     letterSpacing: 0.8,
     color: palette.navyDark,
+    textAlign: "right",
+    lineHeight: 1.05,
   },
   docVariantPill: {
     marginTop: 4,
@@ -864,7 +866,8 @@ export function ManualPurchaseOrderDocument({
           </View>
 
           <View style={styles.headerRight}>
-            <Text style={styles.docTitle}>PURCHASE ORDER</Text>
+            <Text style={styles.docTitle}>PURCHASE</Text>
+            <Text style={styles.docTitle}>ORDER</Text>
             {isInternal ? (
               <>
                 <View style={styles.docVariantPill}>

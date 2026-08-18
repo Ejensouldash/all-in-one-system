@@ -136,7 +136,22 @@ export async function listPalletReferenceData() {
       where: { status: { notIn: ["COMPLETED", "EXPIRED", "CANCELLED", "REJECTED", "NO_SHOW"] } },
       orderBy: { requestedPickupAt: "desc" },
       take: 100,
-      select: { id: true, gatePassNo: true, customerName: true },
+      select: {
+        id: true,
+        gatePassNo: true,
+        customerName: true,
+        customerContactName: true,
+        transportCompany: true,
+        driverName: true,
+        vehicleNo: true,
+        plannedPalletQty: true,
+        actualPalletQty: true,
+        loadingCompletedAt: true,
+        deliveryOrders: {
+          orderBy: [{ isPrimary: "desc" }, { linkedAt: "asc" }],
+          select: { distributionOrderId: true, isPrimary: true },
+        },
+      },
     }),
     prisma.distributionOrder.findMany({
       orderBy: { createdAt: "desc" },

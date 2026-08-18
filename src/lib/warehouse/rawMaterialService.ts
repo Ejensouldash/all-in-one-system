@@ -20,6 +20,7 @@ export type RawMaterialRowInput = {
   balanceIn: number
   qtyIn: number
   qtyOut: number
+  referenceDoNumber?: string
   remarks?: string
 }
 
@@ -123,7 +124,8 @@ export function buildItems(input: RawMaterialReportInput) {
 
   const items: {
     sku: string; category: string; mult: number; batchNo: string
-    balanceIn: number; qtyIn: number; qtyOut: number; carryForward: number; remarks: string | null
+    balanceIn: number; qtyIn: number; qtyOut: number; carryForward: number
+    referenceDoNumber: string | null; remarks: string | null
   }[] = []
   const seen = new Set<string>()
 
@@ -166,6 +168,8 @@ export function buildItems(input: RawMaterialReportInput) {
       qtyIn,
       qtyOut,
       carryForward,
+      // Informational reference for QC only. It must never alter the generated TransferIn DO.
+      referenceDoNumber: row.referenceDoNumber?.trim().toUpperCase() || null,
       remarks: row.remarks?.trim() || null,
     })
   }

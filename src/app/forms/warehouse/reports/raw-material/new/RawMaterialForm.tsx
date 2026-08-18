@@ -19,6 +19,7 @@ type Row = {
   balanceIn: string
   qtyIn: string
   qtyOut: string
+  referenceDoNumber: string
   remarks: string
   /** Carried over from the previous report, so the opening balance is not free-typed. */
   locked: boolean
@@ -37,6 +38,7 @@ const blankRow = (sku = RAW_MATERIAL_SKUS[0].key): Row => ({
   balanceIn: "0",
   qtyIn: "0",
   qtyOut: "0",
+  referenceDoNumber: "",
   remarks: "",
   locked: false,
   withdrawnQty: 0,
@@ -62,6 +64,7 @@ export type RawMaterialInitialData = {
     balanceIn: number
     qtyIn: number
     qtyOut: number
+    referenceDoNumber: string
     remarks: string
     /** Portion of qtyOut that already left on an Ambil Bahan DO, and which withdrawals those were. */
     withdrawnQty: number
@@ -110,6 +113,7 @@ export function RawMaterialForm({
         balanceIn: String(r.balanceIn),
         qtyIn: String(r.qtyIn),
         qtyOut: String(r.qtyOut),
+        referenceDoNumber: r.referenceDoNumber,
         remarks: r.remarks,
         locked: false,
         withdrawnQty: r.withdrawnQty || 0,
@@ -124,6 +128,7 @@ export function RawMaterialForm({
           balanceIn: String(p.balanceIn),
           qtyIn: "0",
           qtyOut: String(p.withdrawnQty || 0),
+          referenceDoNumber: "",
           remarks: "",
           locked: true,
           withdrawnQty: p.withdrawnQty || 0,
@@ -201,6 +206,7 @@ export function RawMaterialForm({
           balanceIn: n(r.balanceIn),
           qtyIn: n(r.qtyIn),
           qtyOut: n(r.qtyOut),
+          referenceDoNumber: r.referenceDoNumber,
           remarks: r.remarks,
         })),
       }
@@ -286,7 +292,7 @@ export function RawMaterialForm({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1000px]">
+          <table className="w-full min-w-[1160px]">
             <thead className="bg-gray-50">
               <tr className="text-[10px] font-black uppercase tracking-wider text-gray-500">
                 <th className="px-3 py-2.5 text-left w-[190px]">SKU</th>
@@ -294,6 +300,7 @@ export function RawMaterialForm({
                 <th className="px-3 py-2.5 text-right w-[120px]">Bal. In Whse</th>
                 <th className="px-3 py-2.5 text-right w-[110px] text-emerald-700">+ Qty In</th>
                 <th className="px-3 py-2.5 text-right w-[110px] text-red-700">− Qty Out</th>
+                <th className="px-3 py-2.5 text-left w-[150px]">No. DO</th>
                 <th className="px-3 py-2.5 text-right w-[130px] text-indigo-700">= Carry Forward</th>
                 <th className="px-3 py-2.5 text-left">Remarks</th>
                 <th className="px-3 py-2.5 w-[44px]" />
@@ -303,7 +310,7 @@ export function RawMaterialForm({
             {grouped.map(([section, sectionRows]) => (
               <tbody key={section}>
                 <tr>
-                  <td colSpan={8} className="bg-gray-100/80 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-gray-600">
+                  <td colSpan={9} className="bg-gray-100/80 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-gray-600">
                     {section}
                     <span className="ml-2 text-gray-400">({findSku(sectionRows[0].sku)?.unit})</span>
                   </td>
@@ -398,6 +405,15 @@ export function RawMaterialForm({
                             </div>
                           )
                         })()}
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          value={r.referenceDoNumber}
+                          onChange={e => patch(r.uid, { referenceDoNumber: e.target.value.toUpperCase() })}
+                          maxLength={50}
+                          placeholder="No. DO"
+                          className={`${cellCls} font-mono uppercase`}
+                        />
                       </td>
                       <td className="px-3 py-2 text-right">
                         <span className={`text-sm font-black ${negative ? "text-red-600" : cf === 0 ? "text-gray-300" : "text-indigo-700"}`}>

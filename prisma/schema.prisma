@@ -1604,6 +1604,7 @@ model WarehouseRawMaterialItem {
   qtyIn        Float   @default(0)
   qtyOut       Float   @default(0)
   carryForward Float   @default(0)
+  referenceDoNumber String? // QC reference only; does not drive the generated TransferIn DO
   remarks      String?
 
   report WarehouseRawMaterialReport @relation(fields: [reportId], references: [id], onDelete: Cascade)

@@ -80,6 +80,7 @@ export default async function EditRawMaterialPage({ params }: { params: Promise<
             balanceIn: i.balanceIn,
             qtyIn: i.qtyIn,
             qtyOut: i.qtyOut,
+            referenceDoNumber: i.referenceDoNumber || "",
             remarks: i.remarks || "",
             withdrawnQty: split[`${i.sku}|${i.batchNo}`]?.withdrawnQty || 0,
             withdrawalNos: split[`${i.sku}|${i.batchNo}`]?.withdrawalNos || [],

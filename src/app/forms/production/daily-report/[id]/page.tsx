@@ -495,7 +495,9 @@ async function AsyncReportContent({ id, session }: { id: string; session: any })
 
                         // Get storeroom balance (carry forward from previous day)
                         const storeroomObj = sources.find((s:any) => s.batchNo === batchNo && s.mult === multVal)
-                        let storeroomBags = storeroomObj ? storeroomObj.bags : 0
+                        const storeroomBags = sources
+                          .filter(s => s.batchNo === batchNo && s.mult === multVal)
+                          .reduce((sum, s) => sum + s.bags, 0)
 
                         // Get today's Transfer In for this batch
                         const todayDOBags = sectionDOItems

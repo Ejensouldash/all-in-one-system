@@ -44,6 +44,17 @@ model User {
   uploadedSalesDocuments SalesDocumentIntake[]   @relation("SalesDocumentUploader")
   reviewedSalesDocuments SalesDocumentIntake[]   @relation("SalesDocumentReviewer")
   createdSalesOrders     SalesOrder[]            @relation("SalesOrderCreator")
+
+  // Warehouse Gatepass and returnable-pallet operations are deliberately isolated from
+  // ProductionTransfer, WarehouseRawMaterialReport and InventoryBatch.
+  createdWarehouseGatePasses WarehouseGatePass[]     @relation("WarehouseGatePassCreator")
+  gatePassStatusEvents       GatePassStatusEvent[]   @relation("GatePassStatusActor")
+  linkedGatePassDOs          GatePassDeliveryOrder[] @relation("GatePassDOLinker")
+  createdPalletTransfers     PalletTransfer[]        @relation("PalletTransferCreator")
+  verifiedPalletTransfers    PalletTransfer[]        @relation("PalletTransferVerifier")
+  postedPalletTransfers      PalletTransfer[]        @relation("PalletTransferPoster")
+  reversedPalletTransfers    PalletTransfer[]        @relation("PalletTransferReverser")
+  createdPalletMovements     PalletMovement[]        @relation("PalletMovementCreator")
 }
 
 model Branch {
@@ -475,6 +486,8 @@ model DistributionOrder {
   createdBy          User                        @relation("DOCreator", fields: [createdById], references: [id])
   returns            GoodsReturnNote[]
   trackingEvents     DistributionTrackingEvent[]
+  gatePassLinks      GatePassDeliveryOrder[]
+  palletTransfers    PalletTransfer[]
 }
 
 // Append-only delivery milestones. These records enrich warehouse traceability without changing
@@ -567,6 +580,62 @@ enum DOStatus {
   RETURNED
 }
 
+enum GatePassStatus {
+  DRAFT
+  AWAITING_CUSTOMER
+  CUSTOMER_SUBMITTED
+  WAREHOUSE_ACKNOWLEDGED
+  PREPARING
+  READY_FOR_PICKUP
+  CHECKED_IN
+  LOADING
+  CHECKED_OUT
+  COMPLETED
+  EXPIRED
+  CANCELLED
+  REJECTED
+  NO_SHOW
+}
+
+enum GatePassActorType {
+  INTERNAL_USER
+  EXTERNAL_CUSTOMER
+  SYSTEM
+}
+
+enum PalletTransferStatus {
+  DRAFT
+  POSTED
+  REVERSED
+}
+
+enum PalletMovementType {
+  OPENING_BALANCE
+  ISSUE_OUT
+  RETURN_IN
+  TRANSFER
+  DAMAGE_RETURN
+  LOST_WRITE_OFF
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  REVERSAL
+}
+
+enum PalletCondition {
+  USABLE
+  DAMAGED
+  LOST
+}
+
+enum PalletCustodianKind {
+  SYSTEM_OPENING
+  WAREHOUSE_USABLE
+  WAREHOUSE_DAMAGED
+  CUSTOMER
+  TRANSPORTER
+  WRITTEN_OFF
+}
+
 enum ReturnReason {
   DAMAGE
   WRONG_PO
@@ -589,6 +658,270 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+// ---------------------------------------------------------------------------------------------
+// WAREHOUSE GATEPASS AND RETURNABLE PALLET LEDGER
+// These planning and asset-ledger records never mutate product/raw-material inventory.
+// ---------------------------------------------------------------------------------------------
+
+model WarehouseGatePass {
+  id                      String         @id @default(uuid())
+  gatePassNo              String         @unique
+  status                  GatePassStatus @default(DRAFT)
+  purpose                 String
+  requestedPickupAt       DateTime
+  pickupLocation          String
+  destination             String
+  customerName            String
+  customerContactName     String?
+  customerContactEmail    String?
+  customerContactPhone    String?
+  customerReference       String?
+  plannedPalletQty        Int            @default(0)
+  actualPalletQty         Int?
+  transportCompany        String?
+  driverName              String?
+  driverPhone             String?
+  vehicleNo               String?
+  vehicleType             String?
+  checkedInVehicleNo      String?
+  checkedInDriverName     String?
+  confirmedEta            DateTime?
+  internalRemarks         String?        @db.Text
+  customerRemarks         String?        @db.Text
+  warehouseRemarks        String?        @db.Text
+  securityRemarks         String?        @db.Text
+  cancellationReason      String?        @db.Text
+  rejectionReason         String?        @db.Text
+  createdById             String
+  customerSubmittedAt     DateTime?
+  warehouseAcknowledgedAt DateTime?
+  readyAt                 DateTime?
+  checkedInAt             DateTime?
+  loadingStartedAt        DateTime?
+  loadingCompletedAt      DateTime?
+  checkedOutAt            DateTime?
+  completedAt             DateTime?
+  cancelledAt             DateTime?
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+
+  createdBy          User                        @relation("WarehouseGatePassCreator", fields: [createdById], references: [id])
+  items              WarehouseGatePassItem[]
+  externalTokens     GatePassExternalToken[]
+  verificationTokens GatePassVerificationToken[]
+  statusEvents       GatePassStatusEvent[]
+  deliveryOrders     GatePassDeliveryOrder[]
+  palletTransfers    PalletTransfer[]
+
+  @@index([status, requestedPickupAt])
+  @@index([customerName])
+  @@index([vehicleNo])
+  @@index([createdById, createdAt])
+}
+
+model WarehouseGatePassItem {
+  id             String  @id @default(uuid())
+  gatePassId     String
+  sku            String?
+  description    String
+  uom            String  @default("BOX")
+  plannedQty     Int
+  actualQty      Int?
+  varianceReason String? @db.Text
+  sortOrder      Int     @default(0)
+
+  gatePass WarehouseGatePass @relation(fields: [gatePassId], references: [id], onDelete: Cascade)
+
+  @@index([gatePassId, sortOrder])
+}
+
+model GatePassExternalToken {
+  id          String    @id @default(uuid())
+  gatePassId  String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  submittedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  gatePass WarehouseGatePass @relation(fields: [gatePassId], references: [id], onDelete: Cascade)
+
+  @@index([gatePassId, createdAt])
+  @@index([expiresAt])
+}
+
+model GatePassVerificationToken {
+  id         String    @id @default(uuid())
+  gatePassId String
+  publicCode String    @unique
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  gatePass WarehouseGatePass @relation(fields: [gatePassId], references: [id], onDelete: Cascade)
+
+  @@index([gatePassId, createdAt])
+}
+
+model GatePassStatusEvent {
+  id          String            @id @default(uuid())
+  gatePassId  String
+  fromStatus  GatePassStatus?
+  toStatus    GatePassStatus
+  actorType   GatePassActorType
+  actorUserId String?
+  actorLabel  String?
+  remarks     String?           @db.Text
+  ipAddress   String?
+  userAgent   String?           @db.Text
+  occurredAt  DateTime          @default(now())
+
+  gatePass  WarehouseGatePass @relation(fields: [gatePassId], references: [id], onDelete: Cascade)
+  actorUser User?             @relation("GatePassStatusActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([gatePassId, occurredAt])
+  @@index([actorUserId])
+}
+
+model GatePassDeliveryOrder {
+  gatePassId          String
+  distributionOrderId String
+  isPrimary           Boolean  @default(false)
+  linkedById          String
+  linkedAt            DateTime @default(now())
+
+  gatePass          WarehouseGatePass @relation(fields: [gatePassId], references: [id], onDelete: Cascade)
+  distributionOrder DistributionOrder @relation(fields: [distributionOrderId], references: [id], onDelete: Cascade)
+  linkedBy          User              @relation("GatePassDOLinker", fields: [linkedById], references: [id])
+
+  @@id([gatePassId, distributionOrderId])
+  @@index([distributionOrderId])
+  @@index([linkedById])
+}
+
+model PalletType {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  material  String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transferLines PalletTransferLine[]
+  movements     PalletMovement[]
+}
+
+model PalletCustodian {
+  id                String              @id @default(uuid())
+  kind              PalletCustodianKind
+  name              String
+  externalReference String?
+  active            Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  outgoingTransfers PalletTransfer[] @relation("PalletTransferFromCustodian")
+  incomingTransfers PalletTransfer[] @relation("PalletTransferToCustodian")
+  outgoingMovements PalletMovement[] @relation("PalletMovementFromCustodian")
+  incomingMovements PalletMovement[] @relation("PalletMovementToCustodian")
+
+  @@unique([kind, name])
+  @@index([kind, active])
+}
+
+model PalletTransfer {
+  id                  String               @id @default(uuid())
+  transferNo          String               @unique
+  status              PalletTransferStatus @default(DRAFT)
+  movementType        PalletMovementType
+  gatePassId          String?
+  distributionOrderId String?
+  occurredAt          DateTime
+  fromCustodianId     String
+  toCustodianId       String
+  transportCompany    String?
+  driverName          String?
+  vehicleNo           String?
+  remarks             String?              @db.Text
+  evidenceUrl         String?
+  releasedSignature   String?              @db.Text
+  receivedByName      String?
+  receivedSignature   String?              @db.Text
+  verifiedSignature   String?              @db.Text
+  createdById         String
+  verifiedById        String?
+  postedById          String?
+  postedAt            DateTime?
+  reversedById        String?
+  reversedAt          DateTime?
+  reversalReason      String?              @db.Text
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  gatePass          WarehouseGatePass?   @relation(fields: [gatePassId], references: [id], onDelete: SetNull)
+  distributionOrder DistributionOrder?   @relation(fields: [distributionOrderId], references: [id], onDelete: SetNull)
+  fromCustodian     PalletCustodian      @relation("PalletTransferFromCustodian", fields: [fromCustodianId], references: [id])
+  toCustodian       PalletCustodian      @relation("PalletTransferToCustodian", fields: [toCustodianId], references: [id])
+  createdBy         User                 @relation("PalletTransferCreator", fields: [createdById], references: [id])
+  verifiedBy        User?                @relation("PalletTransferVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  postedBy          User?                @relation("PalletTransferPoster", fields: [postedById], references: [id], onDelete: SetNull)
+  reversedBy        User?                @relation("PalletTransferReverser", fields: [reversedById], references: [id], onDelete: SetNull)
+  lines             PalletTransferLine[]
+  movements         PalletMovement[]
+
+  @@index([status, occurredAt])
+  @@index([gatePassId])
+  @@index([distributionOrderId])
+  @@index([fromCustodianId])
+  @@index([toCustodianId])
+}
+
+model PalletTransferLine {
+  id            String          @id @default(uuid())
+  transferId    String
+  palletTypeId  String
+  quantity      Int
+  fromCondition PalletCondition @default(USABLE)
+  toCondition   PalletCondition @default(USABLE)
+  remarks       String?         @db.Text
+
+  transfer   PalletTransfer   @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  palletType PalletType       @relation(fields: [palletTypeId], references: [id])
+  movements  PalletMovement[]
+
+  @@index([transferId])
+  @@index([palletTypeId])
+}
+
+model PalletMovement {
+  id                 String             @id @default(uuid())
+  transferId         String
+  transferLineId     String
+  palletTypeId       String
+  movementType       PalletMovementType
+  fromCustodianId    String
+  toCustodianId      String
+  quantity           Int
+  reversesMovementId String?
+  createdById        String
+  createdAt          DateTime           @default(now())
+
+  transfer            PalletTransfer     @relation(fields: [transferId], references: [id], onDelete: Restrict)
+  transferLine        PalletTransferLine @relation(fields: [transferLineId], references: [id], onDelete: Restrict)
+  palletType          PalletType         @relation(fields: [palletTypeId], references: [id])
+  fromCustodian       PalletCustodian    @relation("PalletMovementFromCustodian", fields: [fromCustodianId], references: [id])
+  toCustodian         PalletCustodian    @relation("PalletMovementToCustodian", fields: [toCustodianId], references: [id])
+  reversesMovement    PalletMovement?    @relation("PalletMovementReversal", fields: [reversesMovementId], references: [id])
+  reversedByMovements PalletMovement[]   @relation("PalletMovementReversal")
+  createdBy           User               @relation("PalletMovementCreator", fields: [createdById], references: [id])
+
+  @@index([transferId])
+  @@index([palletTypeId, createdAt])
+  @@index([fromCustodianId, palletTypeId])
+  @@index([toCustodianId, palletTypeId])
+  @@index([reversesMovementId])
 }
 
 // ==========================================
@@ -1399,9 +1732,9 @@ model Customer {
 }
 
 model CustomerRegistration {
-  id                       String    @id @default(uuid())
-  registrationNo           String    @unique
-  idempotencyKey           String?   @unique
+  id                       String  @id @default(uuid())
+  registrationNo           String  @unique
+  idempotencyKey           String? @unique
   companyName              String
   companyRegNoNew          String?
   companyRegNoOld          String?
@@ -1409,8 +1742,8 @@ model CustomerRegistration {
   sstNo                    String?
   businessType             String?
   natureOfBusiness         String?
-  businessAddress          String?   @db.Text
-  registeredAddress        String?   @db.Text
+  businessAddress          String? @db.Text
+  registeredAddress        String? @db.Text
   businessCommencementDate String?
   annualTurnover           String?
   paidUpCapital            String?
@@ -1565,29 +1898,29 @@ model SalesOrderLineItem {
 // PO-SOA checks are deliberately separate from SalesDocumentIntake so a review
 // retains both original PDFs and its finance decision as one audit record.
 model CreditCheckCase {
-  id                    String    @id @default(uuid())
-  poFileName            String
-  poR2ObjectKey         String    @unique
-  soaFileName           String
-  soaR2ObjectKey        String    @unique
-  status                String    @default("UPLOADED")
-  recommendation        String?
-  poData                Json?
-  soaData               Json?
-  result                Json?
-  justification         String?   @db.Text
-  financeRemarks        String?   @db.Text
-  financeEvidenceUrl    String?
-  financeEvidenceName   String?
-  bdFollowUpRemarks     String?   @db.Text
-  finalDecision         String?
-  decidedById           String?
-  decidedAt             DateTime?
-  uploadedById          String
-  aiModel               String?
-  errorMessage          String?   @db.Text
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  id                  String    @id @default(uuid())
+  poFileName          String
+  poR2ObjectKey       String    @unique
+  soaFileName         String
+  soaR2ObjectKey      String    @unique
+  status              String    @default("UPLOADED")
+  recommendation      String?
+  poData              Json?
+  soaData             Json?
+  result              Json?
+  justification       String?   @db.Text
+  financeRemarks      String?   @db.Text
+  financeEvidenceUrl  String?
+  financeEvidenceName String?
+  bdFollowUpRemarks   String?   @db.Text
+  finalDecision       String?
+  decidedById         String?
+  decidedAt           DateTime?
+  uploadedById        String
+  aiModel             String?
+  errorMessage        String?   @db.Text
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   @@index([status, createdAt])
   @@index([recommendation, createdAt])

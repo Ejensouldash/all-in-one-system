@@ -2,14 +2,24 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Package, Truck, AlertOctagon } from "lucide-react"
+import { Package, Truck, AlertOctagon, ClipboardCheck, ShieldCheck, FileBarChart } from "lucide-react"
 
 /**
  * `fullWarehouse` is false for production staff holding only RAW_MATERIAL_WITHDRAWAL. They get the
  * Reports tab alone, since that is where the Daily Raw Material screens live; showing tabs that
  * redirect straight back out would just look broken.
  */
-export function WarehouseTabs({ fullWarehouse = true }: { fullWarehouse?: boolean }) {
+export function WarehouseTabs({
+  fullWarehouse = true,
+  gatePass = false,
+  security = false,
+  reports = true,
+}: {
+  fullWarehouse?: boolean
+  gatePass?: boolean
+  security?: boolean
+  reports?: boolean
+}) {
   const pathname = usePathname()
 
   return (
@@ -55,7 +65,35 @@ export function WarehouseTabs({ fullWarehouse = true }: { fullWarehouse?: boolea
           </>
         )}
 
-        <Link
+        {gatePass && (
+          <Link
+            href="/forms/warehouse/gatepass"
+            className={`flex items-center pb-4 text-sm font-black uppercase tracking-wider border-b-4 transition-colors ${
+              pathname.startsWith("/forms/warehouse/gatepass") && !pathname.startsWith("/forms/warehouse/gatepass/security")
+                ? "border-cyan-500 text-cyan-700"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            <ClipboardCheck className="w-5 h-5 mr-2" />
+            Gatepass Planning
+          </Link>
+        )}
+
+        {security && (
+          <Link
+            href="/forms/warehouse/gatepass/security"
+            className={`flex items-center pb-4 text-sm font-black uppercase tracking-wider border-b-4 transition-colors ${
+              pathname.startsWith("/forms/warehouse/gatepass/security")
+                ? "border-amber-500 text-amber-700"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            <ShieldCheck className="w-5 h-5 mr-2" />
+            Security Gate
+          </Link>
+        )}
+
+        {reports && <Link
           href="/forms/warehouse/reports"
           className={`flex items-center pb-4 text-sm font-black uppercase tracking-wider border-b-4 transition-colors ${
             pathname.startsWith("/forms/warehouse/reports")
@@ -63,11 +101,9 @@ export function WarehouseTabs({ fullWarehouse = true }: { fullWarehouse?: boolea
               : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
           }`}
         >
-          <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
+          <FileBarChart className="w-5 h-5 mr-2" />
           {fullWarehouse ? "Reports" : "Daily Raw Material"}
-        </Link>
+        </Link>}
       </div>
     </div>
   )

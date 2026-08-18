@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation"
-import Link from "next/link"
-import { Package, Truck, AlertOctagon } from "lucide-react"
+import { Package } from "lucide-react"
 import { WarehouseTabs } from "@/components/warehouse/WarehouseTabs"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
 
@@ -13,8 +12,10 @@ export default async function WarehouseLayout({ children }: { children: React.Re
   // gates on WAREHOUSE separately.
   const fullWarehouse = hasAnyModule(access, ["WAREHOUSE"])
   const withdrawalOnly = !fullWarehouse && hasAnyModule(access, ["RAW_MATERIAL_WITHDRAWAL"])
+  const gatePass = hasAnyModule(access, ["GATEPASS_REQUESTER", "WAREHOUSE_GATEPASS", "WAREHOUSE"])
+  const security = hasAnyModule(access, ["SECURITY_GATEPASS"])
 
-  if (!fullWarehouse && !withdrawalOnly) {
+  if (!fullWarehouse && !withdrawalOnly && !gatePass && !security) {
     // /forms re-routes the user to whichever section they DO have access to
     redirect("/forms")
   }
@@ -30,7 +31,12 @@ export default async function WarehouseLayout({ children }: { children: React.Re
       </div>
       
       <div className="print:hidden">
-        <WarehouseTabs fullWarehouse={fullWarehouse} />
+        <WarehouseTabs
+          fullWarehouse={fullWarehouse}
+          gatePass={gatePass}
+          security={security}
+          reports={fullWarehouse || withdrawalOnly}
+        />
       </div>
       
       {children}

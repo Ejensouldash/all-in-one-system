@@ -14,7 +14,25 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       where: { id },
       include: {
         items: true,
-        createdBy: true
+        createdBy: true,
+        gatePassLinks: {
+          orderBy: [{ isPrimary: "desc" }, { linkedAt: "asc" }],
+          take: 1,
+          include: {
+            gatePass: {
+              select: {
+                gatePassNo: true,
+                status: true,
+                verificationTokens: {
+                  where: { revokedAt: null },
+                  orderBy: { createdAt: "desc" },
+                  take: 1,
+                  select: { publicCode: true },
+                },
+              },
+            },
+          },
+        },
       }
     })
     
@@ -23,7 +41,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
     }
     
     return NextResponse.json(doOrder)
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Failed to fetch DO" }, { status: 500 })
   }
 }

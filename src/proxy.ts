@@ -8,6 +8,13 @@ export default auth((req) => {
   const { nextUrl } = req
   const isLoggedIn = !!req.auth
   const isAuthRoute = nextUrl.pathname.startsWith("/login")
+  const isPublicGatePassRoute = nextUrl.pathname.startsWith("/public/gatepass/")
+
+  // External Gatepass links and read-only QR verification are deliberately public.
+  // Only this exact route family is exempt; internal Gatepass/Security pages stay authenticated.
+  if (isPublicGatePassRoute) {
+    return NextResponse.next()
+  }
   
   if (isAuthRoute) {
     if (isLoggedIn) {

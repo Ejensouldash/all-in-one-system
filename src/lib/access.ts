@@ -19,6 +19,10 @@ export const FORM_MODULES = [
   "HANDOVER",
   "SALES_ORDERING",
   "SALES_ORDERING_CUSTOMERS",
+  "GATEPASS_REQUESTER",
+  "WAREHOUSE_GATEPASS",
+  "SECURITY_GATEPASS",
+  "PALLET_LEDGER",
   // Production staff who take raw material off the warehouse rack themselves. Grants the Daily
   // Raw Material screens only — not the rest of the warehouse module.
   "RAW_MATERIAL_WITHDRAWAL",

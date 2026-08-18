@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { ClipboardList, Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, Brush, ClipboardCheck, Bug, Droplets } from "lucide-react"
+import { ClipboardList, Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, Brush, ClipboardCheck, Bug, Droplets, Boxes } from "lucide-react"
 import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
 import { MaintenanceFormsGrid } from "./MaintenanceFormsGrid"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
@@ -240,11 +240,25 @@ const securityForms = [
   }
 ]
 
+const logisticsForms = [
+  {
+    title: "PALLET TRANSFER LEDGER",
+    description: "Full movement ledger for returnable wooden pallets: issue, return, damage, loss and adjustments.",
+    icon: <Boxes className="h-6 w-6 mr-3" />,
+    href: "/forms/maintenance/pallet-transfer",
+    gradient: "from-amber-950 via-yellow-900 to-stone-900",
+    accent: "bg-amber-400",
+  },
+]
+
 export default async function MaintenanceDashboard() {
   const access = await getAccessInfo()
   if (!access) redirect("/login?callbackUrl=/forms/maintenance")
 
-  if (!hasAnyModule(access, ["MAINTENANCE_FORMS"])) {
+  const canMaintenanceForms = hasAnyModule(access, ["MAINTENANCE_FORMS"])
+  const canPalletLedger = hasAnyModule(access, ["PALLET_LEDGER", "WAREHOUSE"])
+
+  if (!canMaintenanceForms && !canPalletLedger) {
     if (access.modules.includes("MAINTENANCE_DASHBOARD")) {
       redirect("/forms/maintenance/dashboard")
     }
@@ -255,7 +269,7 @@ export default async function MaintenanceDashboard() {
     redirect("/forms")
   }
 
-  const drafts = await listMyMaintenanceDrafts()
+  const drafts = canMaintenanceForms ? await listMyMaintenanceDrafts() : { data: [] }
   const draftHrefs = (drafts.data ?? []).map(d => `/forms/maintenance/${draftKeyToSlug(d.formType)}`)
 
   return (
@@ -278,45 +292,56 @@ export default async function MaintenanceDashboard() {
         <MaintenanceTabs userModules={access.isSuperAdmin ? undefined : access.modules} />
 
         <div className="space-y-12">
+          {canPalletLedger && (
+            <section>
+              <div className="mb-6 border-b-2 border-gray-200 pb-2 flex items-center justify-between">
+                <h2 className="text-2xl font-black uppercase tracking-widest text-gray-800">
+                  Logistics &amp; Warehouse
+                </h2>
+              </div>
+              <MaintenanceFormsGrid forms={logisticsForms} draftHrefs={draftHrefs} />
+            </section>
+          )}
+
           {/* QC Section */}
-          <section>
+          {canMaintenanceForms && <section>
             <div className="mb-6 border-b-2 border-gray-200 pb-2 flex items-center justify-between">
               <h2 className="text-2xl font-black uppercase tracking-widest text-gray-800">
                 Quality Control (QC)
               </h2>
             </div>
             <MaintenanceFormsGrid forms={qcForms} draftHrefs={draftHrefs} />
-          </section>
+          </section>}
 
           {/* Production Section */}
-          <section>
+          {canMaintenanceForms && <section>
             <div className="mb-6 border-b-2 border-gray-200 pb-2 flex items-center justify-between">
               <h2 className="text-2xl font-black uppercase tracking-widest text-gray-800">
                 Production
               </h2>
             </div>
             <MaintenanceFormsGrid forms={productionForms} draftHrefs={draftHrefs} />
-          </section>
+          </section>}
 
           {/* Maintenance Section */}
-          <section>
+          {canMaintenanceForms && <section>
             <div className="mb-6 border-b-2 border-gray-200 pb-2 flex items-center justify-between">
               <h2 className="text-2xl font-black uppercase tracking-widest text-gray-800">
                 Maintenance
               </h2>
             </div>
             <MaintenanceFormsGrid forms={maintenanceForms} draftHrefs={draftHrefs} />
-          </section>
+          </section>}
 
           {/* Security Section */}
-          <section>
+          {canMaintenanceForms && <section>
             <div className="mb-6 border-b-2 border-gray-200 pb-2 flex items-center justify-between">
               <h2 className="text-2xl font-black uppercase tracking-widest text-gray-800">
                 Security
               </h2>
             </div>
             <MaintenanceFormsGrid forms={securityForms} draftHrefs={draftHrefs} />
-          </section>
+          </section>}
         </div>
       </div>
     </div>

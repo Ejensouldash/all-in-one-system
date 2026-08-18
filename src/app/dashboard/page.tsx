@@ -142,7 +142,10 @@ export default async function DashboardPage() {
   if (isRantau && !access.isSuperAdmin) {
     if (userModules.includes("FORMS")) redirect("/forms/production")
     if (userModules.includes("WAREHOUSE")) redirect("/forms/warehouse/dashboard")
+    if (userModules.includes("WAREHOUSE_GATEPASS") || userModules.includes("GATEPASS_REQUESTER")) redirect("/forms/warehouse/gatepass")
+    if (userModules.includes("SECURITY_GATEPASS")) redirect("/forms/warehouse/gatepass/security")
     if (userModules.includes("MAINTENANCE_FORMS")) redirect("/forms/maintenance")
+    if (userModules.includes("PALLET_LEDGER")) redirect("/forms/maintenance/pallet-transfer")
     if (userModules.includes("MAINTENANCE_DASHBOARD")) redirect("/forms/maintenance/dashboard")
     if (userModules.includes("MAINTENANCE_REPORTS")) redirect("/forms/maintenance/reports")
     if (userModules.includes("PRODUCTION_STOCK")) redirect("/forms/production/stock")

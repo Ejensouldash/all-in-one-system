@@ -21,6 +21,13 @@ type PODOrder = {
   driverName?: string | null
   createdBy?: { name: string } | null
   items: PODItem[]
+  gatePassLinks?: Array<{
+    gatePass: {
+      gatePassNo: string
+      status: string
+      verificationTokens: Array<{ publicCode: string }>
+    }
+  }>
 }
 
 export default function PrintPODPage({ params }: { params: Promise<{ id: string }> }) {
@@ -72,6 +79,8 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
   }
 
   const totalBoxes = Object.values(aggregatedItems).reduce((a, item) => a + item.qty, 0)
+  const linkedGatePass = doOrder.gatePassLinks?.[0]?.gatePass
+  const gatePassCode = linkedGatePass?.verificationTokens?.[0]?.publicCode
   const dateStr = new Date(doOrder.distributionDate).toLocaleDateString('en-GB', {
     day: '2-digit', month: 'long', year: 'numeric'
   })
@@ -213,7 +222,7 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
         }
         .info-card-body {
           display: grid;
-          grid-template-columns: 1fr 1fr 124px;
+          grid-template-columns: 1fr 1fr 170px;
           gap: 0;
           padding: 14px 16px;
         }
@@ -560,20 +569,19 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
                 </div>
                 <div style={{
                   borderLeft: '1px solid #d1dbe8',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  display: 'flex', alignItems: 'center', gap: 12,
                   justifyContent: 'center', paddingLeft: 14, marginLeft: 8
                 }}>
-                  {origin ? (
-                    <QRCodeSVG
-                      value={`${origin}/forms/warehouse/trace/do/${doOrder.id}`}
-                      size={86}
-                      level="H"
-                      includeMargin={false}
-                    />
-                  ) : <div style={{ width: 86, height: 86, background: '#f5f8fc' }} />}
-                  <span style={{ marginTop: 5, fontSize: 7, fontWeight: 800, letterSpacing: 0.8, color: '#003366', textTransform: 'uppercase', textAlign: 'center' }}>
-                    Scan DO Tracking
-                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    {origin ? <QRCodeSVG value={`${origin}/forms/warehouse/trace/do/${doOrder.id}`} size={gatePassCode ? 64 : 86} level="H" includeMargin={false} /> : <div style={{ width: 64, height: 64, background: '#f5f8fc' }} />}
+                    <span style={{ marginTop: 5, fontSize: 6.5, fontWeight: 800, letterSpacing: 0.5, color: '#003366', textTransform: 'uppercase', textAlign: 'center' }}>DO Tracking</span>
+                  </div>
+                  {gatePassCode && origin && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <QRCodeSVG value={`${origin}/public/gatepass/verify/${gatePassCode}`} size={64} level="H" includeMargin={false} />
+                      <span style={{ marginTop: 5, fontSize: 6.5, fontWeight: 800, letterSpacing: 0.5, color: '#8a4b00', textTransform: 'uppercase', textAlign: 'center' }}>{linkedGatePass?.gatePassNo}<br />Gatepass</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

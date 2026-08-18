@@ -63,6 +63,10 @@ const MODULE_CATEGORIES: CategoryDef[] = [
     iconClass: "bg-amber-50 text-amber-600 border-amber-100",
     modules: [
       { id: "WAREHOUSE", name: "Warehouse & Transfer In", description: "Manage inventory and incoming deliveries.", icon: Warehouse },
+      { id: "GATEPASS_REQUESTER", name: "Gatepass Requester", description: "Create Gatepass planning requests and issue the secure customer form link. Does not move product stock.", icon: ClipboardList },
+      { id: "WAREHOUSE_GATEPASS", name: "Warehouse Gatepass Operations", description: "Acknowledge, prepare and confirm loading for Gatepass requests. Does not change Production or InventoryBatch.", icon: Warehouse },
+      { id: "SECURITY_GATEPASS", name: "Security Gatepass Check-In/Out", description: "Scan Gatepass QR and record vehicle check-in or check-out only.", icon: ShieldCheck },
+      { id: "PALLET_LEDGER", name: "Returnable Pallet Ledger", description: "Maintain the separate wooden-pallet movement ledger under GMP.", icon: Boxes },
       { id: "RAW_MATERIAL_WITHDRAWAL", name: "Ambil Bahan dari Warehouse", description: "Record raw material taken off the warehouse rack. Grants the Daily Raw Material screens only, not the rest of the warehouse module.", icon: PackageOpen },
       { id: "RAW_MATERIAL_WITHDRAWAL_BACKDATE", name: "Ambil Bahan — Rekod Tarikh Lepas", description: "Allows recording a withdrawal that was missed on the day, up to 7 days back, with a written reason. The generated DO is still posted with today's date so production can claim it.", icon: CalendarClock },
       { id: "PRODUCTION_STOCK", name: "Production Stock", description: "View and manage production stock balances.", icon: Boxes },

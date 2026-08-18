@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ClipboardList, FileSpreadsheet, LayoutDashboard, Activity } from "lucide-react"
+import { ClipboardList, FileSpreadsheet, LayoutDashboard, Activity, Boxes } from "lucide-react"
 
 export function MaintenanceTabs({ userModules = [] }: { userModules?: string[] }) {
   const pathname = usePathname()
@@ -10,7 +10,8 @@ export function MaintenanceTabs({ userModules = [] }: { userModules?: string[] }
   const isReports = pathname.startsWith("/forms/maintenance/reports")
   const isDashboard = pathname.startsWith("/forms/maintenance/dashboard")
   const isSummary = pathname.startsWith("/forms/maintenance/summary")
-  const isForms = !isReports && !isDashboard && !isSummary
+  const isPallet = pathname.startsWith("/forms/maintenance/pallet-transfer")
+  const isForms = !isReports && !isDashboard && !isSummary && !isPallet
   
   // If no modules provided (e.g. from client component), default to showing all to avoid breakage,
   // or handle gracefully. Usually it's better to hide if not included, but if array is empty
@@ -19,6 +20,7 @@ export function MaintenanceTabs({ userModules = [] }: { userModules?: string[] }
   const hasDashboard = userModules.length === 0 || userModules.includes("MAINTENANCE_DASHBOARD")
   const hasReports = userModules.length === 0 || userModules.includes("MAINTENANCE_REPORTS")
   const hasSummary = userModules.length === 0 || userModules.includes("MAINTENANCE_SUMMARY")
+  const hasPallet = userModules.length === 0 || userModules.includes("PALLET_LEDGER") || userModules.includes("WAREHOUSE")
 
   return (
     <div className="mb-8 border-b border-gray-200 overflow-x-auto">
@@ -76,6 +78,20 @@ export function MaintenanceTabs({ userModules = [] }: { userModules?: string[] }
           >
             <Activity className="w-5 h-5 mr-2" />
             Summary
+          </Link>
+        )}
+
+        {hasPallet && (
+          <Link
+            href="/forms/maintenance/pallet-transfer"
+            className={`flex items-center pb-4 text-sm font-black uppercase tracking-wider border-b-4 transition-colors ${
+              isPallet
+                ? "border-amber-600 text-amber-700"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            <Boxes className="w-5 h-5 mr-2" />
+            Pallet Ledger
           </Link>
         )}
       </div>

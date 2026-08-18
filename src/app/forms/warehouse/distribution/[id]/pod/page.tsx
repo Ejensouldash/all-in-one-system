@@ -34,7 +34,7 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
   const [doOrder, setDoOrder] = useState<PODOrder | "not_found" | null>(null)
   const origin = useSyncExternalStore(
     () => () => undefined,
-    () => window.location.origin,
+    () => (typeof window !== "undefined" ? window.location.origin : ""),
     () => ""
   )
 
@@ -222,7 +222,7 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
         }
         .info-card-body {
           display: grid;
-          grid-template-columns: 1fr 1fr 170px;
+          grid-template-columns: 1fr 1fr 150px;
           gap: 0;
           padding: 14px 16px;
         }
@@ -529,7 +529,7 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
             <div className="info-card">
               <div className="info-card-header">Distribution Order Details</div>
               <div className="info-card-body">
-              <div>
+                <div>
                   <div className="info-row">
                     <span className="info-label">DO Number</span>
                     <span className="info-value" style={{ color: '#003366', fontWeight: 800 }}>{doOrder.doNumber}</span>
@@ -567,51 +567,65 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
                     <span className="info-value">{doOrder.createdBy?.name}</span>
                   </div>
                 </div>
+
+                {/* SINGLE UNIFIED MASTER QR CODE */}
                 <div style={{
                   borderLeft: '1px solid #d1dbe8',
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  justifyContent: 'center', paddingLeft: 14, marginLeft: 8
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  justifyContent: 'center', paddingLeft: 12, marginLeft: 6, textAlign: 'center'
                 }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    {origin ? <QRCodeSVG value={`${origin}/forms/warehouse/trace/do/${doOrder.id}`} size={gatePassCode ? 64 : 86} level="H" includeMargin={false} /> : <div style={{ width: 64, height: 64, background: '#f5f8fc' }} />}
-                    <span style={{ marginTop: 5, fontSize: 6.5, fontWeight: 800, letterSpacing: 0.5, color: '#003366', textTransform: 'uppercase', textAlign: 'center' }}>DO Tracking</span>
-                  </div>
-                  {gatePassCode && origin && (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <QRCodeSVG value={`${origin}/public/gatepass/verify/${gatePassCode}`} size={64} level="H" includeMargin={false} />
-                      <span style={{ marginTop: 5, fontSize: 6.5, fontWeight: 800, letterSpacing: 0.5, color: '#8a4b00', textTransform: 'uppercase', textAlign: 'center' }}>{linkedGatePass?.gatePassNo}<br />Gatepass</span>
-                    </div>
+                  {origin ? (
+                    <>
+                      <QRCodeSVG
+                        value={gatePassCode ? `${origin}/public/gatepass/verify/${gatePassCode}` : `${origin}/forms/warehouse/trace/do/${doOrder.id}`}
+                        size={78}
+                        level="H"
+                        includeMargin={false}
+                      />
+                      <span style={{ marginTop: 5, fontSize: 7, fontWeight: 900, letterSpacing: 0.5, color: '#003366', textTransform: 'uppercase' }}>
+                        {gatePassCode ? 'Gatepass Verification' : 'DO Tracking'}
+                      </span>
+                      {linkedGatePass && (
+                        <span style={{ fontSize: 6.5, fontWeight: 800, color: '#8a4b00', letterSpacing: 0.3, marginTop: 1 }}>
+                          {linkedGatePass.gatePassNo}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ width: 78, height: 78, background: '#f5f8fc' }} />
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Items Table */}
+            {/* Items Table with clean 4-columns (No, Description, Batch Number, Quantity) */}
             <table className="items-table">
               <thead>
                 <tr>
                   <th style={{ width: 40, textAlign: 'center' }}>No.</th>
                   <th>Item Description</th>
-                  <th style={{ width: 130, textAlign: 'center' }}>Quantity (Box)</th>
-                  <th style={{ width: 58, textAlign: 'center' }}>Batch QR</th>
+                  <th style={{ width: 140, textAlign: 'center' }}>Batch Number</th>
+                  <th style={{ width: 120, textAlign: 'center' }}>Quantity (Box)</th>
                 </tr>
               </thead>
               <tbody>
                 {Object.values(aggregatedItems).map((item, idx) => (
                   <tr key={`${item.sku}_${item.batchNo}`}>
                     <td style={{ textAlign: 'center', color: '#4a6080', fontWeight: 600 }}>{idx + 1}</td>
-                    <td>{labels[item.sku] || item.sku} - {item.batchNo}</td>
-                    <td className="qty-col">{item.qty as React.ReactNode}</td>
-                    <td style={{ textAlign: 'center' }}>
-                      {origin && (
-                        <QRCodeSVG
-                          value={`${origin}/forms/warehouse/inventory/batch/${encodeURIComponent(item.batchNo)}?sku=${encodeURIComponent(item.sku)}&batch=${encodeURIComponent(item.batchNo)}&v=2`}
-                          size={34}
-                          level="M"
-                          includeMargin={false}
-                        />
-                      )}
+                    <td>
+                      <div style={{ fontWeight: 700, color: '#1a1a2e' }}>{labels[item.sku] || item.sku}</div>
+                      <div style={{ fontSize: '8.5px', color: '#64748b', textTransform: 'uppercase' }}>SKU: {item.sku}</div>
                     </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span style={{
+                        fontFamily: 'monospace', fontWeight: 800, fontSize: '11px',
+                        color: '#003366', background: '#eef4fb', padding: '3px 8px',
+                        borderRadius: '3px', border: '1px solid #d1dbe8', display: 'inline-block'
+                      }}>
+                        {item.batchNo}
+                      </span>
+                    </td>
+                    <td className="qty-col">{item.qty}</td>
                   </tr>
                 ))}
                 {Object.entries(aggregatedItems).length === 0 && (
@@ -624,9 +638,8 @@ export default function PrintPODPage({ params }: { params: Promise<{ id: string 
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={2}>Total</td>
+                  <td colSpan={3} style={{ textAlign: 'right', paddingRight: 20 }}>Total Quantity</td>
                   <td className="total-qty">{totalBoxes}</td>
-                  <td></td>
                 </tr>
               </tfoot>
             </table>

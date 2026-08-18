@@ -101,6 +101,28 @@ export async function getDistributionTraceData(id: string) {
       createdBy: true,
       items: true,
       returns: true,
+      gatePassLinks: {
+        include: {
+          gatePass: {
+            include: {
+              items: true,
+              statusEvents: {
+                orderBy: { occurredAt: "asc" },
+                include: { actorUser: true }
+              },
+              palletTransfers: {
+                include: {
+                  lines: { include: { palletType: true } }
+                }
+              },
+              verificationTokens: {
+                where: { revokedAt: null },
+                orderBy: { createdAt: "desc" }
+              }
+            }
+          }
+        }
+      },
       trackingEvents: {
         include: { recordedBy: true },
         orderBy: { recordedAt: "asc" }

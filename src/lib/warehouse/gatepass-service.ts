@@ -364,7 +364,32 @@ export async function getVerificationGatePass(publicCode: string) {
   const token = await prisma.gatePassVerificationToken.findUnique({
     where: { publicCode },
     include: {
-      gatePass: { select: { id: true, gatePassNo: true, status: true, requestedPickupAt: true, vehicleNo: true } },
+      gatePass: {
+        select: {
+          id: true,
+          gatePassNo: true,
+          status: true,
+          requestedPickupAt: true,
+          vehicleNo: true,
+          destination: true,
+          customerName: true,
+          plannedPalletQty: true,
+          actualPalletQty: true,
+          deliveryOrders: {
+            include: {
+              distributionOrder: {
+                select: {
+                  id: true,
+                  doNumber: true,
+                  destination: true,
+                  status: true,
+                  items: { select: { sku: true, qtySent: true, batchNumber: true } },
+                },
+              },
+            },
+          },
+        },
+      },
     },
   })
   if (!token || token.revokedAt) return null

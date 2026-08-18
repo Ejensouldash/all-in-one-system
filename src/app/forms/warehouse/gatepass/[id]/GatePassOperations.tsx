@@ -15,6 +15,7 @@ import {
   Layers,
   Link2,
   PackageCheck,
+  Printer,
   RefreshCw,
   ShieldAlert,
   ShieldCheck,
@@ -611,9 +612,28 @@ export function GatePassOperations({
                 Delivery Orders (DO)
               </div>
               {gatePass.deliveryOrders.map((link) => (
-                <div key={link.distributionOrder.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-                  <div className="font-black text-slate-900">{link.distributionOrder.doNumber}</div>
+                <div key={link.distributionOrder.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-sm space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="font-black text-slate-900 font-mono">{link.distributionOrder.doNumber}</div>
+                    <span className="text-[10px] font-bold uppercase bg-slate-200 text-slate-700 px-2 py-0.5 rounded">
+                      {link.distributionOrder.status}
+                    </span>
+                  </div>
                   <div className="text-xs text-slate-500 truncate">{link.distributionOrder.destination}</div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <Link
+                      href={`/forms/warehouse/trace/do/${link.distributionOrder.id}`}
+                      className="inline-flex items-center gap-1 rounded-lg bg-cyan-50 border border-cyan-200 px-2.5 py-1 text-[11px] font-bold text-cyan-800 hover:bg-cyan-100 transition-colors"
+                    >
+                      <ExternalLink className="h-3 w-3" /> Traceability
+                    </Link>
+                    <Link
+                      href={`/forms/warehouse/distribution/${link.distributionOrder.id}/pod`}
+                      className="inline-flex items-center gap-1 rounded-lg bg-white border border-slate-300 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-100 transition-colors"
+                    >
+                      <Printer className="h-3 w-3" /> Cetak DO
+                    </Link>
+                  </div>
                 </div>
               ))}
               {!gatePass.deliveryOrders.length && (

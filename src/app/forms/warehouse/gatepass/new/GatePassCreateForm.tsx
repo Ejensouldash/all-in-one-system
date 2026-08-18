@@ -8,6 +8,13 @@ import { createWarehouseGatePassAction } from "@/app/actions/warehouse-gatepass"
 
 type Item = { sku: string; description: string; uom: string; plannedQty: number }
 
+const SKU_OPTIONS = [
+  { value: "p425_24", label: "425ML X 24", description: "BUBBLES O2 Mineral Water 425 ML x 24" },
+  { value: "p425_6", label: "425ML X 6", description: "BUBBLES O2 Mineral Water 425 ML x 6" },
+  { value: "p800_20", label: "800ML X 20", description: "BUBBLES O2 Mineral Water 800 ML x 20" },
+  { value: "p800_12", label: "800ML X 12", description: "BUBBLES O2 Mineral Water 800 ML x 12" },
+] as const
+
 export function GatePassCreateForm() {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -16,6 +23,13 @@ export function GatePassCreateForm() {
 
   function updateItem(index: number, key: keyof Item, value: string | number) {
     setItems(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item))
+  }
+
+  function updateSku(index: number, sku: string) {
+    const selected = SKU_OPTIONS.find(option => option.value === sku)
+    setItems(current => current.map((item, itemIndex) => itemIndex === index
+      ? { ...item, sku, description: selected?.description || "" }
+      : item))
   }
 
   function submit(formData: FormData) {
@@ -69,8 +83,11 @@ export function GatePassCreateForm() {
         <div className="mb-4 flex items-center justify-between"><div><h3 className="font-black text-slate-900">Planned Loading Items</h3><p className="text-xs text-slate-500">Planning quantity only; actual quantity is confirmed by Warehouse later.</p></div><button type="button" onClick={() => setItems(current => [...current, { sku: "", description: "", uom: "BOX", plannedQty: 1 }])} className="inline-flex items-center gap-1 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-black text-cyan-800"><Plus className="h-4 w-4" /> Add item</button></div>
         <div className="space-y-3">
           {items.map((item, index) => <div key={index} className="grid gap-3 rounded-xl bg-slate-50 p-3 md:grid-cols-[1fr_2fr_100px_120px_40px]">
-            <input aria-label={`SKU item ${index + 1}`} value={item.sku} onChange={event => updateItem(index, "sku", event.target.value)} className={inputClass} placeholder="SKU (optional)" />
-            <input aria-label={`Description item ${index + 1}`} required value={item.description} onChange={event => updateItem(index, "description", event.target.value)} className={inputClass} placeholder="Description" />
+            <select aria-label={`SKU item ${index + 1}`} required value={item.sku} onChange={event => updateSku(index, event.target.value)} className={inputClass}>
+              <option value="">Select SKU</option>
+              {SKU_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+            <input aria-label={`Description item ${index + 1}`} required readOnly value={item.description} className={`${inputClass} bg-slate-100 text-slate-600`} placeholder="Description fills automatically" />
             <input aria-label={`UOM item ${index + 1}`} required value={item.uom} onChange={event => updateItem(index, "uom", event.target.value)} className={inputClass} />
             <input aria-label={`Quantity item ${index + 1}`} required type="number" min="1" value={item.plannedQty} onChange={event => updateItem(index, "plannedQty", Number(event.target.value))} className={inputClass} />
             <button aria-label={`Remove item ${index + 1}`} type="button" disabled={items.length === 1} onClick={() => setItems(current => current.filter((_, itemIndex) => itemIndex !== index))} className="mt-1 rounded-lg text-red-500 hover:bg-red-50 disabled:opacity-30"><Trash2 className="mx-auto h-4 w-4" /></button>

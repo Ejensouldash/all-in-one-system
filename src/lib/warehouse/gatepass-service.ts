@@ -110,7 +110,7 @@ function validateItems(items: GatePassItemInput[]) {
 
 async function nextGatePassNo(tx: Prisma.TransactionClient, requestedPickupAt: Date) {
   const dateKey = operationalDateKey(requestedPickupAt)
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`warehouse-gatepass:${dateKey}`}))`
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`warehouse-gatepass:${dateKey}`}))`
   const prefix = `GP-${dateKey}-`
   const latest = await tx.warehouseGatePass.findFirst({
     where: { gatePassNo: { startsWith: prefix } },
@@ -306,7 +306,7 @@ export async function submitExternalGatePass(rawToken: string, input: ExternalGa
   }
 
   return prisma.$transaction(async tx => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`gatepass-external-submit:${tokenHash}`}))`
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`gatepass-external-submit:${tokenHash}`}))`
     const token = await tx.gatePassExternalToken.findUnique({
       where: { tokenHash },
       include: { gatePass: true },
@@ -429,7 +429,7 @@ export async function transitionWarehouseGatePass(input: {
   if (!actorCanSetStatus(actor, input.toStatus)) throw new Error("Peranan anda tidak dibenarkan menetapkan status ini.")
 
   return prisma.$transaction(async tx => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`warehouse-gatepass-transition:${input.gatePassId}`}))`
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`warehouse-gatepass-transition:${input.gatePassId}`}))`
     const gatePass = await tx.warehouseGatePass.findUnique({
       where: { id: input.gatePassId },
       include: {

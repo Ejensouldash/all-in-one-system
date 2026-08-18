@@ -56,7 +56,7 @@ function parseDate(value: string | Date) {
 
 async function nextTransferNo(tx: Prisma.TransactionClient, occurredAt: Date) {
   const dateKey = operationalDateKey(occurredAt)
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`pallet-transfer:${dateKey}`}))`
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`pallet-transfer:${dateKey}`}))`
   const prefix = `PT-${dateKey}-`
   const latest = await tx.palletTransfer.findFirst({
     where: { transferNo: { startsWith: prefix } },
@@ -117,7 +117,7 @@ async function assertSourceBalances(
 ) {
   if (fromCustodian.kind === "SYSTEM_OPENING") return
   for (const line of [...lines].sort((a, b) => a.palletTypeId.localeCompare(b.palletTypeId))) {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`pallet-balance:${fromCustodian.id}:${line.palletTypeId}`}))`
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`pallet-balance:${fromCustodian.id}:${line.palletTypeId}`}))`
     const balance = await balanceInTransaction(tx, fromCustodian.id, line.palletTypeId)
     if (balance < line.quantity) {
       throw new Error(
@@ -271,7 +271,7 @@ export async function createPalletTransfer(input: CreatePalletTransferInput) {
 export async function postPalletTransfer(transferId: string) {
   const access = await requireWarehouseOperationAccess("PALLET")
   return prisma.$transaction(async tx => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`pallet-transfer-post:${transferId}`}))`
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`pallet-transfer-post:${transferId}`}))`
     const transfer = await tx.palletTransfer.findUnique({
       where: { id: transferId },
       include: {
@@ -321,7 +321,7 @@ export async function reversePalletTransfer(transferId: string, reason: string) 
   if (!reversalReason) throw new Error("Sebab reversal diperlukan.")
 
   return prisma.$transaction(async tx => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`pallet-transfer-reverse:${transferId}`}))`
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`pallet-transfer-reverse:${transferId}`}))`
     const original = await tx.palletTransfer.findUnique({
       where: { id: transferId },
       include: {

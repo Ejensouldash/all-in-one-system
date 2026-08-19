@@ -2,7 +2,8 @@ import Link from "next/link"
 import { Boxes, History, Plus, Scale, Warehouse } from "lucide-react"
 import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
 import { getAccessInfo } from "@/lib/access"
-import { getPalletBalances, listPalletTransfers } from "@/lib/warehouse/pallet-ledger-service"
+import { getPalletBalances, listPalletTransfers, listPhysicalPalletDashboard, listPalletReferenceData } from "@/lib/warehouse/pallet-ledger-service"
+import { PhysicalPalletControls } from "./PhysicalPalletControls"
 import { redirect } from "next/navigation"
 
 export const dynamic = "force-dynamic"
@@ -11,7 +12,7 @@ export const metadata = { title: "Returnable Pallet Ledger" }
 export default async function PalletLedgerPage() {
   const access = await getAccessInfo()
   if (!access) redirect("/login?callbackUrl=/forms/maintenance/pallet-transfer")
-  const [balances, transfers] = await Promise.all([getPalletBalances(), listPalletTransfers()])
+  const [balances, transfers, physicalPallets, reference] = await Promise.all([getPalletBalances(), listPalletTransfers(), listPhysicalPalletDashboard(), listPalletReferenceData()])
   const totalUsable = balances
     .filter((row) => row.custodian.kind === "WAREHOUSE_USABLE")
     .reduce((sum, row) => sum + row.balance, 0)
@@ -47,6 +48,8 @@ export default async function PalletLedgerPage() {
             </Link>
           </div>
         </div>
+
+        <PhysicalPalletControls palletTypes={reference.palletTypes} custodians={reference.custodians} gatePasses={reference.gatePasses} />
 
         {/* Balances Summary Metric Cards */}
         <div className="grid gap-4 sm:grid-cols-4">
@@ -175,6 +178,18 @@ export default async function PalletLedgerPage() {
                   </tr>
                 )}
               </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm">
+          <div className="border-b border-stone-200 px-6 py-4 bg-stone-50/50">
+            <h2 className="font-black text-stone-950 text-base">Pallet Fizikal Ber-QR</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-stone-50 text-[10px] uppercase tracking-wider text-stone-500"><tr><th className="px-6 py-3">QR / ID</th><th className="px-6 py-3">Status</th><th className="px-6 py-3">Lokasi Semasa</th><th className="px-6 py-3">Kemaskini</th></tr></thead>
+              <tbody className="divide-y divide-stone-100">{physicalPallets.map(pallet => <tr key={pallet.id}><td className="px-6 py-3"><Link className="font-black text-amber-900 hover:underline" href={`/forms/maintenance/pallet-transfer/trace/${encodeURIComponent(pallet.palletCode)}`}>{pallet.palletCode}</Link></td><td className="px-6 py-3 font-bold">{pallet.status.replaceAll("_", " ")}</td><td className="px-6 py-3">{pallet.currentCustodian?.name || "Warehouse"}</td><td className="px-6 py-3 text-xs text-stone-500">{pallet.lastMovedAt.toLocaleDateString("en-MY")}</td></tr>)}{!physicalPallets.length && <tr><td className="px-6 py-8 text-stone-500" colSpan={4}>Belum ada pallet fizikal didaftarkan. Daftarkan QR pallet sebelum scan keluar/return.</td></tr>}</tbody>
             </table>
           </div>
         </section>

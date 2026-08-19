@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation"
 import { getWarehouseGatePass, listAvailableDistributionOrders } from "@/lib/warehouse/gatepass-service"
+import { getAvailableInventory } from "@/app/actions/warehouse"
 import { getWarehouseOperationAccess } from "@/lib/warehouse/operations-access"
 import { GatePassOperations } from "./GatePassOperations"
 
@@ -10,9 +11,10 @@ export default async function GatePassDetailPage({ params }: { params: Promise<{
   if (!capabilities) redirect("/login")
   if (!capabilities.requester) redirect("/forms")
   const { id } = await params
-  const [gatePass, distributionOrders] = await Promise.all([
+  const [gatePass, distributionOrders, availableInventory] = await Promise.all([
     getWarehouseGatePass(id),
     capabilities.warehouse ? listAvailableDistributionOrders() : Promise.resolve([]),
+    capabilities.warehouse ? getAvailableInventory() : Promise.resolve([]),
   ])
   if (!gatePass) notFound()
 
@@ -40,5 +42,5 @@ export default async function GatePassDetailPage({ params }: { params: Promise<{
     palletTransfers: gatePass.palletTransfers.map(transfer => ({ ...transfer, occurredAt: transfer.occurredAt.toISOString() })),
   }
   const doOptions = distributionOrders.map(order => ({ ...order, distributionDate: order.distributionDate.toISOString() }))
-  return <GatePassOperations gatePass={data} doOptions={doOptions} canWarehouse={capabilities.warehouse} canRequester={capabilities.requester} />
+  return <GatePassOperations gatePass={data} doOptions={doOptions} availableInventory={availableInventory} canWarehouse={capabilities.warehouse} canRequester={capabilities.requester} />
 }

@@ -55,6 +55,7 @@ model User {
   postedPalletTransfers      PalletTransfer[]        @relation("PalletTransferPoster")
   reversedPalletTransfers    PalletTransfer[]        @relation("PalletTransferReverser")
   createdPalletMovements     PalletMovement[]        @relation("PalletMovementCreator")
+  recordedPhysicalPalletEvents PhysicalPalletEvent[]
 }
 
 model Branch {
@@ -488,6 +489,8 @@ model DistributionOrder {
   trackingEvents     DistributionTrackingEvent[]
   gatePassLinks      GatePassDeliveryOrder[]
   palletTransfers    PalletTransfer[]
+  physicalPallets    PhysicalPallet[] @relation("CurrentPalletDO")
+  physicalPalletEvents PhysicalPalletEvent[]
 }
 
 // Append-only delivery milestones. These records enrich warehouse traceability without changing
@@ -627,6 +630,14 @@ enum PalletCondition {
   LOST
 }
 
+enum PhysicalPalletStatus {
+  IN_WAREHOUSE
+  WITH_CUSTOMER
+  RETURNED
+  DAMAGED
+  LOST
+}
+
 enum PalletCustodianKind {
   SYSTEM_OPENING
   WAREHOUSE_USABLE
@@ -714,6 +725,8 @@ model WarehouseGatePass {
   statusEvents       GatePassStatusEvent[]
   deliveryOrders     GatePassDeliveryOrder[]
   palletTransfers    PalletTransfer[]
+  physicalPallets    PhysicalPallet[] @relation("CurrentPalletGatePass")
+  physicalPalletEvents PhysicalPalletEvent[]
 
   @@index([status, requestedPickupAt])
   @@index([customerName])
@@ -796,6 +809,7 @@ model GatePassDeliveryOrder {
   linkedBy          User              @relation("GatePassDOLinker", fields: [linkedById], references: [id])
 
   @@id([gatePassId, distributionOrderId])
+  @@unique([distributionOrderId])
   @@index([distributionOrderId])
   @@index([linkedById])
 }
@@ -811,6 +825,54 @@ model PalletType {
 
   transferLines PalletTransferLine[]
   movements     PalletMovement[]
+  physicalPallets PhysicalPallet[]
+}
+
+// Individually labelled returnable assets.  The aggregate ledger remains the financial/quantity
+// source of truth while this table gives operations a scan-friendly physical location history.
+model PhysicalPallet {
+  id                  String               @id @default(uuid())
+  palletCode          String               @unique
+  palletTypeId        String
+  status              PhysicalPalletStatus @default(IN_WAREHOUSE)
+  condition           PalletCondition      @default(USABLE)
+  currentCustodianId  String?
+  currentGatePassId   String?
+  currentDOId         String?
+  lastMovedAt         DateTime             @default(now())
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  palletType       PalletType          @relation(fields: [palletTypeId], references: [id])
+  currentCustodian PalletCustodian?    @relation(fields: [currentCustodianId], references: [id])
+  currentGatePass  WarehouseGatePass?  @relation("CurrentPalletGatePass", fields: [currentGatePassId], references: [id])
+  currentDO        DistributionOrder?  @relation("CurrentPalletDO", fields: [currentDOId], references: [id])
+  events           PhysicalPalletEvent[]
+
+  @@index([status, currentCustodianId])
+  @@index([palletTypeId])
+}
+
+model PhysicalPalletEvent {
+  id                String   @id @default(uuid())
+  physicalPalletId  String
+  eventType         String
+  fromCustodianId   String?
+  toCustodianId     String?
+  gatePassId        String?
+  distributionOrderId String?
+  remarks           String?  @db.Text
+  recordedById      String
+  occurredAt        DateTime @default(now())
+
+  physicalPallet PhysicalPallet @relation(fields: [physicalPalletId], references: [id], onDelete: Cascade)
+  fromCustodian  PalletCustodian? @relation("PhysicalPalletEventFrom", fields: [fromCustodianId], references: [id])
+  toCustodian    PalletCustodian? @relation("PhysicalPalletEventTo", fields: [toCustodianId], references: [id])
+  gatePass       WarehouseGatePass? @relation(fields: [gatePassId], references: [id])
+  distributionOrder DistributionOrder? @relation(fields: [distributionOrderId], references: [id])
+  recordedBy User @relation(fields: [recordedById], references: [id])
+
+  @@index([physicalPalletId, occurredAt])
 }
 
 model PalletCustodian {
@@ -826,6 +888,9 @@ model PalletCustodian {
   incomingTransfers PalletTransfer[] @relation("PalletTransferToCustodian")
   outgoingMovements PalletMovement[] @relation("PalletMovementFromCustodian")
   incomingMovements PalletMovement[] @relation("PalletMovementToCustodian")
+  currentPhysicalPallets PhysicalPallet[]
+  physicalPalletEventsFrom PhysicalPalletEvent[] @relation("PhysicalPalletEventFrom")
+  physicalPalletEventsTo PhysicalPalletEvent[] @relation("PhysicalPalletEventTo")
 
   @@unique([kind, name])
   @@index([kind, active])

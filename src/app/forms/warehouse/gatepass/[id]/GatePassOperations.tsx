@@ -24,6 +24,8 @@ import {
 } from "lucide-react"
 import {
   linkWarehouseGatePassDOAction,
+  createWarehouseGatePassDOAction,
+  unlinkWarehouseGatePassDOAction,
   publishWarehouseGatePassAction,
   transitionWarehouseGatePassAction,
   updateWarehouseGatePassActualsAction,
@@ -91,11 +93,13 @@ const STATUS_PIPELINE = [
 export function GatePassOperations({
   gatePass,
   doOptions,
+  availableInventory,
   canWarehouse,
   canRequester,
 }: {
   gatePass: GatePassData
   doOptions: DOOption[]
+  availableInventory: Array<{ sku: string; batchNumber: string; availableBalance: number }>
   canWarehouse: boolean
   canRequester: boolean
 }) {
@@ -633,6 +637,14 @@ export function GatePassOperations({
                     >
                       <Printer className="h-3 w-3" /> Cetak DO
                     </Link>
+                    {canWarehouse && !["CHECKED_OUT", "COMPLETED"].includes(gatePass.status) && (
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => run(() => unlinkWarehouseGatePassDOAction({ gatePassId: gatePass.id, distributionOrderId: link.distributionOrder.id }), "Pautan DO dibuang.")}
+                        className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-bold text-red-700 hover:bg-red-100"
+                      >Buang pautan</button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -660,6 +672,9 @@ export function GatePassOperations({
               )}
             </div>
 
+            {canWarehouse && gatePass.loadingCompletedAt && !gatePass.deliveryOrders.length && (
+              <CreateDOFromGatePassForm gatePass={gatePass} availableInventory={availableInventory} pending={pending} run={run} />
+            )}
             {canWarehouse && <DOLinkForm gatePassId={gatePass.id} options={doOptions} pending={pending} run={run} />}
           </Section>
 
@@ -903,6 +918,58 @@ function DOLinkForm({
       <p className="mt-2 text-[11px] text-slate-500">
         Pautan ini hanya untuk rujukan verifikasi. Ia tidak mencipta atau memotong status DO sedia ada.
       </p>
+    </div>
+  )
+}
+
+function CreateDOFromGatePassForm({
+  gatePass, availableInventory, pending, run,
+}: {
+  gatePass: GatePassData
+  availableInventory: Array<{ sku: string; batchNumber: string; availableBalance: number }>
+  pending: boolean
+  run: (task: () => Promise<{ success: boolean; error?: string }>, success: string) => void
+}) {
+  const eligible = gatePass.items.filter(item => item.sku && (item.actualQty ?? item.plannedQty) > 0)
+  // This component only appears once Warehouse confirms loading; opening immediately prevents
+  // staff from forgetting the required DO while still allowing them to cancel and return later.
+  const [open, setOpen] = useState(true)
+  const [batches, setBatches] = useState<Record<string, string>>({})
+  if (!eligible.length) return <p className="mt-4 text-xs text-red-600">SKU dan actual quantity diperlukan sebelum DO boleh dicipta.</p>
+  return (
+    <div className="mt-4 border-t border-emerald-100 pt-4">
+      <button type="button" onClick={() => setOpen(true)} className="w-full rounded-xl bg-emerald-700 px-3 py-2.5 text-xs font-black text-white hover:bg-emerald-800">
+        Cipta DO daripada Actual Gatepass
+      </button>
+      <p className="mt-2 text-[11px] text-slate-500">Destination, driver, vehicle dan actual quantity akan disalin. Pilih batch stok sebelum sahkan.</p>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+          <div role="dialog" aria-modal="true" className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
+            <h3 className="text-lg font-black text-slate-950">Cipta DO — {gatePass.gatePassNo}</h3>
+            <p className="mt-1 text-sm text-slate-600">{gatePass.destination} · {gatePass.driverName || "Tiada driver"} · {gatePass.vehicleNo || "Tiada kenderaan"}</p>
+            <div className="mt-5 space-y-3">
+              {eligible.map((item) => {
+                const key = item.id
+                const options = availableInventory.filter(batch => batch.sku === item.sku)
+                return <label key={key} className="block rounded-xl border border-slate-200 p-3 text-xs font-bold text-slate-700">
+                  <span className="block">{item.description} — {item.actualQty ?? item.plannedQty} {item.uom}</span>
+                  <select value={batches[key] || ""} onChange={event => setBatches(current => ({ ...current, [key]: event.target.value }))} className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-2">
+                    <option value="">— Pilih batch {item.sku} —</option>
+                    {options.map(batch => <option key={batch.batchNumber} value={batch.batchNumber}>{batch.batchNumber} (baki {batch.availableBalance})</option>)}
+                  </select>
+                </label>
+              })}
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setOpen(false)} className="rounded-xl px-4 py-2 text-sm font-bold text-slate-600">Batal</button>
+              <button type="button" disabled={pending || eligible.some(item => !batches[item.id])} onClick={() => run(
+                () => createWarehouseGatePassDOAction({ gatePassId: gatePass.id, items: eligible.map(item => ({ sku: item.sku!, batchNumber: batches[item.id], qtySent: item.actualQty ?? item.plannedQty })) }),
+                "DO berjaya dicipta dan dipautkan kepada Gatepass."
+              )} className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-black text-white disabled:opacity-50">Sahkan & Cipta DO</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

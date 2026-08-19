@@ -459,3 +459,53 @@ export async function getPalletBalances() {
     })))
     .filter(row => row.balance !== 0 || row.custodian.kind.startsWith("WAREHOUSE"))
 }
+
+export async function createPhysicalPallet(input: { palletCode: string; palletTypeId: string; currentCustodianId?: string | null }) {
+  const access = await requireWarehouseOperationAccess("PALLET")
+  const palletCode = normalizeText(input.palletCode, 80).toUpperCase()
+  if (!palletCode) throw new Error("Kod QR pallet diperlukan.")
+  return prisma.$transaction(async tx => {
+    const [type, custodian] = await Promise.all([
+      tx.palletType.findFirst({ where: { id: input.palletTypeId, active: true } }),
+      input.currentCustodianId ? tx.palletCustodian.findUnique({ where: { id: input.currentCustodianId } }) : Promise.resolve(null),
+    ])
+    if (!type) throw new Error("Jenis pallet tidak sah.")
+    const pallet = await tx.physicalPallet.create({ data: { palletCode, palletTypeId: type.id, currentCustodianId: custodian?.id || null, status: custodian?.kind === "CUSTOMER" ? "WITH_CUSTOMER" : "IN_WAREHOUSE" } })
+    await tx.physicalPalletEvent.create({ data: { physicalPalletId: pallet.id, eventType: "REGISTERED", toCustodianId: pallet.currentCustodianId, recordedById: access.userId } })
+    return pallet
+  })
+}
+
+export async function movePhysicalPallets(input: { palletCodes: string[]; toCustodianId: string; gatePassId?: string | null; distributionOrderId?: string | null; condition?: "USABLE" | "DAMAGED" | "LOST"; remarks?: string | null }) {
+  const access = await requireWarehouseOperationAccess("PALLET")
+  const codes = [...new Set(input.palletCodes.map(code => normalizeText(code, 80).toUpperCase()).filter(Boolean))]
+  if (!codes.length) throw new Error("Scan sekurang-kurangnya satu QR pallet.")
+  return prisma.$transaction(async tx => {
+    const [toCustodian, pallets] = await Promise.all([
+      tx.palletCustodian.findUnique({ where: { id: input.toCustodianId } }),
+      tx.physicalPallet.findMany({ where: { palletCode: { in: codes } } }),
+    ])
+    if (!toCustodian || pallets.length !== codes.length) throw new Error("Pallet atau custodian tidak sah.")
+    if (input.gatePassId) {
+      const link = input.distributionOrderId ? await tx.gatePassDeliveryOrder.findUnique({ where: { gatePassId_distributionOrderId: { gatePassId: input.gatePassId, distributionOrderId: input.distributionOrderId } } }) : null
+      if (!link) throw new Error("Pallet keluar mesti menggunakan Gatepass dan DO yang telah dipautkan.")
+    }
+    const condition = input.condition || "USABLE"
+    const status = condition === "LOST" ? "LOST" : condition === "DAMAGED" ? "DAMAGED" : toCustodian.kind === "CUSTOMER" || toCustodian.kind === "TRANSPORTER" ? "WITH_CUSTOMER" : "RETURNED"
+    for (const pallet of pallets) {
+      await tx.physicalPallet.update({ where: { id: pallet.id }, data: { currentCustodianId: toCustodian.id, currentGatePassId: input.gatePassId || null, currentDOId: input.distributionOrderId || null, condition, status, lastMovedAt: new Date() } })
+      await tx.physicalPalletEvent.create({ data: { physicalPalletId: pallet.id, eventType: status === "WITH_CUSTOMER" ? "ISSUED" : "RETURNED", fromCustodianId: pallet.currentCustodianId, toCustodianId: toCustodian.id, gatePassId: input.gatePassId || null, distributionOrderId: input.distributionOrderId || null, remarks: normalizeText(input.remarks, 4000) || null, recordedById: access.userId } })
+    }
+    return { moved: pallets.length, status }
+  })
+}
+
+export async function getPhysicalPalletTrace(palletCode: string) {
+  await requireWarehouseOperationAccess("PALLET")
+  return prisma.physicalPallet.findUnique({ where: { palletCode: normalizeText(palletCode, 80).toUpperCase() }, include: { palletType: true, currentCustodian: true, currentGatePass: { select: { gatePassNo: true } }, currentDO: { select: { doNumber: true } }, events: { orderBy: { occurredAt: "desc" }, include: { fromCustodian: true, toCustodian: true, gatePass: { select: { gatePassNo: true } }, distributionOrder: { select: { doNumber: true } } } } } })
+}
+
+export async function listPhysicalPalletDashboard() {
+  await requireWarehouseOperationAccess("PALLET")
+  return prisma.physicalPallet.findMany({ orderBy: [{ status: "asc" }, { lastMovedAt: "desc" }], include: { palletType: true, currentCustodian: true }, take: 500 })
+}

@@ -592,10 +592,17 @@ export async function linkGatePassToDistributionOrder(gatePassId: string, distri
   const access = await requireWarehouseOperationAccess("WAREHOUSE")
   return prisma.$transaction(async tx => {
     const [gatePass, order] = await Promise.all([
-      tx.warehouseGatePass.findUnique({ where: { id: gatePassId }, select: { id: true, gatePassNo: true } }),
+      tx.warehouseGatePass.findUnique({ where: { id: gatePassId }, select: { id: true, gatePassNo: true, status: true } }),
       tx.distributionOrder.findUnique({ where: { id: distributionOrderId }, select: { id: true, doNumber: true } }),
     ])
     if (!gatePass || !order) throw new Error("Gatepass atau Distribution Order tidak ditemui.")
+    if (["CHECKED_OUT", "COMPLETED"].includes(gatePass.status)) throw new Error("DO tidak boleh dipautkan selepas Gatepass check-out.")
+    const existingOwner = await tx.gatePassDeliveryOrder.findUnique({
+      where: { distributionOrderId }, select: { gatePassId: true },
+    })
+    if (existingOwner && existingOwner.gatePassId !== gatePassId) {
+      throw new Error("DO ini telah dipautkan kepada Gatepass lain dan tidak boleh digunakan semula.")
+    }
     if (isPrimary) {
       await tx.gatePassDeliveryOrder.updateMany({ where: { gatePassId }, data: { isPrimary: false } })
     }
@@ -616,9 +623,77 @@ export async function linkGatePassToDistributionOrder(gatePassId: string, distri
   })
 }
 
+export async function unlinkGatePassFromDistributionOrder(gatePassId: string, distributionOrderId: string) {
+  const access = await requireWarehouseOperationAccess("WAREHOUSE")
+  return prisma.$transaction(async tx => {
+    const gatePass = await tx.warehouseGatePass.findUnique({ where: { id: gatePassId }, select: { gatePassNo: true, status: true } })
+    if (!gatePass) throw new Error("Gatepass tidak ditemui.")
+    if (["CHECKED_OUT", "COMPLETED"].includes(gatePass.status)) throw new Error("Pautan DO dikunci selepas check-out.")
+    await tx.gatePassDeliveryOrder.delete({ where: { gatePassId_distributionOrderId: { gatePassId, distributionOrderId } } })
+    await tx.auditLog.create({ data: {
+      userId: access.userId, userName: access.name || "Warehouse User", action: "WAREHOUSE_GATEPASS_DO_UNLINKED",
+      details: JSON.stringify({ gatePassId, gatePassNo: gatePass.gatePassNo, distributionOrderId }),
+    } })
+  })
+}
+
+export type CreateDOFromGatePassInput = {
+  gatePassId: string
+  items: Array<{ sku: string; batchNumber: string; qtySent: number }>
+}
+
+export async function createDistributionOrderFromGatePass(input: CreateDOFromGatePassInput) {
+  const access = await requireWarehouseOperationAccess("WAREHOUSE")
+  if (!input.items.length) throw new Error("Pilih sekurang-kurangnya satu batch untuk DO.")
+  return prisma.$transaction(async tx => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`gatepass-create-do:${input.gatePassId}`}))`
+    const gatePass = await tx.warehouseGatePass.findUnique({ where: { id: input.gatePassId }, include: { items: true, deliveryOrders: true } })
+    if (!gatePass) throw new Error("Gatepass tidak ditemui.")
+    if (!gatePass.loadingCompletedAt) throw new Error("Sahkan actual dan pemuatan siap sebelum mencipta DO.")
+    if (gatePass.deliveryOrders.length) return { distributionOrderId: gatePass.deliveryOrders[0].distributionOrderId, alreadyCreated: true }
+
+    const requested = input.items.map((item, index) => ({
+      sku: normalizeText(item.sku, 120), batchNumber: normalizeText(item.batchNumber, 120),
+      qtySent: positiveWholeNumber(item.qtySent, `Kuantiti batch ${index + 1}`),
+    }))
+    if (requested.some(item => !item.sku || !item.batchNumber)) throw new Error("SKU dan batch diperlukan untuk setiap item DO.")
+    const bySku = new Map<string, number>()
+    for (const item of requested) bySku.set(item.sku, (bySku.get(item.sku) || 0) + item.qtySent)
+    for (const gateItem of gatePass.items) {
+      if (!gateItem.sku) throw new Error(`SKU belum ditetapkan untuk item Gatepass: ${gateItem.description}.`)
+      const expected = gateItem.actualQty ?? gateItem.plannedQty
+      if ((bySku.get(gateItem.sku) || 0) !== expected) {
+        throw new Error(`Jumlah batch untuk ${gateItem.sku} mesti sama dengan actual Gatepass (${expected}).`)
+      }
+      bySku.delete(gateItem.sku)
+    }
+    if (bySku.size) throw new Error("Terdapat SKU yang tidak wujud dalam Gatepass.")
+
+    const dateKey = operationalDateKey(new Date())
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`distribution-order:${dateKey}`}))`
+    const prefix = `DO-${dateKey}-`
+    const latest = await tx.distributionOrder.findFirst({ where: { doNumber: { startsWith: prefix } }, orderBy: { doNumber: "desc" }, select: { doNumber: true } })
+    const doNumber = `${prefix}${String(Number(latest?.doNumber.slice(prefix.length) || 0) + 1).padStart(4, "0")}`
+    for (const item of requested) {
+      const batch = await tx.inventoryBatch.findUnique({ where: { sku_batchNumber: { sku: item.sku, batchNumber: item.batchNumber } } })
+      if (!batch || batch.availableBalance < item.qtySent) throw new Error(`Baki batch ${item.batchNumber} tidak mencukupi.`)
+      await tx.inventoryBatch.update({ where: { sku_batchNumber: { sku: item.sku, batchNumber: item.batchNumber } }, data: { availableBalance: { decrement: item.qtySent }, totalQtyOut: { increment: item.qtySent } } })
+    }
+    const order = await tx.distributionOrder.create({ data: {
+      doNumber, distributionDate: new Date(), destination: gatePass.destination, distributionMethod: "Gatepass",
+      vehicleNo: gatePass.vehicleNo, driverName: gatePass.driverName, createdById: access.userId, status: "SHIPPED",
+      items: { create: requested },
+    } })
+    await tx.gatePassDeliveryOrder.create({ data: { gatePassId: gatePass.id, distributionOrderId: order.id, isPrimary: true, linkedById: access.userId } })
+    await tx.auditLog.create({ data: { userId: access.userId, userName: access.name || "Warehouse User", action: "WAREHOUSE_GATEPASS_DO_CREATED", details: JSON.stringify({ gatePassId: gatePass.id, gatePassNo: gatePass.gatePassNo, distributionOrderId: order.id, doNumber }) } })
+    return { distributionOrderId: order.id, alreadyCreated: false }
+  })
+}
+
 export async function listAvailableDistributionOrders() {
   await requireWarehouseOperationAccess("WAREHOUSE")
   return prisma.distributionOrder.findMany({
+    where: { gatePassLinks: { none: {} } },
     orderBy: { createdAt: "desc" },
     take: 150,
     select: { id: true, doNumber: true, destination: true, distributionDate: true, status: true },

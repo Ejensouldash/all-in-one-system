@@ -4,7 +4,9 @@ import type { GatePassStatus } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 import {
   createWarehouseGatePass,
+  createDistributionOrderFromGatePass,
   linkGatePassToDistributionOrder,
+  unlinkGatePassFromDistributionOrder,
   publishOrRegenerateGatePass,
   transitionWarehouseGatePass,
   updateGatePassActuals,
@@ -82,6 +84,30 @@ export async function linkWarehouseGatePassDOAction(input: {
     await linkGatePassToDistributionOrder(input.gatePassId, input.distributionOrderId, input.isPrimary)
     revalidateGatePass(input.gatePassId)
     return { success: true as const }
+  } catch (error) {
+    return { success: false as const, error: errorMessage(error) }
+  }
+}
+
+export async function unlinkWarehouseGatePassDOAction(input: { gatePassId: string; distributionOrderId: string }) {
+  try {
+    await unlinkGatePassFromDistributionOrder(input.gatePassId, input.distributionOrderId)
+    revalidateGatePass(input.gatePassId)
+    return { success: true as const }
+  } catch (error) {
+    return { success: false as const, error: errorMessage(error) }
+  }
+}
+
+export async function createWarehouseGatePassDOAction(input: {
+  gatePassId: string
+  items: Array<{ sku: string; batchNumber: string; qtySent: number }>
+}) {
+  try {
+    const data = await createDistributionOrderFromGatePass(input)
+    revalidateGatePass(input.gatePassId)
+    revalidatePath("/forms/warehouse/distribution")
+    return { success: true as const, data }
   } catch (error) {
     return { success: false as const, error: errorMessage(error) }
   }

@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache"
 import {
   createPalletCustodian,
   createPalletTransfer,
+  createPhysicalPallet,
+  movePhysicalPallets,
   postPalletTransfer,
   reversePalletTransfer,
   type CreatePalletTransferInput,
@@ -61,5 +63,25 @@ export async function reversePalletTransferAction(transferId: string, reason: st
     return { success: true as const, data: reversal }
   } catch (error) {
     return { success: false as const, error: errorMessage(error) }
+  }
+}
+
+export async function createPhysicalPalletAction(input: { palletCode: string; palletTypeId: string; currentCustodianId?: string | null }) {
+  try {
+    const data = await createPhysicalPallet(input)
+    revalidatePath("/forms/maintenance/pallet-transfer")
+    return { success: true as const, data }
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "Ralat tidak dijangka." }
+  }
+}
+
+export async function movePhysicalPalletsAction(input: { palletCodes: string[]; toCustodianId: string; gatePassId?: string | null; distributionOrderId?: string | null; condition?: "USABLE" | "DAMAGED" | "LOST"; remarks?: string | null }) {
+  try {
+    const data = await movePhysicalPallets(input)
+    revalidatePath("/forms/maintenance/pallet-transfer")
+    return { success: true as const, data }
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "Ralat tidak dijangka." }
   }
 }

@@ -163,8 +163,9 @@ export default async function RawMaterialViewPage({ params }: { params: Promise<
 
         <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
           <h1 className="text-lg font-black uppercase tracking-tight">Daily Raw Material (Warehouse)</h1>
-          <div className="flex gap-6 text-xs">
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
             <span><b className="font-black">DATE :</b> {dmy(report.date)}</span>
+            <span><b className="font-black">NO. DO :</b> {report.referenceDoNumber || "-"}</span>
             <span><b className="font-black">TIME :</b> {report.time}</span>
             <span><b className="font-black">SHIFT :</b> {report.shift}</span>
             <span><b className="font-black">NO :</b> #{report.sequence}</span>
@@ -180,7 +181,6 @@ export default async function RawMaterialViewPage({ params }: { params: Promise<
                   <th className="border border-gray-500 px-2 py-1.5 font-black uppercase">Balance In Ware House</th>
                   <th className="border border-gray-500 px-2 py-1.5 font-black uppercase">Quantity Stock In</th>
                   <th className="border border-gray-500 px-2 py-1.5 font-black uppercase">Quantity Stock Out</th>
-                  <th className="border border-gray-500 px-2 py-1.5 font-black uppercase">No. DO</th>
                   <th className="border border-gray-500 px-2 py-1.5 font-black uppercase">Balance Carry Forward</th>
                   <th className="border border-gray-500 px-2 py-1.5 font-black uppercase w-[18%]">Remarks</th>
                 </tr>
@@ -189,7 +189,6 @@ export default async function RawMaterialViewPage({ params }: { params: Promise<
                   {[0, 1, 2].map(i => (
                     <th key={i} className="border border-gray-500 px-2 py-1 font-black uppercase text-[10px]">{unit}</th>
                   ))}
-                  <th className="border border-gray-500" />
                   <th className="border border-gray-500 px-2 py-1 font-black uppercase text-[10px]">{unit}</th>
                   <th className="border border-gray-500" />
                 </tr>
@@ -229,9 +228,6 @@ export default async function RawMaterialViewPage({ params }: { params: Promise<
                           </div>
                         )
                       })()}
-                    </td>
-                    <td className="border border-gray-500 px-2 py-1.5 font-mono text-[10px] uppercase">
-                      {item.referenceDoNumber || ""}
                     </td>
                     <td className="border border-gray-500 px-2 py-1.5 text-right font-black">{nf(item.carryForward)}</td>
                     <td className="border border-gray-500 px-2 py-1.5 text-[10px]">{item.remarks || ""}</td>

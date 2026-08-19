@@ -507,5 +507,12 @@ export async function getPhysicalPalletTrace(palletCode: string) {
 
 export async function listPhysicalPalletDashboard() {
   await requireWarehouseOperationAccess("PALLET")
-  return prisma.physicalPallet.findMany({ orderBy: [{ status: "asc" }, { lastMovedAt: "desc" }], include: { palletType: true, currentCustodian: true }, take: 500 })
+  // Deployments can briefly run newer application code before the additive SQL migration has
+  // been applied. Do not take down the existing aggregate pallet ledger in that window.
+  try {
+    return await prisma.physicalPallet.findMany({ orderBy: [{ status: "asc" }, { lastMovedAt: "desc" }], include: { palletType: true, currentCustodian: true }, take: 500 })
+  } catch (error) {
+    if ((error as { code?: string }).code === "P2021") return []
+    throw error
+  }
 }

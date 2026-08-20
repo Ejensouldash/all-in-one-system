@@ -37,6 +37,7 @@ export function VCHIFForm({ userName }: { userName: string }) {
   const [vehicleNo, setVehicleNo] = useState("")
   const [vehicleType, setVehicleType] = useState("")
   const [driverName, setDriverName] = useState("")
+  const [inspectorName, setInspectorName] = useState(userName)
 
   // Checklist state
   const [checklist, setChecklist] = useState<Record<string, boolean>>(
@@ -53,13 +54,14 @@ export function VCHIFForm({ userName }: { userName: string }) {
   }
 
   const draft = useMaintenanceDraft("vchif", {
-    values: () => ({ date, companyName, vehicleNo, vehicleType, driverName, checklist, issues, correctiveAction }),
+    values: () => ({ date, companyName, vehicleNo, vehicleType, driverName, inspectorName, checklist, issues, correctiveAction }),
     apply: (v) => {
       setDate(v.date)
       setCompanyName(v.companyName)
       setVehicleNo(v.vehicleNo)
       setVehicleType(v.vehicleType)
       setDriverName(v.driverName)
+      if (v.inspectorName !== undefined) setInspectorName(v.inspectorName)
       setChecklist(v.checklist)
       setIssues(v.issues)
       setCorrectiveAction(v.correctiveAction)
@@ -70,8 +72,8 @@ export function VCHIFForm({ userName }: { userName: string }) {
     e.preventDefault()
     setError(null)
     
-    if (!date || !companyName || !vehicleNo || !vehicleType || !driverName) {
-      setError("Please fill in all required fields in the vehicle details section.")
+    if (!date || !companyName || !vehicleNo || !vehicleType || !driverName || !inspectorName) {
+      setError("Please fill in all required fields.")
       return
     }
 
@@ -84,7 +86,7 @@ export function VCHIFForm({ userName }: { userName: string }) {
         vehicleNo,
         vehicleType,
         driverName,
-        inspectorName: userName,
+        inspectorName,
         extClean: checklist.extClean,
         intClean: checklist.intClean,
         noTrash: checklist.noTrash,
@@ -288,10 +290,17 @@ export function VCHIFForm({ userName }: { userName: string }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-slate-700 block mb-1">Inspector Name</label>
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 font-medium">
-                    {userName}
-                  </div>
+                  <label className="text-sm font-medium text-slate-700 block mb-1">
+                    Inspector Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={inspectorName}
+                    onChange={(e) => setInspectorName(e.target.value)}
+                    placeholder="Enter inspector name"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-slate-800"
+                  />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-slate-700 block mb-1">Inspector Signature</label>

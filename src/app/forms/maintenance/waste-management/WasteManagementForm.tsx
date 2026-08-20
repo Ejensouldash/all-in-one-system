@@ -67,19 +67,46 @@ export function WasteManagementForm({ userName }: { userName: string }) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2 md:col-span-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="space-y-2">
           <label className="text-sm font-bold text-gray-700 uppercase tracking-wide">Date of Record <span className="text-red-500">*</span></label>
           <input 
             type="date" 
             name="date" 
             required
             defaultValue={new Date().toISOString().split('T')[0]}
-            className="w-full md:w-1/2 px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all font-bold"
           />
         </div>
-        
-        {/* Tab Selection */}
+
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-gray-700 uppercase tracking-wide">Line <span className="text-red-500">*</span></label>
+          <select
+            name="line"
+            required
+            defaultValue="800ML"
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all font-bold bg-white cursor-pointer"
+          >
+            <option value="800ML">800ML</option>
+            <option value="425ML">425ML</option>
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-gray-700 uppercase tracking-wide">Shift / Sesi <span className="text-red-500">*</span></label>
+          <select
+            name="shift"
+            required
+            defaultValue="Pagi"
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all font-bold bg-white cursor-pointer"
+          >
+            <option value="Pagi">Pagi (Morning / AM)</option>
+            <option value="Malam">Malam (Night / PM)</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
         <div className="md:col-span-2 mt-4">
           <div className="flex border-b border-gray-200 mb-6">
             <button

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache"
 export async function submitWasteDisposalForm(formData: FormData) {
   try {
     const dateStr = formData.get("date") as string
+    const line = (formData.get("line") as string) || "800ML"
     const inspectionTime = formData.get("inspectionTime") as string
     const checkedBy = formData.get("checkedBy") as string
     const performedSignature = formData.get("performedSignature") as string
@@ -24,6 +25,7 @@ export async function submitWasteDisposalForm(formData: FormData) {
     await prisma.maintenanceWasteDisposal.create({
       data: {
         date: new Date(dateStr),
+        line,
         inspectionTime,
         feederArea,
         labelArea,
@@ -38,6 +40,8 @@ export async function submitWasteDisposalForm(formData: FormData) {
     })
 
     revalidatePath("/forms/maintenance/waste-disposal")
+    revalidatePath("/forms/maintenance/reports/waste-disposal")
+    revalidatePath("/forms/maintenance/summary")
     return { success: true }
   } catch (error: any) {
     console.error("Failed to submit waste disposal form:", error)

@@ -32,13 +32,13 @@ export async function getMonthlyMaintenanceReport(formType: string, month: numbe
       case "waste-management":
         data = await prisma.maintenanceWasteManagement.findMany({
           where: dateQuery,
-          orderBy: { date: "asc" }
+          orderBy: [{ date: "asc" }, { line: "desc" }, { shift: "asc" }]
         })
         break
       case "waste-disposal":
         data = await prisma.maintenanceWasteDisposal.findMany({
           where: dateQuery,
-          orderBy: { date: "asc" }
+          orderBy: [{ date: "asc" }, { line: "desc" }, { inspectionTime: "asc" }]
         })
         break
       case "food-handler":

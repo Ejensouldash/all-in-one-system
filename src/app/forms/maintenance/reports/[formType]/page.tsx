@@ -45,6 +45,7 @@ export default function MaintenanceMonthlyReportPage() {
 
   const [selectedSection, setSelectedSection] = useState("meeting-changing")
   const [selectedLine, setSelectedLine] = useState("Line 1")
+  const [wasteLineFilter, setWasteLineFilter] = useState("all")
 
   useEffect(() => {
     if (formType) {
@@ -191,7 +192,7 @@ export default function MaintenanceMonthlyReportPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 print:py-0 print:bg-white print:min-h-0">
-      {(formType === "cleaning" || formType === "pcdm") && (
+      {(formType === "cleaning" || formType === "pcdm" || formType === "waste-management") && (
         <style>{`@page { size: A4 landscape; margin: 8mm 10mm; }`}</style>
       )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 print:p-0 print:max-w-none">
@@ -232,6 +233,18 @@ export default function MaintenanceMonthlyReportPage() {
                   </select>
                 )}
               </>
+            )}
+
+            {(formType === "waste-management" || formType === "waste-disposal") && (
+              <select
+                value={wasteLineFilter}
+                onChange={(e) => setWasteLineFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold outline-none cursor-pointer"
+              >
+                <option value="all">Semua Line (All Lines)</option>
+                <option value="800ML">Line 800ML</option>
+                <option value="425ML">Line 425ML</option>
+              </select>
             )}
 
             <select
@@ -410,14 +423,16 @@ export default function MaintenanceMonthlyReportPage() {
                   <>
                     <thead>
                       <tr className="bg-gray-100 font-bold text-center border-b-2 border-black">
-                        <th className="border-2 border-black p-1 w-[8%] align-middle" rowSpan={3}>DATE</th>
-                        <th className="border-2 border-black p-1 w-[72%]" colSpan={10}>METHOD OF DISPOSAL</th>
-                        <th className="border-2 border-black p-1 w-[10%] align-middle" rowSpan={3}>CHECKED BY</th>
-                        <th className="border-2 border-black p-1 w-[10%] align-middle" rowSpan={3}>VERIFIED BY</th>
+                        <th className="border-2 border-black p-1 w-[7%] align-middle" rowSpan={3}>DATE</th>
+                        <th className="border-2 border-black p-1 w-[6%] align-middle" rowSpan={3}>LINE</th>
+                        <th className="border-2 border-black p-1 w-[6%] align-middle" rowSpan={3}>SHIFT</th>
+                        <th className="border-2 border-black p-1 w-[65%]" colSpan={10}>METHOD OF DISPOSAL</th>
+                        <th className="border-2 border-black p-1 w-[8%] align-middle" rowSpan={3}>CHECKED BY</th>
+                        <th className="border-2 border-black p-1 w-[8%] align-middle" rowSpan={3}>VERIFIED BY</th>
                       </tr>
                       <tr className="bg-gray-100 font-bold text-center border-b-2 border-black">
-                        <th className="border-2 border-black p-1 w-[36%]" colSpan={5}>RECYCLE</th>
-                        <th className="border-2 border-black p-1 w-[36%]" colSpan={5}>DISPOSAL</th>
+                        <th className="border-2 border-black p-1 w-[32.5%]" colSpan={5}>RECYCLE</th>
+                        <th className="border-2 border-black p-1 w-[32.5%]" colSpan={5}>DISPOSAL</th>
                       </tr>
                       <tr className="bg-gray-100 font-bold text-center text-[8px] border-b-2 border-black">
                         <th className="border-2 border-black p-0.5">PLASTIC BOTTLE</th>
@@ -434,12 +449,16 @@ export default function MaintenanceMonthlyReportPage() {
                     </thead>
                     <tbody>
                       {daysArray.map((day) => {
-                        const dayRecords = reportData.filter(r => new Date(r.date).getDate() === day)
+                        const dayRecords = reportData
+                          .filter(r => new Date(r.date).getDate() === day)
+                          .filter(r => wasteLineFilter === "all" || (r.line || "800ML") === wasteLineFilter)
                         
                         if (dayRecords.length === 0) {
                           return (
                             <tr key={day} className="text-center h-6">
                               <td className="border-2 border-black p-1 font-bold">{getDayLabel(day)}</td>
+                              <td className="border-2 border-black p-1"></td>
+                              <td className="border-2 border-black p-1"></td>
                               <td className="border-2 border-black p-1" colSpan={10}></td>
                               <td className="border-2 border-black p-1"></td>
                               <td className="border-2 border-black p-1"></td>
@@ -452,6 +471,8 @@ export default function MaintenanceMonthlyReportPage() {
                             {idx === 0 && (
                               <td className="border-2 border-black p-1 font-bold align-middle text-[10px]" rowSpan={dayRecords.length}>{getDayLabel(day)}</td>
                             )}
+                            <td className="border-2 border-black p-0.5 font-bold text-[9px]">{rec.line || "800ML"}</td>
+                            <td className="border-2 border-black p-0.5 font-semibold text-[9px]">{rec.shift || "Pagi"}</td>
                             <td className="border-2 border-black p-0.5">{rec.recyclePlasticBottle || "-"}</td>
                             <td className="border-2 border-black p-0.5">{rec.recycleCap || "-"}</td>
                             <td className="border-2 border-black p-0.5">{rec.recycleCartonBox || "-"}</td>
@@ -477,8 +498,9 @@ export default function MaintenanceMonthlyReportPage() {
                     <thead>
                       <tr className="bg-gray-100 font-bold text-center border-b-2 border-black">
                         <th className="border-2 border-black p-1 w-[8%] align-middle" rowSpan={2}>DATE</th>
-                        <th className="border-2 border-black p-1 w-[12%] align-middle" rowSpan={2}>INSPECTION TIME</th>
-                        <th className="border-2 border-black p-1 w-[60%]" colSpan={5}>WASTE DISPOSAL AREA</th>
+                        <th className="border-2 border-black p-1 w-[8%] align-middle" rowSpan={2}>LINE</th>
+                        <th className="border-2 border-black p-1 w-[10%] align-middle" rowSpan={2}>INSPECTION TIME</th>
+                        <th className="border-2 border-black p-1 w-[54%]" colSpan={5}>WASTE DISPOSAL AREA</th>
                         <th className="border-2 border-black p-1 w-[10%] align-middle" rowSpan={2}>CHECKED BY</th>
                         <th className="border-2 border-black p-1 w-[10%] align-middle" rowSpan={2}>VERIFIED BY</th>
                       </tr>
@@ -492,7 +514,9 @@ export default function MaintenanceMonthlyReportPage() {
                     </thead>
                     <tbody>
                       {daysArray.map((day) => {
-                        const dayRecords = reportData.filter(r => new Date(r.date).getDate() === day)
+                        const dayRecords = reportData
+                          .filter(r => new Date(r.date).getDate() === day)
+                          .filter(r => wasteLineFilter === "all" || (r.line || "800ML") === wasteLineFilter)
                         
                         if (dayRecords.length === 0) {
                           return (
@@ -500,10 +524,7 @@ export default function MaintenanceMonthlyReportPage() {
                               <td className="border-2 border-black p-1 font-bold">{getDayLabel(day)}</td>
                               <td className="border-2 border-black p-1"></td>
                               <td className="border-2 border-black p-1"></td>
-                              <td className="border-2 border-black p-1"></td>
-                              <td className="border-2 border-black p-1"></td>
-                              <td className="border-2 border-black p-1"></td>
-                              <td className="border-2 border-black p-1"></td>
+                              <td className="border-2 border-black p-1" colSpan={5}></td>
                               <td className="border-2 border-black p-1"></td>
                               <td className="border-2 border-black p-1"></td>
                             </tr>
@@ -515,6 +536,7 @@ export default function MaintenanceMonthlyReportPage() {
                             {idx === 0 && (
                               <td className="border-2 border-black p-1 font-bold align-middle" rowSpan={dayRecords.length}>{getDayLabel(day)}</td>
                             )}
+                            <td className="border-2 border-black p-1 font-bold text-[10px]">{rec.line || "800ML"}</td>
                             <td className="border-2 border-black p-1 font-mono">{rec.inspectionTime}</td>
                             <td className="border-2 border-black p-1 font-bold text-[12px] text-teal-800">{rec.feederArea ? "✓" : "-"}</td>
                             <td className="border-2 border-black p-1 font-bold text-[12px] text-teal-800">{rec.labelArea ? "✓" : "-"}</td>

@@ -65,6 +65,8 @@ const FIELD_CONFIG: Record<string, FieldConfig[]> = {
     { key: "performedBy", label: "Performed By", type: "text" },
   ],
   "waste-management": [
+    { key: "line", label: "Line", type: "text" },
+    { key: "shift", label: "Shift", type: "text" },
     { key: "recyclePlasticBottle", label: "Recycle Plastic Bottle", type: "text" },
     { key: "recycleCap", label: "Recycle Cap", type: "text" },
     { key: "recycleCartonBox", label: "Recycle Carton Box", type: "text" },
@@ -78,6 +80,7 @@ const FIELD_CONFIG: Record<string, FieldConfig[]> = {
     { key: "checkedBy", label: "Checked By", type: "text" },
   ],
   "waste-disposal": [
+    { key: "line", label: "Line", type: "text" },
     { key: "inspectionTime", label: "Inspection Time", type: "text" },
     { key: "feederArea", label: "Feeder Area", type: "checkbox" },
     { key: "labelArea", label: "Label Area", type: "checkbox" },

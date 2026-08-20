@@ -1027,6 +1027,8 @@ model MaintenanceFinishedGoods {
 model MaintenanceWasteManagement {
   id   String   @id @default(uuid())
   date DateTime
+  line  String?  @default("800ML")
+  shift String?  @default("Pagi")
 
   // RECYCLE
   recyclePlasticBottle String?
@@ -1053,6 +1055,7 @@ model MaintenanceWasteManagement {
 model MaintenanceWasteDisposal {
   id                 String   @id @default(uuid())
   date               DateTime
+  line               String?  @default("800ML")
   inspectionTime     String
   feederArea         Boolean  @default(false)
   labelArea          Boolean  @default(false)

@@ -75,7 +75,7 @@ export function WasteDisposalForm({ userName }: { userName: string }) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="space-y-2">
           <label className="text-sm font-bold text-gray-700 uppercase tracking-wide">Date <span className="text-red-500">*</span></label>
           <input 
@@ -83,8 +83,21 @@ export function WasteDisposalForm({ userName }: { userName: string }) {
             name="date" 
             required
             defaultValue={new Date().toISOString().split('T')[0]}
-            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all font-bold"
           />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-gray-700 uppercase tracking-wide">Line <span className="text-red-500">*</span></label>
+          <select
+            name="line"
+            required
+            defaultValue="800ML"
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all font-bold bg-white cursor-pointer"
+          >
+            <option value="800ML">800ML</option>
+            <option value="425ML">425ML</option>
+          </select>
         </div>
 
         <div className="space-y-2">
@@ -94,7 +107,7 @@ export function WasteDisposalForm({ userName }: { userName: string }) {
             name="inspectionTime" 
             required
             defaultValue={currentTime}
-            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all font-bold"
           />
         </div>
         

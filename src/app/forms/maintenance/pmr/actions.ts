@@ -32,6 +32,7 @@ export async function createPreventiveMaintenanceRecord(data: {
     })
 
     revalidatePath("/forms/maintenance/pmr")
+    revalidatePath("/forms/maintenance/reports/pmr")
     revalidatePath("/forms/maintenance/summary")
     return { success: true, data: record }
   } catch (error: any) {
@@ -42,8 +43,8 @@ export async function createPreventiveMaintenanceRecord(data: {
 
 export async function getPreventiveMaintenanceRecords(month: number, year: number) {
   try {
-    const startDate = new Date(year, month - 1, 1)
-    const endDate = new Date(year, month, 0)
+    const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0)
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999)
     
     const records = await prisma.maintenancePreventiveRecord.findMany({
       where: {

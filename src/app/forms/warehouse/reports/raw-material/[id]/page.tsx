@@ -165,7 +165,7 @@ export default async function RawMaterialViewPage({ params }: { params: Promise<
           <h1 className="text-lg font-black uppercase tracking-tight">Daily Raw Material (Warehouse)</h1>
           <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
             <span><b className="font-black">DATE :</b> {dmy(report.date)}</span>
-            <span><b className="font-black">NO. DO :</b> {report.referenceDoNumber || "-"}</span>
+            <span><b className="font-black">NO. DO :</b> {report.linkedDoNumber || report.referenceDoNumber || "-"}</span>
             <span><b className="font-black">TIME :</b> {report.time}</span>
             <span><b className="font-black">SHIFT :</b> {report.shift}</span>
             <span><b className="font-black">NO :</b> #{report.sequence}</span>

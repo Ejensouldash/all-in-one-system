@@ -35,13 +35,27 @@ export function systemDoSource(doNumber: string | null | undefined): SystemDoSou
   return match[1].toUpperCase() === "H" ? "DRM" : "WITHDRAWAL"
 }
 
+export function systemTransferSource(transfer: { doNumber?: string | null; receiverName?: string | null } | null | undefined): SystemDoSource | null {
+  if (!transfer) return null
+  const direct = systemDoSource(transfer.doNumber)
+  if (direct) return direct
+  const r = (transfer.receiverName || "").trim()
+  if (r.startsWith("System (Warehouse DRM)")) return "DRM"
+  if (r.startsWith("Production Withdrawal")) return "WITHDRAWAL"
+  return null
+}
+
+export function isSystemTransfer(transfer: { doNumber?: string | null; receiverName?: string | null } | null | undefined): boolean {
+  return systemTransferSource(transfer) !== null
+}
+
 export function isSystemDo(doNumber: string | null | undefined): boolean {
   return systemDoSource(doNumber) !== null
 }
 
 /** Where the user has to go instead. Written for warehouse and production staff, in Malay. */
-export function systemDoLockMessage(doNumber: string): string {
-  const source = systemDoSource(doNumber)
+export function systemDoLockMessage(doNumber: string, sourceOverride?: SystemDoSource | null): string {
+  const source = sourceOverride || systemDoSource(doNumber)
   const origin =
     source === "DRM"
       ? "Borang Daily Raw Material (Warehouse)"
@@ -51,3 +65,4 @@ export function systemDoLockMessage(doNumber: string): string {
     `Betulkan rekod asal itu — DO ini akan dikemas kini sendiri.`
   )
 }
+

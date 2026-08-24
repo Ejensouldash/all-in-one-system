@@ -2,6 +2,20 @@
 
 import { prisma } from "@/lib/prisma"
 
+function getShiftRank(shift?: string | null): number {
+  const s = (shift || "").trim().toLowerCase()
+  if (s === "pagi" || s === "am" || s === "morning" || s === "siang") return 1
+  if (s === "malam" || s === "pm" || s === "night") return 2
+  return 3
+}
+
+function getLineRank(line?: string | null): number {
+  const l = (line || "").trim().toUpperCase()
+  if (l.includes("800")) return 1
+  if (l.includes("425")) return 2
+  return 3
+}
+
 export async function getMonthlyMaintenanceReport(formType: string, month: number, year: number) {
   try {
     const startDate = new Date(year, month - 1, 1)
@@ -29,12 +43,25 @@ export async function getMonthlyMaintenanceReport(formType: string, month: numbe
           orderBy: { date: "asc" }
         })
         break
-      case "waste-management":
-        data = await prisma.maintenanceWasteManagement.findMany({
+      case "waste-management": {
+        const rawData = await prisma.maintenanceWasteManagement.findMany({
           where: dateQuery,
-          orderBy: [{ date: "asc" }, { line: "desc" }, { shift: "asc" }]
+          orderBy: [{ date: "asc" }, { createdAt: "asc" }]
+        })
+        data = rawData.sort((a, b) => {
+          const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime()
+          if (dateDiff !== 0) return dateDiff
+
+          const shiftDiff = getShiftRank(a.shift) - getShiftRank(b.shift)
+          if (shiftDiff !== 0) return shiftDiff
+
+          const lineDiff = getLineRank(a.line) - getLineRank(b.line)
+          if (lineDiff !== 0) return lineDiff
+
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
         })
         break
+      }
       case "waste-disposal":
         data = await prisma.maintenanceWasteDisposal.findMany({
           where: dateQuery,

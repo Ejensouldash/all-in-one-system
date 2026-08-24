@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
 import { logUserAction } from "./audit"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
-import { isSystemDo, systemDoLockMessage } from "@/lib/warehouse/systemDo"
+import { isSystemDo, isSystemTransfer, systemTransferSource, systemDoLockMessage } from "@/lib/warehouse/systemDo"
 
 // Module access must come from the DB, never from session.user.modules: the JWT
 // snapshots modules at login, so a freshly granted module stays invisible to the
@@ -116,8 +116,8 @@ export async function updateTransferIn(id: string, data: any) {
 
     // Judge the DO stored in the database, never data.doNumber: rewriting the number is exactly how
     // a system DO used to escape this check and lose its link to the record behind it.
-    if (isSystemDo(existing.doNumber)) {
-      return { success: false, error: systemDoLockMessage(existing.doNumber) }
+    if (isSystemDo(existing.doNumber) || isSystemTransfer(existing)) {
+      return { success: false, error: systemDoLockMessage(existing.doNumber, systemTransferSource(existing)) }
     }
 
     const hasAccess = await hasTransferInHistoryAccess()
@@ -183,8 +183,8 @@ export async function deleteTransferIn(id: string) {
     const existing = await prisma.transferIn.findUnique({ where: { id } })
     if (!existing) return { success: false, error: "Not found" }
 
-    if (isSystemDo(existing.doNumber)) {
-      return { success: false, error: systemDoLockMessage(existing.doNumber) }
+    if (isSystemDo(existing.doNumber) || isSystemTransfer(existing)) {
+      return { success: false, error: systemDoLockMessage(existing.doNumber, systemTransferSource(existing)) }
     }
 
     await prisma.transferIn.delete({ where: { id } })
@@ -242,13 +242,13 @@ export async function bulkDeleteTransferIn(ids: string[]) {
   try {
     const existing = await prisma.transferIn.findMany({
       where: { id: { in: ids } },
-      select: { doNumber: true, receiveDate: true }
+      select: { doNumber: true, receiverName: true, receiveDate: true }
     })
 
     if (existing.length === 0) return { success: false, error: "No records found" }
 
     // All-or-nothing: a partial delete would leave the caller believing the whole selection went.
-    const locked = existing.filter(e => isSystemDo(e.doNumber))
+    const locked = existing.filter(e => isSystemDo(e.doNumber) || isSystemTransfer(e))
     if (locked.length > 0) {
       return {
         success: false,
@@ -333,8 +333,8 @@ export async function deleteTransferInItem(batchNo: string, doNumber: string) {
     const transferIn = await prisma.transferIn.findFirst({ where: { doNumber } })
     if (!transferIn) return { success: false, error: "DO Not found" }
 
-    if (isSystemDo(transferIn.doNumber)) {
-      return { success: false, error: systemDoLockMessage(transferIn.doNumber) }
+    if (isSystemDo(transferIn.doNumber) || isSystemTransfer(transferIn)) {
+      return { success: false, error: systemDoLockMessage(transferIn.doNumber, systemTransferSource(transferIn)) }
     }
 
     const item = await prisma.transferInItem.findFirst({
@@ -387,7 +387,12 @@ export async function bulkDeleteTransferInItems(items: { batchNo: string, doNumb
     return { success: false, error: "Unauthorized. You do not have permission to delete stock items." }
   }
 
-  const lockedDos = [...new Set(items.map(i => i.doNumber).filter(isSystemDo))]
+  const transferIns = await prisma.transferIn.findMany({
+    where: { doNumber: { in: items.map(i => i.doNumber) } },
+    select: { doNumber: true, receiverName: true }
+  })
+  const lockedDos = [...new Set(transferIns.filter(t => isSystemDo(t.doNumber) || isSystemTransfer(t)).map(t => t.doNumber))]
+
   if (lockedDos.length > 0) {
     return {
       success: false,

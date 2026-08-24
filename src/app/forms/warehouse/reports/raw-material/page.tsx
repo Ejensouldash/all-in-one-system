@@ -125,10 +125,10 @@ export default async function RawMaterialListPage() {
                       <td className="px-4 py-3">
                         {isVoid ? (
                           <span className="text-[11px] text-gray-400 font-bold italic">DO dibuang</span>
-                        ) : r.linkedDoNumber ? (
+                        ) : (r.linkedDoNumber || r.referenceDoNumber) ? (
                           <span className="inline-flex items-center gap-1 text-[11px] font-black text-indigo-700">
                             <ArrowRight className="w-3 h-3" />
-                            {r.linkedDoNumber}
+                            {r.linkedDoNumber || r.referenceDoNumber}
                           </span>
                         ) : (
                           <span className="text-[11px] text-gray-300 font-bold">—</span>

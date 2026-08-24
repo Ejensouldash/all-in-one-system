@@ -53,6 +53,21 @@ function num(v: unknown): number {
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
+/**
+ * Normalises a user-supplied DO number for the Daily Raw Material report.
+ * Ensures it has the standard "DO - " prefix (e.g. "261201" -> "DO - 261201").
+ * Returns null if empty.
+ */
+export function normaliseReportDoNumber(raw?: string | null): string | null {
+  if (!raw) return null
+  let clean = raw.trim().toUpperCase()
+  if (!clean) return null
+  // Strip any leading DO, DO -, DO-, DO: etc.
+  clean = clean.replace(/^DO\s*[-–—:]?\s*/i, "").trim()
+  if (!clean) return null
+  return `DO - ${clean}`
+}
+
 // ---------------------------------------------------------------------------------------------
 
 export const ACTIVE = "ACTIVE"
@@ -230,12 +245,23 @@ export async function saveRawMaterialReport(input: RawMaterialReportInput) {
     // production twice.
     const outRows = assertCoversWithdrawals(items, withdrawnByKey)
 
-    // The "DO - " prefix with spaces matters: if a human later opens this DO in the Transfer In
-    // edit form, that form rewrites the number to exactly this shape. Matching it up front keeps
-    // the value stable instead of changing on first edit.
+    // If user provided a manual DO number, use the normalised DO. Otherwise auto-generate standard DO sequence.
+    const userDo = normaliseReportDoNumber(input.referenceDoNumber)
     const doNumber = outRows.length > 0
-      ? `DO - WH${input.date.slice(2).replace(/-/g, "")}-${sequence}`
+      ? userDo || `DO - WH${input.date.slice(2).replace(/-/g, "")}-${sequence}`
       : null
+
+    if (doNumber && outRows.length > 0) {
+      const collision = await tx.transferIn.findFirst({
+        where: { doNumber },
+        select: { id: true },
+      })
+      if (collision) {
+        throw new RawMaterialError(
+          `Nombor DO "${doNumber}" sudah wujud dalam sistem (Transfer In). Sila gunakan nombor DO lain.`
+        )
+      }
+    }
 
     const report = await tx.warehouseRawMaterialReport.create({
       data: {
@@ -247,8 +273,7 @@ export async function saveRawMaterialReport(input: RawMaterialReportInput) {
         preparedSignature: input.preparedSignature || null,
         verifiedBy: input.verifiedBy?.trim() || null,
         verifiedSignature: input.verifiedSignature || null,
-        // Informational reference for QC only. It must never alter the generated TransferIn DO.
-        referenceDoNumber: input.referenceDoNumber?.trim().toUpperCase() || null,
+        referenceDoNumber: userDo || null,
         remarks: input.remarks?.trim() || null,
         createdById: input.createdById || null,
         linkedDoNumber: doNumber,
@@ -513,11 +538,27 @@ export async function updateRawMaterialReport(
 
   const outRows = assertCoversWithdrawals(items, withdrawnByKey)
 
+  const userDo = normaliseReportDoNumber(input.referenceDoNumber)
   const doNumber = outRows.length > 0
-    ? existing.linkedDoNumber || `DO - WH${dateStr.slice(2).replace(/-/g, "")}-${existing.sequence}`
+    ? userDo || `DO - WH${dateStr.slice(2).replace(/-/g, "")}-${existing.sequence}`
     : null
 
   return prisma.$transaction(async tx => {
+    if (doNumber && outRows.length > 0) {
+      const collision = await tx.transferIn.findFirst({
+        where: {
+          doNumber,
+          NOT: existing.linkedDoNumber ? { doNumber: existing.linkedDoNumber } : undefined,
+        },
+        select: { id: true },
+      })
+      if (collision) {
+        throw new RawMaterialError(
+          `Nombor DO "${doNumber}" sudah wujud dalam sistem (Transfer In). Sila gunakan nombor DO lain.`
+        )
+      }
+    }
+
     if (existing.linkedDoNumber) {
       await tx.transferIn.deleteMany({ where: { doNumber: existing.linkedDoNumber } })
     }
@@ -532,7 +573,7 @@ export async function updateRawMaterialReport(
         preparedSignature: input.preparedSignature || null,
         verifiedBy: input.verifiedBy?.trim() || null,
         verifiedSignature: input.verifiedSignature || null,
-        referenceDoNumber: input.referenceDoNumber?.trim().toUpperCase() || null,
+        referenceDoNumber: userDo || null,
         remarks: input.remarks?.trim() || null,
         linkedDoNumber: doNumber,
         items: { create: items },

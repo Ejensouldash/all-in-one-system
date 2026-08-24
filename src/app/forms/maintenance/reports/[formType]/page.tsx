@@ -33,6 +33,20 @@ const getCleaningMetadata = (sec: string) => {
   }
 }
 
+const getShiftRank = (shift?: string | null): number => {
+  const s = (shift || "").trim().toLowerCase()
+  if (s === "pagi" || s === "am" || s === "morning" || s === "siang") return 1
+  if (s === "malam" || s === "pm" || s === "night") return 2
+  return 3
+}
+
+const getLineRank = (line?: string | null): number => {
+  const l = (line || "").trim().toUpperCase()
+  if (l.includes("800")) return 1
+  if (l.includes("425")) return 2
+  return 3
+}
+
 export default function MaintenanceMonthlyReportPage() {
   const params = useParams()
   const router = useRouter()
@@ -452,6 +466,15 @@ export default function MaintenanceMonthlyReportPage() {
                         const dayRecords = reportData
                           .filter(r => new Date(r.date).getDate() === day)
                           .filter(r => wasteLineFilter === "all" || (r.line || "800ML") === wasteLineFilter)
+                          .sort((a, b) => {
+                            const shiftDiff = getShiftRank(a.shift) - getShiftRank(b.shift)
+                            if (shiftDiff !== 0) return shiftDiff
+
+                            const lineDiff = getLineRank(a.line) - getLineRank(b.line)
+                            if (lineDiff !== 0) return lineDiff
+
+                            return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+                          })
                         
                         if (dayRecords.length === 0) {
                           return (

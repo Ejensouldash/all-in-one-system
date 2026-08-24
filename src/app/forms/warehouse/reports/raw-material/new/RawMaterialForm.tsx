@@ -243,7 +243,8 @@ export function RawMaterialForm({
                 value={referenceDoNumber}
                 onChange={e => setReferenceDoNumber(e.target.value.toUpperCase())}
                 maxLength={50}
-                placeholder="No. DO"
+                placeholder="Cth: 261201 (kosongkan utk auto)"
+                title="Nombor DO untuk Transfer In ke Production. Jika kosong, sistem akan jana automatik."
                 className={`${inputCls} font-mono uppercase`}
               />
             </Field>

@@ -163,33 +163,143 @@ export function MaintenanceRecordReportClient() {
                     </tr>
                   )}
                   
-                  {/* Verification Section */}
+                  {/* Verification Section - 4 Shift Supervisor & Verifier Columns */}
                   <tr>
-                    <td rowSpan={2} className="border border-black p-2 font-bold bg-gray-200 print:bg-gray-200 text-left align-middle w-32">
-                      <div className="flex flex-col justify-between h-full">
-                        <div className="mb-4">CHECKED BY</div>
-                        <div>VERIFIED BY</div>
-                      </div>
+                    <td className="border border-black p-2 font-bold bg-gray-200 print:bg-gray-200 text-left align-middle w-1/4">
+                      CHECKED BY
                     </td>
-                    <td colSpan={4} className="border border-black p-2 text-left relative align-top h-12">
-                      {record.performedSignature && (
-                        <div className="absolute top-1 left-2 w-16 h-8">
+                    {/* 800ML Morning */}
+                    <td className="border border-black p-1 text-center align-bottom h-16 w-[18.75%] relative bg-white">
+                      {(record.signature800M || (!record.signature800N && !record.signature425M && !record.signature425N && record.performedSignature)) && (
+                        <div className="h-9 flex items-center justify-center mb-0.5">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={record.performedSignature} alt="Checked By Signature" className="w-full h-full object-contain" />
+                          <img 
+                            src={record.signature800M || record.performedSignature} 
+                            alt="Checked By Signature" 
+                            className="max-h-9 max-w-full object-contain" 
+                          />
                         </div>
                       )}
-                      <span className="absolute bottom-1 left-2 text-[10px] text-gray-500">{record.checkedBy}</span>
+                      <span className="block text-[9px] font-bold text-gray-800 leading-tight uppercase truncate">
+                        {record.checkedBy800M || (!record.checkedBy800N && !record.checkedBy425M && !record.checkedBy425N ? record.checkedBy : "")}
+                      </span>
+                    </td>
+                    {/* 800ML Night */}
+                    <td className="border border-black p-1 text-center align-bottom h-16 w-[18.75%] relative bg-white">
+                      {record.signature800N && (
+                        <div className="h-9 flex items-center justify-center mb-0.5">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img 
+                            src={record.signature800N} 
+                            alt="Checked By Signature" 
+                            className="max-h-9 max-w-full object-contain" 
+                          />
+                        </div>
+                      )}
+                      <span className="block text-[9px] font-bold text-gray-800 leading-tight uppercase truncate">
+                        {record.checkedBy800N || ""}
+                      </span>
+                    </td>
+                    {/* 425ML Morning */}
+                    <td className="border border-black p-1 text-center align-bottom h-16 w-[18.75%] relative bg-white">
+                      {record.signature425M && (
+                        <div className="h-9 flex items-center justify-center mb-0.5">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img 
+                            src={record.signature425M} 
+                            alt="Checked By Signature" 
+                            className="max-h-9 max-w-full object-contain" 
+                          />
+                        </div>
+                      )}
+                      <span className="block text-[9px] font-bold text-gray-800 leading-tight uppercase truncate">
+                        {record.checkedBy425M || ""}
+                      </span>
+                    </td>
+                    {/* 425ML Night */}
+                    <td className="border border-black p-1 text-center align-bottom h-16 w-[18.75%] relative bg-white">
+                      {record.signature425N && (
+                        <div className="h-9 flex items-center justify-center mb-0.5">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img 
+                            src={record.signature425N} 
+                            alt="Checked By Signature" 
+                            className="max-h-9 max-w-full object-contain" 
+                          />
+                        </div>
+                      )}
+                      <span className="block text-[9px] font-bold text-gray-800 leading-tight uppercase truncate">
+                        {record.checkedBy425N || ""}
+                      </span>
                     </td>
                   </tr>
                   <tr>
-                    <td colSpan={4} className="border border-black p-2 text-left relative align-top h-12">
-                      {record.verifiedSignature && (
-                        <div className="absolute top-1 left-2 w-16 h-8">
+                    <td className="border border-black p-2 font-bold bg-gray-200 print:bg-gray-200 text-left align-middle w-1/4">
+                      VERIFIED BY
+                    </td>
+                    {/* 800ML Morning Verifier */}
+                    <td className="border border-black p-1 text-center align-bottom h-16 w-[18.75%] relative bg-white">
+                      {(record.verifiedSig800M || (!record.verifiedSig800N && !record.verifiedSig425M && !record.verifiedSig425N && record.verifiedSignature)) && (
+                        <div className="h-9 flex items-center justify-center mb-0.5">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={record.verifiedSignature} alt="Verified By Signature" className="w-full h-full object-contain" />
+                          <img 
+                            src={record.verifiedSig800M || record.verifiedSignature} 
+                            alt="Verified By Signature" 
+                            className="max-h-9 max-w-full object-contain" 
+                          />
                         </div>
                       )}
-                      <span className="absolute bottom-1 left-2 text-[10px] text-gray-500">{record.verifiedBy || ""}</span>
+                      <span className="block text-[9px] font-bold text-gray-800 leading-tight uppercase truncate">
+                        {record.verifiedBy800M || (!record.verifiedBy800N && !record.verifiedBy425M && !record.verifiedBy425N ? (record.verifiedBy || "") : "")}
+                      </span>
+                    </td>
+                    {/* 800ML Night Verifier */}
+                    <td className="border border-black p-1 text-center align-bottom h-16 w-[18.75%] relative bg-white">
+                      {record.verifiedSig800N && (
+                        <div className="h-9 flex items-center justify-center mb-0.5">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img 
+                            src={record.verifiedSig800N} 
+                            alt="Verified By Signature" 
+                            className="max-h-9 max-w-full object-contain" 
+                          />
+                        </div>
+                      )}
+                      <span className="block text-[9px] font-bold text-gray-800 leading-tight uppercase truncate">
+                        {record.verifiedBy800N || ""}
+                      </span>
+                    </td>
+                    {/* 425ML Morning Verifier */}
+                    <td className="border border-black p-1 text-center align-bottom h-16 w-[18.75%] relative bg-white">
+                      {record.verifiedSig425M && (
+                        <div className="h-9 flex items-center justify-center mb-0.5">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img 
+                            src={record.verifiedSig425M} 
+                            alt="Verified By Signature" 
+                            className="max-h-9 max-w-full object-contain" 
+                          />
+                        </div>
+                      )}
+                      <span className="block text-[9px] font-bold text-gray-800 leading-tight uppercase truncate">
+                        {record.verifiedBy425M || ""}
+                      </span>
+                    </td>
+                    {/* 425ML Night Verifier */}
+                    <td className="border border-black p-1 text-center align-bottom h-16 w-[18.75%] relative bg-white">
+                      {record.verifiedSig425N && (
+                        <div className="h-9 flex items-center justify-center mb-0.5">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img 
+                            src={record.verifiedSig425N} 
+                            alt="Verified By Signature" 
+                            className="max-h-9 max-w-full object-contain" 
+                          />
+                        </div>
+                      )}
+                      <span className="block text-[9px] font-bold text-gray-800 leading-tight uppercase truncate">
+                        {record.verifiedBy425N || ""}
+                      </span>
                     </td>
                   </tr>
                 </tbody>

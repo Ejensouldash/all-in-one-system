@@ -1165,10 +1165,35 @@ model MaintenanceEquipmentRecord {
   id                 String   @id @default(uuid())
   date               DateTime
   activities         Json
-  checkedBy          String
+  checkedBy          String   @default("")
   performedSignature String?
   verifiedBy         String?
   verifiedSignature  String?
+
+  // 800ML Morning Shift
+  checkedBy800M      String?
+  signature800M      String?
+  verifiedBy800M     String?
+  verifiedSig800M    String?
+
+  // 800ML Night Shift
+  checkedBy800N      String?
+  signature800N      String?
+  verifiedBy800N     String?
+  verifiedSig800N    String?
+
+  // 425ML Morning Shift
+  checkedBy425M      String?
+  signature425M      String?
+  verifiedBy425M     String?
+  verifiedSig425M    String?
+
+  // 425ML Night Shift
+  checkedBy425N      String?
+  signature425N      String?
+  verifiedBy425N     String?
+  verifiedSig425N    String?
+
   remarks            String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt

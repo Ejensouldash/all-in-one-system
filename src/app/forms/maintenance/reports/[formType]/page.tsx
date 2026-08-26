@@ -166,17 +166,6 @@ export default function MaintenanceMonthlyReportPage() {
 
   const meta = getFormMetadata()
 
-  // Latest submitted record in range - used for the printed sign-off block
-  const performedByKey = formType === "waste-management" || formType === "waste-disposal" || formType === "food-handler" || formType === "cleaning" || formType === "pcdm" || formType === "ftdm"
-    ? "checkedBy"
-    : formType === "chemical-control"
-      ? "takenBy"
-      : "performedBy"
-
-  const latestRecord = reportData.length > 0
-    ? [...reportData].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
-    : null
-
   // Generate 31 days list
   const daysInMonth = new Date(year, month, 0).getDate()
   const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1)
@@ -950,30 +939,6 @@ export default function MaintenanceMonthlyReportPage() {
                   <p className="mt-2 font-bold uppercase">* Examples of Jewellery/Accessories: Rings, Necklaces, Bracelets, Watch, Hijab pin, Safety pin.</p>
                 </div>
               )}
-
-              {/* Signature Block - latest sign-off for this reporting range */}
-              <div className="mt-10 grid grid-cols-2 gap-10 text-black font-sans">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-wider mb-1">Prepared By (Signature & Name)</p>
-                  <div className="h-16 border-b-2 border-black flex items-end pb-1">
-                    {latestRecord?.performedSignature && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={latestRecord.performedSignature} alt="Prepared by signature" className="h-14 object-contain" />
-                    )}
-                  </div>
-                  <p className="text-[10px] font-bold uppercase mt-1">{latestRecord?.[performedByKey] || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-wider mb-1">Verified By (Signature & Name)</p>
-                  <div className="h-16 border-b-2 border-black flex items-end pb-1">
-                    {latestRecord?.verifiedSignature && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={latestRecord.verifiedSignature} alt="Verified by signature" className="h-14 object-contain" />
-                    )}
-                  </div>
-                  <p className="text-[10px] font-bold uppercase mt-1">{latestRecord?.verifiedBy || "-"}</p>
-                </div>
-              </div>
             </div>
           )}
         </div>

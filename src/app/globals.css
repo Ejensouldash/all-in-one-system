@@ -50,6 +50,8 @@ body {
     width: 100% !important;
     margin-top: 0 !important;
     margin-bottom: 0 !important;
+    border-collapse: collapse !important;
+    border: 1px solid black !important;
   }
 
   .print-compact-table th,
@@ -57,11 +59,18 @@ body {
     padding: 2px 3px !important;
     font-size: 8px !important;
     line-height: 1.1 !important;
+    border: 1px solid black !important;
   }
 
-  /* Compact data rows so monthly tables fit on one A4 page */
-  .print-compact-table tbody tr {
+  /* Compact data rows so monthly tables fit on one A4 page, excluding verification rows */
+  .print-compact-table tbody tr:not(.verification-row) {
     height: 24px !important;
+  }
+
+  .print-compact-table tbody tr.verification-row,
+  .print-compact-table tbody tr.verification-row td {
+    height: 56px !important;
+    border: 1px solid black !important;
   }
 
   /* Force a page break between printed records */

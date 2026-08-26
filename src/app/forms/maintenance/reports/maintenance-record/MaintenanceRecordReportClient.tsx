@@ -110,6 +110,39 @@ export function MaintenanceRecordReportClient() {
         </div>
       ) : (
         <div ref={printRef} className="print-layout">
+          <style>{`
+            @media print {
+              @page {
+                size: A4 portrait;
+                margin: 6mm 8mm;
+              }
+              body {
+                background: white !important;
+                color: black !important;
+              }
+              .print-page {
+                page-break-after: always;
+                break-after: page;
+              }
+              table.print-compact-table {
+                border-collapse: collapse !important;
+                border: 1.5px solid #000 !important;
+                width: 100% !important;
+              }
+              table.print-compact-table th,
+              table.print-compact-table td {
+                border: 1px solid #000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              tr.verification-row,
+              tr.verification-row td {
+                height: 56px !important;
+                min-height: 56px !important;
+                border: 1px solid #000 !important;
+              }
+            }
+          `}</style>
           {records.map((record, index) => (
             <div key={record.id} className="print-page bg-white p-8 sm:p-12 shadow-sm border border-gray-100 mb-8 rounded-2xl print:shadow-none print:border-none print:p-0 print:m-0 print:rounded-none overflow-x-auto print:overflow-visible">
               
@@ -164,7 +197,7 @@ export function MaintenanceRecordReportClient() {
                   )}
                   
                   {/* Verification Section - 4 Shift Supervisor & Verifier Columns */}
-                  <tr>
+                  <tr className="verification-row">
                     <td className="border border-black p-2 font-bold bg-gray-200 print:bg-gray-200 text-left align-middle w-1/4">
                       CHECKED BY
                     </td>
@@ -233,7 +266,7 @@ export function MaintenanceRecordReportClient() {
                       </span>
                     </td>
                   </tr>
-                  <tr>
+                  <tr className="verification-row">
                     <td className="border border-black p-2 font-bold bg-gray-200 print:bg-gray-200 text-left align-middle w-1/4">
                       VERIFIED BY
                     </td>

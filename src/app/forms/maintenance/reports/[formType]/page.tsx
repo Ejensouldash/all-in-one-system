@@ -206,9 +206,35 @@ export default function MaintenanceMonthlyReportPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 print:py-0 print:bg-white print:min-h-0">
-      {(formType === "cleaning" || formType === "pcdm" || formType === "waste-management") && (
-        <style>{`@page { size: A4 landscape; margin: 8mm 10mm; }`}</style>
-      )}
+      <style>{`
+        @media print {
+          @page { 
+            size: A4 portrait; 
+            margin: 5mm 6mm; 
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          body {
+            background: white !important;
+            color: black !important;
+          }
+          table.print-compact-table {
+            border-collapse: collapse !important;
+            border: 1px solid #000 !important;
+            width: 100% !important;
+          }
+          table.print-compact-table th,
+          table.print-compact-table td {
+            border: 1px solid #000 !important;
+            border-top: 1px solid #000 !important;
+            border-bottom: 1px solid #000 !important;
+            border-left: 1px solid #000 !important;
+            border-right: 1px solid #000 !important;
+          }
+        }
+      `}</style>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 print:p-0 print:max-w-none">
         
         {/* Controls - Hidden in print */}

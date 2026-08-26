@@ -289,8 +289,40 @@ export function MaintenanceDQIPReportClient() {
           <p className="text-gray-500 font-medium">There are no daily quality in-process records submitted for {monthNames[month - 1]} {year}.</p>
         </div>
       ) : (
-        <div ref={printRef} className="print-layout landscape">
-          <style>{`@page { size: A4 landscape; margin: 8mm 10mm; }`}</style>
+        <div ref={printRef} className="print-layout">
+          <style>{`
+            @media print {
+              @page { 
+                size: A4 portrait; 
+                margin: 5mm 6mm; 
+              }
+              * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              body {
+                background: white !important;
+                color: black !important;
+              }
+              .print-page {
+                page-break-after: always;
+                break-after: page;
+              }
+              table.print-compact-table {
+                border-collapse: collapse !important;
+                border: 1px solid #000 !important;
+                width: 100% !important;
+              }
+              table.print-compact-table th,
+              table.print-compact-table td {
+                border: 1px solid #000 !important;
+                border-top: 1px solid #000 !important;
+                border-bottom: 1px solid #000 !important;
+                border-left: 1px solid #000 !important;
+                border-right: 1px solid #000 !important;
+              }
+            }
+          `}</style>
           {records.map((record, index) => {
             const entries = extractDQIPEntries(record)
             return (

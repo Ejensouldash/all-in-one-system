@@ -129,8 +129,41 @@ export function MaintenancePMRReportClient() {
           <p className="text-gray-500 font-medium">There are no preventive maintenance records for {monthNames[month-1]} {year}.</p>
         </div>
       ) : (
-        <div ref={printRef} className="print-layout landscape">
-          <style>{`@page { size: A4 landscape; margin: 8mm 10mm; }`}</style>
+        <div ref={printRef} className="print-layout">
+          <style>{`
+            @media print {
+              @page { 
+                size: A4 portrait; 
+                margin: 5mm 6mm; 
+              }
+              * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              body {
+                background: white !important;
+                color: black !important;
+              }
+              .print-page {
+                page-break-after: always;
+                break-after: page;
+              }
+              table.print-compact-table {
+                border-collapse: collapse !important;
+                border: 1px solid #000 !important;
+                width: 100% !important;
+              }
+              table.print-compact-table th,
+              table.print-compact-table td {
+                border: 1px solid #000 !important;
+                border-top: 1px solid #000 !important;
+                border-bottom: 1px solid #000 !important;
+                border-left: 1px solid #000 !important;
+                border-right: 1px solid #000 !important;
+                padding: 1px 1px !important;
+              }
+            }
+          `}</style>
           <div className="print-page bg-white p-8 shadow-sm border border-gray-100 mb-8 rounded-2xl print:shadow-none print:border-none print:p-0 print:m-0 print:rounded-none overflow-x-auto print:overflow-visible">
             
             {/* Header */}
@@ -148,29 +181,29 @@ export function MaintenancePMRReportClient() {
             </div>
 
             {/* Data Table */}
-            <table className="w-full text-[9px] border-collapse border border-black text-center print-compact-table min-w-[900px] print:min-w-0">
+            <table className="w-full text-[8px] border-collapse border border-black text-center print-compact-table">
               <thead>
                 <tr className="bg-gray-200 print:bg-gray-200">
-                  <th rowSpan={2} className="border border-black p-1 w-12 align-middle">DATE</th>
-                  <th rowSpan={2} className="border border-black p-1 w-12 align-middle">LINE</th>
-                  <th colSpan={MACHINE_KEYS.length} className="border border-black p-1">MAINTENANCE ACTIVITY</th>
-                  <th colSpan={2} className="border border-black p-1">VERIFICATION</th>
+                  <th rowSpan={2} className="border border-black p-0.5 w-9 align-middle text-[8px] font-bold">DATE</th>
+                  <th rowSpan={2} className="border border-black p-0.5 w-8 align-middle text-[8px] font-bold">LINE</th>
+                  <th colSpan={MACHINE_KEYS.length} className="border border-black p-0.5 text-[8.5px] font-bold">MAINTENANCE ACTIVITY</th>
+                  <th colSpan={2} className="border border-black p-0.5 text-[8.5px] font-bold">VERIFICATION</th>
                 </tr>
-                <tr className="bg-gray-200 print:bg-gray-200 h-44">
+                <tr className="bg-gray-200 print:bg-gray-200 h-36">
                   {MACHINE_KEYS.map((m, i) => (
-                    <th key={i} className="border border-black p-1 font-bold align-bottom min-w-[28px]">
-                      <div className="mx-auto whitespace-nowrap text-[8.5px] font-bold tracking-tighter leading-none" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+                    <th key={i} className="border border-black p-0.5 font-bold align-bottom">
+                      <div className="mx-auto whitespace-nowrap text-[7.5px] font-bold tracking-tighter leading-none" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
                         {m.label}
                       </div>
                     </th>
                   ))}
-                  <th className="border border-black p-1 font-bold align-bottom min-w-[32px]">
-                      <div className="mx-auto whitespace-nowrap text-[8.5px] font-bold tracking-tighter leading-none" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+                  <th className="border border-black p-0.5 font-bold align-bottom min-w-[34px]">
+                      <div className="mx-auto whitespace-nowrap text-[7.5px] font-bold tracking-tighter leading-none" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
                         CHECKED BY
                       </div>
                   </th>
-                  <th className="border border-black p-1 font-bold align-bottom min-w-[32px]">
-                      <div className="mx-auto whitespace-nowrap text-[8.5px] font-bold tracking-tighter leading-none" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+                  <th className="border border-black p-0.5 font-bold align-bottom min-w-[34px]">
+                      <div className="mx-auto whitespace-nowrap text-[7.5px] font-bold tracking-tighter leading-none" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
                         VERIFIED BY
                       </div>
                   </th>
@@ -178,45 +211,45 @@ export function MaintenancePMRReportClient() {
               </thead>
               <tbody>
                 {records.map((record, index) => (
-                  <tr key={record.id} className="h-10">
-                    <td className="border border-black p-1 font-bold">{formatSignatureDate(record.date)}</td>
-                    <td className="border border-black p-1 font-bold">{record.line}</td>
+                  <tr key={record.id} className="h-7">
+                    <td className="border border-black p-0.5 font-bold text-[7.5px]">{formatSignatureDate(record.date)}</td>
+                    <td className="border border-black p-0.5 font-bold text-[7.5px]">{record.line}</td>
                     
                     {MACHINE_KEYS.map((m, i) => (
-                      <td key={i} className="border border-black p-1 font-black text-gray-800 text-[10px]">
-                        {record[m.key] ? "✓" : ""}
+                      <td key={i} className="border border-black p-0.5 font-black text-gray-800 text-[9px]">
+                        {record[m.key] ? "✓" : "\u00A0"}
                       </td>
                     ))}
 
-                    <td className="border border-black p-0 relative min-w-[60px]">
+                    <td className="border border-black p-0 relative min-w-[34px]">
                       {record.performedSignature && (
-                        <div className="absolute top-0.5 left-1 w-12 h-6">
+                        <div className="absolute top-0.5 left-0.5 w-8 h-4">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={record.performedSignature} alt="Sig" className="w-full h-full object-contain" />
                         </div>
                       )}
-                      <span className="absolute bottom-0.5 left-1 text-[7px] text-gray-500 w-full truncate pr-1">{record.checkedBy}</span>
+                      <span className="absolute bottom-0 left-0.5 text-[6.5px] text-gray-600 font-bold w-full truncate pr-0.5 text-left">{record.checkedBy}</span>
                     </td>
-                    <td className="border border-black p-0 relative min-w-[60px]">
+                    <td className="border border-black p-0 relative min-w-[34px]">
                       {record.verifiedSignature && (
-                        <div className="absolute top-0.5 left-1 w-12 h-6">
+                        <div className="absolute top-0.5 left-0.5 w-8 h-4">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={record.verifiedSignature} alt="Sig" className="w-full h-full object-contain" />
                         </div>
                       )}
-                      <span className="absolute bottom-0.5 left-1 text-[7px] text-gray-500 w-full truncate pr-1">{record.verifiedBy || ""}</span>
+                      <span className="absolute bottom-0 left-0.5 text-[6.5px] text-gray-600 font-bold w-full truncate pr-0.5 text-left">{record.verifiedBy || "\u00A0"}</span>
                     </td>
                   </tr>
                 ))}
                 
                 {/* Fill empty rows to make it look like a full page if there are few records */}
                 {Array.from({ length: Math.max(0, 15 - records.length) }).map((_, idx) => (
-                  <tr key={`empty-${idx}`} className="h-10">
-                    <td className="border border-black p-1"></td>
-                    <td className="border border-black p-1"></td>
-                    {MACHINE_KEYS.map((_, i) => <td key={i} className="border border-black p-1"></td>)}
-                    <td className="border border-black p-1"></td>
-                    <td className="border border-black p-1"></td>
+                  <tr key={`empty-${idx}`} className="h-7">
+                    <td className="border border-black p-0.5">&nbsp;</td>
+                    <td className="border border-black p-0.5">&nbsp;</td>
+                    {MACHINE_KEYS.map((_, i) => <td key={i} className="border border-black p-0.5">&nbsp;</td>)}
+                    <td className="border border-black p-0.5">&nbsp;</td>
+                    <td className="border border-black p-0.5">&nbsp;</td>
                   </tr>
                 ))}
               </tbody>

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import { PMIRForm } from "./PMIRForm"
 
 export const metadata = {
-  title: "Preventive Maintenance Inspection Records - SGMP/07/PMIR",
+  title: "Preventive Maintenance Inspection Records - SGMP/03/PMIR",
 }
 
 export default async function PMIRPage() {

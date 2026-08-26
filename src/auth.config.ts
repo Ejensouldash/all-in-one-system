@@ -18,6 +18,7 @@ export const authConfig = {
         token.branchName = (user as any).branchName
         token.unitName = (user as any).unitName
         token.modules = (user as any).modules
+        token.signatureUrl = (user as any).signatureUrl
       }
       return token
     },
@@ -31,6 +32,7 @@ export const authConfig = {
         ;(session.user as any).branchName = token.branchName as string | null
         ;(session.user as any).unitName = token.unitName as string | null
         ;(session.user as any).modules = (token.modules as string[]) || []
+        ;(session.user as any).signatureUrl = (token.signatureUrl as string) || null
       }
       return session
     }

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { revalidatePath } from "next/cache"
 import bcrypt from "bcryptjs"
+import { uploadSignatureToR2, deleteSignatureFromR2 } from "@/lib/signature-storage"
 
 export async function createUser(formData: FormData) {
   const session = await auth()
@@ -139,3 +140,104 @@ export async function updateUserModules(id: string, modules: string[]) {
     return { success: false, error: error.message }
   }
 }
+
+/**
+ * Superadmin saves or updates a user's digital signature.
+ */
+export async function saveUserSignature(userId: string, signatureBase64: string) {
+  const session = await auth()
+  if (session?.user.role !== "SUPERADMIN") return { success: false, error: "Unauthorized: Superadmin access required" }
+
+  if (!userId || !signatureBase64) {
+    return { success: false, error: "User ID and Signature data are required" }
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    if (!user) return { success: false, error: "User not found" }
+
+    // Upload transparent PNG to Cloudflare R2
+    const signatureUrl = await uploadSignatureToR2(userId, signatureBase64)
+
+    // Update user record in database
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        signatureUrl,
+        signatureUpdatedAt: new Date()
+      }
+    })
+
+    revalidatePath("/users")
+    return { success: true, signatureUrl }
+  } catch (error: any) {
+    console.error("Error saving user signature:", error)
+    return { success: false, error: error.message || "Failed to save signature" }
+  }
+}
+
+/**
+ * Superadmin removes a user's digital signature.
+ */
+export async function removeUserSignature(userId: string) {
+  const session = await auth()
+  if (session?.user.role !== "SUPERADMIN") return { success: false, error: "Unauthorized: Superadmin access required" }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    if (!user) return { success: false, error: "User not found" }
+
+    // Delete from Cloudflare R2
+    await deleteSignatureFromR2(userId)
+
+    // Clear from database
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        signatureUrl: null,
+        signatureUpdatedAt: null
+      }
+    })
+
+    revalidatePath("/users")
+    return { success: true }
+  } catch (error: any) {
+    console.error("Error removing user signature:", error)
+    return { success: false, error: error.message || "Failed to remove signature" }
+  }
+}
+
+/**
+ * Fetches the signature URL of a specific user.
+ */
+export async function getUserSignature(userId: string) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, signatureUrl: true, signatureUpdatedAt: true }
+    })
+    if (!user) return { success: false, error: "User not found" }
+    return { success: true, data: user }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Fetches the currently authenticated user's digital signature for form auto-fills.
+ */
+export async function getCurrentUserSignature() {
+  const session = await auth()
+  if (!session?.user?.id) return { success: false, error: "Not authenticated" }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, name: true, email: true, signatureUrl: true, signatureUpdatedAt: true }
+    })
+    return { success: true, data: user }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}
+

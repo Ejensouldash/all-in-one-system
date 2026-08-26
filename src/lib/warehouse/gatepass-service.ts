@@ -597,7 +597,7 @@ export async function linkGatePassToDistributionOrder(gatePassId: string, distri
     ])
     if (!gatePass || !order) throw new Error("Gatepass atau Distribution Order tidak ditemui.")
     if (["CHECKED_OUT", "COMPLETED"].includes(gatePass.status)) throw new Error("DO tidak boleh dipautkan selepas Gatepass check-out.")
-    const existingOwner = await tx.gatePassDeliveryOrder.findUnique({
+    const existingOwner = await tx.gatePassDeliveryOrder.findFirst({
       where: { distributionOrderId }, select: { gatePassId: true },
     })
     if (existingOwner && existingOwner.gatePassId !== gatePassId) {

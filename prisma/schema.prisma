@@ -18,6 +18,8 @@ model User {
   updatedAt                  DateTime                    @updatedAt
   modules                    String[]                    @default([])
   googleEmail                String?
+  signatureUrl               String?
+  signatureUpdatedAt         DateTime?
   dailyReports               DailyReport[]               @relation("DailyReportCreator")
   createdDOs                 DistributionOrder[]         @relation("DOCreator")
   distributionTrackingEvents DistributionTrackingEvent[] @relation("DistributionTrackingActor")
@@ -809,7 +811,6 @@ model GatePassDeliveryOrder {
   linkedBy          User              @relation("GatePassDOLinker", fields: [linkedById], references: [id])
 
   @@id([gatePassId, distributionOrderId])
-  @@unique([distributionOrderId])
   @@index([distributionOrderId])
   @@index([linkedById])
 }

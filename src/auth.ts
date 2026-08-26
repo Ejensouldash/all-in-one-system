@@ -55,6 +55,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           branchName: user.branch?.name,
           unitName: user.unit?.name,
           modules: user.modules,
+          signatureUrl: user.signatureUrl,
         }
       }
     })

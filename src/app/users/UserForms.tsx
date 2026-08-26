@@ -2,8 +2,9 @@
 
 import { useState } from "react"
 import { createUser, deleteUser, updateUser, resetUserPassword } from "@/app/actions/user"
-import { AlertCircle, Trash2, UserPlus, X, Edit3, KeyRound } from "lucide-react"
+import { AlertCircle, Trash2, UserPlus, X, Edit3, KeyRound, FileSignature, CheckCircle2 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { UserSignatureModal } from "./UserSignatureModal"
 
 export function AddUserForm({ branches, units }: { branches: any[], units: any[] }) {
   const router = useRouter()
@@ -151,6 +152,10 @@ export function EditUserButton({ user, branches, units }: { user: any, branches:
               <EditProfileForm user={user} branches={branches} units={units} onClose={() => setIsOpen(false)} />
               
               <hr className="border-gray-100" />
+
+              <EditSignatureSection user={user} />
+              
+              <hr className="border-gray-100" />
               
               <ResetPasswordForm userId={user.id} onClose={() => setIsOpen(false)} />
             </div>
@@ -274,3 +279,50 @@ function ResetPasswordForm({ userId, onClose }: { userId: string, onClose: () =>
     </form>
   )
 }
+
+function EditSignatureSection({ user }: { user: any }) {
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  return (
+    <div className="space-y-4 bg-purple-50/40 p-4 rounded-xl border border-purple-100">
+      <div className="flex justify-between items-center">
+        <h4 className="font-semibold text-purple-950 flex items-center text-sm">
+          <FileSignature className="h-4 w-4 mr-2 text-purple-600" /> Digital Signature
+        </h4>
+        <button
+          type="button"
+          onClick={() => setIsModalOpen(true)}
+          className="text-xs bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-1.5 rounded-lg transition-colors shadow-sm flex items-center gap-1 cursor-pointer"
+        >
+          <FileSignature className="w-3.5 h-3.5" />
+          {user.signatureUrl ? "Ubah Tandatangan" : "Daftar Tandatangan"}
+        </button>
+      </div>
+
+      {user.signatureUrl ? (
+        <div className="flex items-center gap-4 bg-white p-3 rounded-lg border border-purple-100">
+          <div className="h-16 w-32 bg-gray-50 rounded border border-gray-200 p-1 flex items-center justify-center">
+            <img src={user.signatureUrl} alt="" className="max-h-full max-w-full object-contain" />
+          </div>
+          <div>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 border border-green-200 mb-1">
+              <CheckCircle2 className="w-3 h-3 mr-1 text-green-600" /> Tersimpan di Cloudflare R2
+            </span>
+            <p className="text-xs text-gray-500">
+              Tandatangan ini akan digunakan secara automatik untuk kelulusan dan borang staf.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs text-purple-700/80">
+          Staf ini belum mempunyai tandatangan digital. Klik butang di atas untuk merakam tandatangan staf.
+        </p>
+      )}
+
+      {isModalOpen && (
+        <UserSignatureModal user={user} onClose={() => setIsModalOpen(false)} />
+      )}
+    </div>
+  )
+}
+

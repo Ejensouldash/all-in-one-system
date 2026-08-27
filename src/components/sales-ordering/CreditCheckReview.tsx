@@ -1,8 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { CheckCircle2, Clock3, XCircle, AlertTriangle, ShieldAlert, FileCheck2, Scale, Paperclip } from "lucide-react"
+import { CheckCircle2, Clock3, XCircle, AlertTriangle, ShieldAlert, FileCheck2, Scale, Paperclip, ArrowRight } from "lucide-react"
 import type { CheckMode, AgingSummary } from "@/lib/sales-ordering/decision-engine"
 
 type Check = { code: string; label: string; severity: "PASS" | "REJECT" | "HOLD"; evidence: string; requiredAction: string }
@@ -56,11 +57,13 @@ export function CreditCheckReview({
   const checkMode = result.checkMode || "PO_CREDIT_CHECK"
   const isPoMode = checkMode === "PO_CREDIT_CHECK"
 
-  const effectiveStatus = currentStatus || (finalDecision === "PROCEED" ? "PROCEED" : finalDecision === "REJECT" ? "REJECTED" : result.recommendation)
+  const isApproved = finalDecision === "PROCEED" || (!finalDecision && (currentStatus === "READY_FOR_SO" || currentStatus === "APPROVE" || result.recommendation === "APPROVE"))
+  const isRejected = finalDecision === "REJECT" || finalDecision === "REJECTED" || (!finalDecision && (currentStatus === "REJECTED" || currentStatus === "REJECT" || result.recommendation === "REJECT"))
+  const isHold = !isApproved && !isRejected
 
-  const statusDisplay = effectiveStatus === "APPROVE" || effectiveStatus === "PROCEED"
-    ? { icon: CheckCircle2, text: effectiveStatus === "PROCEED" ? "PROCEED (Kredit Dilepaskan)" : "APPROVE", subtitle: isPoMode ? "LULUS - Akaun Bebas Overdue & Ready for Sales Order" : "LULUS - Dokumen Invois Padan Tepat dengan SOA", style: "border-emerald-300 bg-emerald-50 text-emerald-900" }
-    : effectiveStatus === "REJECT" || effectiveStatus === "REJECTED"
+  const statusDisplay = isApproved
+    ? { icon: CheckCircle2, text: finalDecision === "PROCEED" ? "PROCEED (Kredit Dilepaskan Manual)" : "APPROVED (Lulus Automatik)", subtitle: isPoMode ? "LULUS - Akaun Bebas Overdue & Ready for Sales Order" : "LULUS - Dokumen Invois Padan Tepat dengan SOA", style: "border-emerald-300 bg-emerald-50 text-emerald-900" }
+    : isRejected
       ? { icon: XCircle, text: "REJECTED (Disekat)", subtitle: isPoMode ? "REJECTED - Invois Overdue / Isu Kredit (Perlu BD Follow-up)" : "REJECTED - Invois Tidak Padan dalam Lejar SOA", style: "border-rose-300 bg-rose-50 text-rose-900" }
       : { icon: Clock3, text: "ON_HOLD (Semakan Finance)", subtitle: "Menunggu Semakan Bayaran & Keputusan Finance Team", style: "border-amber-300 bg-amber-50 text-amber-900" }
   
@@ -262,48 +265,77 @@ export function CreditCheckReview({
         </div>
       </section>
 
-      {/* Finance Workflow Decision Form for ON_HOLD / HOLD cases */}
-      {(!finalDecision || currentStatus === "ON_HOLD" || result.recommendation === "HOLD") && canDecide && (
-        <section className="rounded-3xl border-2 border-amber-300 bg-amber-50/80 p-6 shadow-sm space-y-4">
-          <div className="flex items-center gap-3 text-amber-950">
-            <AlertTriangle className="h-6 w-6 text-amber-600" />
+      {/* Approved / Ready for Sales Order Action Card */}
+      {isApproved && (
+        <section className="rounded-3xl border-2 border-emerald-300 bg-emerald-50/80 p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5 text-emerald-950">
+            <CheckCircle2 className="h-8 w-8 text-emerald-600 shrink-0" />
             <div>
-              <h3 className="text-lg font-black">Semakan Finance & Keputusan Pelepasan Kredit (Finance Review Workflow)</h3>
-              <p className="text-xs text-amber-800 font-semibold mt-0.5">PO diletakkan di bawah status **ON_HOLD** sementara Finance menyemak resit bayaran terkini atau kelulusan pengurusan.</p>
+              <h3 className="text-lg font-black">Pesanan Lulus Kawalan Kredit (Ready for Sales Order)</h3>
+              <p className="text-xs text-emerald-800 font-semibold mt-0.5">
+                Semua syarat kawalan kewangan dipenuhi dan akaun bebas daripada tunggakan overdue. SOD boleh meneruskan penjanaan Sales Order.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link
+              href="/forms/sales-ordering"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-xs font-black text-white shadow-md hover:bg-emerald-700 transition"
+            >
+              <CheckCircle2 className="h-4 w-4" /> Buka Sales Ordering Form <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {/* Finance Workflow Decision Form for ON_HOLD or REJECT cases */}
+      {(isHold || isRejected) && !finalDecision && canDecide && (
+        <section className={`rounded-3xl border-2 p-6 shadow-sm space-y-4 ${isRejected ? "border-rose-300 bg-rose-50/80" : "border-amber-300 bg-amber-50/80"}`}>
+          <div className="flex items-center gap-3 text-slate-950">
+            {isRejected ? <ShieldAlert className="h-6 w-6 text-rose-600" /> : <AlertTriangle className="h-6 w-6 text-amber-600" />}
+            <div>
+              <h3 className="text-lg font-black">
+                {isRejected ? "Keputusan Pengecualian / Override Kewangan (Finance Review)" : "Semakan Finance & Keputusan Pelepasan Kredit"}
+              </h3>
+              <p className="text-xs text-slate-700 font-semibold mt-0.5">
+                {isRejected
+                  ? "Pesanan ini disekat oleh sistem. Sekiranya pelanggan telah menjelaskan bayaran atau mendapat kelulusan khas, Finance boleh membuat pelepasan kredit berkecuali."
+                  : "PO diletakkan di bawah status **ON_HOLD** sementara Finance menyemak resit bayaran terkini atau kelulusan pengurusan."}
+              </p>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-black uppercase text-amber-950">
+            <label className="block text-xs font-black uppercase text-slate-900">
               Ulasan / Justifikasi Audit Kewangan <span className="text-rose-600">* (WAJIB)</span>
             </label>
             <textarea
               value={justification}
               onChange={e => { setJustification(e.target.value); setError(""); }}
-              className="mt-2 min-h-24 w-full rounded-2xl border border-amber-300 bg-white p-3.5 text-sm font-semibold shadow-xs focus:border-amber-600 focus:outline-none"
+              className="mt-2 min-h-24 w-full rounded-2xl border border-slate-300 bg-white p-3.5 text-sm font-semibold shadow-xs focus:border-cyan-600 focus:outline-none"
               placeholder="Contoh: Finance mengesahkan bayaran RM 5,000 telah diterima pada 10/08/2026. Kredit dilepaskan untuk PO ini..."
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-amber-950">Pautan Bukti / Resit Bayaran (URL Evidence)</label>
+              <label className="block text-xs font-bold text-slate-900">Pautan Bukti / Resit Bayaran (URL Evidence)</label>
               <input
                 type="text"
                 value={evidenceUrl}
                 onChange={e => setEvidenceUrl(e.target.value)}
                 placeholder="https://drive.google.com/file/d/.../view"
-                className="mt-1 w-full rounded-xl border border-amber-300 bg-white p-2.5 text-xs font-semibold"
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-2.5 text-xs font-semibold"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-amber-950">Nama Dokumen Bukti (Attachment Name)</label>
+              <label className="block text-xs font-bold text-slate-900">Nama Dokumen Bukti (Attachment Name)</label>
               <input
                 type="text"
                 value={evidenceName}
                 onChange={e => setEvidenceName(e.target.value)}
                 placeholder="Resit_Bayaran_Aug2026.pdf"
-                className="mt-1 w-full rounded-xl border border-amber-300 bg-white p-2.5 text-xs font-semibold"
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-2.5 text-xs font-semibold"
               />
             </div>
           </div>

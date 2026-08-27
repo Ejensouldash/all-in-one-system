@@ -54,31 +54,97 @@ export function decideCreditCheck(
 ): DecisionResult {
   const poDate = /^\d{4}-\d{2}-\d{2}$/.test(po.documentDate) ? po.documentDate : ""
   const evalDate = soa.statementDate || new Date().toISOString().slice(0, 10)
-  const terms = soa.creditTermDays || 30
-  const identity = compareIdentity(po.customerName, [soa.accountName, soa.stationName, soa.supplierName].filter(Boolean))
   
+  const paymentTermsUpper = (soa.paymentTermsRaw || "").toUpperCase()
+  const isCashTerms = soa.creditTermDays === 0 || /CASH|COD|C\.O\.D/.test(paymentTermsUpper)
+  const terms = isCashTerms ? 0 : (soa.creditTermDays > 0 ? soa.creditTermDays : 30)
+  
+  const identity = compareIdentity(po.customerName, [soa.accountName, soa.stationName, soa.supplierName].filter(Boolean))
+  const closingBalance = Number.isFinite(soa.closingBalance) ? soa.closingBalance : 0
+
+  // 1. Accounting Reconciliation Check:
+  // If closing balance <= 0 (all invoices paid / customer has advance credit balance)
+  // or if all aging overdue buckets in SOA agingSummary are <= 0, then all invoices are settled!
+  const isCreditOrZeroBalance = closingBalance <= 0 || (
+    soa.agingSummary != null &&
+    soa.agingSummary.total <= 0 &&
+    soa.agingSummary.month1 <= 0 &&
+    soa.agingSummary.month2 <= 0 &&
+    soa.agingSummary.month3 <= 0 &&
+    soa.agingSummary.month4 <= 0 &&
+    soa.agingSummary.month5Plus <= 0
+  )
+
+  // 2. FIFO Allocation if closingBalance > 0 and invoice-level outstanding amounts are missing
+  let totalPaymentsAvailable = isCreditOrZeroBalance
+    ? 999999999
+    : Math.max(0, soa.invoices.reduce((sum, inv) => sum + inv.amount, 0) - closingBalance)
+
   const aging = soa.invoices.map(invoice => {
-    const dueDate = addDays(invoice.invoiceDate, terms)
-    const settled = Boolean(invoice.settledDate && invoice.settledDate <= evalDate)
+    const effectiveTerm = terms
+    const dueDate = effectiveTerm > 0 ? addDays(invoice.invoiceDate, effectiveTerm) : invoice.invoiceDate
+    
+    let isSettled = false
+    let remainingUnpaid = invoice.amount
+
+    if (isCreditOrZeroBalance || invoice.status === "PAID" || invoice.outstandingAmount === 0) {
+      isSettled = true
+      remainingUnpaid = 0
+    } else if (invoice.settledDate && invoice.settledDate <= evalDate) {
+      isSettled = true
+      remainingUnpaid = 0
+    } else if (typeof invoice.outstandingAmount === "number" && invoice.outstandingAmount >= 0) {
+      remainingUnpaid = invoice.outstandingAmount
+      isSettled = remainingUnpaid === 0
+    } else {
+      // FIFO Knock-off against available payments
+      if (totalPaymentsAvailable >= invoice.amount) {
+        totalPaymentsAvailable -= invoice.amount
+        isSettled = true
+        remainingUnpaid = 0
+      } else if (totalPaymentsAvailable > 0) {
+        remainingUnpaid = invoice.amount - totalPaymentsAvailable
+        totalPaymentsAvailable = 0
+        isSettled = false
+      } else {
+        remainingUnpaid = invoice.amount
+        isSettled = false
+      }
+    }
     
     const evalDateTime = new Date(`${evalDate}T00:00:00Z`).getTime()
     const dueDateTime = new Date(`${dueDate}T00:00:00Z`).getTime()
     const daysOverdue = Math.max(0, Math.floor((evalDateTime - dueDateTime) / (1000 * 60 * 60 * 24)))
     
     let statusAtPoDate = "Belum matang"
-    if (settled) {
+    if (isSettled) {
       statusAtPoDate = "Selesai dibayar"
     } else if (daysOverdue > 0) {
-      statusAtPoDate = daysOverdue > terms ? "Strictly Overdue" : "Tolerated (Grace Period)"
+      if (effectiveTerm === 0) {
+        // For cash terms, any overdue days past invoice date is strictly overdue
+        statusAtPoDate = "Strictly Overdue"
+      } else {
+        statusAtPoDate = daysOverdue > effectiveTerm ? "Strictly Overdue" : "Tolerated (Grace Period)"
+      }
     }
     
-    return { ...invoice, dueDate, statusAtPoDate, daysOverdue }
+    return {
+      ...invoice,
+      dueDate,
+      statusAtPoDate,
+      daysOverdue: isSettled ? 0 : daysOverdue,
+      outstandingAmount: remainingUnpaid
+    }
   })
 
   const active = aging.filter(invoice => invoice.statusAtPoDate !== "Selesai dibayar")
-  const outstandingAtPoDate = active.reduce((total, invoice) => total + invoice.amount, 0)
+  const outstandingAtPoDate = isCreditOrZeroBalance
+    ? 0
+    : (closingBalance > 0 ? closingBalance : active.reduce((total, invoice) => total + (invoice.outstandingAmount ?? invoice.amount), 0))
   const overdueInvoices = active.filter(invoice => invoice.statusAtPoDate === "Strictly Overdue")
-  const overdueTotal = overdueInvoices.reduce((total, invoice) => total + invoice.amount, 0)
+  const overdueTotal = isCreditOrZeroBalance
+    ? 0
+    : overdueInvoices.reduce((total, invoice) => total + (invoice.outstandingAmount ?? invoice.amount), 0)
 
   // Calculate Aging Summary
   let current = 0
@@ -86,19 +152,31 @@ export function decideCreditCheck(
   let month2 = 0
   let month3Plus = 0
 
-  active.forEach(inv => {
-    const daysOverdue = inv.daysOverdue ?? 0
-    if (daysOverdue === 0) {
-      current += inv.amount
-    } else if (daysOverdue <= 30) {
-      month1 += inv.amount
-    } else if (daysOverdue <= 60) {
-      month2 += inv.amount
-    } else {
-      month3Plus += inv.amount
-    }
-  })
-
+  if (isCreditOrZeroBalance) {
+    current = closingBalance // can be negative (e.g. -1320)
+    month1 = 0
+    month2 = 0
+    month3Plus = 0
+  } else if (soa.agingSummary) {
+    current = soa.agingSummary.current
+    month1 = soa.agingSummary.month1
+    month2 = soa.agingSummary.month2
+    month3Plus = (soa.agingSummary.month3 || 0) + (soa.agingSummary.month4 || 0) + (soa.agingSummary.month5Plus || 0)
+  } else {
+    active.forEach(inv => {
+      const amt = inv.outstandingAmount ?? inv.amount
+      const daysOverdue = inv.daysOverdue ?? 0
+      if (daysOverdue === 0) {
+        current += amt
+      } else if (daysOverdue <= 30) {
+        month1 += amt
+      } else if (daysOverdue <= 60) {
+        month2 += amt
+      } else {
+        month3Plus += amt
+      }
+    })
+  }
 
   const agingSummary: AgingSummary = {
     current,
@@ -135,9 +213,14 @@ export function decideCreditCheck(
 
   // Check 3: Overdue Balance Assessment
   if (checkMode === "PO_CREDIT_CHECK") {
-    checks.push(overdueTotal > 0
-      ? { code: "OVERDUE_BALANCE", label: "Overdue pada tarikh PO", severity: "REJECT", evidence: `Terdapat ${overdueInvoices.length} invois yang melebihi had toleransi (Strictly Overdue) bertotal RM ${money(overdueTotal)}.`, requiredAction: "Tolak pelepasan Sales Order sehingga overdue dijelaskan." }
-      : { code: "OVERDUE_BALANCE", label: "Overdue pada tarikh PO", severity: "PASS", evidence: "Tiada tunggakan yang melebihi tempoh toleransi (Grace Period).", requiredAction: "Tiada tindakan." })
+    if (overdueTotal > 0) {
+      checks.push({ code: "OVERDUE_BALANCE", label: "Overdue pada tarikh PO", severity: "REJECT", evidence: `Terdapat ${overdueInvoices.length} invois yang melebihi had toleransi (Strictly Overdue) bertotal RM ${money(overdueTotal)}.`, requiredAction: "Tolak pelepasan Sales Order sehingga overdue dijelaskan." })
+    } else {
+      const zeroEvidence = closingBalance < 0
+        ? `Tiada tunggakan. Akaun mempunyai baki advance/kredit RM ${money(Math.abs(closingBalance))}.`
+        : "Tiada tunggakan yang melebihi tempoh toleransi (Grace Period)."
+      checks.push({ code: "OVERDUE_BALANCE", label: "Overdue pada tarikh PO", severity: "PASS", evidence: zeroEvidence, requiredAction: "Tiada tindakan." })
+    }
   } else {
     // Mode: INVOICE_SOA_RECONCILIATION
     checks.push(overdueTotal > 0
@@ -160,7 +243,8 @@ export function decideCreditCheck(
     : { code: "RETROSPECTIVE_PO", label: "Invoice date vs PO date", severity: "PASS", evidence: "Tiada kekeliruan tarikh invois/PO.", requiredAction: "Tiada tindakan." })
 
   // Check 5: Data Confidence Check
-  const uncertain = !poDate || po.confidence < 0.75 || soa.warnings.length > 0 || !soa.statementDate || soa.creditTermDays <= 0
+  const missingTerms = !isCashTerms && (soa.creditTermDays === undefined || soa.creditTermDays <= 0) && !soa.paymentTermsRaw
+  const uncertain = !poDate || po.confidence < 0.75 || soa.warnings.length > 0 || !soa.statementDate || missingTerms
   checks.push(uncertain
     ? { code: "DATA_CONFIDENCE", label: "Data confidence", severity: "HOLD", evidence: soa.warnings[0] || "Tarikh, credit term atau confidence dokumen tidak lengkap.", requiredAction: "Semak field yang ditanda pada PDF asal." }
     : { code: "DATA_CONFIDENCE", label: "Data confidence", severity: "PASS", evidence: "Field penting dibaca dengan confidence yang mencukupi.", requiredAction: "Tiada tindakan." })
@@ -168,7 +252,11 @@ export function decideCreditCheck(
   const rejected = checks.filter(check => check.severity === "REJECT")
   const held = checks.filter(check => check.severity === "HOLD")
   const recommendation: CreditDecision = rejected.length ? "REJECT" : held.length ? "HOLD" : "APPROVE"
-  const primary = (rejected[0] || held[0])?.evidence || "Semua semakan utama lulus. Akaun bebas overdue dan dokumen padan."
+  const primary = (rejected[0] || held[0])?.evidence || (
+    closingBalance < 0
+      ? `Semua semakan utama lulus. Akaun mempunyai baki advance/kredit RM ${money(Math.abs(closingBalance))} dan sedia untuk diproses.`
+      : "Semua semakan utama lulus. Akaun bebas overdue dan dokumen padan."
+  )
 
   return {
     checkMode,

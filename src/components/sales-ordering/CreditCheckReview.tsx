@@ -184,7 +184,14 @@ export function CreditCheckReview({
         <div className="grid gap-3 p-5 sm:grid-cols-4">
           <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
             <p className="text-xs font-black text-slate-500">BELUM MATANG (CURRENT)</p>
-            <p className="mt-1 text-lg font-black text-slate-900">RM {summary.current.toFixed(2)}</p>
+            <p className="mt-1 text-lg font-black text-slate-900">
+              {summary.current < 0 ? `-RM ${Math.abs(summary.current).toFixed(2)}` : `RM ${summary.current.toFixed(2)}`}
+            </p>
+            {summary.current < 0 && (
+              <span className="mt-1 inline-block text-[11px] font-bold text-emerald-700">
+                (Lebihan Bayaran / Advance)
+              </span>
+            )}
           </div>
           <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-4">
             <p className="text-xs font-black text-amber-700">1 - 30 HARI OVERDUE</p>
@@ -204,6 +211,11 @@ export function CreditCheckReview({
           <div className="rounded-2xl bg-slate-900 p-4 text-white">
             <p className="text-xs font-black text-slate-400">JUMLAH TERTUNGGAK (TOTAL OUTSTANDING)</p>
             <p className="mt-1 text-2xl font-black text-white">RM {summary.totalOutstanding.toFixed(2)}</p>
+            {summary.current < 0 && (
+              <p className="mt-1 text-xs font-bold text-emerald-400">
+                Akaun berstatus kredit advance (RM {Math.abs(summary.current).toFixed(2)})
+              </p>
+            )}
           </div>
           <div className="rounded-2xl bg-rose-950 p-4 text-white">
             <p className="text-xs font-black text-rose-300">JUMLAH OVERDUE (TERLEWAT BAYAR)</p>
@@ -231,7 +243,15 @@ export function CreditCheckReview({
                   <td className="px-4 py-3 font-bold text-slate-900">RM {row.amount.toFixed(2)}</td>
                   <td className="px-4 py-3">{row.dueDate}</td>
                   <td className="px-4 py-3 font-bold">
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs ${row.statusAtPoDate === "Overdue" || row.statusAtPoDate === "Strictly Overdue" ? "bg-rose-100 text-rose-800" : row.statusAtPoDate === "Belum matang" ? "bg-cyan-100 text-cyan-800" : "bg-slate-100 text-slate-700"}`}>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs ${
+                      row.statusAtPoDate === "Overdue" || row.statusAtPoDate === "Strictly Overdue"
+                        ? "bg-rose-100 text-rose-800"
+                        : row.statusAtPoDate === "Selesai dibayar"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : row.statusAtPoDate === "Belum matang"
+                            ? "bg-cyan-100 text-cyan-800"
+                            : "bg-slate-100 text-slate-700"
+                    }`}>
                       {row.statusAtPoDate}
                     </span>
                   </td>

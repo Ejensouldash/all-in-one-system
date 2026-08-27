@@ -5,6 +5,8 @@ import { extractSalesDocument, SALES_AI_MODEL } from "./extract"
 import { generateGeminiJson } from "./gemini-json"
 import { decideCreditCheck, type CheckMode } from "./decision-engine"
 
+import { normalizeExtractedDocument, type ExtractedSalesDocument } from "./types"
+
 export type SoaInvoice = { invoiceNumber: string; invoiceDate: string; amount: number; settledDate: string }
 export type SoaExtract = { accountName: string; stationName: string; supplierName: string; statementDate: string; creditTermDays: number; creditLimit: number | null; closingBalance: number; invoices: SoaInvoice[]; warnings: string[] }
 export type CreditResult = import("./decision-engine").DecisionResult
@@ -29,8 +31,15 @@ export async function extractSoa(pdf: Buffer, onStage?: StageReporter): Promise<
   return { accountName: clean(raw.accountName), stationName: clean(raw.stationName), supplierName: clean(raw.supplierName), statementDate: date(clean(raw.statementDate)), creditTermDays: Math.max(0, Math.round(money(raw.creditTermDays))), creditLimit: raw.creditLimit != null ? money(raw.creditLimit) : null, closingBalance: money(raw.closingBalance), invoices: Array.isArray(raw.invoices) ? raw.invoices.map(value => { const row = value as Record<string, unknown>; return { invoiceNumber: clean(row.invoiceNumber), invoiceDate: date(clean(row.invoiceDate)), amount: money(row.amount), settledDate: date(clean(row.settledDate)) } }).filter(row => row.invoiceNumber && row.invoiceDate && row.amount) : [], warnings: Array.isArray(raw.warnings) ? raw.warnings.map(clean).filter(Boolean) : [] }
 }
 
-export async function analyseCreditCheck(poPdf: Buffer, soaPdf: Buffer, checkMode: CheckMode = "PO_CREDIT_CHECK", onStage?: StageReporter): Promise<{ po: Awaited<ReturnType<typeof extractSalesDocument>>; soa: SoaExtract; result: CreditResult }> {
-  const po = await extractSalesDocument(poPdf, onStage)
+export async function analyseCreditCheck(
+  poInput: Buffer | ExtractedSalesDocument | Record<string, unknown>,
+  soaPdf: Buffer,
+  checkMode: CheckMode = "PO_CREDIT_CHECK",
+  onStage?: StageReporter
+): Promise<{ po: ExtractedSalesDocument; soa: SoaExtract; result: CreditResult }> {
+  const po: ExtractedSalesDocument = Buffer.isBuffer(poInput)
+    ? await extractSalesDocument(poInput, onStage)
+    : normalizeExtractedDocument(poInput)
   const soa = await extractSoa(soaPdf, onStage)
   await onStage?.("RECONCILING")
   return { po, soa, result: decideCreditCheck(po, soa, checkMode) }

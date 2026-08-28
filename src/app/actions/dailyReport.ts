@@ -422,7 +422,8 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
           // Draft reports should not lock Transfer In DOs globally for other reports
           if (log.report && log.report.status !== "DRAFT") {
             if (toMalaysiaDateStr(log.report.date) !== reportDateString) return
-            claimedDOs.add(`${log.sectionKey}|${normBatch(log.batchNo)}|${log.mult}|${log.labelType}`)
+            if (shift && log.report.shift && log.report.shift !== shift) return
+            claimedDOs.add(`${log.report.shift || "AM"}|${log.sectionKey}|${normBatch(log.batchNo)}|${log.mult}|${log.labelType}`)
           }
         }
       }
@@ -430,7 +431,7 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
 
     /** The claim key for a Transfer In item, matching how the report writes its log rows. */
     const claimKey = (item: any) =>
-      `${dailyReportSectionForCategory(item.category) || ""}|${normBatch(item.batchNo)}|${item.mult}|${item.transferIn.doNumber}`
+      `${item.transferIn.shift || "AM"}|${dailyReportSectionForCategory(item.category) || ""}|${normBatch(item.batchNo)}|${item.mult}|${item.transferIn.doNumber}`
 
     // Helper: was this Transfer In item RECEIVED TODAY (on the report date)?
     const isReceivedOnReportDate = (item: any) =>

@@ -100,15 +100,16 @@ async function main() {
     include: { report: { select: { date: true, shift: true, line: true, status: true } } },
   })
 
-  const claimedBy = new Map<string, { date: string; where: string }[]>()
+  const claimedBy = new Map<string, { date: string; shift: string; where: string }[]>()
   for (const c of claims) {
     if (!c.labelType || !c.report) continue
     if (c.report.status === "DRAFT") continue
-    const key = `${normBatch(c.batchNo)}|${c.mult}|${c.labelType.trim()}`
+    const key = `${c.report.shift || "AM"}|${c.sectionKey}|${normBatch(c.batchNo)}|${c.mult}|${c.labelType.trim()}`
     const date = c.report.date.toISOString().split("T")[0]
+    const shift = c.report.shift || "AM"
     const where = `${date} ${c.report.shift} ${c.report.line}`
     if (!claimedBy.has(key)) claimedBy.set(key, [])
-    if (!claimedBy.get(key)!.some(e => e.where === where)) claimedBy.get(key)!.push({ date, where })
+    if (!claimedBy.get(key)!.some(e => e.where === where)) claimedBy.get(key)!.push({ date, shift, where })
   }
 
   console.log(`BOX Transfer In items received ${dateArg}: ${boxItems.length}\n`)
@@ -122,7 +123,7 @@ async function main() {
     const section = sectionForCategory(item.category)!
     const stamped = t.shift || "(none)"
     const eff = effectiveShift(t.shift, t.receiveTime)
-    const claimKey = `${normBatch(item.batchNo)}|${item.mult}|${t.doNumber}`
+    const claimKey = `${t.shift || "AM"}|${section}|${normBatch(item.batchNo)}|${item.mult}|${t.doNumber}`
     const claimedAt = claimedBy.get(claimKey) || []
 
     console.log(`${t.doNumber}   ${item.category}   batch ${normBatch(item.batchNo)}   ${item.bags} x${item.mult}`)
@@ -130,10 +131,7 @@ async function main() {
       (eff && eff !== t.shift ? `   (time implies ${eff})` : ""))
     console.log(`    section  ${section}   receiver ${t.receiverName}`)
 
-    // A claim made by a report on a DIFFERENT date can never be about this document: a report only
-    // ever syncs DOs whose receiveDate equals its own date. Such a claim is a false positive of the
-    // `batchNo|mult|doNumber` key, which collides because BOX DO numbers are stripped to digits
-    // (TransferInForm.tsx:225-227) and TransferIn.doNumber is not unique.
+    // A claim made by a report on a DIFFERENT date or DIFFERENT shift can never be about this document
     const own = claimedAt.filter(c => c.date === dateArg)
     const stale = claimedAt.filter(c => c.date !== dateArg)
 
@@ -148,8 +146,9 @@ async function main() {
       const label = `${slot.shift} ${slot.line}`
       if (!sectionOnLine(section, slot.line)) continue // that line has no block for this box size
 
-      if (own.length > 0) {
-        verdicts.push(`${label}: used — claimed by ${own.map(c => c.where).join("; ")}`)
+      const matchingClaim = own.find(c => c.shift === slot.shift)
+      if (matchingClaim) {
+        verdicts.push(`${label}: used — claimed by ${matchingClaim.where}`)
         used = true
       } else if (item.bags <= 0) {
         verdicts.push(`${label}: HIDDEN — bags is ${item.bags}`)

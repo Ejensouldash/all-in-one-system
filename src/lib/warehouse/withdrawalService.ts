@@ -121,12 +121,12 @@ function matchesProductionLine(line: string, size: ProductionLineSize) {
  * result means the category has no section of its own (CARTON, WRAPPING, TAPE...).
  */
 export function dailyReportSectionForCategory(category: string): string | null {
-  const c = category || ""
+  const c = (category || "").toUpperCase()
   if (c.includes("BOTTLE")) return "BOTTLE"
-  if (c === "LABEL") return "LABEL"
-  if (c === "CAP") return "CAP"
+  if (c === "LABEL" || c.includes("LABEL")) return "LABEL"
+  if (c === "CAP" || c.includes("CAP")) return "CAP"
 
-  const box = /^BOX\s+(425|800)x(6|12|20|24)$/i.exec(c)
+  const box = /BOX\D*(425|800)\D*(6|12|20|24)/i.exec(c) || /P?(425|800)_(6|12|20|24)/i.exec(c)
   return box ? `BOX_p${box[1]}_${box[2]}` : null
 }
 

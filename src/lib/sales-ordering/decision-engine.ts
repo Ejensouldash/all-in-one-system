@@ -206,8 +206,13 @@ export function decideCreditCheck(
       : { code: "PO_AMOUNT_MATCH", label: "Invoice vs SOA Match", severity: "REJECT", evidence: `Invois RM ${money(po.totals.grandTotal)} tidak ditemui di lejar SOA.`, requiredAction: "Semak semula dokumen invois atau SOA." })
   } else {
     // Mode: PO_CREDIT_CHECK (New Sales Order Release)
+    const isMultiPo = Boolean(po.isMultiPo || (po.subPos && po.subPos.length > 1))
+    const multiPoDesc = isMultiPo && po.subPos && po.subPos.length > 1
+      ? `PO Batch bernilai RM ${money(po.totals.grandTotal)} (mengandungi ${po.subPos.length} PO individu)`
+      : `PO Baharu bernilai RM ${money(po.totals.grandTotal)}`
+
     checks.push(po.totals.grandTotal > 0
-      ? { code: "PO_AMOUNT_MATCH", label: "PO Amount & Exposure", severity: "PASS", evidence: `PO Baharu bernilai RM ${money(po.totals.grandTotal)} diterima untuk penilaian kredit. Total pajanan: RM ${money(outstandingAtPoDate + po.totals.grandTotal)}.`, requiredAction: "Tiada tindakan." }
+      ? { code: "PO_AMOUNT_MATCH", label: "PO Amount & Exposure", severity: "PASS", evidence: `${multiPoDesc} diterima untuk penilaian kredit. Total pajanan: RM ${money(outstandingAtPoDate + po.totals.grandTotal)}.`, requiredAction: "Tiada tindakan." }
       : { code: "PO_AMOUNT_MATCH", label: "PO Amount & Exposure", severity: "HOLD", evidence: "Jumlah PO tidak dapat dibaca dengan pasti.", requiredAction: "Semak jumlah pada PO asal." })
   }
 

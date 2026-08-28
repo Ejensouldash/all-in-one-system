@@ -2,14 +2,7 @@ import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { PoCustomerSection, type CustomerPoItem } from "@/components/sales-ordering/PoCustomerSection"
 import { canAccessSalesOrderingTab, firstSalesOrderingPath, getSalesOrderingAccess } from "@/lib/sales-ordering/access"
-
-type PoSummaryData = {
-  poNumber?: string
-  documentNumber?: string
-  customerName?: string
-  documentDate?: string
-  totals?: { grandTotal?: number | string }
-}
+import { normalizeExtractedDocument } from "@/lib/sales-ordering/types"
 
 type CreditResultSummary = {
   primaryReason?: string
@@ -65,20 +58,22 @@ export default async function PoCustomerPage() {
       uploadedBy: so.documentType === "GOOGLE_FORM_PO" ? "Google Form Webhook" : "Sales Order System",
     })),
     ...creditCases.map(c => {
-      const poData = (c.poData as PoSummaryData | null) || {}
-      const totals = poData.totals || {}
+      const poData = normalizeExtractedDocument(c.poData)
       const resultData = (c.result as CreditResultSummary | null) || {}
       const isApproved = c.recommendation === "APPROVE" || c.finalDecision === "APPROVE_EXCEPTION"
       const isRejected = c.recommendation === "REJECT" || c.finalDecision === "REJECT"
+      const subPoCount = poData.subPos?.length || 0
 
       return {
         id: c.id,
         type: "CREDIT_CASE" as const,
-        poNumber: poData.poNumber || poData.documentNumber || c.poFileName.replace(".pdf", ""),
+        poNumber: poData.poNumber || c.poFileName.replace(".pdf", ""),
         customerName: poData.customerName || "Customer SOA Check",
         documentDate: poData.documentDate || c.createdAt.toISOString().slice(0, 10),
-        amount: Number(totals.grandTotal || 0),
+        amount: Number(poData.totals.grandTotal || 0),
         status: (isApproved ? "APPROVED" : isRejected ? "REJECTED" : "PENDING_SOA") as CustomerPoItem["status"],
+        isMultiPo: poData.isMultiPo || subPoCount > 1,
+        subPoCount: subPoCount > 1 ? subPoCount : undefined,
         poR2ObjectKey: c.poR2ObjectKey,
         soaR2ObjectKey: c.soaR2ObjectKey,
         rejectionReason: resultData.primaryReason || c.justification || null,
@@ -89,16 +84,18 @@ export default async function PoCustomerPage() {
     ...recentIntakes
       .filter(i => !creditCases.some(c => c.poR2ObjectKey === i.r2ObjectKey))
       .map(i => {
-        const poData = (i.extractedData as PoSummaryData | null) || {}
-        const totals = poData.totals || {}
+        const poData = normalizeExtractedDocument(i.extractedData)
+        const subPoCount = poData.subPos?.length || 0
         return {
           id: i.id,
           type: "INTAKE" as const,
-          poNumber: poData.poNumber || poData.documentNumber || i.fileName.replace(".pdf", ""),
+          poNumber: poData.poNumber || i.fileName.replace(".pdf", ""),
           customerName: i.matchedCustomer?.legalName || poData.customerName || "Pending Matching",
           documentDate: poData.documentDate || i.createdAt.toISOString().slice(0, 10),
-          amount: Number(totals.grandTotal || 0),
+          amount: Number(poData.totals.grandTotal || 0),
           status: "PENDING_SOA" as const,
+          isMultiPo: poData.isMultiPo || subPoCount > 1,
+          subPoCount: subPoCount > 1 ? subPoCount : undefined,
           poR2ObjectKey: i.r2ObjectKey,
           createdAt: i.createdAt.toLocaleString("en-MY"),
           uploadedBy: i.uploadedBy.name,

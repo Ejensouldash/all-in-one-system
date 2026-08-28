@@ -12,6 +12,21 @@ export type ExtractedSalesLine = {
   isServiceCharge?: boolean
 }
 
+export type ExtractedSubPo = {
+  poNumber: string
+  documentNumber?: string
+  documentDate?: string
+  requestedDeliveryDate?: string
+  deliveryAddress?: string
+  deliveryContact?: string
+  deliveryPhone?: string
+  storeCode?: string
+  lines: ExtractedSalesLine[]
+  charges?: ExtractedSalesLine[]
+  subtotal: number
+  grandTotal: number
+}
+
 export type ExtractedSalesDocument = {
   documentType: string
   documentNumber: string
@@ -26,6 +41,8 @@ export type ExtractedSalesDocument = {
   deliveryContact: string
   deliveryPhone: string
   currency: string
+  isMultiPo?: boolean
+  subPos?: ExtractedSubPo[]
   lines: ExtractedSalesLine[]
   charges: ExtractedSalesLine[]
   totals: {
@@ -71,36 +88,104 @@ function line(value: unknown): ExtractedSalesLine {
   }
 }
 
+function normalizeSubPo(value: unknown): ExtractedSubPo {
+  const source = value && typeof value === "object" ? value as Record<string, unknown> : {}
+  const lines = Array.isArray(source.lines) ? source.lines.map(line) : []
+  const charges = Array.isArray(source.charges)
+    ? source.charges.map(item => ({ ...line(item), isServiceCharge: true }))
+    : []
+  const calculatedSubtotal = lines.reduce((sum, l) => sum + l.amount, 0)
+  const explicitSubtotal = Math.max(0, number(source.subtotal))
+  const explicitGrandTotal = Math.max(0, number(source.grandTotal))
+
+  return {
+    poNumber: text(source.poNumber) || text(source.documentNumber),
+    documentNumber: text(source.documentNumber),
+    documentDate: text(source.documentDate),
+    requestedDeliveryDate: text(source.requestedDeliveryDate),
+    deliveryAddress: text(source.deliveryAddress),
+    deliveryContact: text(source.deliveryContact),
+    deliveryPhone: text(source.deliveryPhone),
+    storeCode: text(source.storeCode),
+    lines,
+    charges,
+    subtotal: explicitSubtotal > 0 ? explicitSubtotal : calculatedSubtotal,
+    grandTotal: explicitGrandTotal > 0 ? explicitGrandTotal : (explicitSubtotal > 0 ? explicitSubtotal : calculatedSubtotal),
+  }
+}
+
 export function normalizeExtractedDocument(value: unknown): ExtractedSalesDocument {
   const source = value && typeof value === "object" ? value as Record<string, unknown> : {}
   const totals = source.totals && typeof source.totals === "object"
     ? source.totals as Record<string, unknown>
     : {}
 
+  const rawSubPos = Array.isArray(source.subPos) ? source.subPos.map(normalizeSubPo) : []
+  const isMultiPo = Boolean(source.isMultiPo || rawSubPos.length > 1)
+
+  let lines = Array.isArray(source.lines) ? source.lines.map(line) : []
+  let charges = Array.isArray(source.charges)
+    ? source.charges.map(item => ({ ...line(item), isServiceCharge: true }))
+    : []
+
+  // If top-level lines are empty but subPos has lines, aggregate lines from subPos
+  if (lines.length === 0 && rawSubPos.length > 0) {
+    lines = rawSubPos.flatMap(sub => sub.lines)
+    charges = rawSubPos.flatMap(sub => (sub.charges || []).map(c => ({ ...c, isServiceCharge: true })))
+  }
+
+  let subtotal = Math.max(0, number(totals.subtotal))
+  let grandTotal = Math.max(0, number(totals.grandTotal))
+
+  // If grandTotal is 0 but subPos has amounts, calculate grandTotal from subPos
+  if (grandTotal === 0 && rawSubPos.length > 0) {
+    grandTotal = rawSubPos.reduce((sum, sub) => sum + sub.grandTotal, 0)
+    if (subtotal === 0) {
+      subtotal = rawSubPos.reduce((sum, sub) => sum + sub.subtotal, 0)
+    }
+  }
+
+  // If grandTotal is still 0 but lines have amounts, sum lines
+  if (grandTotal === 0 && lines.length > 0) {
+    const linesTotal = lines.reduce((sum, l) => sum + l.amount, 0)
+    subtotal = subtotal > 0 ? subtotal : linesTotal
+    grandTotal = linesTotal
+  }
+
+  let poNumber = text(source.poNumber) || text(source.documentNumber)
+  if (isMultiPo && rawSubPos.length > 0) {
+    const poList = rawSubPos.map(s => s.poNumber).filter(Boolean)
+    if (poList.length > 1) {
+      poNumber = `${poList[0]} (+${poList.length - 1} lagi)`
+    } else if (poList.length === 1) {
+      poNumber = poList[0]
+    }
+  }
+
   return {
-    documentType: text(source.documentType) || "UNKNOWN",
+    documentType: text(source.documentType) || (isMultiPo ? "PURCHASE_ORDER_BATCH" : "PURCHASE_ORDER"),
     documentNumber: text(source.documentNumber),
-    poNumber: text(source.poNumber),
-    documentDate: text(source.documentDate),
-    requestedDeliveryDate: text(source.requestedDeliveryDate),
+    poNumber,
+    documentDate: text(source.documentDate) || (rawSubPos[0]?.documentDate || ""),
+    requestedDeliveryDate: text(source.requestedDeliveryDate) || (rawSubPos[0]?.requestedDeliveryDate || ""),
     customerReference: text(source.customerReference),
     customerName: text(source.customerName),
     paymentTermsRaw: text(source.paymentTermsRaw),
     billingAddress: text(source.billingAddress),
-    deliveryAddress: text(source.deliveryAddress),
-    deliveryContact: text(source.deliveryContact),
-    deliveryPhone: text(source.deliveryPhone),
+    deliveryAddress: text(source.deliveryAddress) || (rawSubPos[0]?.deliveryAddress || ""),
+    deliveryContact: text(source.deliveryContact) || (rawSubPos[0]?.deliveryContact || ""),
+    deliveryPhone: text(source.deliveryPhone) || (rawSubPos[0]?.deliveryPhone || ""),
     currency: text(source.currency) || "MYR",
-    lines: Array.isArray(source.lines) ? source.lines.map(line) : [],
-    charges: Array.isArray(source.charges)
-      ? source.charges.map(item => ({ ...line(item), isServiceCharge: true }))
-      : [],
+    isMultiPo,
+    subPos: rawSubPos,
+    lines,
+    charges,
     totals: {
-      subtotal: Math.max(0, number(totals.subtotal)),
+      subtotal,
       discount: Math.max(0, number(totals.discount)),
       freight: Math.max(0, number(totals.freight)),
       tax: Math.max(0, number(totals.tax)),
-      grandTotal: Math.max(0, number(totals.grandTotal)),
+      grandTotal,
     },
     remarks: text(source.remarks),
     confidence: Math.min(1, Math.max(0, number(source.confidence))),

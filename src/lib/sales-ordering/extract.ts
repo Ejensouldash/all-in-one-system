@@ -18,9 +18,19 @@ Dates must be YYYY-MM-DD when confidently known.
 Amounts must be numbers without currency symbols or comma separators.
 confidence must be from 0 to 1 and warnings must explain ambiguity.
 
+MULTI-PO / BATCH PURCHASE ORDER SUPPORT:
+1. Some customer PDF documents (e.g. Giant / GCH Retail, Lotus's, Mydin, 99 Speedmart, AEON) contain multiple distinct Purchase Orders across multiple pages (e.g., Page 1 has PO HQPO260807778, Page 2 has PO HQPO260807784, etc.).
+2. If the PDF contains multiple separate POs:
+   - Set "isMultiPo": true.
+   - Extract each individual Purchase Order into the "subPos" array with its respective "poNumber", "documentDate", "requestedDeliveryDate", "deliveryAddress", "storeCode", "lines", "subtotal", and "grandTotal".
+   - In top-level "totals", "grandTotal" MUST be the sum of all individual PO totals (e.g., 34560 + 72000 + 70800 + 69120 = 246480.00). Never return 0.
+   - In top-level "lines", include all line items from all POs combined.
+3. If the PDF contains a single PO:
+   - Set "isMultiPo": false and "subPos": [].
+
 Required JSON shape:
 {
-  "documentType": "PURCHASE_ORDER|PROFORMA_INVOICE|INVOICE|OTHER",
+  "documentType": "PURCHASE_ORDER|PURCHASE_ORDER_BATCH|PROFORMA_INVOICE|INVOICE|OTHER",
   "documentNumber": "",
   "poNumber": "",
   "documentDate": "",
@@ -33,6 +43,23 @@ Required JSON shape:
   "deliveryContact": "",
   "deliveryPhone": "",
   "currency": "MYR",
+  "isMultiPo": false,
+  "subPos": [
+    {
+      "poNumber": "",
+      "documentNumber": "",
+      "documentDate": "",
+      "requestedDeliveryDate": "",
+      "deliveryAddress": "",
+      "deliveryContact": "",
+      "deliveryPhone": "",
+      "storeCode": "",
+      "lines": [{"barcode":"","itemCode":"","sku":"","description":"","quantity":0,"uom":"CTN","unitPrice":0,"discount":0,"tax":0,"amount":0}],
+      "charges": [],
+      "subtotal": 0,
+      "grandTotal": 0
+    }
+  ],
   "lines": [{"barcode":"","itemCode":"","sku":"","description":"","quantity":0,"uom":"CTN","unitPrice":0,"discount":0,"tax":0,"amount":0}],
   "charges": [{"description":"","quantity":0,"uom":"","unitPrice":0,"discount":0,"tax":0,"amount":0,"isServiceCharge":true}],
   "totals": {"subtotal":0,"discount":0,"freight":0,"tax":0,"grandTotal":0},

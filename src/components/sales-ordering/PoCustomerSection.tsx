@@ -22,6 +22,8 @@ export type CustomerPoItem = {
   documentDate: string
   amount: number
   status: "APPROVED" | "PENDING_SOA" | "REJECTED" | "HOLD"
+  isMultiPo?: boolean
+  subPoCount?: number
   poR2ObjectKey?: string | null
   soaR2ObjectKey?: string | null
   rejectionReason?: string | null
@@ -154,8 +156,13 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
                       <FileText className="h-5 w-5" />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-black text-slate-950 text-sm">{item.poNumber || "PO No. N/A"}</p>
+                        {item.isMultiPo && (
+                          <span className="rounded-full bg-cyan-100 px-2 py-0.5 text-[10px] font-black text-cyan-800">
+                            {item.subPoCount ? `${item.subPoCount} POs Batch` : "Multi-PO Batch"}
+                          </span>
+                        )}
                         <span className="text-xs font-bold text-slate-400">·</span>
                         <p className="font-black text-slate-700 text-sm">{item.customerName}</p>
                       </div>

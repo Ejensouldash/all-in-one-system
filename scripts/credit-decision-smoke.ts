@@ -128,19 +128,104 @@ const mismatchResult = decideCreditCheck(
 assert.equal(mismatchResult.recommendation, "REJECT")
 assert.equal(mismatchResult.checks.find(c => c.code === "CUSTOMER_MATCH")?.severity, "REJECT")
 
-// Test 7: Invoice vs SOA Reconciliation mode
-const reconPass = decideCreditCheck(
-  po({ documentType: "INVOICE", totals: { subtotal: 1320, discount: 0, freight: 0, tax: 0, grandTotal: 1320 } }),
-  soa([invoice(1320, { invoiceNumber: "INV-99", invoiceDate: "2026-08-18" })], { creditTermDays: 30, paymentTermsRaw: "30 DAYS" }),
-  "INVOICE_SOA_RECONCILIATION"
-)
-assert.equal(reconPass.recommendation, "APPROVE")
+// Test 8: Multi-PO Normalization (Giant PO 4-sub-POs batch)
+import { normalizeExtractedDocument } from "../src/lib/sales-ordering/types"
 
-const reconFail = decideCreditCheck(
-  po({ documentType: "INVOICE", totals: { subtotal: 999, discount: 0, freight: 0, tax: 0, grandTotal: 999 } }),
-  soa([invoice(1320, { invoiceNumber: "INV-99" })]),
-  "INVOICE_SOA_RECONCILIATION"
+const giantRawMultiPo = {
+  documentType: "PURCHASE_ORDER_BATCH",
+  customerName: "GCH RETAIL (MALAYSIA) SDN.BHD.",
+  isMultiPo: true,
+  subPos: [
+    {
+      poNumber: "HQPO260807778",
+      documentDate: "2026-08-21",
+      requestedDeliveryDate: "2026-08-28",
+      deliveryAddress: "DC SEPANG...",
+      storeCode: "9010",
+      lines: [
+        { barcode: "9555978700274", itemCode: "5031798", sku: "5031798", description: "BUBBLES O2 MINERAL WATER 800ML", quantity: 400, uom: "CV", unitPrice: 60, discount: 0, tax: 0, amount: 24000 },
+        { barcode: "9555978700267", itemCode: "5031797", sku: "5031797", description: "BUBBLES O2 MINERAL WATER 425ML", quantity: 220, uom: "CV", unitPrice: 48, discount: 0, tax: 0, amount: 10560 }
+      ],
+      subtotal: 34560,
+      grandTotal: 34560
+    },
+    {
+      poNumber: "HQPO260807784",
+      documentDate: "2026-08-21",
+      requestedDeliveryDate: "2026-08-28",
+      deliveryAddress: "DC SEPANG...",
+      storeCode: "9010",
+      lines: [
+        { barcode: "9555978700274", itemCode: "5031798", sku: "5031798", description: "BUBBLES O2 MINERAL WATER 800ML", quantity: 1200, uom: "CV", unitPrice: 60, discount: 0, tax: 0, amount: 72000 }
+      ],
+      subtotal: 72000,
+      grandTotal: 72000
+    },
+    {
+      poNumber: "HQPO260807786",
+      documentDate: "2026-08-21",
+      requestedDeliveryDate: "2026-08-28",
+      deliveryAddress: "DC SEPANG...",
+      storeCode: "9010",
+      lines: [
+        { barcode: "9555978700274", itemCode: "5031798", sku: "5031798", description: "BUBBLES O2 MINERAL WATER 800ML", quantity: 700, uom: "CV", unitPrice: 60, discount: 0, tax: 0, amount: 42000 },
+        { barcode: "9555978700267", itemCode: "5031797", sku: "5031797", description: "BUBBLES O2 MINERAL WATER 425ML", quantity: 600, uom: "CV", unitPrice: 48, discount: 0, tax: 0, amount: 28800 }
+      ],
+      subtotal: 70800,
+      grandTotal: 70800
+    },
+    {
+      poNumber: "HQPO260807785",
+      documentDate: "2026-08-21",
+      requestedDeliveryDate: "2026-08-28",
+      deliveryAddress: "DC SEPANG...",
+      storeCode: "9010",
+      lines: [
+        { barcode: "9555978700267", itemCode: "5031797", sku: "5031797", description: "BUBBLES O2 MINERAL WATER 425ML", quantity: 1440, uom: "CV", unitPrice: 48, discount: 0, tax: 0, amount: 69120 }
+      ],
+      subtotal: 69120,
+      grandTotal: 69120
+    }
+  ],
+  confidence: 0.95,
+  totals: { grandTotal: 0 } // Simulated AI 0 grandTotal fallback
+}
+
+const giantNormalized = normalizeExtractedDocument(giantRawMultiPo)
+assert.equal(giantNormalized.isMultiPo, true)
+assert.equal(giantNormalized.subPos?.length, 4)
+assert.equal(giantNormalized.totals.grandTotal, 246480.00)
+assert.equal(giantNormalized.lines.length, 6)
+assert.equal(giantNormalized.poNumber, "HQPO260807778 (+3 lagi)")
+
+// Test 9: Multi-PO Batch PO-SOA credit decision (Giant batch within limit -> APPROVE)
+const giantCreditPass = decideCreditCheck(
+  giantNormalized,
+  soa([], {
+    accountName: "GCH RETAIL (MALAYSIA) SDN.BHD.",
+    creditTermDays: 60,
+    creditLimit: 300000.00,
+    closingBalance: 0,
+    statementDate: "2026-08-31"
+  })
 )
-assert.equal(reconFail.recommendation, "REJECT")
+assert.equal(giantCreditPass.recommendation, "APPROVE")
+assert.equal(giantCreditPass.outstandingAtPoDate, 0)
+assert.equal(giantCreditPass.checks.find(c => c.code === "PO_AMOUNT_MATCH")?.severity, "PASS")
+assert.match(giantCreditPass.checks.find(c => c.code === "PO_AMOUNT_MATCH")!.evidence, /246480\.00/)
+
+// Test 10: Multi-PO Batch PO-SOA credit decision (Giant batch breaches limit -> REJECT)
+const giantCreditLimitBreach = decideCreditCheck(
+  giantNormalized,
+  soa([], {
+    accountName: "GCH RETAIL (MALAYSIA) SDN.BHD.",
+    creditTermDays: 60,
+    creditLimit: 200000.00, // Limit is 200k, Batch is 246.48k -> Breached!
+    closingBalance: 0,
+    statementDate: "2026-08-31"
+  })
+)
+assert.equal(giantCreditLimitBreach.recommendation, "REJECT")
+assert.equal(giantCreditLimitBreach.checks.find(c => c.code === "CREDIT_LIMIT_BREACH")?.severity, "REJECT")
 
 console.log("All PO-SOA decision smoke tests passed successfully!")

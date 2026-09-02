@@ -6,7 +6,7 @@ import { LayoutDashboard } from "lucide-react"
 import { FormsAnalyticsClient } from "@/components/forms/FormsAnalyticsClient"
 import { AnalyticsRangePicker } from "@/components/forms/AnalyticsRangePicker"
 import { GenerateReportButton } from "@/components/forms/GenerateReportButton"
-import { ExportStoreroomButton } from "@/components/forms/ExportStoreroomButton"
+import { ExcelExportDropdown } from "@/components/forms/ExcelExportDropdown"
 import { computeProductionAnalytics } from "@/lib/analytics/compute"
 import { getStoreroomReport } from "@/lib/analytics/storeroom"
 
@@ -78,7 +78,7 @@ export default async function FormsDashboardPage({
           <AnalyticsRangePicker from={from} to={to} />
           <div className="flex items-start gap-2">
             <GenerateReportButton from={from} to={to} />
-            <ExportStoreroomButton asOf={to} />
+            <ExcelExportDropdown from={from} to={to} />
           </div>
         </div>
       </div>

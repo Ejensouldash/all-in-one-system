@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Wrench, CheckCircle2, ChevronLeft, Save, Clock, Check, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
@@ -50,9 +50,9 @@ export function MaintenanceRecordForm({ userName }: { userName: string }) {
   const [verifiedSig, setVerifiedSig] = useState<string | null>(null)
 
   // Fetch existing record on date change
-  useEffect(() => {
-    async function loadDateRecord() {
-      setLoadingData(true)
+  const loadDateRecord = useCallback(async () => {
+    setLoadingData(true)
+    try {
       const res = await getMaintenanceRecordByDate(date)
       if (res.success && res.data) {
         setExistingRecord(res.data)
@@ -73,10 +73,16 @@ export function MaintenanceRecordForm({ userName }: { userName: string }) {
         setExistingRecord(null)
         setActivities({})
       }
+    } catch (err: any) {
+      console.error("Error loading date record:", err)
+    } finally {
       setLoadingData(false)
     }
-    loadDateRecord()
   }, [date])
+
+  useEffect(() => {
+    loadDateRecord()
+  }, [loadDateRecord])
 
   function handleActivityChange(machine: string, field: "ml800Morning" | "ml800Night" | "ml425Morning" | "ml425Night", value: string) {
     setActivities(prev => ({
@@ -118,29 +124,37 @@ export function MaintenanceRecordForm({ userName }: { userName: string }) {
     setIsSubmitting(true)
     setError("")
 
-    // Extract current shift activities
-    const shiftActivities: Record<string, string> = {}
-    MACHINES.forEach(machine => {
-      shiftActivities[machine] = activities[machine]?.[currentFieldKey] || ""
-    })
+    try {
+      // Extract current shift activities
+      const shiftActivities: Record<string, string> = {}
+      MACHINES.forEach(machine => {
+        shiftActivities[machine] = activities[machine]?.[currentFieldKey] || ""
+      })
 
-    const res = await saveMaintenanceShiftRecord({
-      date: new Date(date),
-      line: selectedLine,
-      shift: selectedShift,
-      activities: shiftActivities,
-      checkedBy,
-      signature,
-      verifiedBy: verifiedBy.trim() || undefined,
-      verifiedSig: verifiedSig || undefined,
-      remarks,
-    })
+      const res = await saveMaintenanceShiftRecord({
+        date: new Date(date),
+        line: selectedLine,
+        shift: selectedShift,
+        activities: shiftActivities,
+        checkedBy,
+        signature,
+        verifiedBy: verifiedBy.trim() || undefined,
+        verifiedSig: verifiedSig || undefined,
+        remarks,
+      })
 
-    if (res.success) {
-      await draft.clearDraft()
-      setSuccess(true)
-    } else {
-      setError(res.error || "Failed to submit form.")
+      if (res.success) {
+        await draft.clearDraft()
+        if (res.data) {
+          setExistingRecord(res.data)
+        }
+        setSuccess(true)
+      } else {
+        setError(res.error || "Failed to submit form.")
+      }
+    } catch (err: any) {
+      setError(err?.message || "Failed to submit form.")
+    } finally {
       setIsSubmitting(false)
     }
   }
@@ -157,10 +171,13 @@ export function MaintenanceRecordForm({ userName }: { userName: string }) {
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <button
-            onClick={() => {
+            onClick={async () => {
               setSuccess(false)
+              setIsSubmitting(false)
               setSignature(null)
               setVerifiedSig(null)
+              setError("")
+              await loadDateRecord()
             }}
             className="inline-flex items-center justify-center bg-blue-700 text-white px-6 py-3 rounded-xl font-bold uppercase tracking-wider hover:bg-blue-800 transition-colors shadow-md"
           >

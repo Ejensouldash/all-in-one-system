@@ -1,7 +1,6 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { QRCodeSVG } from "qrcode.react"
 import { Printer, Trash2, Save, AlertCircle, CheckCircle2, Sun, Moon } from "lucide-react"
 import { createKbpBatch, deleteKbpBatch } from "@/app/actions/kbpBatch"
 import {
@@ -16,6 +15,7 @@ import {
   toDateInputValue,
   type KbpShiftId,
 } from "@/lib/kbp/batchNumber"
+import { KbpSticker100mm, type KbpStickerBatchData } from "@/components/kbp/KbpSticker100mm"
 
 type Batch = {
   id: string
@@ -56,6 +56,29 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
     }
   }, [machineId, previewDate, shift])
 
+  // Active display batch for live preview (shows current form inputs or selected batch)
+  const currentDisplayBatch = useMemo<KbpStickerBatchData | null>(() => {
+    if (printTagData) return printTagData
+    if (previewBatchNo) {
+      return {
+        batchNo: previewBatchNo,
+        sku: machine.sku,
+        machine: machine.id,
+        productCode: machine.productCode,
+        shift,
+        productionDate: dateValue,
+        qtyPerBag: Number(qtyPerBag) || 0,
+        totalBags: Number(totalBags) || 1,
+        totalQty: (Number(qtyPerBag) || 0) * (Number(totalBags) || 1),
+        createdBy: "Draft",
+        createdAt: new Date().toISOString(),
+      }
+    }
+    return null
+  }, [printTagData, previewBatchNo, machine, shift, dateValue, qtyPerBag, totalBags])
+
+  const isDraftPreview = !printTagData && !!currentDisplayBatch
+
   const handleMachineChange = (id: string) => {
     setMachineId(id)
     const found = getMachine(id)
@@ -91,8 +114,8 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
     }
   }
 
-  const handlePrint = (batch: Batch) => {
-    setPrintTagData(batch)
+  const handlePrint = (batch: Batch | KbpStickerBatchData) => {
+    setPrintTagData(batch as Batch)
     setTimeout(() => window.print(), 150)
   }
 
@@ -107,11 +130,6 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
       setFeedback({ type: "err", text: res.error || "Gagal memadam." })
     }
   }
-
-  // Kept identical to the previous Pedas sticker payload — TransferInForm and
-  // CreateDOForm already parse batch/sku/qty/bags out of this shape.
-  const qrPayload = (b: Batch) =>
-    JSON.stringify({ batch: b.batchNo, sku: b.sku, qty: b.qtyPerBag, bags: b.totalBags, origin: "PEDAS" })
 
   const inputClass =
     "w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm font-medium text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition"
@@ -245,44 +263,44 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
 
           {/* Sticker preview */}
           <div className="lg:col-span-5 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-sm font-black uppercase tracking-widest text-gray-900">Preview Sticker</h2>
-              <p className="text-xs text-gray-500 mt-0.5">Thermal 80mm × 50mm</p>
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-black uppercase tracking-widest text-gray-900">Preview Sticker</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Thermal 100mm × 100mm (Square Label)</p>
+              </div>
+              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-[11px] font-black text-indigo-700 uppercase tracking-wider">
+                100mm × 100mm
+              </span>
             </div>
 
-            {printTagData ? (
+            {currentDisplayBatch ? (
               <div className="p-6 flex flex-col items-center gap-5">
-                <div className="w-full rounded-lg border border-gray-300 bg-white p-4 flex flex-col items-center text-center gap-2">
-                  <p className="text-xs font-black uppercase tracking-wider text-gray-700 border-b border-gray-200 pb-2 w-full">
-                    BubblesO2 — KBP Batch Tag
-                  </p>
-                  <div className="my-2 p-2 border border-gray-200 rounded">
-                    <QRCodeSVG value={qrPayload(printTagData)} size={140} level="H" />
-                  </div>
-                  <p className="text-xl font-black tracking-tight text-gray-900 break-all">{printTagData.batchNo}</p>
-                  <p className="w-full rounded bg-gray-50 border border-gray-200 px-3 py-1 text-xs font-bold uppercase text-gray-600">
-                    {printTagData.sku}
-                  </p>
-                  <div className="flex justify-between w-full pt-2 border-t border-gray-100 text-xs font-bold text-gray-500">
-                    <span>QTY/BAG: {printTagData.qtyPerBag}</span>
-                    <span>BAGS: {printTagData.totalBags}</span>
-                  </div>
+                <div className="w-full flex items-center justify-center p-3 bg-slate-100/80 rounded-2xl border border-slate-200 shadow-inner overflow-hidden">
+                  <KbpSticker100mm batch={currentDisplayBatch} mode="preview" />
                 </div>
 
-                <button
-                  onClick={() => handlePrint(printTagData)}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-6 py-3 font-black uppercase tracking-wider text-white hover:bg-gray-800 transition"
-                >
-                  <Printer className="h-4 w-4" />
-                  Cetak Sticker
-                </button>
+                <div className="w-full space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => handlePrint(currentDisplayBatch)}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-6 py-3 font-black uppercase tracking-wider text-white hover:bg-gray-800 transition shadow-sm"
+                  >
+                    <Printer className="h-4 w-4" />
+                    Cetak Sticker (100mm × 100mm)
+                  </button>
+                  {isDraftPreview && (
+                    <p className="text-[11px] text-center text-amber-700 font-bold">
+                      * Pratonton langsung daripada pilihan borang semasa.
+                    </p>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="flex-1 flex items-center justify-center p-10 text-center">
                 <p className="text-sm font-medium text-gray-400">
                   Tiada sticker aktif.
                   <br />
-                  Simpan batch baru atau tekan &ldquo;Cetak&rdquo; pada senarai di bawah.
+                  Pilih mesin atau tekan &ldquo;Cetak&rdquo; pada senarai di bawah.
                 </p>
               </div>
             )}
@@ -362,26 +380,45 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
         </div>
       </div>
 
-      {/* Print-only thermal sticker */}
+      {/* Print-only thermal sticker (100mm x 100mm) */}
       {printTagData && (
-        <div className="hidden print:flex print:flex-col print:items-center print:justify-center print:w-full print:h-screen bg-white p-2">
-          <div className="w-[80mm] h-[50mm] border-2 border-black p-2 flex flex-col items-center justify-between text-center bg-white font-sans">
-            <div className="text-[10px] font-black uppercase tracking-wider border-b border-black w-full pb-0.5">
-              BUBBLESO2 — KBP BATCH TAG
-            </div>
-            <div className="my-1">
-              <QRCodeSVG value={qrPayload(printTagData)} size={95} level="H" />
-            </div>
-            <div className="text-sm font-black uppercase tracking-tight text-black">{printTagData.batchNo}</div>
-            <div className="text-[9px] font-black uppercase border border-black px-2 py-0.5 w-full bg-gray-100">
-              SKU: {printTagData.sku}
-            </div>
-            <div className="text-[8px] font-bold flex justify-between w-full pt-0.5">
-              <span>QTY: {printTagData.qtyPerBag}</span>
-              <span>BAGS: {printTagData.totalBags}</span>
-            </div>
+        <>
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+                @media print {
+                  @page {
+                    size: 100mm 100mm !important;
+                    margin: 0mm !important;
+                  }
+                  html, body {
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    width: 100mm !important;
+                    height: 100mm !important;
+                    background: #ffffff !important;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                  }
+                  .print-thermal-container {
+                    display: flex !important;
+                    width: 100mm !important;
+                    height: 100mm !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    justify-content: center !important;
+                    align-items: center !important;
+                    page-break-inside: avoid !important;
+                    break-inside: avoid !important;
+                  }
+                }
+              `,
+            }}
+          />
+          <div className="hidden print:flex print-thermal-container print:w-[100mm] print:h-[100mm] print:items-center print:justify-center bg-white">
+            <KbpSticker100mm batch={printTagData} mode="print" />
           </div>
-        </div>
+        </>
       )}
     </>
   )

@@ -128,14 +128,14 @@ export function KbpSticker100mm({ batch, mode = "preview" }: KbpSticker100mmProp
         <div className="flex flex-col items-center justify-center my-auto py-0.5">
           <div className="relative p-1 rounded-[1.5mm] bg-white border-[0.3mm] border-black">
             {/* Viewfinder Target Brackets (Camera HUD Aesthetic) */}
-            <div className="absolute -top-[1mm] -left-[1mm] w-[2.5mm] h-[2.5mm] border-t-[0.5mm] border-l-[0.5mm] border-black" />
-            <div className="absolute -top-[1mm] -right-[1mm] w-[2.5mm] h-[2.5mm] border-t-[0.5mm] border-r-[0.5mm] border-black" />
-            <div className="absolute -bottom-[1mm] -left-[1mm] w-[2.5mm] h-[2.5mm] border-b-[0.5mm] border-l-[0.5mm] border-black" />
-            <div className="absolute -bottom-[1mm] -right-[1mm] w-[2.5mm] h-[2.5mm] border-b-[0.5mm] border-r-[0.5mm] border-black" />
+            <div className="absolute -top-[1mm] -left-[1mm] w-[3mm] h-[3mm] border-t-[0.6mm] border-l-[0.6mm] border-black" />
+            <div className="absolute -top-[1mm] -right-[1mm] w-[3mm] h-[3mm] border-t-[0.6mm] border-r-[0.6mm] border-black" />
+            <div className="absolute -bottom-[1mm] -left-[1mm] w-[3mm] h-[3mm] border-b-[0.6mm] border-l-[0.6mm] border-black" />
+            <div className="absolute -bottom-[1mm] -right-[1mm] w-[3mm] h-[3mm] border-b-[0.6mm] border-r-[0.6mm] border-black" />
 
             <QRCodeSVG
               value={qrPayload}
-              size={isPrint ? 100 : 115}
+              size={isPrint ? 126 : 140}
               level="M"
               includeMargin={false}
               bgColor="#ffffff"
@@ -143,7 +143,7 @@ export function KbpSticker100mm({ batch, mode = "preview" }: KbpSticker100mmProp
             />
           </div>
 
-          <div className="flex items-center justify-center gap-1 mt-0.8 text-[4.8pt] font-black uppercase tracking-[0.6px] text-black">
+          <div className="flex items-center justify-center gap-1 mt-1 text-[5pt] font-black uppercase tracking-[0.6px] text-black">
             <span className="inline-block w-1 h-1 bg-black rounded-full" />
             <span>SCAN UNTUK REKOD WAREHOUSE & DO</span>
             <span className="inline-block w-1 h-1 bg-black rounded-full" />

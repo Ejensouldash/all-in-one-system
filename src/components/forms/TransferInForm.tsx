@@ -134,14 +134,6 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
       return
     }
 
-    // DUPLICATE SCAN LOCK
-    const isDuplicate = watchItems.some((item: any) => (item.batchNo || "").trim().toUpperCase() === scannedBatch)
-    if (isDuplicate) {
-      alert(`⚠️ DUPLICATE DETECTED: Batch ${scannedBatch} sudah dimasukkan ke dalam senarai borang ini!`)
-      setIsScannerOpen(false)
-      return
-    }
-
     // Determine target category & multiplier
     let targetCategory = "BOTTLE 800ml"
     if (scannedSku) {
@@ -161,17 +153,42 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
 
     const finalBags = scannedBags > 0 ? scannedBags : (scannedQty > 0 ? Math.ceil(scannedQty / targetMult) : 1)
 
-    // Append new item row with QR Scanned indicator
-    append({
-      category: targetCategory,
-      batchNo: scannedBatch,
-      bags: finalBags,
-      mult: targetMult,
-      weight: 0,
-      isQrScanned: true
-    })
+    // SMART DUPLICATE CHECK:
+    // Only block if Batch No, Category, Multiplier, AND Bags are EXACTLY identical.
+    // If the same batch has a different bag quantity (e.g. 50 bags vs 5 loose bags), allow it.
+    const isExactDuplicate = watchItems.some((item: any) => 
+      (item.batchNo || "").trim().toUpperCase() === scannedBatch &&
+      (item.category || "").trim().toUpperCase() === targetCategory.toUpperCase() &&
+      Number(item.mult) === targetMult &&
+      Number(item.bags) === finalBags
+    )
 
-    alert(`✅ Batch ${scannedBatch} (${targetCategory}) berjaya dimasukkan menerusi imbasan QR!`)
+    if (isExactDuplicate) {
+      alert(`⚠️ DUPLICATE DETECTED: Batch ${scannedBatch} dengan kuantiti ${finalBags} beg (${targetCategory}) sudah wujud dalam senarai borang ini!`)
+      setIsScannerOpen(false)
+      return
+    }
+
+    // If first row is untouched/empty, populate it instead of leaving an orphan empty row
+    if (watchItems.length === 1 && !watchItems[0].batchNo && (Number(watchItems[0].bags) === 0 || !watchItems[0].bags)) {
+      setValue("items.0.category", targetCategory, { shouldDirty: true })
+      setValue("items.0.batchNo", scannedBatch, { shouldValidate: true, shouldDirty: true })
+      setValue("items.0.bags", finalBags, { shouldValidate: true, shouldDirty: true })
+      setValue("items.0.mult", targetMult, { shouldDirty: true })
+      setValue("items.0.weight", 0)
+      setValue("items.0.isQrScanned", true)
+    } else {
+      append({
+        category: targetCategory,
+        batchNo: scannedBatch,
+        bags: finalBags,
+        mult: targetMult,
+        weight: 0,
+        isQrScanned: true
+      })
+    }
+
+    alert(`✅ Batch ${scannedBatch} (${targetCategory} - ${finalBags} Beg) berjaya dimasukkan menerusi imbasan QR!`)
     setIsScannerOpen(false)
   }
   

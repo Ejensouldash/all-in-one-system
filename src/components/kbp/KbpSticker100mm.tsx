@@ -25,7 +25,7 @@ interface KbpSticker100mmProps {
 }
 
 export function KbpSticker100mm({ batch, mode = "preview" }: KbpSticker100mmProps) {
-  // Same JSON payload expected by TransferInForm & CreateDOForm
+  // Pure standard JSON payload compatible with TransferInForm & CreateDOForm
   const qrPayload = JSON.stringify({
     batch: batch.batchNo,
     sku: batch.sku,
@@ -39,179 +39,168 @@ export function KbpSticker100mm({ batch, mode = "preview" }: KbpSticker100mmProp
   const shiftText = batch.shift ? getShiftLabel(batch.shift).toUpperCase() : "—"
   const formattedDate = formatDateOnly(batch.productionDate)
 
+  const isPrint = mode === "print"
+
   return (
     <div
       className={`kbp-sticker-100mm select-none bg-white text-black font-sans leading-tight ${
-        mode === "preview"
-          ? "w-[100mm] h-[100mm] max-w-full max-h-full rounded-2xl shadow-md border border-gray-300"
-          : "w-[100mm] h-[100mm]"
+        isPrint
+          ? "w-[94mm] h-[92mm] max-h-[92mm]"
+          : "w-[100mm] h-[100mm] max-w-full max-h-full rounded-2xl shadow-md border border-gray-300"
       }`}
       style={{
-        width: "100mm",
-        height: "100mm",
-        padding: "3.5mm", // Safe margin: avoids feed misalignment & edge clipping on thermal rolls
+        width: isPrint ? "94mm" : "100mm",
+        height: isPrint ? "92mm" : "100mm",
+        maxHeight: isPrint ? "92mm" : "100mm",
+        padding: isPrint ? "2mm" : "3.5mm",
         boxSizing: "border-box",
         pageBreakInside: "avoid",
         breakInside: "avoid",
+        pageBreakAfter: "avoid",
+        breakAfter: "avoid",
         display: "flex",
         flexDirection: "column",
         justifyContent: "stretch",
+        overflow: "hidden",
+        backgroundColor: "#ffffff",
       }}
     >
-      {/* Inner Technical Border Frame with Safe Margin */}
+      {/* Inner Technical Border Frame (Border Outline - Works without Background Graphics) */}
       <div
-        className="w-full h-full flex flex-col justify-between border-[1.2mm] border-black rounded-[2.5mm] p-[2.2mm] bg-white relative box-border"
+        className="w-full h-full flex flex-col justify-between border-[1.2mm] border-black rounded-[2.5mm] bg-white relative box-border"
         style={{
           border: "1.2mm solid #000000",
           borderRadius: "2.5mm",
-          padding: "2mm 2.5mm",
+          padding: isPrint ? "1.8mm 2.2mm" : "2.5mm 3mm",
           boxSizing: "border-box",
+          backgroundColor: "#ffffff",
+          color: "#000000",
         }}
       >
         {/* Subtle Decorative Technical Corner Notches */}
-        <div className="absolute top-[1mm] left-[1mm] w-[2mm] h-[2mm] border-t-[0.4mm] border-l-[0.4mm] border-black pointer-events-none" />
-        <div className="absolute top-[1mm] right-[1mm] w-[2mm] h-[2mm] border-t-[0.4mm] border-r-[0.4mm] border-black pointer-events-none" />
-        <div className="absolute bottom-[1mm] left-[1mm] w-[2mm] h-[2mm] border-b-[0.4mm] border-l-[0.4mm] border-black pointer-events-none" />
-        <div className="absolute bottom-[1mm] right-[1mm] w-[2mm] h-[2mm] border-b-[0.4mm] border-r-[0.4mm] border-black pointer-events-none" />
+        <div className="absolute top-[0.8mm] left-[0.8mm] w-[2mm] h-[2mm] border-t-[0.4mm] border-l-[0.4mm] border-black pointer-events-none" />
+        <div className="absolute top-[0.8mm] right-[0.8mm] w-[2mm] h-[2mm] border-t-[0.4mm] border-r-[0.4mm] border-black pointer-events-none" />
+        <div className="absolute bottom-[0.8mm] left-[0.8mm] w-[2mm] h-[2mm] border-b-[0.4mm] border-l-[0.4mm] border-black pointer-events-none" />
+        <div className="absolute bottom-[0.8mm] right-[0.8mm] w-[2mm] h-[2mm] border-b-[0.4mm] border-r-[0.4mm] border-black pointer-events-none" />
 
-        {/* 1. HEADER: Official BubblesO2 Logo & Plant Identity */}
+        {/* 1. HEADER: Crisp Vector Typography (No raster PNG) */}
         <div>
-          <div className="flex items-center justify-between gap-2 pb-1 border-b-[0.5mm] border-black">
-            <div className="flex items-center gap-1.5">
-              <img
-                src="/assets/BubblesO2_Logo.png"
-                alt="BubblesO2"
-                className="h-[6.5mm] w-auto object-contain block"
-              />
-              <div className="flex flex-col">
-                <span className="text-[6.5pt] font-black tracking-wider uppercase leading-none text-black">
-                  KILANG BOTOL PEDAS
-                </span>
-                <span className="text-[5pt] font-bold text-gray-700 tracking-tight leading-none mt-0.5">
-                  BUBBLESO2 MANUFACTURING
-                </span>
-              </div>
+          <div className="flex items-center justify-between pb-1 border-b-[0.6mm] border-black">
+            <div className="flex flex-col">
+              <span className="text-[13pt] font-black tracking-tight uppercase leading-none text-black font-sans">
+                BUBBLESO2
+              </span>
+              <span className="text-[5.5pt] font-black tracking-wider uppercase text-black mt-0.5 leading-none">
+                KILANG BOTOL PEDAS (KBP)
+              </span>
             </div>
 
-            <div className="flex flex-col items-end">
-              <span className="bg-black text-white text-[5.5pt] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-[0.8mm]">
+            <div className="border-[0.5mm] border-black px-1.5 py-0.5 rounded-[1mm] text-center bg-white">
+              <span className="text-[6pt] font-black uppercase tracking-wider block text-black leading-tight">
                 BATCH TAG
               </span>
-              <span className="text-[5pt] font-extrabold text-black tracking-wider mt-0.5">
+              <span className="text-[4.5pt] font-bold tracking-tight block text-black leading-tight">
                 TRACEABILITY
               </span>
             </div>
           </div>
 
           {/* Subheader: Date & Shift Info Pill */}
-          <div className="flex items-center justify-between text-[5.5pt] font-black uppercase tracking-wider py-1 border-b-[0.3mm] border-black/80">
+          <div className="flex items-center justify-between text-[5.8pt] font-black uppercase tracking-wider py-0.8 border-b-[0.3mm] border-black">
             <div className="flex items-center gap-1">
-              <span className="text-gray-600">TARIKH:</span>
-              <span className="text-black font-extrabold">{formattedDate}</span>
+              <span className="text-gray-700">TARIKH:</span>
+              <span className="text-black font-black">{formattedDate}</span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="text-gray-600">SYIF:</span>
-              <span className="bg-gray-100 border border-black/40 px-1 py-0.2 rounded-[0.5mm] text-black">
+              <span className="text-gray-700">SYIF:</span>
+              <span className="border border-black px-1 py-0.2 rounded-[0.5mm] text-black font-black">
                 {shiftText}
               </span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="text-gray-600">MESIN:</span>
-              <span className="text-black font-extrabold">{batch.machine || "—"}</span>
+              <span className="text-gray-700">MESIN:</span>
+              <span className="text-black font-black">{batch.machine || "—"}</span>
             </div>
           </div>
         </div>
 
-        {/* 2. HERO: Center Viewfinder Framed QR Code */}
+        {/* 2. HERO: Center Viewfinder Framed QR Code (Pure B&W, No Center Image Hole) */}
         <div className="flex flex-col items-center justify-center my-auto py-0.5">
-          <div className="relative p-1.5 rounded-[2mm] bg-white border border-black/30">
+          <div className="relative p-1 rounded-[1.5mm] bg-white border-[0.3mm] border-black">
             {/* Viewfinder Target Brackets (Camera HUD Aesthetic) */}
-            <div className="absolute -top-[1.2mm] -left-[1.2mm] w-[3mm] h-[3mm] border-t-[0.6mm] border-l-[0.6mm] border-black" />
-            <div className="absolute -top-[1.2mm] -right-[1.2mm] w-[3mm] h-[3mm] border-t-[0.6mm] border-r-[0.6mm] border-black" />
-            <div className="absolute -bottom-[1.2mm] -left-[1.2mm] w-[3mm] h-[3mm] border-b-[0.6mm] border-l-[0.6mm] border-black" />
-            <div className="absolute -bottom-[1.2mm] -right-[1.2mm] w-[3mm] h-[3mm] border-b-[0.6mm] border-r-[0.6mm] border-black" />
+            <div className="absolute -top-[1mm] -left-[1mm] w-[2.5mm] h-[2.5mm] border-t-[0.5mm] border-l-[0.5mm] border-black" />
+            <div className="absolute -top-[1mm] -right-[1mm] w-[2.5mm] h-[2.5mm] border-t-[0.5mm] border-r-[0.5mm] border-black" />
+            <div className="absolute -bottom-[1mm] -left-[1mm] w-[2.5mm] h-[2.5mm] border-b-[0.5mm] border-l-[0.5mm] border-black" />
+            <div className="absolute -bottom-[1mm] -right-[1mm] w-[2.5mm] h-[2.5mm] border-b-[0.5mm] border-r-[0.5mm] border-black" />
 
             <QRCodeSVG
               value={qrPayload}
-              size={135}
-              level="H"
+              size={isPrint ? 100 : 115}
+              level="M"
               includeMargin={false}
               bgColor="#ffffff"
               fgColor="#000000"
-              imageSettings={{
-                src: "/assets/BubblesO2_Logo.png",
-                height: 22,
-                width: 22,
-                excavate: true,
-              }}
             />
           </div>
 
-          <div className="flex items-center justify-center gap-1 mt-1 text-[5pt] font-black uppercase tracking-[0.8px] text-gray-700">
+          <div className="flex items-center justify-center gap-1 mt-0.8 text-[4.8pt] font-black uppercase tracking-[0.6px] text-black">
             <span className="inline-block w-1 h-1 bg-black rounded-full" />
             <span>SCAN UNTUK REKOD WAREHOUSE & DO</span>
             <span className="inline-block w-1 h-1 bg-black rounded-full" />
           </div>
         </div>
 
-        {/* 3. BATCH IDENTIFIER & PRODUCT BANNER */}
-        <div className="border-[0.6mm] border-black rounded-[1.8mm] overflow-hidden">
-          {/* Main Batch Number */}
-          <div className="bg-black text-white px-2 py-1 flex items-center justify-between">
-            <span className="text-[5pt] font-bold uppercase tracking-widest text-gray-300">
-              NO. BATCH:
-            </span>
-            <span className="text-[10pt] font-black tracking-wider font-mono text-white">
-              {batch.batchNo}
-            </span>
+        {/* 3. BATCH IDENTIFIER & PRODUCT BANNER (High-Contrast Border Outline) */}
+        <div className="border-[0.6mm] border-black rounded-[1.5mm] bg-white px-2 py-1 text-center">
+          <div className="text-[5pt] font-extrabold uppercase tracking-widest text-gray-800">
+            NO. BATCH PRODUKSI
           </div>
-
-          {/* SKU / Product Info */}
-          <div className="bg-gray-100 px-2 py-0.8 flex items-center justify-between border-t border-black/30">
-            <span className="text-[5.5pt] font-black uppercase tracking-wider text-black">
-              PRODUK: {batch.sku}
-            </span>
-            <span className="text-[5.5pt] font-black uppercase text-black bg-white px-1 py-0.2 border border-black/40 rounded">
+          <div className="text-[12pt] sm:text-[13pt] font-black tracking-wider font-mono text-black leading-tight my-0.5">
+            {batch.batchNo}
+          </div>
+          <div className="border-t-[0.3mm] border-black pt-0.5 flex items-center justify-between text-[5.8pt] font-black uppercase tracking-wider text-black">
+            <span>PRODUK: {batch.sku}</span>
+            <span>
               {machineObj?.label ? machineObj.label.split("—")[0].trim() : (batch.machine || "KBP")}
             </span>
           </div>
         </div>
 
-        {/* 4. METRICS MATRIX: QTY / BAG, TOTAL BAGS, TOTAL QUANTITY */}
-        <div className="grid grid-cols-3 gap-1 pt-1">
-          <div className="border-[0.4mm] border-black rounded-[1.2mm] p-1 text-center bg-white">
-            <div className="text-[4.5pt] font-bold uppercase tracking-wider text-gray-600">
+        {/* 4. METRICS MATRIX: QTY / BAG, TOTAL BAGS, TOTAL QUANTITY (Pure Outline) */}
+        <div className="grid grid-cols-3 gap-1 pt-0.5">
+          <div className="border-[0.5mm] border-black rounded-[1.2mm] p-0.8 text-center bg-white">
+            <div className="text-[4.5pt] font-extrabold uppercase tracking-wider text-black">
               QTY / BAG
             </div>
-            <div className="text-[8pt] font-black tracking-tight text-black font-mono mt-0.2">
+            <div className="text-[8pt] font-black tracking-tight text-black font-mono leading-tight mt-0.2">
               {batch.qtyPerBag.toLocaleString()}
-              <span className="text-[5pt] font-bold ml-0.5">PCS</span>
+              <span className="text-[4.5pt] font-bold ml-0.5">PCS</span>
             </div>
           </div>
 
-          <div className="border-[0.4mm] border-black rounded-[1.2mm] p-1 text-center bg-white">
-            <div className="text-[4.5pt] font-bold uppercase tracking-wider text-gray-600">
+          <div className="border-[0.5mm] border-black rounded-[1.2mm] p-0.8 text-center bg-white">
+            <div className="text-[4.5pt] font-extrabold uppercase tracking-wider text-black">
               TOTAL BAGS
             </div>
-            <div className="text-[8pt] font-black tracking-tight text-black font-mono mt-0.2">
+            <div className="text-[8pt] font-black tracking-tight text-black font-mono leading-tight mt-0.2">
               {batch.totalBags}
-              <span className="text-[5pt] font-bold ml-0.5">BAG</span>
+              <span className="text-[4.5pt] font-bold ml-0.5">BAG</span>
             </div>
           </div>
 
-          <div className="border-[0.4mm] border-black rounded-[1.2mm] p-1 text-center bg-black text-white">
-            <div className="text-[4.5pt] font-bold uppercase tracking-wider text-gray-300">
+          <div className="border-[0.6mm] border-black rounded-[1.2mm] p-0.8 text-center bg-white">
+            <div className="text-[4.5pt] font-black uppercase tracking-wider text-black">
               JUMLAH BESAR
             </div>
-            <div className="text-[8pt] font-black tracking-tight text-white font-mono mt-0.2">
+            <div className="text-[8pt] font-black tracking-tight text-black font-mono leading-tight mt-0.2">
               {totalQuantity.toLocaleString()}
-              <span className="text-[5pt] font-bold ml-0.5 text-gray-200">PCS</span>
+              <span className="text-[4.5pt] font-bold ml-0.5">PCS</span>
             </div>
           </div>
         </div>
 
         {/* 5. MICRO AUTHENTICITY FOOTER */}
-        <div className="flex items-center justify-between text-[4.2pt] font-bold uppercase tracking-wider text-gray-500 pt-0.8 border-t-[0.3mm] border-black/40">
+        <div className="flex items-center justify-between text-[4.2pt] font-bold uppercase tracking-wider text-black pt-0.5 border-t-[0.3mm] border-black">
           <span>ASAL: PEDAS PLANT (KBP)</span>
           <span>DIGITAL VERIFIED LOT</span>
           <span>BUBBLESO2 MALAYSIA</span>

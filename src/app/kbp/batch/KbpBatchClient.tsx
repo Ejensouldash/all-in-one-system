@@ -288,6 +288,9 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
                     <Printer className="h-4 w-4" />
                     Cetak Sticker (100mm × 100mm)
                   </button>
+                  <p className="text-[11px] text-center text-gray-500 font-medium leading-relaxed">
+                    💡 <span className="font-bold">Tips Cetakan:</span> Pada Chrome Print, setkan <span className="font-bold text-gray-900">Margins: None</span> jika ada ruang kosong berlebihan.
+                  </p>
                   {isDraftPreview && (
                     <p className="text-[11px] text-center text-amber-700 font-bold">
                       * Pratonton langsung daripada pilihan borang semasa.
@@ -396,26 +399,42 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
                     padding: 0 !important;
                     width: 100mm !important;
                     height: 100mm !important;
+                    overflow: hidden !important;
                     background: #ffffff !important;
                     -webkit-print-color-adjust: exact !important;
                     print-color-adjust: exact !important;
                   }
+                  body * {
+                    visibility: hidden !important;
+                  }
+                  .print-thermal-container,
+                  .print-thermal-container * {
+                    visibility: visible !important;
+                  }
                   .print-thermal-container {
-                    display: flex !important;
+                    position: fixed !important;
+                    left: 0 !important;
+                    top: 0 !important;
                     width: 100mm !important;
                     height: 100mm !important;
                     margin: 0 !important;
                     padding: 0 !important;
+                    display: flex !important;
                     justify-content: center !important;
                     align-items: center !important;
+                    page-break-after: avoid !important;
+                    break-after: avoid !important;
                     page-break-inside: avoid !important;
                     break-inside: avoid !important;
+                    background: #ffffff !important;
+                    overflow: hidden !important;
+                    z-index: 999999 !important;
                   }
                 }
               `,
             }}
           />
-          <div className="hidden print:flex print-thermal-container print:w-[100mm] print:h-[100mm] print:items-center print:justify-center bg-white">
+          <div className="hidden print:flex print-thermal-container bg-white">
             <KbpSticker100mm batch={printTagData} mode="print" />
           </div>
         </>

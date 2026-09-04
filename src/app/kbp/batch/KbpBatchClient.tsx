@@ -37,8 +37,8 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
   const [machineId, setMachineId] = useState(KBP_MACHINES[0].id)
   const [dateValue, setDateValue] = useState(() => toDateInputValue(new Date()))
   const [shift, setShift] = useState<KbpShiftId>("01")
-  const [qtyPerBag, setQtyPerBag] = useState<number>(KBP_MACHINES[0].defaultQtyPerBag)
-  const [totalBags, setTotalBags] = useState<number>(1)
+  const [qtyPerBag, setQtyPerBag] = useState<number | "">(KBP_MACHINES[0].defaultQtyPerBag)
+  const [totalBags, setTotalBags] = useState<number | "">(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<{ type: "ok" | "err"; text: string } | null>(null)
   const [printTagData, setPrintTagData] = useState<Batch | null>(null)
@@ -225,7 +225,9 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
                     type="number"
                     min={1}
                     value={qtyPerBag}
-                    onChange={e => setQtyPerBag(Number(e.target.value))}
+                    onFocus={e => e.target.select()}
+                    onChange={e => setQtyPerBag(e.target.value === "" ? "" : Number(e.target.value))}
+                    placeholder="181"
                     className={inputClass}
                     required
                   />
@@ -236,7 +238,9 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
                     type="number"
                     min={1}
                     value={totalBags}
-                    onChange={e => setTotalBags(Number(e.target.value))}
+                    onFocus={e => e.target.select()}
+                    onChange={e => setTotalBags(e.target.value === "" ? "" : Number(e.target.value))}
+                    placeholder="1"
                     className={inputClass}
                     required
                   />
@@ -246,13 +250,13 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
               <div className="flex items-center justify-between rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Jumlah Kuantiti</span>
                 <span className="text-lg font-black text-emerald-700 tabular-nums">
-                  {((Number(qtyPerBag) || 0) * (Number(totalBags) || 1)).toLocaleString()} pcs
+                  {((Number(qtyPerBag) || 0) * (Number(totalBags) || 0)).toLocaleString()} pcs
                 </span>
               </div>
 
               <button
                 type="submit"
-                disabled={isSubmitting || !previewBatchNo}
+                disabled={isSubmitting || !previewBatchNo || !qtyPerBag || !totalBags}
                 className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 font-black uppercase tracking-wider text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm"
               >
                 <Save className="h-5 w-5" />

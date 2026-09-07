@@ -14,6 +14,7 @@ export const MAINTENANCE_FORM_TYPES = [
   "food-handler",
   "fpir",
   "ftdm",
+  "fuv",
   "ivvi",
   "lfcr",
   "lighting",

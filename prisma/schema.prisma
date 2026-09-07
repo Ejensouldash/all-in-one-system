@@ -1285,6 +1285,24 @@ model MaintenanceFiltrationBackwash {
   updatedAt          DateTime @updatedAt
 }
 
+model MaintenanceHazardProcessControl {
+  id                 String   @id @default(uuid())
+  date               DateTime
+  shift              String   // "DAY" or "NIGHT"
+  rows               Json
+  remarks            String?
+  checkedBy          String
+  performedSignature String?
+  verifiedBy         String?
+  verifiedSignature  String?
+  isLocked           Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([date, shift])
+  @@index([date])
+}
+
 // ==========================================
 // PRODUCTION FORMS MODELS
 // ==========================================

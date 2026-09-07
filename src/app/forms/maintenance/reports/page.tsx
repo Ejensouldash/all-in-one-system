@@ -188,6 +188,14 @@ export default async function MaintenanceReportsDashboard() {
       href: "/forms/maintenance/reports/mpb",
       gradient: "from-red-900 via-red-800 to-rose-900",
       accent: "bg-red-400"
+    },
+    {
+      title: "SGMP/19/FUV",
+      description: "SGMP/19/FUV - Hazard and Process Control Records",
+      icon: <Droplets className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/fuv",
+      gradient: "from-blue-900 via-cyan-800 to-teal-900",
+      accent: "bg-cyan-400"
     }
   ]
 

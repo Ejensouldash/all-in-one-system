@@ -106,6 +106,9 @@ export async function getMaintenanceSummaryRecords(
       case "ftdm":
         data = await prisma.maintenanceFlyTrapDaily.findMany({ where, orderBy: { date: "desc" } })
         break
+      case "fuv":
+        data = await prisma.maintenanceHazardProcessControl.findMany({ where, orderBy: { date: "desc" } })
+        break
       default:
         return { success: false, error: "Invalid form type" }
     }
@@ -201,6 +204,22 @@ export async function updateMaintenanceRecord(formType: string, id: string, data
       case "ftdm":
         await prisma.maintenanceFlyTrapDaily.update({ where: { id }, data })
         break
+      case "fuv": {
+        const current = await prisma.maintenanceHazardProcessControl.findUnique({
+          where: { id },
+          select: { isLocked: true },
+        })
+        if (current?.isLocked) {
+          return {
+            success: false,
+            error: "Rekod ini telah disahkan dan dikunci oleh Penyelia / QC. Pengubahsuaian tidak dibenarkan.",
+          }
+        }
+        await prisma.maintenanceHazardProcessControl.update({ where: { id }, data })
+        revalidatePath("/forms/maintenance/fuv")
+        revalidatePath("/forms/maintenance/reports/fuv")
+        break
+      }
       default:
         return { success: false, error: "Invalid form type" }
     }
@@ -296,6 +315,22 @@ export async function deleteMaintenanceRecord(formType: string, id: string) {
       case "ftdm":
         await prisma.maintenanceFlyTrapDaily.delete({ where: { id } })
         break
+      case "fuv": {
+        const current = await prisma.maintenanceHazardProcessControl.findUnique({
+          where: { id },
+          select: { isLocked: true },
+        })
+        if (current?.isLocked) {
+          return {
+            success: false,
+            error: "Rekod yang telah disahkan dan dikunci oleh Penyelia / QC tidak boleh dipadam.",
+          }
+        }
+        await prisma.maintenanceHazardProcessControl.delete({ where: { id } })
+        revalidatePath("/forms/maintenance/fuv")
+        revalidatePath("/forms/maintenance/reports/fuv")
+        break
+      }
       default:
         return { success: false, error: "Invalid form type" }
     }
@@ -397,6 +432,14 @@ export async function verifyMaintenanceRecord(
         break
       case "ftdm":
         await prisma.maintenanceFlyTrapDaily.update({ where: { id }, data })
+        break
+      case "fuv":
+        await prisma.maintenanceHazardProcessControl.update({
+          where: { id },
+          data: { ...data, isLocked: true },
+        })
+        revalidatePath("/forms/maintenance/fuv")
+        revalidatePath("/forms/maintenance/reports/fuv")
         break
       default:
         return { success: false, error: "Invalid form type" }

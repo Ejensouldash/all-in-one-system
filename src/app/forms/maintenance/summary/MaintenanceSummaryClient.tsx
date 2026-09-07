@@ -46,6 +46,7 @@ const FORM_TYPES: { value: string; label: string }[] = [
   { value: "ftdm", label: "SGMP-06 FTDM" },
   { value: "fpir", label: "SGMP-18 FPIR" },
   { value: "wqtr", label: "SGMP-18 WQTR" },
+  { value: "fuv", label: "SGMP-19 FUV (Hazard & Process Control)" },
 ]
 
 const FIELD_CONFIG: Record<string, FieldConfig[]> = {
@@ -226,7 +227,12 @@ const FIELD_CONFIG: Record<string, FieldConfig[]> = {
   ],
   wqtr: [
     { key: "checkedBy", label: "Checked By", type: "text" },
-  ]
+  ],
+  fuv: [
+    { key: "shift", label: "Shift", type: "text" },
+    { key: "checkedBy", label: "Checked By", type: "text" },
+    { key: "remarks", label: "Remarks / CCP Action", type: "text" },
+  ],
 }
 
 function formatDate(d: string | Date) {
@@ -432,24 +438,25 @@ export function MaintenanceSummaryClient({
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => openEdit(rec)}
-                        title="Edit"
-                        className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+                        title={rec.isLocked ? "Record is locked (audit-proof)" : "Edit"}
+                        disabled={Boolean(rec.isLocked)}
+                        className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setSigningRecord(rec)}
-                        title="Sign / Verify"
-                        disabled={!!rec.verifiedBy}
+                        title={rec.isLocked ? "Record is locked" : "Sign / Verify"}
+                        disabled={Boolean(rec.verifiedBy || rec.isLocked)}
                         className="p-2 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <PenTool className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(rec.id)}
-                        disabled={deletingId === rec.id}
-                        title="Delete"
-                        className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors disabled:opacity-40"
+                        disabled={deletingId === rec.id || Boolean(rec.isLocked)}
+                        title={rec.isLocked ? "Cannot delete locked record" : "Delete"}
+                        className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

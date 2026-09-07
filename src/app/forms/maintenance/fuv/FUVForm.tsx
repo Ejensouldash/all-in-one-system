@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import {
   Droplets,
   CheckCircle2,
   ChevronLeft,
+  ChevronRight,
   AlertTriangle,
   Lock,
   RefreshCw,
@@ -12,6 +13,22 @@ import {
   Sun,
   Moon,
   Info,
+  Activity,
+  Gauge,
+  Filter,
+  ShieldCheck,
+  Sparkles,
+  Copy,
+  RotateCcw,
+  Check,
+  Table,
+  LayoutGrid,
+  FileText,
+  AlertCircle,
+  Clock,
+  ArrowRight,
+  HelpCircle,
+  Building2,
 } from "lucide-react"
 import Link from "next/link"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
@@ -125,27 +142,57 @@ export function hasCCPBreach(rows: FUVRow[]): boolean {
   )
 }
 
-function getInputClasses(status: CellStatus, isOff = false) {
+function getSlotStatus(row: FUVRow): {
+  isCompleted: boolean
+  isPartiallyFilled: boolean
+  isOff: boolean
+  hasBreach: boolean
+  filledCount: number
+  totalCount: number
+} {
+  const isOff = Boolean(row.isOff)
   if (isOff) {
-    return "w-full text-center px-1.5 py-1 text-xs bg-gray-100 text-gray-400 border border-gray-200 rounded cursor-not-allowed"
+    return {
+      isCompleted: true,
+      isPartiallyFilled: false,
+      isOff: true,
+      hasBreach: false,
+      filledCount: 21,
+      totalCount: 21,
+    }
   }
-  if (status === "ccp-breach") {
-    return "w-full text-center px-1.5 py-1 text-xs bg-red-100 border-2 border-red-600 text-red-900 font-black rounded animate-pulse shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-  }
-  if (status === "warning") {
-    return "w-full text-center px-1.5 py-1 text-xs bg-amber-50 border border-amber-400 text-amber-900 font-semibold rounded focus:outline-none focus:ring-1 focus:ring-amber-500"
-  }
-  return "w-full text-center px-1.5 py-1 text-xs bg-white border border-gray-300 text-gray-900 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-gray-400"
-}
 
-function getSelectClasses(status: string, isOff = false) {
-  if (isOff) {
-    return "w-full text-[10px] py-0.5 px-1 border border-gray-200 rounded bg-gray-100 text-gray-400 cursor-not-allowed"
+  const fieldsToCheck: (keyof FUVRow)[] = [
+    "vfd01", "vfd02", "sp01Ph", "cs02", "pg01", "pt01",
+    "sp02Ph", "sp03Ph", "pg02", "pg03", "pt02", "pt03",
+    "pg04", "pg05", "cs01", "fm01", "pg06", "fm02",
+    "uvIntensity", "operatingHour", "totalRunningDays",
+  ]
+
+  let filledCount = 0
+  fieldsToCheck.forEach((f) => {
+    const val = row[f]
+    if (val && typeof val === "string" && val.trim() !== "" && val !== "-") {
+      filledCount++
+    }
+  })
+
+  const hasBreach =
+    isPG02Breach(row.pg02, row.isOff) ||
+    isPG05Breach(row.pg05, row.isOff) ||
+    isUVIntensityBreach(row.uvIntensity, row.isOff)
+
+  const isCompleted = filledCount >= 18
+  const isPartiallyFilled = filledCount > 0 && !isCompleted
+
+  return {
+    isCompleted,
+    isPartiallyFilled,
+    isOff: false,
+    hasBreach,
+    filledCount,
+    totalCount: fieldsToCheck.length,
   }
-  if (status && status !== "Clear / No Colour") {
-    return "w-full text-[10px] py-0.5 px-1 border-2 border-amber-500 rounded bg-amber-50 text-amber-900 font-bold focus:outline-none focus:ring-1 focus:ring-amber-500"
-  }
-  return "w-full text-[10px] py-0.5 px-1 border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
 }
 
 export function FUVForm({ userName }: { userName: string }) {
@@ -155,6 +202,11 @@ export function FUVForm({ userName }: { userName: string }) {
   const [remarks, setRemarks] = useState("")
   const [rows, setRows] = useState<FUVRow[]>(() => getDefaultShiftRows("DAY", userName))
 
+  // UI state
+  const [activeSlotIndex, setActiveSlotIndex] = useState(0)
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards")
+  const [copyNotification, setCopyNotification] = useState("")
+
   const [isLoadingRecord, setIsLoadingRecord] = useState(false)
   const [isLocked, setIsLocked] = useState(false)
   const [existingId, setExistingId] = useState<string | null>(null)
@@ -163,6 +215,29 @@ export function FUVForm({ userName }: { userName: string }) {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
   const [reloadTick, setReloadTick] = useState(0)
+
+  // Determine current slot based on time of day
+  useEffect(() => {
+    const currentHour = new Date().getHours()
+    // Day shift hours: 7-18
+    if (currentHour >= 7 && currentHour < 19) {
+      setShift("DAY")
+      if (currentHour < 9) setActiveSlotIndex(0) // 7.30 am
+      else if (currentHour < 11) setActiveSlotIndex(1) // 9.30 am
+      else if (currentHour < 13) setActiveSlotIndex(2) // 11.30 am
+      else if (currentHour < 15) setActiveSlotIndex(3) // 1.30 pm
+      else if (currentHour < 17) setActiveSlotIndex(4) // 3.30 pm
+      else setActiveSlotIndex(5) // 5.30 pm
+    } else {
+      setShift("NIGHT")
+      if (currentHour >= 19 && currentHour < 21) setActiveSlotIndex(0) // 7.30 pm
+      else if (currentHour >= 21 && currentHour < 23) setActiveSlotIndex(1) // 9.30 pm
+      else if (currentHour >= 23 || currentHour < 1) setActiveSlotIndex(2) // 11.30 pm
+      else if (currentHour < 3) setActiveSlotIndex(3) // 1.30 am
+      else if (currentHour < 5) setActiveSlotIndex(4) // 3.30 am
+      else setActiveSlotIndex(5) // 5.30 am
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -280,7 +355,48 @@ export function FUVForm({ userName }: { userName: string }) {
     })
   }
 
+  function handleCopyFromPrevious(currentIdx: number) {
+    if (isLocked || currentIdx <= 0) return
+    const prevRow = rows[currentIdx - 1]
+    if (!prevRow) return
+
+    setRows((prev) => {
+      const next = [...prev]
+      next[currentIdx] = {
+        ...prevRow,
+        time: next[currentIdx].time,
+        isOff: prevRow.isOff || false,
+        checkedBy: checkedBy || prevRow.checkedBy,
+      }
+      return next
+    })
+
+    setCopyNotification(
+      `Semua nilai dari slot ${prevRow.time} telah berjaya disalin ke slot ${rows[currentIdx].time}!`
+    )
+    setTimeout(() => setCopyNotification(""), 4500)
+  }
+
+  function handleClearSlot(index: number) {
+    if (isLocked) return
+    if (!confirm(`Adakah anda pasti untuk mengosongkan semua bacaan bagi slot ${rows[index].time}?`)) {
+      return
+    }
+    setRows((prev) => {
+      const next = [...prev]
+      next[index] = createEmptyFUVRow(next[index].time, checkedBy)
+      return next
+    })
+  }
+
   const ccpViolated = hasCCPBreach(rows)
+
+  // Summary counts
+  const slotSummaries = useMemo(() => {
+    return rows.map((r) => getSlotStatus(r))
+  }, [rows])
+
+  const completedSlotsCount = slotSummaries.filter((s) => s.isCompleted).length
 
   async function handleSubmit() {
     if (isLocked) {
@@ -290,6 +406,8 @@ export function FUVForm({ userName }: { userName: string }) {
 
     if (!signature) {
       setError("Tandatangan digital diperlukan sebelum menghantar borang.")
+      const sigElement = document.getElementById("signature-section")
+      if (sigElement) sigElement.scrollIntoView({ behavior: "smooth" })
       return
     }
 
@@ -297,40 +415,8 @@ export function FUVForm({ userName }: { userName: string }) {
       setError(
         "AMARAN CCP: Terdapat parameter CCP yang melebihi/di luar had piawai. Anda WAJIB mengisi ruangan Catatan / Tindakan Pembetulan (Corrective Action) sebelum menghantar!"
       )
-      return
-    }
-
-    // Check if at least one row has data
-    const hasData = rows.some(
-      (r) =>
-        r.isOff ||
-        [
-          r.vfd01,
-          r.vfd02,
-          r.sp01Ph,
-          r.cs02,
-          r.pg01,
-          r.pt01,
-          r.sp02Ph,
-          r.sp03Ph,
-          r.pg02,
-          r.pg03,
-          r.pt02,
-          r.pt03,
-          r.pg04,
-          r.pg05,
-          r.cs01,
-          r.fm01,
-          r.pg06,
-          r.fm02,
-          r.uvIntensity,
-          r.operatingHour,
-          r.totalRunningDays,
-        ].some((val) => Boolean(val && typeof val === "string" && val.trim() !== ""))
-    )
-
-    if (!hasData) {
-      setError("Sila isi sekurang-kurangnya satu slot masa atau tandakan 'OFF / Downtime'.")
+      const remarksElement = document.getElementById("remarks-section")
+      if (remarksElement) remarksElement.scrollIntoView({ behavior: "smooth" })
       return
     }
 
@@ -341,10 +427,10 @@ export function FUVForm({ userName }: { userName: string }) {
       id: existingId || undefined,
       date,
       shift,
-      rows,
-      remarks: remarks.trim() || undefined,
       checkedBy,
+      remarks,
       performedSignature: signature,
+      rows,
     }
 
     const res = await createOrUpdateHazardProcessRecord(payload)
@@ -360,19 +446,25 @@ export function FUVForm({ userName }: { userName: string }) {
     setIsSubmitting(false)
   }
 
+  const activeRow = rows[activeSlotIndex] || rows[0]
+  const isCurrentSlotOff = Boolean(activeRow?.isOff)
+
   if (success) {
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center max-w-lg mx-auto">
-        <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CheckCircle2 className="w-8 h-8" />
+      <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 sm:p-12 text-center max-w-xl mx-auto my-8">
+        <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
+          <CheckCircle2 className="w-10 h-10" />
         </div>
-        <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight mb-2">
-          Rekod Berjaya Disimpan!
+        <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-black uppercase tracking-wider rounded-full inline-block mb-3">
+          Rekod Berjaya Dihantar
+        </span>
+        <h2 className="text-2xl sm:text-3xl font-black text-gray-900 uppercase tracking-tight mb-2">
+          Hazard & Process Control Disimpan!
         </h2>
-        <p className="text-gray-600 text-sm mb-6">
-          Rekod Hazard and Process Control (SGMP-19/FUV) bagi tarikh <strong>{date}</strong> (Syif{" "}
-          <strong>{shift === "DAY" ? "Pagi" : "Malam"}</strong>) telah berjaya direkodkan ke dalam
-          pangkalan data.
+        <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+          Borang SGMP/19/FUV bagi tarikh <strong>{date}</strong> (Syif{" "}
+          <strong>{shift === "DAY" ? "Pagi" : "Malam"}</strong>) telah selamat direkodkan ke dalam
+          pangkalan data bersama tandatangan digital anda.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
@@ -380,15 +472,15 @@ export function FUVForm({ userName }: { userName: string }) {
               setSuccess(false)
               setReloadTick((t) => t + 1)
             }}
-            className="w-full sm:w-auto px-5 py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-sm font-black uppercase tracking-wider transition-colors shadow-md"
+            className="w-full sm:w-auto px-6 py-3 bg-cyan-700 hover:bg-cyan-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md"
           >
-            Kemas Kini / Semak Rekod
+            Kemas Kini Rekod Ini
           </button>
           <Link
             href="/forms/maintenance/reports/fuv"
-            className="w-full sm:w-auto px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-black uppercase tracking-wider transition-colors"
+            className="w-full sm:w-auto px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-black uppercase tracking-wider transition-colors"
           >
-            Lihat Laporan Bulanan
+            Buka Laporan Bulanan (Audit View)
           </Link>
         </div>
       </div>
@@ -397,48 +489,184 @@ export function FUVForm({ userName }: { userName: string }) {
 
   return (
     <div className="space-y-6">
-      {/* Header & Controls */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Link
-            href="/forms/maintenance"
-            className="p-2.5 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5 text-gray-700" />
-          </Link>
-          <div className="flex items-center space-x-3">
-            <div className="w-11 h-11 bg-cyan-100 rounded-xl flex items-center justify-center">
-              <Droplets className="w-6 h-6 text-cyan-700" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-black uppercase tracking-tight text-xl text-gray-900">
+      {/* 1. Official GMP Document Header (Paper-like Card Style) */}
+      <div className="bg-white rounded-3xl shadow-md border border-gray-200 overflow-hidden">
+        <div className="bg-gradient-to-r from-slate-900 via-cyan-950 to-blue-950 text-white p-6 sm:p-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="flex items-start gap-4">
+              <Link
+                href="/forms/maintenance"
+                className="p-2.5 bg-white/10 hover:bg-white/20 rounded-2xl transition-colors backdrop-blur-sm mt-1"
+                title="Kembali ke Menu GMP"
+              >
+                <ChevronLeft className="w-5 h-5 text-white" />
+              </Link>
+              <div>
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 rounded-full text-xs font-black tracking-widest uppercase">
+                    SGMP/19/FUV
+                  </span>
+                  <span className="px-2.5 py-1 bg-white/10 text-white/90 rounded-full text-xs font-bold uppercase">
+                    Rev 4
+                  </span>
+                  <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-full text-xs font-bold uppercase flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5" /> GMP KKM Compliant
+                  </span>
+                  {isLocked && (
+                    <span className="flex items-center px-2.5 py-1 bg-amber-500/30 text-amber-200 border border-amber-400/30 rounded-full text-xs font-black uppercase">
+                      <Lock className="w-3.5 h-3.5 mr-1" /> Terkunci (Audit-Proof)
+                    </span>
+                  )}
+                </div>
+                <h1 className="text-xl sm:text-3xl font-black uppercase tracking-tight text-white flex items-center gap-3">
+                  <Droplets className="w-7 h-7 sm:w-8 sm:h-8 text-cyan-400" />
                   Hazard and Process Control Records
                 </h1>
-                <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-md text-[10px] font-black uppercase">
-                  Rev 4
-                </span>
-                {isLocked && (
-                  <span className="flex items-center px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md text-[10px] font-black uppercase">
-                    <Lock className="w-3 h-3 mr-1" /> Terkunci (Audit-Proof)
-                  </span>
-                )}
+                <p className="text-xs sm:text-sm text-cyan-100/80 font-medium mt-1">
+                  Bahagian GMP - Production • BUBBLES O2 SDN BHD, Kompleks Al-Ammar, Rantau
+                </p>
               </div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
-                SGMP/19/FUV • Bahagian GMP - Production
-              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 self-start lg:self-center">
+              <SaveDraftButton draft={draft} />
+              <Link
+                href="/forms/maintenance/reports/fuv"
+                className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase rounded-xl transition-all border border-white/20 backdrop-blur-sm flex items-center gap-1.5"
+              >
+                <FileText className="w-4 h-4" /> Laporan & Cetakan
+              </Link>
+            </div>
+          </div>
+
+          {/* Quick Doc Control Chips */}
+          <div className="mt-6 pt-4 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-white/70">
+            <div>
+              <span className="text-white/40 block text-[10px] uppercase font-bold">No. Rujukan</span>
+              <strong className="text-white font-mono">SGMP/19/FUV</strong>
+            </div>
+            <div>
+              <span className="text-white/40 block text-[10px] uppercase font-bold">Tarikh Kuat Kuasa</span>
+              <strong className="text-white">02/03/2026</strong>
+            </div>
+            <div>
+              <span className="text-white/40 block text-[10px] uppercase font-bold">Kitaran Pemeriksaan</span>
+              <strong className="text-white">Setiap 2 Jam (6 Slot / Syif)</strong>
+            </div>
+            <div>
+              <span className="text-white/40 block text-[10px] uppercase font-bold">Titik Kawalan Kritikal</span>
+              <strong className="text-amber-300">CCP1 (PG02/PG05) & CCP2 (UV)</strong>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <SaveDraftButton draft={draft} />
-          <Link
-            href="/forms/maintenance/reports/fuv"
-            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold uppercase rounded-xl transition-colors"
-          >
-            Laporan & Cetakan
-          </Link>
+        {/* Shift, Date & View Mode Selection Bar */}
+        <div className="p-6 bg-slate-50 border-b border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-end">
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1.5">
+                Tarikh Pemeriksaan (Date) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={date}
+                disabled={isLocked}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-600 disabled:opacity-60 shadow-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1.5">
+                Pilihan Syif Kerja (Shift) <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2 bg-gray-200 p-1 rounded-xl">
+                <button
+                  type="button"
+                  disabled={isLocked}
+                  onClick={() => {
+                    setShift("DAY")
+                    setActiveSlotIndex(0)
+                  }}
+                  className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
+                    shift === "DAY"
+                      ? "bg-amber-500 text-white shadow-md font-black"
+                      : "text-gray-600 hover:text-gray-900"
+                  } disabled:opacity-60`}
+                >
+                  <Sun className="w-4 h-4 text-amber-100" /> Syif Pagi (Day)
+                </button>
+                <button
+                  type="button"
+                  disabled={isLocked}
+                  onClick={() => {
+                    setShift("NIGHT")
+                    setActiveSlotIndex(0)
+                  }}
+                  className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
+                    shift === "NIGHT"
+                      ? "bg-indigo-900 text-white shadow-md font-black"
+                      : "text-gray-600 hover:text-gray-900"
+                  } disabled:opacity-60`}
+                >
+                  <Moon className="w-4 h-4 text-indigo-200" /> Syif Malam (Night)
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1.5">
+                Pemeriksa Bertugas (Checked By) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={checkedBy}
+                disabled={isLocked}
+                onChange={(e) => setCheckedBy(e.target.value)}
+                placeholder="Nama Operator / Pemeriksa"
+                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-600 disabled:opacity-60 shadow-sm"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap items-center justify-between gap-3 text-xs text-gray-600">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-cyan-600" />
+              <span>
+                Waktu Bertugas: <strong>{shift === "DAY" ? "07:30 AM – 05:30 PM" : "07:30 PM – 05:30 AM"}</strong>
+              </span>
+              <span className="text-gray-300">•</span>
+              <span>
+                Status Syif: <strong>{completedSlotsCount} dari 6 Slot Selesai</strong>
+              </span>
+            </div>
+
+            {/* View Mode Switcher */}
+            <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setViewMode("cards")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-colors ${
+                  viewMode === "cards"
+                    ? "bg-cyan-700 text-white font-black shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" /> Mod Kad Slot (Fokus)
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("table")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-colors ${
+                  viewMode === "table"
+                    ? "bg-cyan-700 text-white font-black shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <Table className="w-3.5 h-3.5" /> Jadual Matriks Penuh
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -446,7 +674,7 @@ export function FUVForm({ userName }: { userName: string }) {
 
       {/* Lock Notice */}
       {isLocked && (
-        <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 flex items-start gap-3 text-amber-900">
+        <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 flex items-start gap-3 text-amber-900 shadow-sm">
           <Lock className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
           <div className="text-sm">
             <p className="font-bold">Rekod ini telah disahkan dan dikunci oleh Penyelia / QC.</p>
@@ -459,668 +687,1530 @@ export function FUVForm({ userName }: { userName: string }) {
 
       {/* CCP Alert Banner */}
       {ccpViolated && (
-        <div className="bg-red-50 border-2 border-red-500 rounded-2xl p-4 flex items-start gap-3 text-red-900 shadow-md">
+        <div className="bg-red-50 border-2 border-red-500 rounded-2xl p-5 flex items-start gap-3 text-red-900 shadow-md animate-in fade-in duration-300">
           <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5 animate-bounce" />
           <div className="text-sm">
-            <h4 className="font-black uppercase tracking-tight text-red-800">
+            <h4 className="font-black uppercase tracking-tight text-red-800 text-base">
               AMARAN KRITIKAL: Pelanggaran Had CCP Dikesan!
             </h4>
-            <p className="text-xs text-red-700 mt-1">
-              Salah satu parameter CCP (PG02 &gt; 3 Bar, PG05 &gt; 2 Bar, atau UV Intensity &lt; 80%) telah
-              dikesan di luar julat selamat. Anda <strong>WAJIB</strong> memasukkan penerangan tindakan
-              pembetulan di ruangan <em>Catatan / Tindakan Pembetulan</em> sebelum borang ini dibenarkan
-              dihantar.
+            <p className="text-xs text-red-700 mt-1 leading-relaxed">
+              Terdapat bacaan parameter CCP di luar julat selamat (PG02 &gt; 3.0 Bar, PG05 &gt; 2.0 Bar, atau UV Intensity &lt; 80% / &gt; 99%).
+              Bagi mematuhi syarat audit HACCP & GMP, anda <strong>WAJIB</strong> memasukkan penerangan tindakan
+              pembetulan di bahagian <em>Catatan / Tindakan Pembetulan</em> di bawah sebelum menghantar borang.
             </p>
           </div>
         </div>
       )}
 
       {error && (
-        <div className="bg-red-50 text-red-800 p-4 rounded-xl border border-red-200 font-medium text-sm flex items-center justify-between">
-          <span>{error}</span>
+        <div className="bg-red-50 text-red-800 p-4 rounded-xl border border-red-200 font-medium text-sm flex items-center justify-between shadow-sm">
+          <span className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-600" /> {error}
+          </span>
           <button onClick={() => setError("")} className="text-red-500 hover:text-red-700 font-bold ml-4">
             ✕
           </button>
         </div>
       )}
 
-      {/* Shift & Date Controls */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-end">
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-gray-600 mb-2">
-              Tarikh Pemeriksaan (Date)
-            </label>
-            <input
-              type="date"
-              value={date}
-              disabled={isLocked}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
-            />
-          </div>
+      {copyNotification && (
+        <div className="bg-emerald-50 text-emerald-800 p-4 rounded-xl border border-emerald-200 font-bold text-xs flex items-center gap-2 shadow-sm animate-in fade-in">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          {copyNotification}
+        </div>
+      )}
 
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-gray-600 mb-2">
-              Pilihan Syif (Shift Selection)
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                disabled={isLocked}
-                onClick={() => setShift("DAY")}
-                className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
-                  shift === "DAY"
-                    ? "bg-amber-500 text-white shadow-md ring-2 ring-amber-300"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                } disabled:opacity-60`}
-              >
-                <Sun className="w-4 h-4" /> Syif Pagi (Day)
-              </button>
-              <button
-                type="button"
-                disabled={isLocked}
-                onClick={() => setShift("NIGHT")}
-                className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
-                  shift === "NIGHT"
-                    ? "bg-indigo-900 text-white shadow-md ring-2 ring-indigo-400"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                } disabled:opacity-60`}
-              >
-                <Moon className="w-4 h-4" /> Syif Malam (Night)
-              </button>
+      {/* VIEW MODE 1: SLOT-BY-SLOT PAPER CARDS (USER-PREFERRED MODE) */}
+      {viewMode === "cards" ? (
+        <div className="space-y-6">
+          {/* 2. Time Slot Pills Navigation Bar */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200">
+            <div className="flex items-center justify-between mb-3 px-1">
+              <span className="text-xs font-black uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-cyan-600" /> Pilih Slot Masa Pemeriksaan:
+              </span>
+              <span className="text-[11px] font-bold text-gray-500">
+                Klik mana-mana slot untuk mula mengisi
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+              {rows.map((row, idx) => {
+                const status = slotSummaries[idx]
+                const isActive = activeSlotIndex === idx
+
+                return (
+                  <button
+                    key={row.time}
+                    type="button"
+                    onClick={() => setActiveSlotIndex(idx)}
+                    className={`relative p-3 rounded-2xl text-left border transition-all flex flex-col justify-between ${
+                      isActive
+                        ? "bg-cyan-50 border-cyan-500 shadow-md ring-2 ring-cyan-500/50"
+                        : "bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span
+                        className={`text-xs font-black uppercase tracking-tight ${
+                          isActive ? "text-cyan-900" : "text-gray-900"
+                        }`}
+                      >
+                        {row.time}
+                      </span>
+                      {status.hasBreach ? (
+                        <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" title="Pelanggaran CCP" />
+                      ) : status.isOff ? (
+                        <span className="px-1.5 py-0.5 rounded bg-gray-200 text-gray-600 text-[9px] font-bold uppercase">
+                          OFF
+                        </span>
+                      ) : status.isCompleted ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      ) : status.isPartiallyFilled ? (
+                        <span className="w-2 h-2 rounded-full bg-blue-500" />
+                      ) : (
+                        <span className="w-2 h-2 rounded-full bg-gray-300" />
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] font-bold">
+                      {status.hasBreach ? (
+                        <span className="text-red-600 flex items-center gap-0.5">
+                          <AlertTriangle className="w-3 h-3" /> Amaran CCP
+                        </span>
+                      ) : status.isOff ? (
+                        <span className="text-gray-500">Henti Tugas</span>
+                      ) : status.isCompleted ? (
+                        <span className="text-emerald-700">Lengkap (21/21)</span>
+                      ) : status.isPartiallyFilled ? (
+                        <span className="text-blue-600">{status.filledCount}/21 Diisi</span>
+                      ) : (
+                        <span className="text-gray-400">Belum Diisi</span>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-gray-600 mb-2">
-              Pemeriksa Bertugas (Checked By)
-            </label>
-            <input
-              type="text"
-              value={checkedBy}
-              disabled={isLocked}
-              onChange={(e) => setCheckedBy(e.target.value)}
-              placeholder="Nama Pemeriksa"
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
-            />
-          </div>
-        </div>
+          {/* 3. Active Slot Header Card with Downtime Toggle & Quick Copy */}
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-cyan-100 rounded-2xl flex items-center justify-center text-cyan-800 font-black text-lg">
+                  {activeSlotIndex + 1}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg sm:text-xl font-black uppercase tracking-tight text-gray-900">
+                      Pemeriksaan Slot Masa: {activeRow.time}
+                    </h2>
+                    {isCurrentSlotOff && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-gray-200 text-gray-700 font-black text-[10px] uppercase">
+                        Henti Tugas (Downtime)
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 font-medium">
+                    Sila lengkapkan bacaan bagi semua zon rawatan air di bawah
+                  </p>
+                </div>
+              </div>
 
-        <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500 font-medium">
-          <div className="flex items-center gap-2">
-            <Info className="w-4 h-4 text-blue-600" />
-            <span>
-              Masa Pemeriksaan bagi <strong>Syif {shift === "DAY" ? "Pagi" : "Malam"}</strong>:{" "}
-              {(shift === "DAY" ? DAY_SHIFT_TIMES : NIGHT_SHIFT_TIMES).join(" • ")}
-            </span>
-          </div>
-          {isLoadingRecord && (
-            <span className="flex items-center text-blue-600 font-bold">
-              <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" /> Memuat rekod...
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* 25-Column Entry Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-black uppercase tracking-wider text-gray-800">
-              Jadual Matriks Kawalan Bahaya & Proses (25 Kolum)
-            </h3>
-            <span className="text-xs bg-gray-200 px-2 py-0.5 rounded text-gray-700 font-bold">
-              6 Slot Masa
-            </span>
-          </div>
-          <div className="flex items-center gap-4 text-xs font-semibold">
-            <span className="flex items-center gap-1 text-emerald-700">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Normal
-            </span>
-            <span className="flex items-center gap-1 text-amber-700">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> Amaran Had
-            </span>
-            <span className="flex items-center gap-1 text-red-700">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block animate-ping"></span>{" "}
-              Pelanggaran CCP
-            </span>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-center text-xs border-collapse border border-gray-200 min-w-[2100px]">
-            <thead>
-              {/* TIER 1: Bahagian / Peralatan */}
-              <tr className="bg-slate-800 text-white font-bold border-b border-slate-700 text-[11px]">
-                <th rowSpan={4} className="p-2 border border-slate-700 w-24 sticky left-0 z-20 bg-slate-800">
-                  Time of Inspection
-                </th>
-                <th rowSpan={4} className="p-2 border border-slate-700 w-20 sticky left-24 z-20 bg-slate-800">
-                  OFF / Downtime
-                </th>
-                <th className="p-2 border border-slate-700">Source Water Pump</th>
-                <th className="p-2 border border-slate-700">Booster Pump</th>
-                <th colSpan={4} className="p-2 border border-slate-700">Source Water Line</th>
-                <th className="p-2 border border-slate-700">Sand Filter</th>
-                <th className="p-2 border border-slate-700">Activated Carbon Filter</th>
-                <th className="p-2 border border-slate-700 bg-amber-950/70 text-amber-200">
-                  Sand + Carbon (CCP1)
-                </th>
-                <th className="p-2 border border-slate-700">10µm Precision Filter</th>
-                <th className="p-2 border border-slate-700">5µm Precision Filter</th>
-                <th colSpan={2} className="p-2 border border-slate-700">Inlet UF Membrane</th>
-                <th colSpan={3} className="p-2 border border-slate-700 bg-amber-950/70 text-amber-200">
-                  Outlet UF Membrane (CCP1)
-                </th>
-                <th colSpan={2} className="p-2 border border-slate-700">UF Reject Line</th>
-                <th colSpan={3} className="p-2 border border-slate-700 bg-red-950/80 text-rose-200">
-                  UV SYSTEM (CCP2)
-                </th>
-                <th rowSpan={4} className="p-2 border border-slate-700 w-28">Checked By</th>
-                <th rowSpan={4} className="p-2 border border-slate-700 w-28">Verified By</th>
-              </tr>
-
-              {/* TIER 2: Had Julat & Kawalan */}
-              <tr className="bg-slate-700 text-slate-200 text-[10px] font-medium border-b border-slate-600">
-                <th className="p-1 border border-slate-600">Max 25Hz</th>
-                <th className="p-1 border border-slate-600">Max 25Hz</th>
-                <th className="p-1 border border-slate-600">PH 6.5-7.5</th>
-                <th className="p-1 border border-slate-600">(50-270)</th>
-                <th className="p-1 border border-slate-600">Max 1.1 Bar</th>
-                <th className="p-1 border border-slate-600">Max 1.1 Bar</th>
-                <th className="p-1 border border-slate-600">PH 6.5-7.5</th>
-                <th className="p-1 border border-slate-600">PH 6.5-7.5</th>
-                <th className="p-1 border border-slate-600 font-bold text-amber-300">Max 3 Bar (CCP1)</th>
-                <th className="p-1 border border-slate-600">Min 0.9 Bar</th>
-                <th className="p-1 border border-slate-600">Min 0.9 Bar</th>
-                <th className="p-1 border border-slate-600">Max 9 Bar</th>
-                <th className="p-1 border border-slate-600">Max 9 Bar</th>
-                <th className="p-1 border border-slate-600 font-bold text-amber-300">Max 2 Bar (CCP1)</th>
-                <th className="p-1 border border-slate-600">&le; CS02 (50-270)</th>
-                <th className="p-1 border border-slate-600">Flow Range</th>
-                <th className="p-1 border border-slate-600">Nil</th>
-                <th className="p-1 border border-slate-600">1.2-1.8 m3/Hr</th>
-                <th className="p-1 border border-slate-600 font-bold text-rose-300">80 - 99% (CCP2)</th>
-                <th className="p-1 border border-slate-600">9000 Hr</th>
-                <th className="p-1 border border-slate-600">Running Days</th>
-              </tr>
-
-              {/* TIER 3: Unit */}
-              <tr className="bg-slate-600 text-slate-300 text-[10px] border-b border-slate-500">
-                <th className="p-1 border border-slate-500">Hz</th>
-                <th className="p-1 border border-slate-500">Hz</th>
-                <th className="p-1 border border-slate-500">PH / TURB / COL</th>
-                <th className="p-1 border border-slate-500">µS/cm</th>
-                <th className="p-1 border border-slate-500">Bar</th>
-                <th className="p-1 border border-slate-500">Bar</th>
-                <th className="p-1 border border-slate-500">PH / TURB / COL</th>
-                <th className="p-1 border border-slate-500">PH / TURB / COL</th>
-                <th className="p-1 border border-slate-500 font-bold text-amber-200">Bar</th>
-                <th className="p-1 border border-slate-500">Bar</th>
-                <th className="p-1 border border-slate-500">Bar</th>
-                <th className="p-1 border border-slate-500">Bar</th>
-                <th className="p-1 border border-slate-500">Bar</th>
-                <th className="p-1 border border-slate-500 font-bold text-amber-200">Bar</th>
-                <th className="p-1 border border-slate-500">µS/cm</th>
-                <th className="p-1 border border-slate-500">m3/Hr</th>
-                <th className="p-1 border border-slate-500">Bar</th>
-                <th className="p-1 border border-slate-500">m3/Hr</th>
-                <th className="p-1 border border-slate-500 font-bold text-rose-200">%</th>
-                <th className="p-1 border border-slate-500">Hr</th>
-                <th className="p-1 border border-slate-500">Days</th>
-              </tr>
-
-              {/* TIER 4: Tag */}
-              <tr className="bg-slate-100 text-slate-800 text-[11px] font-black border-b-2 border-slate-300">
-                <th className="p-1.5 border border-slate-300">VFD01</th>
-                <th className="p-1.5 border border-slate-300">VFD02</th>
-                <th className="p-1.5 border border-slate-300">SP01</th>
-                <th className="p-1.5 border border-slate-300">CS02</th>
-                <th className="p-1.5 border border-slate-300">PG01</th>
-                <th className="p-1.5 border border-slate-300">PT01</th>
-                <th className="p-1.5 border border-slate-300">SP02</th>
-                <th className="p-1.5 border border-slate-300">SP03</th>
-                <th className="p-1.5 border border-slate-300 bg-amber-100 text-amber-900">PG02 (CCP1)</th>
-                <th className="p-1.5 border border-slate-300">PG03</th>
-                <th className="p-1.5 border border-slate-300">PT02</th>
-                <th className="p-1.5 border border-slate-300">PT03</th>
-                <th className="p-1.5 border border-slate-300">PG04</th>
-                <th className="p-1.5 border border-slate-300 bg-amber-100 text-amber-900">PG05 (CCP1)</th>
-                <th className="p-1.5 border border-slate-300">CS01</th>
-                <th className="p-1.5 border border-slate-300">FM01</th>
-                <th className="p-1.5 border border-slate-300">PG06</th>
-                <th className="p-1.5 border border-slate-300">FM02</th>
-                <th className="p-1.5 border border-slate-300 bg-red-100 text-red-900">UV INTENSITY</th>
-                <th className="p-1.5 border border-slate-300">OPERATING HR</th>
-                <th className="p-1.5 border border-slate-300">RUNNING DAYS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, idx) => {
-                const isOff = Boolean(row.isOff)
-                return (
-                  <tr
-                    key={row.time}
-                    className={`border-b border-gray-200 transition-colors ${
-                      isOff ? "bg-gray-100/70" : idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"
-                    }`}
+              {/* Status Toggle & Quick Actions */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* RUNNING vs OFF Toggle */}
+                <div className="flex items-center p-1 bg-gray-100 rounded-xl border border-gray-200">
+                  <button
+                    type="button"
+                    disabled={isLocked}
+                    onClick={() => handleToggleOff(activeSlotIndex, false)}
+                    className={`px-3 py-1.5 text-xs font-black uppercase rounded-lg transition-all ${
+                      !isCurrentSlotOff
+                        ? "bg-emerald-600 text-white shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                    } disabled:opacity-50`}
                   >
-                    {/* Time (Col C) */}
-                    <td className="p-2 border border-gray-200 font-bold text-gray-800 sticky left-0 z-10 bg-inherit whitespace-nowrap">
-                      {row.time}
-                    </td>
+                    Beroperasi (RUNNING)
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isLocked}
+                    onClick={() => handleToggleOff(activeSlotIndex, true)}
+                    className={`px-3 py-1.5 text-xs font-black uppercase rounded-lg transition-all ${
+                      isCurrentSlotOff
+                        ? "bg-amber-600 text-white shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                    } disabled:opacity-50`}
+                  >
+                    Henti Tugas (OFF)
+                  </button>
+                </div>
 
-                    {/* OFF Toggle */}
-                    <td className="p-2 border border-gray-200 sticky left-24 z-10 bg-inherit text-center">
-                      <label className="inline-flex items-center cursor-pointer gap-1.5">
+                {/* Copy from Previous Slot Button */}
+                {activeSlotIndex > 0 && !isLocked && (
+                  <button
+                    type="button"
+                    onClick={() => handleCopyFromPrevious(activeSlotIndex)}
+                    title={`Salin nilai dari slot ${rows[activeSlotIndex - 1].time}`}
+                    className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 border border-gray-200"
+                  >
+                    <Copy className="w-3.5 h-3.5" /> Salin Slot Sebelum
+                  </button>
+                )}
+
+                {/* Clear Slot Button */}
+                {!isLocked && (
+                  <button
+                    type="button"
+                    onClick={() => handleClearSlot(activeSlotIndex)}
+                    title="Kosongkan semua bacaan slot ini"
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* If slot is OFF, show downtime notice banner */}
+            {isCurrentSlotOff ? (
+              <div className="py-12 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-300 mt-6 px-4">
+                <div className="w-12 h-12 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center mx-auto mb-3 font-bold">
+                  OFF
+                </div>
+                <h3 className="text-base font-black uppercase text-gray-800">
+                  Loji / Mesin Dimatikan (Downtime) pada {activeRow.time}
+                </h3>
+                <p className="text-xs text-gray-500 max-w-md mx-auto mt-1 mb-4">
+                  Slot ini telah ditandakan sebagai henti tugas. Semua bacaan secara automatik diisi dengan tanda &quot;-&quot; mengikut piawaian audit GMP.
+                </p>
+                <button
+                  type="button"
+                  disabled={isLocked}
+                  onClick={() => handleToggleOff(activeSlotIndex, false)}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-sm transition-colors"
+                >
+                  Tukar ke Status Beroperasi (RUNNING)
+                </button>
+              </div>
+            ) : (
+              /* 4. The 6 Physical Process Cards (Paper-like form fields) */
+              <div className="mt-6 space-y-6">
+                {/* KAD 1: PAM AIR MENTAH & BOOSTER */}
+                <div className="bg-slate-50/70 border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center font-bold">
+                        <Activity className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                          Zon 01
+                        </span>
+                        <h3 className="text-sm font-black uppercase tracking-wide text-gray-900 mt-0.5">
+                          Stesen Pam (Source & Booster Pumps)
+                        </h3>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-bold text-gray-500">Had: Max 25 Hz</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* VFD01 */}
+                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-gray-800">
+                          Source Water Pump <span className="font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded text-[11px]">VFD01</span>
+                        </label>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                          Max 25 Hz
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          disabled={isLocked}
+                          value={activeRow.vfd01 || ""}
+                          onChange={(e) => handleRowChange(activeSlotIndex, "vfd01", e.target.value)}
+                          placeholder="cth: 22.5"
+                          className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-bold outline-none transition-all pr-10 ${
+                            checkCellStatus("vfd01", activeRow) === "warning"
+                              ? "border-amber-400 bg-amber-50 text-amber-900 focus:ring-2 focus:ring-amber-500"
+                              : "border-gray-300 focus:border-cyan-600 focus:ring-2 focus:ring-cyan-600/20"
+                          }`}
+                        />
+                        <span className="absolute right-3 top-2.5 text-xs font-bold text-gray-400">Hz</span>
+                      </div>
+                      {checkCellStatus("vfd01", activeRow) === "warning" && (
+                        <p className="text-[11px] font-bold text-amber-600">⚠️ Melebihi had piawai (Max 25 Hz)</p>
+                      )}
+                    </div>
+
+                    {/* VFD02 */}
+                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-gray-800">
+                          Booster Pump <span className="font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded text-[11px]">VFD02</span>
+                        </label>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                          Max 25 Hz
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          disabled={isLocked}
+                          value={activeRow.vfd02 || ""}
+                          onChange={(e) => handleRowChange(activeSlotIndex, "vfd02", e.target.value)}
+                          placeholder="cth: 24.0"
+                          className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-bold outline-none transition-all pr-10 ${
+                            checkCellStatus("vfd02", activeRow) === "warning"
+                              ? "border-amber-400 bg-amber-50 text-amber-900 focus:ring-2 focus:ring-amber-500"
+                              : "border-gray-300 focus:border-cyan-600 focus:ring-2 focus:ring-cyan-600/20"
+                          }`}
+                        />
+                        <span className="absolute right-3 top-2.5 text-xs font-bold text-gray-400">Hz</span>
+                      </div>
+                      {checkCellStatus("vfd02", activeRow) === "warning" && (
+                        <p className="text-[11px] font-bold text-amber-600">⚠️ Melebihi had piawai (Max 25 Hz)</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* KAD 2: SALURAN AIR MENTAH */}
+                <div className="bg-slate-50/70 border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-cyan-100 text-cyan-800 flex items-center justify-center font-bold">
+                        <Droplets className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded">
+                          Zon 02
+                        </span>
+                        <h3 className="text-sm font-black uppercase tracking-wide text-gray-900 mt-0.5">
+                          Saluran Air Mentah (Source Water Line)
+                        </h3>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-bold text-gray-500">4 Parameter Kawalan</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* SP01 pH & Rupa Bentuk */}
+                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-gray-800">
+                          pH & Rupa <span className="font-mono text-cyan-700 bg-cyan-50 px-1 py-0.5 rounded text-[10px]">SP01</span>
+                        </label>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                          6.5 - 7.5
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        disabled={isLocked}
+                        value={activeRow.sp01Ph || ""}
+                        onChange={(e) => handleRowChange(activeSlotIndex, "sp01Ph", e.target.value)}
+                        placeholder="Nilai pH (cth: 7.2)"
+                        className={`w-full px-3 py-2 rounded-xl border text-sm font-bold outline-none ${
+                          checkCellStatus("sp01Ph", activeRow) === "warning"
+                            ? "border-amber-400 bg-amber-50 text-amber-900"
+                            : "border-gray-300 focus:border-cyan-600"
+                        }`}
+                      />
+                      <select
+                        disabled={isLocked}
+                        value={activeRow.sp01Status || "Clear / No Colour"}
+                        onChange={(e) => handleRowChange(activeSlotIndex, "sp01Status", e.target.value)}
+                        className={`w-full px-2.5 py-1.5 text-xs rounded-xl border font-bold ${
+                          activeRow.sp01Status && activeRow.sp01Status !== "Clear / No Colour"
+                            ? "border-amber-500 bg-amber-50 text-amber-900"
+                            : "border-gray-300 bg-gray-50 text-gray-700"
+                        }`}
+                      >
+                        <option value="Clear / No Colour">Clear / No Colour</option>
+                        <option value="Turbid / Coloured">Turbid / Coloured</option>
+                      </select>
+                    </div>
+
+                    {/* CS02 Conductivity */}
+                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-gray-800">
+                          Konduktiviti <span className="font-mono text-cyan-700 bg-cyan-50 px-1 py-0.5 rounded text-[10px]">CS02</span>
+                        </label>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                          50 - 270
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          disabled={isLocked}
+                          value={activeRow.cs02 || ""}
+                          onChange={(e) => handleRowChange(activeSlotIndex, "cs02", e.target.value)}
+                          placeholder="cth: 120"
+                          className={`w-full px-3 py-2.5 rounded-xl border text-sm font-bold outline-none pr-14 ${
+                            checkCellStatus("cs02", activeRow) === "warning"
+                              ? "border-amber-400 bg-amber-50 text-amber-900"
+                              : "border-gray-300 focus:border-cyan-600"
+                          }`}
+                        />
+                        <span className="absolute right-2.5 top-2.5 text-[11px] font-bold text-gray-400">µS/cm</span>
+                      </div>
+                      {checkCellStatus("cs02", activeRow) === "warning" && (
+                        <p className="text-[10px] font-bold text-amber-600">⚠️ Julat selamat: 50-270 µS/cm</p>
+                      )}
+                    </div>
+
+                    {/* PG01 Pressure Gauge */}
+                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-gray-800">
+                          Tolok Tekanan <span className="font-mono text-cyan-700 bg-cyan-50 px-1 py-0.5 rounded text-[10px]">PG01</span>
+                        </label>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                          Max 1.1 Bar
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          disabled={isLocked}
+                          value={activeRow.pg01 || ""}
+                          onChange={(e) => handleRowChange(activeSlotIndex, "pg01", e.target.value)}
+                          placeholder="cth: 0.8"
+                          className={`w-full px-3 py-2.5 rounded-xl border text-sm font-bold outline-none pr-10 ${
+                            checkCellStatus("pg01", activeRow) === "warning"
+                              ? "border-amber-400 bg-amber-50 text-amber-900"
+                              : "border-gray-300 focus:border-cyan-600"
+                          }`}
+                        />
+                        <span className="absolute right-2.5 top-2.5 text-xs font-bold text-gray-400">Bar</span>
+                      </div>
+                      {checkCellStatus("pg01", activeRow) === "warning" && (
+                        <p className="text-[10px] font-bold text-amber-600">⚠️ Melebihi had (Max 1.1 Bar)</p>
+                      )}
+                    </div>
+
+                    {/* PT01 Pressure Transmitter */}
+                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-gray-800">
+                          Pemancar Tekanan <span className="font-mono text-cyan-700 bg-cyan-50 px-1 py-0.5 rounded text-[10px]">PT01</span>
+                        </label>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                          Max 1.1 Bar
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          disabled={isLocked}
+                          value={activeRow.pt01 || ""}
+                          onChange={(e) => handleRowChange(activeSlotIndex, "pt01", e.target.value)}
+                          placeholder="cth: 0.8"
+                          className={`w-full px-3 py-2.5 rounded-xl border text-sm font-bold outline-none pr-10 ${
+                            checkCellStatus("pt01", activeRow) === "warning"
+                              ? "border-amber-400 bg-amber-50 text-amber-900"
+                              : "border-gray-300 focus:border-cyan-600"
+                          }`}
+                        />
+                        <span className="absolute right-2.5 top-2.5 text-xs font-bold text-gray-400">Bar</span>
+                      </div>
+                      {checkCellStatus("pt01", activeRow) === "warning" && (
+                        <p className="text-[10px] font-bold text-amber-600">⚠️ Melebihi had (Max 1.1 Bar)</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* KAD 3: PENAPIS PASIR & KARBON TERAKTIF (DENGAN CCP1) */}
+                <div className="bg-amber-50/40 border border-amber-200/80 rounded-2xl p-5 sm:p-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-amber-200/60">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+                        <Filter className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
+                            Zon 03
+                          </span>
+                          <span className="px-2 py-0.5 rounded bg-amber-500 text-white font-black text-[9px] uppercase tracking-wider">
+                            Mengandungi CCP1
+                          </span>
+                        </div>
+                        <h3 className="text-sm font-black uppercase tracking-wide text-gray-900 mt-0.5">
+                          Penapis Pasir & Karbon Teraktif (Sand & Activated Carbon)
+                        </h3>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-bold text-amber-800">Had CCP1: Max 3.0 Bar</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {/* SP02 Sand Filter Sample */}
+                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-gray-800">
+                          Sand Filter <span className="font-mono text-amber-700 bg-amber-50 px-1 py-0.5 rounded text-[10px]">SP02</span>
+                        </label>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                          6.5 - 7.5
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        disabled={isLocked}
+                        value={activeRow.sp02Ph || ""}
+                        onChange={(e) => handleRowChange(activeSlotIndex, "sp02Ph", e.target.value)}
+                        placeholder="Nilai pH"
+                        className={`w-full px-3 py-2 rounded-xl border text-sm font-bold outline-none ${
+                          checkCellStatus("sp02Ph", activeRow) === "warning"
+                            ? "border-amber-400 bg-amber-50 text-amber-900"
+                            : "border-gray-300 focus:border-amber-600"
+                        }`}
+                      />
+                      <select
+                        disabled={isLocked}
+                        value={activeRow.sp02Status || "Clear / No Colour"}
+                        onChange={(e) => handleRowChange(activeSlotIndex, "sp02Status", e.target.value)}
+                        className={`w-full px-2.5 py-1.5 text-xs rounded-xl border font-bold ${
+                          activeRow.sp02Status && activeRow.sp02Status !== "Clear / No Colour"
+                            ? "border-amber-500 bg-amber-50 text-amber-900"
+                            : "border-gray-300 bg-gray-50 text-gray-700"
+                        }`}
+                      >
+                        <option value="Clear / No Colour">Clear / No Colour</option>
+                        <option value="Turbid / Coloured">Turbid / Coloured</option>
+                      </select>
+                    </div>
+
+                    {/* SP03 Carbon Filter Sample */}
+                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-gray-800">
+                          Carbon Filter <span className="font-mono text-amber-700 bg-amber-50 px-1 py-0.5 rounded text-[10px]">SP03</span>
+                        </label>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                          6.5 - 7.5
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        disabled={isLocked}
+                        value={activeRow.sp03Ph || ""}
+                        onChange={(e) => handleRowChange(activeSlotIndex, "sp03Ph", e.target.value)}
+                        placeholder="Nilai pH"
+                        className={`w-full px-3 py-2 rounded-xl border text-sm font-bold outline-none ${
+                          checkCellStatus("sp03Ph", activeRow) === "warning"
+                            ? "border-amber-400 bg-amber-50 text-amber-900"
+                            : "border-gray-300 focus:border-amber-600"
+                        }`}
+                      />
+                      <select
+                        disabled={isLocked}
+                        value={activeRow.sp03Status || "Clear / No Colour"}
+                        onChange={(e) => handleRowChange(activeSlotIndex, "sp03Status", e.target.value)}
+                        className={`w-full px-2.5 py-1.5 text-xs rounded-xl border font-bold ${
+                          activeRow.sp03Status && activeRow.sp03Status !== "Clear / No Colour"
+                            ? "border-amber-500 bg-amber-50 text-amber-900"
+                            : "border-gray-300 bg-gray-50 text-gray-700"
+                        }`}
+                      >
+                        <option value="Clear / No Colour">Clear / No Colour</option>
+                        <option value="Turbid / Coloured">Turbid / Coloured</option>
+                      </select>
+                    </div>
+
+                    {/* PG02 - CCP1 CRITICAL PARAMETER */}
+                    <div
+                      className={`p-4 rounded-xl border shadow-sm space-y-1.5 transition-all ${
+                        checkCellStatus("pg02", activeRow) === "ccp-breach"
+                          ? "bg-red-50 border-red-500 ring-2 ring-red-400"
+                          : "bg-amber-100/60 border-amber-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black text-amber-950 flex items-center gap-1">
+                          Sand + Carbon <span className="font-mono bg-amber-200 text-amber-900 px-1 py-0.5 rounded text-[10px]">PG02</span>
+                        </label>
+                        <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-600 text-white uppercase">
+                          CCP1 (Max 3 Bar)
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          disabled={isLocked}
+                          value={activeRow.pg02 || ""}
+                          onChange={(e) => handleRowChange(activeSlotIndex, "pg02", e.target.value)}
+                          placeholder="cth: 2.1"
+                          className={`w-full px-3 py-2.5 rounded-xl border text-sm font-black outline-none pr-10 ${
+                            checkCellStatus("pg02", activeRow) === "ccp-breach"
+                              ? "border-red-600 bg-white text-red-900 focus:ring-2 focus:ring-red-500"
+                              : "border-amber-300 bg-white text-gray-900 focus:border-amber-600"
+                          }`}
+                        />
+                        <span className="absolute right-2.5 top-2.5 text-xs font-bold text-gray-400">Bar</span>
+                      </div>
+                      {checkCellStatus("pg02", activeRow) === "ccp-breach" ? (
+                        <p className="text-[11px] font-black text-red-700 animate-pulse flex items-center gap-1">
+                          <AlertTriangle className="w-3.5 h-3.5" /> PELANGGARAN CCP1 (&gt; 3.0 Bar)!
+                        </p>
+                      ) : (
+                        <p className="text-[10px] font-bold text-amber-800">
+                          Titik Kawalan Kritikal (Had Selamat: &le; 3.0 Bar)
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* KAD 4: PENAPIS KETEPATAN (PRECISION FILTERS) */}
+                <div className="bg-slate-50/70 border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-800 flex items-center justify-center font-bold">
+                        <ShieldCheck className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 px-2 py-0.5 rounded">
+                          Zon 04
+                        </span>
+                        <h3 className="text-sm font-black uppercase tracking-wide text-gray-900 mt-0.5">
+                          Penapis Ketepatan (10µm & 5µm Precision Filters)
+                        </h3>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-bold text-gray-500">Had: Min 0.9 Bar</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* PG03 10µm */}
+                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-gray-800">
+                          10µm Precision Filter <span className="font-mono text-purple-700 bg-purple-50 px-1 py-0.5 rounded text-[10px]">PG03</span>
+                        </label>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                          Min 0.9 Bar
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          disabled={isLocked}
+                          value={activeRow.pg03 || ""}
+                          onChange={(e) => handleRowChange(activeSlotIndex, "pg03", e.target.value)}
+                          placeholder="cth: 1.2"
+                          className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-bold outline-none pr-10 ${
+                            checkCellStatus("pg03", activeRow) === "warning"
+                              ? "border-amber-400 bg-amber-50 text-amber-900"
+                              : "border-gray-300 focus:border-purple-600"
+                          }`}
+                        />
+                        <span className="absolute right-3 top-2.5 text-xs font-bold text-gray-400">Bar</span>
+                      </div>
+                      {checkCellStatus("pg03", activeRow) === "warning" && (
+                        <p className="text-[10px] font-bold text-amber-600">⚠️ Di bawah had minimum (Min 0.9 Bar)</p>
+                      )}
+                    </div>
+
+                    {/* PT02 5µm */}
+                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-gray-800">
+                          5µm Precision Filter <span className="font-mono text-purple-700 bg-purple-50 px-1 py-0.5 rounded text-[10px]">PT02</span>
+                        </label>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                          Min 0.9 Bar
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          disabled={isLocked}
+                          value={activeRow.pt02 || ""}
+                          onChange={(e) => handleRowChange(activeSlotIndex, "pt02", e.target.value)}
+                          placeholder="cth: 1.1"
+                          className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-bold outline-none pr-10 ${
+                            checkCellStatus("pt02", activeRow) === "warning"
+                              ? "border-amber-400 bg-amber-50 text-amber-900"
+                              : "border-gray-300 focus:border-purple-600"
+                          }`}
+                        />
+                        <span className="absolute right-3 top-2.5 text-xs font-bold text-gray-400">Bar</span>
+                      </div>
+                      {checkCellStatus("pt02", activeRow) === "warning" && (
+                        <p className="text-[10px] font-bold text-amber-600">⚠️ Di bawah had minimum (Min 0.9 Bar)</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* KAD 5: SISTEM MEMBRAN ULTRAFILTRATION (UF) (DENGAN CCP1) */}
+                <div className="bg-slate-50/70 border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-800 flex items-center justify-center font-bold">
+                        <Gauge className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-teal-800 bg-teal-100 px-2 py-0.5 rounded">
+                            Zon 05
+                          </span>
+                          <span className="px-2 py-0.5 rounded bg-amber-500 text-white font-black text-[9px] uppercase tracking-wider">
+                            Mengandungi CCP1 (PG05)
+                          </span>
+                        </div>
+                        <h3 className="text-sm font-black uppercase tracking-wide text-gray-900 mt-0.5">
+                          Sistem Membran Ultrafiltration (Inlet, Outlet CCP1 & Reject)
+                        </h3>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-bold text-gray-500">7 Parameter Membran</span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Inlet UF Sub-section */}
+                    <div>
+                      <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 mb-2 block">
+                        • Bahagian Masuk (Inlet UF Membrane)
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* PT03 */}
+                        <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-gray-800">
+                              Inlet Transmitter <span className="font-mono text-teal-700 bg-teal-50 px-1 py-0.5 rounded text-[10px]">PT03</span>
+                            </label>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                              Max 9 Bar
+                            </span>
+                          </div>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              disabled={isLocked}
+                              value={activeRow.pt03 || ""}
+                              onChange={(e) => handleRowChange(activeSlotIndex, "pt03", e.target.value)}
+                              placeholder="cth: 4.5"
+                              className={`w-full px-3 py-2 rounded-xl border text-sm font-bold outline-none pr-10 ${
+                                checkCellStatus("pt03", activeRow) === "warning"
+                                  ? "border-amber-400 bg-amber-50 text-amber-900"
+                                  : "border-gray-300 focus:border-teal-600"
+                              }`}
+                            />
+                            <span className="absolute right-2.5 top-2 text-xs font-bold text-gray-400">Bar</span>
+                          </div>
+                        </div>
+
+                        {/* PG04 */}
+                        <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-gray-800">
+                              Inlet Gauge <span className="font-mono text-teal-700 bg-teal-50 px-1 py-0.5 rounded text-[10px]">PG04</span>
+                            </label>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                              Max 9 Bar
+                            </span>
+                          </div>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              disabled={isLocked}
+                              value={activeRow.pg04 || ""}
+                              onChange={(e) => handleRowChange(activeSlotIndex, "pg04", e.target.value)}
+                              placeholder="cth: 4.6"
+                              className={`w-full px-3 py-2 rounded-xl border text-sm font-bold outline-none pr-10 ${
+                                checkCellStatus("pg04", activeRow) === "warning"
+                                  ? "border-amber-400 bg-amber-50 text-amber-900"
+                                  : "border-gray-300 focus:border-teal-600"
+                              }`}
+                            />
+                            <span className="absolute right-2.5 top-2 text-xs font-bold text-gray-400">Bar</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Outlet UF Sub-section (With CCP1 PG05) */}
+                    <div>
+                      <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 mb-2 block">
+                        • Bahagian Keluar (Outlet UF Membrane - Termasuk CCP1)
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {/* PG05 - CCP1 */}
+                        <div
+                          className={`p-3.5 rounded-xl border shadow-sm space-y-1.5 transition-all ${
+                            checkCellStatus("pg05", activeRow) === "ccp-breach"
+                              ? "bg-red-50 border-red-500 ring-2 ring-red-400"
+                              : "bg-amber-100/60 border-amber-300"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-black text-amber-950 flex items-center gap-1">
+                              Outlet Gauge <span className="font-mono bg-amber-200 text-amber-900 px-1 py-0.5 rounded text-[10px]">PG05</span>
+                            </label>
+                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-600 text-white uppercase">
+                              CCP1 (Max 2 Bar)
+                            </span>
+                          </div>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              disabled={isLocked}
+                              value={activeRow.pg05 || ""}
+                              onChange={(e) => handleRowChange(activeSlotIndex, "pg05", e.target.value)}
+                              placeholder="cth: 1.4"
+                              className={`w-full px-3 py-2 rounded-xl border text-sm font-black outline-none pr-10 ${
+                                checkCellStatus("pg05", activeRow) === "ccp-breach"
+                                  ? "border-red-600 bg-white text-red-900 focus:ring-2 focus:ring-red-500"
+                                  : "border-amber-300 bg-white text-gray-900 focus:border-amber-600"
+                              }`}
+                            />
+                            <span className="absolute right-2.5 top-2 text-xs font-bold text-gray-400">Bar</span>
+                          </div>
+                          {checkCellStatus("pg05", activeRow) === "ccp-breach" ? (
+                            <p className="text-[10px] font-black text-red-700 animate-pulse">
+                              🚨 PELANGGARAN CCP1 (&gt; 2.0 Bar)!
+                            </p>
+                          ) : (
+                            <p className="text-[10px] font-bold text-amber-800">
+                              Had Selamat: &le; 2.0 Bar
+                            </p>
+                          )}
+                        </div>
+
+                        {/* CS01 Conductivity */}
+                        <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-gray-800">
+                              Permeate CS <span className="font-mono text-teal-700 bg-teal-50 px-1 py-0.5 rounded text-[10px]">CS01</span>
+                            </label>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                              &le; CS02 (50-270)
+                            </span>
+                          </div>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              disabled={isLocked}
+                              value={activeRow.cs01 || ""}
+                              onChange={(e) => handleRowChange(activeSlotIndex, "cs01", e.target.value)}
+                              placeholder="cth: 115"
+                              className={`w-full px-3 py-2 rounded-xl border text-sm font-bold outline-none pr-14 ${
+                                checkCellStatus("cs01", activeRow) === "warning"
+                                  ? "border-amber-400 bg-amber-50 text-amber-900"
+                                  : "border-gray-300 focus:border-teal-600"
+                              }`}
+                            />
+                            <span className="absolute right-2.5 top-2 text-[10px] font-bold text-gray-400">µS/cm</span>
+                          </div>
+                        </div>
+
+                        {/* FM01 Flow Meter */}
+                        <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-gray-800">
+                              Permeate Flow <span className="font-mono text-teal-700 bg-teal-50 px-1 py-0.5 rounded text-[10px]">FM01</span>
+                            </label>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                              Flow Range
+                            </span>
+                          </div>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              disabled={isLocked}
+                              value={activeRow.fm01 || ""}
+                              onChange={(e) => handleRowChange(activeSlotIndex, "fm01", e.target.value)}
+                              placeholder="cth: 3.5"
+                              className="w-full px-3 py-2 rounded-xl border border-gray-300 text-sm font-bold outline-none focus:border-teal-600 pr-14"
+                            />
+                            <span className="absolute right-2.5 top-2 text-[10px] font-bold text-gray-400">m³/Hr</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Reject Line Sub-section */}
+                    <div>
+                      <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 mb-2 block">
+                        • Talian Buangan (UF Membrane Reject Line)
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* PG06 */}
+                        <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-gray-800">
+                              Reject Pressure <span className="font-mono text-teal-700 bg-teal-50 px-1 py-0.5 rounded text-[10px]">PG06</span>
+                            </label>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                              Nil
+                            </span>
+                          </div>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              disabled={isLocked}
+                              value={activeRow.pg06 || ""}
+                              onChange={(e) => handleRowChange(activeSlotIndex, "pg06", e.target.value)}
+                              placeholder="cth: 0.1 / Nil"
+                              className="w-full px-3 py-2 rounded-xl border border-gray-300 text-sm font-bold outline-none focus:border-teal-600 pr-10"
+                            />
+                            <span className="absolute right-2.5 top-2 text-xs font-bold text-gray-400">Bar</span>
+                          </div>
+                        </div>
+
+                        {/* FM02 */}
+                        <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-gray-800">
+                              Reject Flow <span className="font-mono text-teal-700 bg-teal-50 px-1 py-0.5 rounded text-[10px]">FM02</span>
+                            </label>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                              1.2 - 1.8 m³/Hr
+                            </span>
+                          </div>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              disabled={isLocked}
+                              value={activeRow.fm02 || ""}
+                              onChange={(e) => handleRowChange(activeSlotIndex, "fm02", e.target.value)}
+                              placeholder="cth: 1.5"
+                              className={`w-full px-3 py-2 rounded-xl border text-sm font-bold outline-none pr-14 ${
+                                checkCellStatus("fm02", activeRow) === "warning"
+                                  ? "border-amber-400 bg-amber-50 text-amber-900"
+                                  : "border-gray-300 focus:border-teal-600"
+                              }`}
+                            />
+                            <span className="absolute right-2.5 top-2 text-[10px] font-bold text-gray-400">m³/Hr</span>
+                          </div>
+                          {checkCellStatus("fm02", activeRow) === "warning" && (
+                            <p className="text-[10px] font-bold text-amber-600">⚠️ Julat had reject: 1.2 - 1.8 m³/Hr</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* KAD 6: SISTEM PENSTERILAN UV (CCP2) */}
+                <div className="bg-rose-50/40 border border-rose-200/80 rounded-2xl p-5 sm:p-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-rose-200/60">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-800 flex items-center justify-center font-bold">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-rose-800 bg-rose-100 px-2 py-0.5 rounded">
+                            Zon 06
+                          </span>
+                          <span className="px-2 py-0.5 rounded bg-rose-600 text-white font-black text-[9px] uppercase tracking-wider">
+                            Titik Kawalan Kritikal (CCP2)
+                          </span>
+                        </div>
+                        <h3 className="text-sm font-black uppercase tracking-wide text-gray-900 mt-0.5">
+                          Sistem Pensterilan Ultraviolet (UV System - CCP2)
+                        </h3>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-bold text-rose-800">Had CCP2: 80% – 99%</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {/* UV Intensity (CCP2) */}
+                    <div
+                      className={`p-4 rounded-xl border shadow-sm space-y-1.5 transition-all ${
+                        checkCellStatus("uvIntensity", activeRow) === "ccp-breach"
+                          ? "bg-red-100 border-red-600 ring-2 ring-red-500"
+                          : "bg-white border-rose-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black text-rose-950 flex items-center gap-1">
+                          UV Intensity <span className="font-mono bg-rose-100 text-rose-900 px-1 py-0.5 rounded text-[10px]">CCP2</span>
+                        </label>
+                        <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-rose-600 text-white uppercase">
+                          80 - 99%
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          disabled={isLocked}
+                          value={activeRow.uvIntensity || ""}
+                          onChange={(e) => handleRowChange(activeSlotIndex, "uvIntensity", e.target.value)}
+                          placeholder="cth: 95"
+                          className={`w-full px-3 py-2.5 rounded-xl border text-sm font-black outline-none pr-10 ${
+                            checkCellStatus("uvIntensity", activeRow) === "ccp-breach"
+                              ? "border-red-600 bg-white text-red-900 focus:ring-2 focus:ring-red-500"
+                              : "border-rose-300 bg-white text-gray-900 focus:border-rose-600"
+                          }`}
+                        />
+                        <span className="absolute right-3 top-2.5 text-xs font-bold text-gray-400">%</span>
+                      </div>
+                      {checkCellStatus("uvIntensity", activeRow) === "ccp-breach" ? (
+                        <p className="text-[11px] font-black text-red-700 animate-pulse flex items-center gap-1">
+                          <AlertTriangle className="w-3.5 h-3.5" /> PELANGGARAN CCP2 (Bawah 80% / Atas 99%)!
+                        </p>
+                      ) : (
+                        <p className="text-[10px] font-bold text-rose-800">
+                          Keamatan Selamat: Min 80%
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Operating Hour */}
+                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-gray-800">Operating Hour</label>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                          Max 9000 Hr
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          disabled={isLocked}
+                          value={activeRow.operatingHour || ""}
+                          onChange={(e) => handleRowChange(activeSlotIndex, "operatingHour", e.target.value)}
+                          placeholder="cth: 4500"
+                          className={`w-full px-3 py-2.5 rounded-xl border text-sm font-bold outline-none pr-10 ${
+                            checkCellStatus("operatingHour", activeRow) === "warning"
+                              ? "border-amber-400 bg-amber-50 text-amber-900"
+                              : "border-gray-300 focus:border-rose-600"
+                          }`}
+                        />
+                        <span className="absolute right-3 top-2.5 text-xs font-bold text-gray-400">Hr</span>
+                      </div>
+                      {checkCellStatus("operatingHour", activeRow) === "warning" && (
+                        <p className="text-[10px] font-bold text-amber-600">⚠️ Melebihi had hayat 9000 jam!</p>
+                      )}
+                    </div>
+
+                    {/* Total Running Days */}
+                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-gray-800">Total Running Days</label>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                          Days
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          disabled={isLocked}
+                          value={activeRow.totalRunningDays || ""}
+                          onChange={(e) => handleRowChange(activeSlotIndex, "totalRunningDays", e.target.value)}
+                          placeholder="cth: 180"
+                          className="w-full px-3 py-2.5 rounded-xl border border-gray-300 text-sm font-bold outline-none focus:border-rose-600 pr-14"
+                        />
+                        <span className="absolute right-3 top-2.5 text-xs font-bold text-gray-400">Hari</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Bottom Slot Navigation Bar */}
+            <div className="mt-8 pt-5 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <button
+                type="button"
+                disabled={activeSlotIndex === 0}
+                onClick={() => setActiveSlotIndex((prev) => Math.max(0, prev - 1))}
+                className="w-full sm:w-auto px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs uppercase rounded-xl transition-colors disabled:opacity-30 flex items-center justify-center gap-1.5"
+              >
+                <ChevronLeft className="w-4 h-4" /> Slot Sebelumnya ({rows[Math.max(0, activeSlotIndex - 1)]?.time})
+              </button>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                {activeSlotIndex < rows.length - 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSlotIndex((prev) => Math.min(rows.length - 1, prev + 1))
+                      window.scrollTo({ top: 380, behavior: "smooth" })
+                    }}
+                    className="w-full sm:w-auto px-6 py-2.5 bg-cyan-700 hover:bg-cyan-800 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                  >
+                    Simpan & Ke Slot Seterusnya ({rows[activeSlotIndex + 1]?.time}) <ChevronRight className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById("shift-summary-section")
+                      if (el) el.scrollIntoView({ behavior: "smooth" })
+                    }}
+                    className="w-full sm:w-auto px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                  >
+                    Semak Ringkasan & Tandatangan <ArrowRight className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* VIEW MODE 2: FULL SPREADSHEET 25-COLUMN TABLE (FOR SUPERVISORS / AUDIT COMPARISON) */
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="p-5 bg-slate-100 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-black uppercase tracking-wider text-gray-800 flex items-center gap-2">
+                <Table className="w-4 h-4 text-cyan-700" /> Jadual Matriks Penuh (25 Kolum)
+              </h3>
+              <p className="text-xs text-gray-500 font-medium">
+                Paparan jadual penuh mengikut format lembaran Excel asal bagi semakan silang
+              </p>
+            </div>
+            <div className="flex items-center gap-3 text-xs font-bold">
+              <span className="flex items-center gap-1 text-emerald-700">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Normal
+              </span>
+              <span className="flex items-center gap-1 text-amber-700">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> Amaran Had
+              </span>
+              <span className="flex items-center gap-1 text-red-700">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block animate-ping"></span> Pelanggaran CCP
+              </span>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-center text-xs border-collapse border border-gray-200 min-w-[2100px]">
+              <thead>
+                <tr className="bg-slate-800 text-white font-bold border-b border-slate-700 text-[11px]">
+                  <th rowSpan={3} className="p-2 border border-slate-700 w-24 sticky left-0 z-20 bg-slate-800">
+                    Masa (Time)
+                  </th>
+                  <th rowSpan={3} className="p-2 border border-slate-700 w-20 sticky left-24 z-20 bg-slate-800">
+                    OFF
+                  </th>
+                  <th className="p-2 border border-slate-700">Source Pump</th>
+                  <th className="p-2 border border-slate-700">Booster Pump</th>
+                  <th colSpan={4} className="p-2 border border-slate-700">Source Water Line</th>
+                  <th className="p-2 border border-slate-700">Sand Filter</th>
+                  <th className="p-2 border border-slate-700">Carbon Filter</th>
+                  <th className="p-2 border border-slate-700 bg-amber-950/70 text-amber-200">Sand+Carbon (CCP1)</th>
+                  <th className="p-2 border border-slate-700">10µm Filter</th>
+                  <th className="p-2 border border-slate-700">5µm Filter</th>
+                  <th colSpan={2} className="p-2 border border-slate-700">Inlet UF</th>
+                  <th colSpan={3} className="p-2 border border-slate-700 bg-amber-950/70 text-amber-200">Outlet UF (CCP1)</th>
+                  <th colSpan={2} className="p-2 border border-slate-700">UF Reject</th>
+                  <th colSpan={3} className="p-2 border border-slate-700 bg-red-950/80 text-rose-200">UV SYSTEM (CCP2)</th>
+                  <th rowSpan={3} className="p-2 border border-slate-700 w-28">Pemeriksa</th>
+                </tr>
+                <tr className="bg-slate-700 text-slate-200 text-[10px] border-b border-slate-600">
+                  <th className="p-1 border border-slate-600">Max 25Hz</th>
+                  <th className="p-1 border border-slate-600">Max 25Hz</th>
+                  <th className="p-1 border border-slate-600">PH 6.5-7.5</th>
+                  <th className="p-1 border border-slate-600">(50-270)</th>
+                  <th className="p-1 border border-slate-600">Max 1.1 Bar</th>
+                  <th className="p-1 border border-slate-600">Max 1.1 Bar</th>
+                  <th className="p-1 border border-slate-600">PH 6.5-7.5</th>
+                  <th className="p-1 border border-slate-600">PH 6.5-7.5</th>
+                  <th className="p-1 border border-slate-600 font-bold text-amber-300">Max 3 Bar</th>
+                  <th className="p-1 border border-slate-600">Min 0.9 Bar</th>
+                  <th className="p-1 border border-slate-600">Min 0.9 Bar</th>
+                  <th className="p-1 border border-slate-600">Max 9 Bar</th>
+                  <th className="p-1 border border-slate-600">Max 9 Bar</th>
+                  <th className="p-1 border border-slate-600 font-bold text-amber-300">Max 2 Bar</th>
+                  <th className="p-1 border border-slate-600">&le; CS02</th>
+                  <th className="p-1 border border-slate-600">Flow</th>
+                  <th className="p-1 border border-slate-600">Nil</th>
+                  <th className="p-1 border border-slate-600">1.2-1.8</th>
+                  <th className="p-1 border border-slate-600 font-bold text-rose-300">80 - 99%</th>
+                  <th className="p-1 border border-slate-600">9000 Hr</th>
+                  <th className="p-1 border border-slate-600">Days</th>
+                </tr>
+                <tr className="bg-slate-100 text-slate-800 text-[10px] font-black border-b-2 border-slate-300">
+                  <th className="p-1 border border-slate-300">VFD01</th>
+                  <th className="p-1 border border-slate-300">VFD02</th>
+                  <th className="p-1 border border-slate-300">SP01</th>
+                  <th className="p-1 border border-slate-300">CS02</th>
+                  <th className="p-1 border border-slate-300">PG01</th>
+                  <th className="p-1 border border-slate-300">PT01</th>
+                  <th className="p-1 border border-slate-300">SP02</th>
+                  <th className="p-1 border border-slate-300">SP03</th>
+                  <th className="p-1 border border-slate-300 bg-amber-100 text-amber-900">PG02 (CCP1)</th>
+                  <th className="p-1 border border-slate-300">PG03</th>
+                  <th className="p-1 border border-slate-300">PT02</th>
+                  <th className="p-1 border border-slate-300">PT03</th>
+                  <th className="p-1 border border-slate-300">PG04</th>
+                  <th className="p-1 border border-slate-300 bg-amber-100 text-amber-900">PG05 (CCP1)</th>
+                  <th className="p-1 border border-slate-300">CS01</th>
+                  <th className="p-1 border border-slate-300">FM01</th>
+                  <th className="p-1 border border-slate-300">PG06</th>
+                  <th className="p-1 border border-slate-300">FM02</th>
+                  <th className="p-1 border border-slate-300 bg-red-100 text-red-900">UV INTENSITY</th>
+                  <th className="p-1 border border-slate-300">OPERATING</th>
+                  <th className="p-1 border border-slate-300">DAYS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, idx) => {
+                  const isOff = Boolean(row.isOff)
+                  return (
+                    <tr
+                      key={row.time}
+                      className={`border-b border-gray-200 transition-colors ${
+                        isOff ? "bg-gray-100/70" : idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                      }`}
+                    >
+                      <td className="p-2 border border-gray-200 font-bold text-gray-800 sticky left-0 z-10 bg-inherit whitespace-nowrap">
+                        {row.time}
+                      </td>
+                      <td className="p-2 border border-gray-200 sticky left-24 z-10 bg-inherit text-center">
                         <input
                           type="checkbox"
                           checked={isOff}
                           disabled={isLocked}
                           onChange={(e) => handleToggleOff(idx, e.target.checked)}
-                          className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                          className="w-4 h-4 text-cyan-600 rounded"
                         />
-                        <span className="text-[10px] font-bold text-gray-600 uppercase">OFF</span>
-                      </label>
-                    </td>
-
-                    {/* VFD01 (Col D) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.vfd01 || ""}
-                        onChange={(e) => handleRowChange(idx, "vfd01", e.target.value)}
-                        placeholder="Hz"
-                        className={getInputClasses(checkCellStatus("vfd01", row), isOff)}
-                      />
-                    </td>
-
-                    {/* VFD02 (Col E) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.vfd02 || ""}
-                        onChange={(e) => handleRowChange(idx, "vfd02", e.target.value)}
-                        placeholder="Hz"
-                        className={getInputClasses(checkCellStatus("vfd02", row), isOff)}
-                      />
-                    </td>
-
-                    {/* SP01 (Col F) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <div className="space-y-1">
+                      </td>
+                      <td className="p-1.5 border border-gray-200">
+                        <input
+                          type="text"
+                          disabled={isLocked || isOff}
+                          value={row.vfd01 || ""}
+                          onChange={(e) => handleRowChange(idx, "vfd01", e.target.value)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded"
+                        />
+                      </td>
+                      <td className="p-1.5 border border-gray-200">
+                        <input
+                          type="text"
+                          disabled={isLocked || isOff}
+                          value={row.vfd02 || ""}
+                          onChange={(e) => handleRowChange(idx, "vfd02", e.target.value)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded"
+                        />
+                      </td>
+                      <td className="p-1.5 border border-gray-200">
                         <input
                           type="text"
                           disabled={isLocked || isOff}
                           value={row.sp01Ph || ""}
                           onChange={(e) => handleRowChange(idx, "sp01Ph", e.target.value)}
                           placeholder="pH"
-                          className={getInputClasses(checkCellStatus("sp01Ph", row), isOff)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded"
                         />
-                        <select
+                      </td>
+                      <td className="p-1.5 border border-gray-200">
+                        <input
+                          type="text"
                           disabled={isLocked || isOff}
-                          value={row.sp01Status || "Clear / No Colour"}
-                          onChange={(e) => handleRowChange(idx, "sp01Status", e.target.value)}
-                          className={getSelectClasses(row.sp01Status || "Clear / No Colour", isOff)}
-                        >
-                          <option value="Clear / No Colour">Clear / No Colour</option>
-                          <option value="Turbid / Coloured">Turbid / Coloured</option>
-                        </select>
-                      </div>
-                    </td>
-
-                    {/* CS02 (Col G) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.cs02 || ""}
-                        onChange={(e) => handleRowChange(idx, "cs02", e.target.value)}
-                        placeholder="µS/cm"
-                        className={getInputClasses(checkCellStatus("cs02", row), isOff)}
-                      />
-                    </td>
-
-                    {/* PG01 (Col H) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.pg01 || ""}
-                        onChange={(e) => handleRowChange(idx, "pg01", e.target.value)}
-                        placeholder="Bar"
-                        className={getInputClasses(checkCellStatus("pg01", row), isOff)}
-                      />
-                    </td>
-
-                    {/* PT01 (Col I) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.pt01 || ""}
-                        onChange={(e) => handleRowChange(idx, "pt01", e.target.value)}
-                        placeholder="Bar"
-                        className={getInputClasses(checkCellStatus("pt01", row), isOff)}
-                      />
-                    </td>
-
-                    {/* SP02 (Col J) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <div className="space-y-1">
+                          value={row.cs02 || ""}
+                          onChange={(e) => handleRowChange(idx, "cs02", e.target.value)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded"
+                        />
+                      </td>
+                      <td className="p-1.5 border border-gray-200">
+                        <input
+                          type="text"
+                          disabled={isLocked || isOff}
+                          value={row.pg01 || ""}
+                          onChange={(e) => handleRowChange(idx, "pg01", e.target.value)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded"
+                        />
+                      </td>
+                      <td className="p-1.5 border border-gray-200">
+                        <input
+                          type="text"
+                          disabled={isLocked || isOff}
+                          value={row.pt01 || ""}
+                          onChange={(e) => handleRowChange(idx, "pt01", e.target.value)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded"
+                        />
+                      </td>
+                      <td className="p-1.5 border border-gray-200">
                         <input
                           type="text"
                           disabled={isLocked || isOff}
                           value={row.sp02Ph || ""}
                           onChange={(e) => handleRowChange(idx, "sp02Ph", e.target.value)}
-                          placeholder="pH"
-                          className={getInputClasses(checkCellStatus("sp02Ph", row), isOff)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded"
                         />
-                        <select
-                          disabled={isLocked || isOff}
-                          value={row.sp02Status || "Clear / No Colour"}
-                          onChange={(e) => handleRowChange(idx, "sp02Status", e.target.value)}
-                          className={getSelectClasses(row.sp02Status || "Clear / No Colour", isOff)}
-                        >
-                          <option value="Clear / No Colour">Clear / No Colour</option>
-                          <option value="Turbid / Coloured">Turbid / Coloured</option>
-                        </select>
-                      </div>
-                    </td>
-
-                    {/* SP03 (Col K) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <div className="space-y-1">
+                      </td>
+                      <td className="p-1.5 border border-gray-200">
                         <input
                           type="text"
                           disabled={isLocked || isOff}
                           value={row.sp03Ph || ""}
                           onChange={(e) => handleRowChange(idx, "sp03Ph", e.target.value)}
-                          placeholder="pH"
-                          className={getInputClasses(checkCellStatus("sp03Ph", row), isOff)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded"
                         />
-                        <select
+                      </td>
+                      <td className="p-1.5 border border-gray-200 bg-amber-50">
+                        <input
+                          type="text"
                           disabled={isLocked || isOff}
-                          value={row.sp03Status || "Clear / No Colour"}
-                          onChange={(e) => handleRowChange(idx, "sp03Status", e.target.value)}
-                          className={getSelectClasses(row.sp03Status || "Clear / No Colour", isOff)}
-                        >
-                          <option value="Clear / No Colour">Clear / No Colour</option>
-                          <option value="Turbid / Coloured">Turbid / Coloured</option>
-                        </select>
-                      </div>
-                    </td>
-
-                    {/* PG02 (Col L) - CCP1 */}
-                    <td className="p-1.5 border border-gray-200 bg-amber-50/40">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.pg02 || ""}
-                        onChange={(e) => handleRowChange(idx, "pg02", e.target.value)}
-                        placeholder="Max 3 Bar"
-                        className={getInputClasses(checkCellStatus("pg02", row), isOff)}
-                      />
-                    </td>
-
-                    {/* PG03 (Col M) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.pg03 || ""}
-                        onChange={(e) => handleRowChange(idx, "pg03", e.target.value)}
-                        placeholder="Min 0.9"
-                        className={getInputClasses(checkCellStatus("pg03", row), isOff)}
-                      />
-                    </td>
-
-                    {/* PT02 (Col N) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.pt02 || ""}
-                        onChange={(e) => handleRowChange(idx, "pt02", e.target.value)}
-                        placeholder="Min 0.9"
-                        className={getInputClasses(checkCellStatus("pt02", row), isOff)}
-                      />
-                    </td>
-
-                    {/* PT03 (Col O) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.pt03 || ""}
-                        onChange={(e) => handleRowChange(idx, "pt03", e.target.value)}
-                        placeholder="Max 9"
-                        className={getInputClasses(checkCellStatus("pt03", row), isOff)}
-                      />
-                    </td>
-
-                    {/* PG04 (Col P) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.pg04 || ""}
-                        onChange={(e) => handleRowChange(idx, "pg04", e.target.value)}
-                        placeholder="Max 9"
-                        className={getInputClasses(checkCellStatus("pg04", row), isOff)}
-                      />
-                    </td>
-
-                    {/* PG05 (Col Q) - CCP1 */}
-                    <td className="p-1.5 border border-gray-200 bg-amber-50/40">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.pg05 || ""}
-                        onChange={(e) => handleRowChange(idx, "pg05", e.target.value)}
-                        placeholder="Max 2 Bar"
-                        className={getInputClasses(checkCellStatus("pg05", row), isOff)}
-                      />
-                    </td>
-
-                    {/* CS01 (Col R) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.cs01 || ""}
-                        onChange={(e) => handleRowChange(idx, "cs01", e.target.value)}
-                        placeholder="µS/cm"
-                        className={getInputClasses(checkCellStatus("cs01", row), isOff)}
-                      />
-                    </td>
-
-                    {/* FM01 (Col S) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.fm01 || ""}
-                        onChange={(e) => handleRowChange(idx, "fm01", e.target.value)}
-                        placeholder="m3/Hr"
-                        className={getInputClasses(checkCellStatus("fm01", row), isOff)}
-                      />
-                    </td>
-
-                    {/* PG06 (Col T) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.pg06 || ""}
-                        onChange={(e) => handleRowChange(idx, "pg06", e.target.value)}
-                        placeholder="Bar"
-                        className={getInputClasses(checkCellStatus("pg06", row), isOff)}
-                      />
-                    </td>
-
-                    {/* FM02 (Col U) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.fm02 || ""}
-                        onChange={(e) => handleRowChange(idx, "fm02", e.target.value)}
-                        placeholder="1.2-1.8"
-                        className={getInputClasses(checkCellStatus("fm02", row), isOff)}
-                      />
-                    </td>
-
-                    {/* UV INTENSITY (Col V) - CCP2 */}
-                    <td className="p-1.5 border border-gray-200 bg-red-50/40">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.uvIntensity || ""}
-                        onChange={(e) => handleRowChange(idx, "uvIntensity", e.target.value)}
-                        placeholder="80-99%"
-                        className={getInputClasses(checkCellStatus("uvIntensity", row), isOff)}
-                      />
-                    </td>
-
-                    {/* OPERATING HOUR (Col W) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.operatingHour || ""}
-                        onChange={(e) => handleRowChange(idx, "operatingHour", e.target.value)}
-                        placeholder="Hr"
-                        className={getInputClasses(checkCellStatus("operatingHour", row), isOff)}
-                      />
-                    </td>
-
-                    {/* TOTAL RUNNING DAYS (Col X) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.totalRunningDays || ""}
-                        onChange={(e) => handleRowChange(idx, "totalRunningDays", e.target.value)}
-                        placeholder="Days"
-                        className={getInputClasses(checkCellStatus("totalRunningDays", row), isOff)}
-                      />
-                    </td>
-
-                    {/* Checked By (Col Y) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.checkedBy || checkedBy}
-                        onChange={(e) => handleRowChange(idx, "checkedBy", e.target.value)}
-                        placeholder="Initial"
-                        className="w-full text-center px-1.5 py-1 text-xs border border-gray-300 rounded bg-white text-gray-900"
-                      />
-                    </td>
-
-                    {/* Verified By (Col Z) */}
-                    <td className="p-1.5 border border-gray-200">
-                      <input
-                        type="text"
-                        disabled={isLocked || isOff}
-                        value={row.verifiedBy || ""}
-                        onChange={(e) => handleRowChange(idx, "verifiedBy", e.target.value)}
-                        placeholder="Supervisor"
-                        className="w-full text-center px-1.5 py-1 text-xs border border-gray-300 rounded bg-white text-gray-900"
-                      />
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Remarks & Corrective Actions */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <label className="block text-xs font-black uppercase tracking-wider text-gray-700 mb-2">
-          Catatan / Tindakan Pembetulan (Remarks / Corrective Action)
-          {ccpViolated && (
-            <span className="text-red-600 font-bold ml-2">
-              * WAJIB DIISI KERANA TERDAPAT PELANGGARAN HAD CCP!
-            </span>
-          )}
-        </label>
-        <textarea
-          rows={3}
-          value={remarks}
-          disabled={isLocked}
-          onChange={(e) => setRemarks(e.target.value)}
-          placeholder={
-            ccpViolated
-              ? "Sila terangkan punca sisihan CCP dan tindakan pembetulan yang diambil serta-merta..."
-              : "Catatan tambahan atau pemerhatian operasi (jika ada)..."
-          }
-          className={`w-full p-3 rounded-xl border text-sm focus:outline-none focus:ring-2 ${
-            ccpViolated && !remarks.trim()
-              ? "border-red-500 bg-red-50/50 focus:ring-red-500"
-              : "border-gray-300 bg-gray-50 focus:ring-blue-500"
-          } disabled:opacity-60`}
-        />
-      </div>
-
-      {/* Digital Signature */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <h3 className="text-xs font-black uppercase tracking-wider text-gray-700 mb-4">
-          Tandatangan Operator Bertugas (Operator Signature)
-        </h3>
-
-        {signature && (
-          <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-xl inline-block">
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
-              Tandatangan Tersimpan:
-            </p>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={signature} alt="Operator Signature" className="h-16 object-contain bg-white rounded border border-gray-200 px-2" />
+                          value={row.pg02 || ""}
+                          onChange={(e) => handleRowChange(idx, "pg02", e.target.value)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded font-black text-amber-900"
+                        />
+                      </td>
+                      <td className="p-1.5 border border-gray-200">
+                        <input
+                          type="text"
+                          disabled={isLocked || isOff}
+                          value={row.pg03 || ""}
+                          onChange={(e) => handleRowChange(idx, "pg03", e.target.value)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded"
+                        />
+                      </td>
+                      <td className="p-1.5 border border-gray-200">
+                        <input
+                          type="text"
+                          disabled={isLocked || isOff}
+                          value={row.pt02 || ""}
+                          onChange={(e) => handleRowChange(idx, "pt02", e.target.value)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded"
+                        />
+                      </td>
+                      <td className="p-1.5 border border-gray-200">
+                        <input
+                          type="text"
+                          disabled={isLocked || isOff}
+                          value={row.pt03 || ""}
+                          onChange={(e) => handleRowChange(idx, "pt03", e.target.value)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded"
+                        />
+                      </td>
+                      <td className="p-1.5 border border-gray-200">
+                        <input
+                          type="text"
+                          disabled={isLocked || isOff}
+                          value={row.pg04 || ""}
+                          onChange={(e) => handleRowChange(idx, "pg04", e.target.value)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded"
+                        />
+                      </td>
+                      <td className="p-1.5 border border-gray-200 bg-amber-50">
+                        <input
+                          type="text"
+                          disabled={isLocked || isOff}
+                          value={row.pg05 || ""}
+                          onChange={(e) => handleRowChange(idx, "pg05", e.target.value)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded font-black text-amber-900"
+                        />
+                      </td>
+                      <td className="p-1.5 border border-gray-200">
+                        <input
+                          type="text"
+                          disabled={isLocked || isOff}
+                          value={row.cs01 || ""}
+                          onChange={(e) => handleRowChange(idx, "cs01", e.target.value)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded"
+                        />
+                      </td>
+                      <td className="p-1.5 border border-gray-200">
+                        <input
+                          type="text"
+                          disabled={isLocked || isOff}
+                          value={row.fm01 || ""}
+                          onChange={(e) => handleRowChange(idx, "fm01", e.target.value)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded"
+                        />
+                      </td>
+                      <td className="p-1.5 border border-gray-200">
+                        <input
+                          type="text"
+                          disabled={isLocked || isOff}
+                          value={row.pg06 || ""}
+                          onChange={(e) => handleRowChange(idx, "pg06", e.target.value)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded"
+                        />
+                      </td>
+                      <td className="p-1.5 border border-gray-200">
+                        <input
+                          type="text"
+                          disabled={isLocked || isOff}
+                          value={row.fm02 || ""}
+                          onChange={(e) => handleRowChange(idx, "fm02", e.target.value)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded"
+                        />
+                      </td>
+                      <td className="p-1.5 border border-gray-200 bg-red-50">
+                        <input
+                          type="text"
+                          disabled={isLocked || isOff}
+                          value={row.uvIntensity || ""}
+                          onChange={(e) => handleRowChange(idx, "uvIntensity", e.target.value)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded font-black text-red-900"
+                        />
+                      </td>
+                      <td className="p-1.5 border border-gray-200">
+                        <input
+                          type="text"
+                          disabled={isLocked || isOff}
+                          value={row.operatingHour || ""}
+                          onChange={(e) => handleRowChange(idx, "operatingHour", e.target.value)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded"
+                        />
+                      </td>
+                      <td className="p-1.5 border border-gray-200">
+                        <input
+                          type="text"
+                          disabled={isLocked || isOff}
+                          value={row.totalRunningDays || ""}
+                          onChange={(e) => handleRowChange(idx, "totalRunningDays", e.target.value)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded"
+                        />
+                      </td>
+                      <td className="p-1.5 border border-gray-200">
+                        <input
+                          type="text"
+                          disabled={isLocked || isOff}
+                          value={row.checkedBy || checkedBy}
+                          onChange={(e) => handleRowChange(idx, "checkedBy", e.target.value)}
+                          className="w-full text-center px-1.5 py-1 text-xs border rounded"
+                        />
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
-        )}
+        </div>
+      )}
 
-        {!isLocked && (
+      {/* 5. Shift Summary, Remarks & Sign-off Section */}
+      <div id="shift-summary-section" className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-200 space-y-6">
+        <div className="flex items-center justify-between pb-4 border-b border-gray-200">
           <div>
-            <p className="text-xs text-gray-500 mb-2 font-medium">
-              Sila tandatangan di dalam kotak di bawah untuk mengesahkan data syif ini:
-            </p>
+            <span className="text-[10px] font-black uppercase tracking-widest text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded">
+              Pengesahan Syif
+            </span>
+            <h3 className="text-base sm:text-lg font-black uppercase tracking-tight text-gray-900 mt-1">
+              Ringkasan Rekod, Catatan & Tandatangan Digital
+            </h3>
+          </div>
+          <div className="text-right">
+            <span className="text-xs font-bold text-gray-500 block">Status Keseluruhan:</span>
+            <span
+              className={`text-xs font-black uppercase px-2.5 py-0.5 rounded-full inline-block ${
+                ccpViolated
+                  ? "bg-red-100 text-red-800"
+                  : completedSlotsCount === 6
+                  ? "bg-emerald-100 text-emerald-800"
+                  : "bg-blue-100 text-blue-800"
+              }`}
+            >
+              {ccpViolated
+                ? "Pelanggaran CCP Dikesan"
+                : completedSlotsCount === 6
+                ? "Semua 6 Slot Selesai"
+                : `${completedSlotsCount}/6 Slot Diisi`}
+            </span>
+          </div>
+        </div>
+
+        {/* Remarks / Corrective Actions (Mandatory if CCP breach) */}
+        <div id="remarks-section" className="space-y-2">
+          <label className="block text-xs font-black uppercase tracking-wider text-gray-800">
+            Catatan / Tindakan Pembetulan (Remarks / Corrective Actions)
+            {ccpViolated ? (
+              <span className="text-red-600 font-black ml-2 animate-pulse">
+                * WAJIB DIISI KERANA TERDAPAT PELANGGARAN HAD CCP!
+              </span>
+            ) : (
+              <span className="text-gray-400 font-normal ml-2">(Pilihan)</span>
+            )}
+          </label>
+          <textarea
+            rows={3}
+            value={remarks}
+            disabled={isLocked}
+            onChange={(e) => setRemarks(e.target.value)}
+            placeholder={
+              ccpViolated
+                ? "Sila nyatakan punca sisihan CCP (PG02/PG05/UV Intensity) dan tindakan pembetulan (corrective action) yang diambil dengan segera mengikut prosedur operasi..."
+                : "Masukkan sebarang pemerhatian, nota operasi atau status mesin di sini jika ada..."
+            }
+            className={`w-full p-4 rounded-2xl border text-sm outline-none transition-all ${
+              ccpViolated && !remarks.trim()
+                ? "border-red-500 bg-red-50/60 focus:ring-2 focus:ring-red-500 text-red-900 placeholder:text-red-400"
+                : "border-gray-300 bg-gray-50/50 focus:border-cyan-600 focus:bg-white"
+            } disabled:opacity-60`}
+          />
+        </div>
+
+        {/* Operator Signature Pad */}
+        <div id="signature-section" className="space-y-3 pt-2">
+          <label className="block text-xs font-black uppercase tracking-wider text-gray-800">
+            Tandatangan Digital Kakitangan Bertugas (Staff Signature) <span className="text-red-500">*</span>
+          </label>
+
+          {signature && (
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-2xl inline-block">
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">
+                Tandatangan Tersimpan ({checkedBy}):
+              </p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={signature}
+                alt="Operator Signature"
+                className="h-16 object-contain bg-white rounded-xl border border-gray-200 px-3"
+              />
+            </div>
+          )}
+
+          {!isLocked && (
             <div className="max-w-md">
+              <p className="text-xs text-gray-500 mb-2 font-medium">
+                Sila tandatangan di dalam kotak di bawah untuk mengesahkan integriti data pemeriksaan syif ini:
+              </p>
               <SignaturePadClient onSave={setSignature} />
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* Submit Controls */}
-      <div className="flex items-center justify-end gap-4 pt-4">
-        <Link
-          href="/forms/maintenance"
-          className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-bold uppercase tracking-wider transition-colors"
-        >
-          Batal
-        </Link>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={isSubmitting || isLocked}
-          className="px-6 py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-sm font-black uppercase tracking-wider transition-colors shadow-md disabled:opacity-50 flex items-center gap-2"
-        >
-          {isSubmitting ? (
-            <>
-              <RefreshCw className="w-4 h-4 animate-spin" /> Menyimpan...
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4" /> Simpan Rekod Syif
-            </>
           )}
-        </button>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="pt-6 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <SaveDraftButton draft={draft} disabled={isSubmitting || isLocked} />
+          </div>
+
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+            <Link
+              href="/forms/maintenance"
+              className="w-full sm:w-auto px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase tracking-wider text-center transition-colors"
+            >
+              Batal
+            </Link>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isSubmitting || isLocked}
+              className="w-full sm:w-auto px-8 py-3.5 bg-cyan-700 hover:bg-cyan-800 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isSubmitting ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" /> Menyimpan Rekod...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" /> Simpan Rekod Syif (SGMP/19/FUV)
+                </>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )

@@ -18,19 +18,21 @@ import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
 import { useMaintenanceDraft } from "../_components/useMaintenanceDraft"
 import { DraftBanner, SaveDraftButton } from "../_components/DraftControls"
 import {
+  getHazardProcessRecordByDateAndShift,
+  createOrUpdateHazardProcessRecord,
+} from "./actions"
+import {
   type FUVRow,
   type FUVFormData,
   DAY_SHIFT_TIMES,
   NIGHT_SHIFT_TIMES,
   getDefaultShiftRows,
   createEmptyFUVRow,
-  getHazardProcessRecordByDateAndShift,
-  createOrUpdateHazardProcessRecord,
   parseFUVNumeric,
   isPG02Breach,
   isPG05Breach,
   isUVIntensityBreach,
-} from "./actions"
+} from "./types"
 
 export type CellStatus = "normal" | "warning" | "ccp-breach"
 

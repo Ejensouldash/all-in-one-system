@@ -4,13 +4,13 @@ import { useState, useEffect, useRef } from "react"
 import { Printer, Calendar, FileSpreadsheet, ChevronLeft, Droplets } from "lucide-react"
 import Link from "next/link"
 import { MaintenanceHeader } from "@/components/forms/MaintenanceHeader"
+import { getHazardProcessRecords } from "../../fuv/actions"
 import {
-  getHazardProcessRecords,
   type MergedDailyFUVRecord,
   isPG02Breach,
   isPG05Breach,
   isUVIntensityBreach,
-} from "../../fuv/actions"
+} from "../../fuv/types"
 
 function formatDisplayDate(dateStr: string) {
   if (!dateStr) return ""

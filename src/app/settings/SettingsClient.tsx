@@ -78,7 +78,9 @@ export function GlobalSettingsForm({ settingsMap }: { settingsMap: Record<string
 
   const [resendApiKey, setResendApiKey] = useState("")
   const hasSavedResendApiKey = Boolean(settingsMap["RESEND_API_KEY"])
-  const [resendFromEmail, setResendFromEmail] = useState(settingsMap["RESEND_FROM_EMAIL"] || "")
+  const [resendFromEmail, setResendFromEmail] = useState(
+    settingsMap["RESEND_FROM_EMAIL"] || "BubblesO2 Alerts <alerts@bubbleso2.com>"
+  )
   const [emailProvider, setEmailProvider] = useState<"resend" | "smtp">(
     settingsMap["RESEND_API_KEY"] || !settingsMap["SMTP_EMAIL"] ? "resend" : "smtp"
   )
@@ -466,21 +468,18 @@ export function GlobalSettingsForm({ settingsMap }: { settingsMap: Record<string
                       name="RESEND_FROM_EMAIL"
                       value={resendFromEmail}
                       onChange={(e) => setResendFromEmail(e.target.value)}
-                      placeholder="e.g. BubblesO2 Alerts <onboarding@resend.dev>"
+                      placeholder="e.g. BubblesO2 Alerts <alerts@bubbleso2.com>"
                       className="w-full px-3 py-2 bg-zinc-50 border border-gray-300 rounded-lg text-xs outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-600 text-gray-900 placeholder:text-gray-400"
                     />
                   </div>
                 </div>
 
-                <div className="text-[11px] text-zinc-600 leading-relaxed bg-amber-50/70 p-3 rounded-xl border border-amber-200/80 space-y-1">
-                  <div className="font-bold text-amber-900 flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-amber-600" /> Mengapa guna Resend? (100% Bebas Risiko Ban Google)
+                <div className="text-[11px] text-zinc-600 leading-relaxed bg-emerald-50/70 p-3 rounded-xl border border-emerald-200/80 space-y-1">
+                  <div className="font-bold text-emerald-900 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Domain bubbleso2.com Disahkan! (3,000 Emel Percuma/Bulan)
                   </div>
-                  <p>
-                    Resend menyediakan <strong>3,000 emel percuma setiap bulan</strong>. Tiada kata laluan peribadi diperlukan dan tiada risiko akaun disekat kerana menggunakan token API rasmi.
-                  </p>
-                  <p className="text-[10px] text-amber-800/90 pt-0.5">
-                    📌 <strong>Langkah Pantas:</strong> Daftar di <a href="https://resend.com" target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-900 hover:text-black">resend.com</a> → Cipta API Key di menu <em>API Keys</em> → Tampal di sini. Gunakan <code>onboarding@resend.dev</code> untuk ujian pantas!
+                  <p className="text-emerald-800">
+                    Domain syarikat anda telah disahkan di Resend. Anda kini boleh menghantar notifikasi dan jemputan Google Calendar ke mana-mana emel kakitangan menggunakan emel penghantar rasmi seperti <code>alerts@bubbleso2.com</code> atau <code>it-noreply@bubbleso2.com</code>.
                   </p>
                 </div>
               </div>

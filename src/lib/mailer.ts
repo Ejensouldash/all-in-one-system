@@ -122,7 +122,7 @@ export async function sendEmailWithDetails({
   if (activeResendKey) {
     try {
       const resend = new Resend(activeResendKey)
-      const sender = (resendFromOverride?.trim() || config.resendFrom || "BubblesO2 System <onboarding@resend.dev>").trim()
+      const sender = (resendFromOverride?.trim() || config.resendFrom || "BubblesO2 Alerts <alerts@bubbleso2.com>").trim()
 
       const emailPayload: any = {
         from: sender,

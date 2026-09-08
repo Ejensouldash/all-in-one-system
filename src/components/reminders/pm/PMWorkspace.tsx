@@ -286,10 +286,6 @@ export function PMWorkspace() {
       setScheduleError("Sila masukkan sekurang-kurangnya satu arahan kerja / checklist.")
       return
     }
-    if (!scheduleForm.picIds.length) {
-      setScheduleError("Sila pilih sekurang-kurangnya seorang PIC.")
-      return
-    }
 
     startSavingSchedule(async () => {
       try {

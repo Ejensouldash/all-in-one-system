@@ -23,7 +23,7 @@ function cleanPM(input: PMInput): PMInput {
   if (!input || !validRule(input) || typeof input.equipment !== "string" || !input.equipment.trim() || input.equipment.length > 200) throw new Error("Equipment/tarikh/kekerapan tidak sah.")
   if (input.srs !== null && (typeof input.srs !== "string" || input.srs.length > 120)) throw new Error("SRS tidak sah.")
   if (!Array.isArray(input.checklist) || !input.checklist.length || input.checklist.length > 30 || input.checklist.some(t => typeof t !== "string" || !t.trim() || t.length > 1000)) throw new Error("Masukkan 1–30 arahan kerja yang sah.")
-  if (!Array.isArray(input.picIds) || !input.picIds.length || input.picIds.length > 30 || input.picIds.some(id => typeof id !== "string")) throw new Error("Pilih sekurang-kurangnya seorang PIC.")
+  if (!Array.isArray(input.picIds) || input.picIds.length > 30 || input.picIds.some(id => typeof id !== "string")) throw new Error("Senarai PIC tidak sah.")
   return { equipment: input.equipment.trim(), srs: input.srs?.trim() || null, checklist: [...new Set(input.checklist.map(t => t.trim()))], picIds: [...new Set(input.picIds)], startDate: input.startDate, intervalUnit: input.intervalUnit, intervalCount: input.intervalCount }
 }
 async function validatePics(inputs: PMInput[]) {
@@ -172,7 +172,7 @@ export async function completePMOccurrence(id: string, result: string, notes: st
 
 export async function assignPMOccurrence(id: string, picIds: string[]) {
   const access = await accessPM()
-  if (!Array.isArray(picIds) || !picIds.length || picIds.length > 30 || picIds.some(id => typeof id !== "string")) throw new Error("Pilih PIC yang sah.")
+  if (!Array.isArray(picIds) || picIds.length > 30 || picIds.some(id => typeof id !== "string")) throw new Error("Pilih PIC yang sah.")
   await validatePics([{ picIds } as PMInput])
   await prisma.$transaction(async tx => {
     await lockPM(tx)

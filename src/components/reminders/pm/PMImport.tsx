@@ -53,7 +53,7 @@ export function PMImport({ users, today, schedules, onDone }: { users: PMUser[];
           <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={group.reviewed} onChange={e => setGroups(groups.map((g, i) => i === index ? { ...g, reviewed: e.target.checked } : g))} />Saya sahkan arahan, tarikh mula, PIC dan tindakan kumpulan ini.</label>
         </section>
       })}
-      <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t bg-white p-3"><span className="text-sm">{groups.filter(g => g.reviewed).length}/{groups.length} kumpulan disahkan</span><button disabled={busy || groups.some(g => !g.reviewed || !g.picIds.length)} className={buttonClass} onClick={confirm}>{busy ? "Menyimpan…" : "Aktifkan jadual yang disahkan"}</button></div>
+      <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t bg-white p-3"><span className="text-sm">{groups.filter(g => g.reviewed).length}/{groups.length} kumpulan disahkan</span><button disabled={busy || groups.some(g => !g.reviewed)} className={buttonClass} onClick={confirm}>{busy ? "Menyimpan…" : "Aktifkan jadual yang disahkan"}</button></div>
     </>}
   </div>
 }

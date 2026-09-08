@@ -21,6 +21,6 @@ export function PMFields({ value, users, onChange }: { value: PMInput; users: PM
       <option value="DAY:14">2 minggu</option><option value="MONTH:1">Bulanan</option><option value="MONTH:2">2 bulan</option><option value="MONTH:3">3 bulan</option><option value="MONTH:6">6 bulan</option><option value="MONTH:12">Tahunan</option>
     </select></label>
     <label className="text-sm font-medium sm:col-span-2">Arahan kerja / checklist (satu setiap baris)<textarea required rows={3} className={fieldClass} value={value.checklist.join("\n")} onChange={e => onChange({ ...value, checklist: e.target.value.split("\n") })} /></label>
-    <div className="sm:col-span-2"><p className="mb-1 text-sm font-medium">PIC tetap — pilih akaun AIO secara jelas</p><PICPicker ids={value.picIds} users={users} onChange={picIds => onChange({ ...value, picIds })} /></div>
+    <div className="sm:col-span-2"><p className="mb-1 text-sm font-medium">PIC tetap — pilih akaun AIO secara jelas (pilihan)</p><PICPicker ids={value.picIds} users={users} onChange={picIds => onChange({ ...value, picIds })} /></div>
   </div>
 }

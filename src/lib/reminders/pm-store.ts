@@ -6,7 +6,7 @@ export type PMTransaction = Prisma.TransactionClient
 // Serialize materialization with edits/completion so an old schedule can never
 // recreate deleted future occurrences after an edit commits.
 export async function lockPM(tx: PMTransaction) {
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(73032026)`
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(73032026)`
 }
 export async function materializePM(tx: PMTransaction, through: string, scheduleIds?: string[]) {
   const schedules = await tx.reminderPMSchedule.findMany({ where: { archivedAt: null, ...(scheduleIds ? { id: { in: scheduleIds } } : {}) } })

@@ -37,7 +37,9 @@ export async function getPMData(from: string, to: string, occurrenceId?: string)
   const today = mytDate()
   if (!validDate(from) || !validDate(to) || from > to || to > addDays(today, 730) || (Date.parse(to) - Date.parse(from)) / 86400000 > 366) throw new Error("Pilih julat maksimum setahun, sehingga dua tahun ke hadapan.")
   const schedules = await prisma.reminderPMSchedule.findMany({ where: pmVisibleWhere(access), orderBy: { equipment: "asc" } })
-  await prisma.$transaction(async tx => { await lockPM(tx); await materializePM(tx, to > today ? to : today, schedules.map(s => s.id)) }, { timeout: 30000 })
+  if (schedules.length > 0) {
+    await prisma.$transaction(async tx => { await lockPM(tx); await materializePM(tx, to > today ? to : today, schedules.map(s => s.id)) }, { timeout: 30000 })
+  }
   const occurrences = await prisma.reminderPMOccurrence.findMany({
     where: {
       scheduleId: { in: schedules.map(s => s.id) },

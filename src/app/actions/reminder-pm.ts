@@ -7,6 +7,9 @@ import { revalidatePath } from "next/cache"
 import { parsePMWorkbook, suggestGroups } from "@/lib/reminders/pm-import"
 import { addDays, canCompletePM, mytDate, validDate, validRule, validateCompletion, type PMGroup, type PMInput, type PMSourceRow } from "@/lib/reminders/pm-core"
 import { lockPM, materializePM, pmVisibleWhere, type PMTransaction } from "@/lib/reminders/pm-store"
+import { sendEmailWithDetails } from "@/lib/mailer"
+import { generatePMTaskCalendarInvite } from "@/lib/fuv-calendar"
+import { buildPMSingleTaskEmailHtml } from "@/lib/reminders/pm-dispatch"
 import type { Prisma } from "@prisma/client"
 
 async function accessPM(admin = false) {
@@ -187,4 +190,103 @@ export async function assignPMOccurrence(id: string, picIds: string[]) {
 export async function getPMImportHistory(id: string) {
   await accessPM(true)
   return prisma.reminderPMImport.findUniqueOrThrow({ where: { id }, select: { fileName: true, rows: true, review: true, confirmedAt: true } })
+}
+
+/**
+ * SuperAdmin-only action to simulate and test real email and Google Calendar dispatch for a specific PM task.
+ */
+export async function simulatePMTaskReminderAction(occurrenceId: string) {
+  const access = await accessPM(true) // Strictly SuperAdmin only
+  const today = mytDate()
+
+  const task = await prisma.reminderPMOccurrence.findUniqueOrThrow({
+    where: { id: occurrenceId },
+    include: { schedule: true },
+  })
+
+  // Find PIC users assigned to this task
+  const picUsers = await prisma.user.findMany({
+    where: { id: { in: task.picIds } },
+    select: { id: true, name: true, email: true },
+  })
+
+  // Find the SuperAdmin user who initiated the simulation
+  const adminUser = await prisma.user.findUnique({
+    where: { id: access.userId },
+    select: { id: true, name: true, email: true },
+  })
+
+  // Combine recipients: Admin + Assigned PICs
+  const targetEmails = Array.from(
+    new Set(
+      [
+        adminUser?.email,
+        ...picUsers.map((u) => u.email),
+      ].filter((e): e is string => Boolean(e && e.includes("@")))
+    )
+  )
+
+  if (targetEmails.length === 0) {
+    return {
+      success: false,
+      error: "Tiada alamat emel yang sah untuk dihantar. Sila pastikan akaun anda mempunyai emel berdaftar.",
+    }
+  }
+
+  const picNames = picUsers.map((u) => u.name).join(", ") || "Tiada Ditugaskan (Ujian SuperAdmin)"
+  const baseUrl = (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.AUTH_URL ||
+    process.env.NEXTAUTH_URL ||
+    "https://bubbleso2-aio.vercel.app"
+  ).replace(/\/$/, "")
+
+  const formUrl = `${baseUrl}/reminders?tab=pm&occurrence=${encodeURIComponent(task.id)}`
+
+  const statusLabel =
+    task.dueDate < today ? "Tertunggak (Overdue)" : task.dueDate === today ? "Hari Ini (Today)" : "Akan Datang (Upcoming)"
+
+  // 1. Generate Google Calendar invite (.ics) & 1-Click URL
+  const { icsContent, googleCalendarUrl } = generatePMTaskCalendarInvite({
+    equipment: task.equipment,
+    dueDateStr: task.dueDate,
+    srs: task.srs,
+    checklist: task.checklist,
+    formUrl,
+    attendees: targetEmails,
+  })
+
+  // 2. Generate HTML email
+  const { subject, html } = buildPMSingleTaskEmailHtml({
+    equipment: task.equipment,
+    srs: task.srs,
+    dueDate: task.dueDate,
+    statusLabel,
+    checklist: task.checklist,
+    picNames,
+    formUrl,
+    googleCalendarUrl,
+  })
+
+  // 3. Send via dynamic mailer (Resend or Gmail SMTP)
+  const emailRes = await sendEmailWithDetails({
+    to: targetEmails,
+    subject: `🧪 [SIMULASI SUPERADMIN] ${subject}`,
+    html,
+    icsContent: icsContent || undefined,
+  })
+
+  if (!emailRes.success) {
+    return {
+      success: false,
+      error: emailRes.error || "Gagal menghantar emel simulasi PM task.",
+    }
+  }
+
+  return {
+    success: true,
+    recipients: targetEmails,
+    equipment: task.equipment,
+    dueDate: task.dueDate,
+  }
 }

@@ -23,6 +23,8 @@ import {
   Calendar as CalendarIcon,
   User as UserIcon,
   FileSpreadsheet,
+  Send,
+  Zap,
 } from "lucide-react"
 import "../RemindersCSS.css"
 import { ModalShell } from "../ModalShell"
@@ -33,6 +35,7 @@ import {
   completePMOccurrence,
   savePMSchedule,
   archivePMSchedule,
+  simulatePMTaskReminderAction,
 } from "@/app/actions/reminder-pm"
 import {
   canCompletePM,
@@ -118,6 +121,10 @@ export function PMWorkspace() {
   const [completionError, setCompletionError] = useState("")
   const [submitting, startSubmitting] = useTransition()
 
+  // SuperAdmin Simulation state
+  const [isSimulating, setIsSimulating] = useState(false)
+  const [simulationResult, setSimulationResult] = useState<{ success: boolean; message: string } | null>(null)
+
   // Schedule Form state
   const [scheduleForm, setScheduleForm] = useState<PMInput>({
     equipment: "",
@@ -194,6 +201,7 @@ export function PMWorkspace() {
     setCompletionNotes(occ.notes || "")
     setCompletionDate(occ.inspectedDate || (data ? data.today : new Date().toISOString().slice(0, 10)))
     setCompletionError("")
+    setSimulationResult(null)
 
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href)
@@ -207,10 +215,38 @@ export function PMWorkspace() {
   const closeOccurrence = () => {
     setSelectedOccurrence(null)
     setCompletionError("")
+    setSimulationResult(null)
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href)
       url.searchParams.delete("occurrence")
       window.history.replaceState(null, "", url)
+    }
+  }
+
+  // Handle SuperAdmin Task Reminder Simulation
+  const handleSimulateReminder = async (occurrenceId: string) => {
+    setIsSimulating(true)
+    setSimulationResult(null)
+    try {
+      const res = await simulatePMTaskReminderAction(occurrenceId)
+      if (res.success) {
+        setSimulationResult({
+          success: true,
+          message: `🎉 Emel simulasi berjaya dihantar ke: ${(res.recipients || []).join(", ")}! Acara juga telah dimasukkan ke Google Calendar.`,
+        })
+      } else {
+        setSimulationResult({
+          success: false,
+          message: `❌ Simulasi Gagal: ${res.error || "Ralat tidak diketahui"}`,
+        })
+      }
+    } catch (err: any) {
+      setSimulationResult({
+        success: false,
+        message: `❌ Ralat: ${err.message || String(err)}`,
+      })
+    } finally {
+      setIsSimulating(false)
     }
   }
 
@@ -1223,6 +1259,50 @@ export function PMWorkspace() {
                     <p className="mt-0.5">
                       Hanya PIC yang ditugaskan atau Superadmin dibenarkan merekod pemeriksaan untuk tugasan ini.
                     </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SuperAdmin Special Test Simulation Action */}
+            {data?.isSuperAdmin && (
+              <div className="pt-3 border-t border-gray-200/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
+                    <Zap className="h-3.5 w-3.5 text-amber-500" /> Kawalan Khas SuperAdmin
+                  </span>
+                  <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md text-[10px] font-bold">
+                    Simulasi Task Sebenar
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-500">
+                  Hantar emel notifikasi dan jemputan Google Calendar sebenar bagi tugasan pemeriksaan <strong>{selectedOccurrence.equipment}</strong> ini kepada PIC dan SuperAdmin.
+                </p>
+                <button
+                  type="button"
+                  disabled={isSimulating}
+                  onClick={() => handleSimulateReminder(selectedOccurrence.id)}
+                  className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm hover:shadow transition active:scale-95 disabled:opacity-50"
+                >
+                  {isSimulating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Menghantar Simulasi Emel &amp; Kalendar…
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" /> 🧪 Uji Simulasi Peringatan (Hantar Emel &amp; Kalendar Task Ini)
+                    </>
+                  )}
+                </button>
+                {simulationResult && (
+                  <div
+                    className={`p-3 rounded-xl text-xs font-semibold ${
+                      simulationResult.success
+                        ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                        : "bg-red-50 text-red-800 border border-red-200"
+                    }`}
+                  >
+                    {simulationResult.message}
                   </div>
                 )}
               </div>

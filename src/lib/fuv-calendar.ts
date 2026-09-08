@@ -233,3 +233,109 @@ export function generateFUVCalendarInvite({
     endUtcStr: formatToGoogleCalendarUtc(endDate),
   }
 }
+
+/**
+ * Generate RFC 5545 iCalendar (.ics) and Google Calendar 1-Click URL for Preventive Maintenance (PM) tasks.
+ */
+export function generatePMTaskCalendarInvite({
+  equipment,
+  dueDateStr,
+  srs,
+  checklist,
+  formUrl,
+  attendees,
+  senderEmail = "alerts@bubbleso2.com",
+}: {
+  equipment: string
+  dueDateStr: string
+  srs?: string | null
+  checklist: string[]
+  formUrl: string
+  attendees: string[]
+  senderEmail?: string
+}): { icsContent: string | null; googleCalendarUrl: string } {
+  const parts = dueDateStr.split("-")
+  const year = parseInt(parts[0], 10) || new Date().getFullYear()
+  const month = (parseInt(parts[1], 10) || 1) - 1
+  const day = parseInt(parts[2], 10) || 1
+
+  // Set start time to 09:00 AM MYT (01:00 UTC)
+  const startDate = new Date(Date.UTC(year, month, day, 1, 0, 0))
+  // 1-hour duration: 10:00 AM MYT (02:00 UTC)
+  const endDate = new Date(Date.UTC(year, month, day, 2, 0, 0))
+
+  const title = `🔧 Pemeriksaan PM: ${equipment}`
+  const location = "Loji Rawatan Air & Pengeluaran BubblesO2"
+
+  const description =
+    `Preventive Maintenance (SGMP-03)\n\n` +
+    `Peralatan: ${equipment}\n` +
+    `${srs ? `SRS: ${srs}\n` : ""}` +
+    `Tarikh Jadual: ${dueDateStr}\n\n` +
+    `Arahan Kerja / Checklist:\n` +
+    checklist.map((c, i) => `${i + 1}. ${c}`).join("\n") +
+    `\n\n📝 Buka & Rekod Pemeriksaan: ${formUrl}`
+
+  const icsAttendees: ics.Attendee[] = attendees
+    .filter((e) => e && e.includes("@"))
+    .map((email) => ({
+      name: email.split("@")[0],
+      email: email.trim(),
+      rsvp: true,
+      partstat: "NEEDS-ACTION",
+      role: "REQ-PARTICIPANT",
+    }))
+
+  const dateTag = dueDateStr.replace(/-/g, "")
+  const uid = `pm-${dateTag}-${equipment.replace(/[^a-zA-Z0-9]/g, "").toLowerCase()}@bubbleso2.com`
+
+  const eventAttributes: ics.EventAttributes = {
+    title,
+    description,
+    location,
+    start: [year, month + 1, day, 1, 0],
+    end: [year, month + 1, day, 2, 0],
+    startInputType: "utc",
+    endInputType: "utc",
+    startOutputType: "utc",
+    endOutputType: "utc",
+    status: "CONFIRMED",
+    busyStatus: "BUSY",
+    method: "REQUEST",
+    productId: "-//BubblesO2//SGMP03 PM System//MS",
+    calName: "BubblesO2 Preventive Maintenance",
+    uid,
+    organizer: {
+      name: "BubblesO2 Maintenance",
+      email: senderEmail,
+    },
+    attendees: icsAttendees,
+    alarms: [
+      {
+        action: "display",
+        description: `Peringatan: Jadual pemeriksaan ${equipment} pada hari ini`,
+        trigger: { hours: 1, before: true },
+      },
+    ],
+  }
+
+  const { error, value } = ics.createEvent(eventAttributes)
+  if (error) {
+    console.error("Error creating PM ICS event:", error)
+  }
+
+  const googleCalendarUrl = buildGoogleCalendarUrl({
+    title,
+    startDate,
+    endDate,
+    details: description,
+    location,
+    attendees,
+  })
+
+  return {
+    icsContent: value || null,
+    googleCalendarUrl,
+  }
+}
+

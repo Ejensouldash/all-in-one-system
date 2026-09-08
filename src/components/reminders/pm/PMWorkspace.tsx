@@ -23,6 +23,7 @@ import {
   Calendar as CalendarIcon,
   User as UserIcon,
   FileSpreadsheet,
+  FileText,
   Send,
   Zap,
 } from "lucide-react"
@@ -144,9 +145,20 @@ export function PMWorkspace() {
     if (b?.kind === "ok") setTimeout(() => setBanner(null), 4000)
   }
 
-  // Calculate month boundaries for data fetch
+  const [rangeMode, setRangeMode] = useState<"month" | "year">("month")
+  const [exportingType, setExportingType] = useState<"pdf" | "excel" | null>(null)
+
+  // Calculate boundaries for data fetch
   const { fromDate, toDate } = useMemo(() => {
     const year = cursor.getFullYear()
+    if (rangeMode === "year") {
+      const start = new Date(Date.UTC(year, 0, 1))
+      const end = new Date(Date.UTC(year, 11, 31))
+      return {
+        fromDate: start.toISOString().slice(0, 10),
+        toDate: end.toISOString().slice(0, 10),
+      }
+    }
     const month = cursor.getMonth()
     const start = new Date(Date.UTC(year, month, 1))
     const end = new Date(Date.UTC(year, month + 1, 0))
@@ -154,7 +166,51 @@ export function PMWorkspace() {
       fromDate: start.toISOString().slice(0, 10),
       toDate: end.toISOString().slice(0, 10),
     }
-  }, [cursor])
+  }, [cursor, rangeMode])
+
+  // Handle PDF / Excel Export
+  const handleExport = async (type: "pdf" | "excel") => {
+    try {
+      setExportingType(type)
+      const params = new URLSearchParams()
+      params.set("from", fromDate)
+      params.set("to", toDate)
+      if (equipmentFilter && equipmentFilter !== "ALL") {
+        params.set("equipment", equipmentFilter)
+      }
+      if (statusFilter && statusFilter !== "ALL") {
+        params.set("status", statusFilter)
+      }
+
+      const res = await fetch(`/api/reminders/pm/export/${type}?${params.toString()}`)
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        throw new Error(json.error || `Gagal mengeksport ${type.toUpperCase()}.`)
+      }
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      const disposition = res.headers.get("Content-Disposition")
+      let filename = `Laporan_Audit_PM_SGMP03_${fromDate}_ke_${toDate}.${type === "pdf" ? "pdf" : "xlsx"}`
+      if (disposition && disposition.includes("filename=")) {
+        const match = /filename="?([^"]+)"?/.exec(disposition)
+        if (match?.[1]) filename = match[1]
+      }
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+
+      flash({ kind: "ok", text: `Fail ${type.toUpperCase()} berjaya dimuat turun.` })
+    } catch (err) {
+      flash({ kind: "err", text: sanitizeError(err) })
+    } finally {
+      setExportingType(null)
+    }
+  }
 
   // Fetch PM Data
   const loadData = useCallback(
@@ -582,39 +638,82 @@ export function PMWorkspace() {
         <div className="flex flex-col gap-3">
           {/* Top Row: Month navigation, Views, Actions */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            {/* Month selector */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  setCursor((d) => new Date(Date.UTC(d.getFullYear(), d.getMonth() - 1, 1)))
-                }
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50"
-                title="Bulan Sebelumnya"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setCursor(new Date())}
-                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-600 transition hover:bg-gray-50"
-              >
-                Hari Ini
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setCursor((d) => new Date(Date.UTC(d.getFullYear(), d.getMonth() + 1, 1)))
-                }
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50"
-                title="Bulan Seterusnya"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-              <h2 className="ml-1 text-lg font-black tracking-tight text-gray-900">
-                {MONTH_BM[cursor.getMonth()]}{" "}
-                <span className="text-gray-400">{cursor.getFullYear()}</span>
-              </h2>
+            {/* Range and Month selector */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex rounded-xl bg-gray-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => setRangeMode("month")}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
+                    rangeMode === "month"
+                      ? "bg-white text-indigo-700 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  Bulan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRangeMode("year")}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
+                    rangeMode === "year"
+                      ? "bg-white text-indigo-700 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  Tahun
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCursor((d) =>
+                      rangeMode === "year"
+                        ? new Date(Date.UTC(d.getFullYear() - 1, 0, 1))
+                        : new Date(Date.UTC(d.getFullYear(), d.getMonth() - 1, 1))
+                    )
+                  }
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50"
+                  title={rangeMode === "year" ? "Tahun Sebelumnya" : "Bulan Sebelumnya"}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCursor(new Date())}
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-600 transition hover:bg-gray-50"
+                >
+                  Semasa
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCursor((d) =>
+                      rangeMode === "year"
+                        ? new Date(Date.UTC(d.getFullYear() + 1, 0, 1))
+                        : new Date(Date.UTC(d.getFullYear(), d.getMonth() + 1, 1))
+                    )
+                  }
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50"
+                  title={rangeMode === "year" ? "Tahun Seterusnya" : "Bulan Seterusnya"}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <h2 className="ml-1 text-lg font-black tracking-tight text-gray-900">
+                  {rangeMode === "year" ? (
+                    <>
+                      Tahun <span className="text-indigo-600">{cursor.getFullYear()}</span>
+                    </>
+                  ) : (
+                    <>
+                      {MONTH_BM[cursor.getMonth()]}{" "}
+                      <span className="text-gray-400">{cursor.getFullYear()}</span>
+                    </>
+                  )}
+                </h2>
+              </div>
             </div>
 
             {/* View Switcher & Action Buttons */}
@@ -653,6 +752,39 @@ export function PMWorkspace() {
                   }`}
                 >
                   <Wrench className="h-3.5 w-3.5" /> Jadual PM
+                </button>
+              </div>
+
+              {/* Export Actions */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={!!exportingType}
+                  onClick={() => handleExport("pdf")}
+                  className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50"
+                  title="Eksport Laporan Audit PDF (A4 Portrait, Kad KPI, Matriks Kalendar & Tandatangan)"
+                >
+                  {exportingType === "pdf" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <FileText className="h-3.5 w-3.5" />
+                  )}
+                  Export PDF
+                </button>
+
+                <button
+                  type="button"
+                  disabled={!!exportingType}
+                  onClick={() => handleExport("excel")}
+                  className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
+                  title="Eksport Fail Excel (Multi-tab, Matriks, Log Bersih Tanpa Data Cleaning)"
+                >
+                  {exportingType === "excel" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="h-3.5 w-3.5" />
+                  )}
+                  Export Excel
                 </button>
               </div>
 

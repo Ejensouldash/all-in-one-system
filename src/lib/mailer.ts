@@ -124,12 +124,23 @@ export async function sendEmailWithDetails({
       const resend = new Resend(activeResendKey)
       const sender = (resendFromOverride?.trim() || config.resendFrom || "BubblesO2 System <onboarding@resend.dev>").trim()
 
-      const { data, error } = await resend.emails.send({
+      const emailPayload: any = {
         from: sender,
         to,
         subject,
         html,
-      })
+      }
+
+      if (icsContent) {
+        emailPayload.attachments = [
+          {
+            filename: "pemeriksaan-fuv.ics",
+            content: Buffer.from(icsContent).toString("base64"),
+          },
+        ]
+      }
+
+      const { data, error } = await resend.emails.send(emailPayload)
 
       if (error) {
         console.error("Resend API error:", error)
@@ -184,10 +195,17 @@ export async function sendEmailWithDetails({
 
       if (icsContent) {
         mailOptions.icalEvent = {
-          filename: "invite.ics",
+          filename: "pemeriksaan-fuv.ics",
           method: "request",
           content: icsContent,
         }
+        mailOptions.attachments = [
+          {
+            filename: "pemeriksaan-fuv.ics",
+            content: icsContent,
+            contentType: "text/calendar; charset=utf-8; method=REQUEST",
+          },
+        ]
       }
 
       return transporter.sendMail(mailOptions)

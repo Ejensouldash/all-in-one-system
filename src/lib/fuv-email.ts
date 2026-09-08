@@ -8,6 +8,7 @@ export interface FUVInspectionEmailOptions {
   dateStr: string
   formUrl: string
   targetMinute: string
+  googleCalendarUrl?: string
 }
 
 export function buildFUVInspectionEmailHtml({
@@ -16,6 +17,7 @@ export function buildFUVInspectionEmailHtml({
   dateStr,
   formUrl,
   targetMinute,
+  googleCalendarUrl,
 }: FUVInspectionEmailOptions): { subject: string; html: string } {
   const shiftLabel = shift === "DAY" ? "Day Shift (07:30 AM - 05:30 PM)" : "Night Shift (07:30 PM - 05:30 AM)"
   const subject = `⏰ [Peringatan FUV] Slot Pemeriksaan ${slotTime} bermula dalam 10 minit (${dateStr})`
@@ -117,7 +119,7 @@ export function buildFUVInspectionEmailHtml({
 
           <!-- Direct CTA Button -->
           <tr>
-            <td style="padding: 10px 25px 30px 25px; text-align: center;">
+            <td style="padding: 10px 25px 20px 25px; text-align: center;">
               <a href="${formUrl}" target="_blank" style="display: inline-block; background-color: #0891b2; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; padding: 14px 28px; border-radius: 12px; box-shadow: 0 4px 12px rgba(8, 145, 178, 0.35);">
                 📝 Buka Borang Pemeriksaan (Slot ${slotTime})
               </a>
@@ -126,6 +128,31 @@ export function buildFUVInspectionEmailHtml({
               </p>
             </td>
           </tr>
+
+          <!-- Google Calendar 1-Click Sync Card -->
+          ${googleCalendarUrl ? `
+          <tr>
+            <td style="padding: 0 25px 25px 25px;">
+              <table role="presentation" width="100%" style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 16px;">
+                <tr>
+                  <td>
+                    <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #16a34a; letter-spacing: 1px;">
+                      📅 JEMPUTAN GOOGLE CALENDAR:
+                    </div>
+                    <p style="font-size: 13px; color: #15803d; margin: 6px 0 14px 0; line-height: 1.5;">
+                      Jemputan slot pemeriksaan ini telah dilampirkan terus ke dalam emel anda (fail <strong>.ics</strong>). Untuk memasukkannya terus ke aplikasi Google Calendar telefon/laptop dengan 1-klik, tekan butang di bawah:
+                    </p>
+                    <div style="text-align: center;">
+                      <a href="${googleCalendarUrl}" target="_blank" style="display: inline-block; background-color: #16a34a; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 13px; padding: 10px 22px; border-radius: 8px; box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25);">
+                        📅 Tambah ke Google Calendar (1-Klik)
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          ` : ""}
 
           <!-- Footer -->
           <tr>

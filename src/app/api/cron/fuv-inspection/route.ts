@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/mailer"
 import { sendTelegramMessage, getTelegramConfig, buildFUVTelegramAlertHtml } from "@/lib/telegram"
 import { buildFUVInspectionEmailHtml } from "@/lib/fuv-email"
+import { generateFUVCalendarInvite } from "@/lib/fuv-calendar"
 import type { FUVRow } from "@/app/forms/maintenance/fuv/types"
 
 export const dynamic = "force-dynamic"
@@ -174,18 +175,28 @@ async function handleInspectionDispatch(request: NextRequest) {
   // 5. Send Email Alert (if enabled & recipients available)
   if (emailEnabled && recipientEmails.length > 0) {
     try {
+      const { icsContent, googleCalendarUrl } = generateFUVCalendarInvite({
+        slotTime,
+        shift,
+        dateStr: mytDateStr,
+        attendees: recipientEmails,
+        formUrl,
+      })
+
       const { subject, html } = buildFUVInspectionEmailHtml({
         slotTime,
         shift,
         dateStr: mytDateStr,
         formUrl,
         targetMinute: timeFormatted,
+        googleCalendarUrl,
       })
 
       const emailSent = await sendEmail({
         to: recipientEmails,
         subject,
         html,
+        icsContent: icsContent || undefined,
       })
 
       dispatchResults.email = {

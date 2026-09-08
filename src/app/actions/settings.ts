@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache"
 import { testTelegramConnection, sendTelegramMessage, buildFUVTelegramAlertHtml } from "@/lib/telegram"
 import { sendEmail, sendEmailWithDetails } from "@/lib/mailer"
 import { buildFUVInspectionEmailHtml } from "@/lib/fuv-email"
+import { generateFUVCalendarInvite } from "@/lib/fuv-calendar"
 
 export async function updateProfile(formData: FormData) {
   const session = await auth()
@@ -132,19 +133,30 @@ export async function testEmailNotificationAction(
     const baseUrl = process.env.NEXTAUTH_URL || "https://bubbleso2-aio.vercel.app"
     const nowStr = new Date().toLocaleDateString("ms-MY", { timeZone: "Asia/Kuala_Lumpur" })
     const timeFormatted = new Date().toLocaleTimeString("ms-MY", { timeZone: "Asia/Kuala_Lumpur", hour: "2-digit", minute: "2-digit" }) + " MYT"
+    const formUrl = `${baseUrl}/forms/maintenance/fuv`
+
+    const { icsContent, googleCalendarUrl } = generateFUVCalendarInvite({
+      slotTime: "11.30 AM",
+      shift: "DAY",
+      dateStr: nowStr,
+      attendees: emails,
+      formUrl,
+    })
 
     const { subject, html } = buildFUVInspectionEmailHtml({
       slotTime: "11.30 AM [UJIAN SISTEM]",
       shift: "DAY",
       dateStr: nowStr,
-      formUrl: `${baseUrl}/forms/maintenance/fuv`,
+      formUrl,
       targetMinute: `${timeFormatted} (Ujian SuperAdmin)`,
+      googleCalendarUrl,
     })
 
     const result = await sendEmailWithDetails({
       to: emails,
       subject: `🧪 [UJIAN SUPERADMIN] ${subject}`,
       html,
+      icsContent: icsContent || undefined,
       smtpEmailOverride: smtpEmail,
       smtpPasswordOverride: smtpPassword,
       resendApiKeyOverride: resendApiKey,

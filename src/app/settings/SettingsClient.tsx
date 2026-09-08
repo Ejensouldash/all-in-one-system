@@ -1,10 +1,32 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { updateProfile, updateGlobalSettings, generateBackup, restoreBackup } from "@/app/actions/settings"
+import {
+  updateProfile,
+  updateGlobalSettings,
+  testTelegramNotificationAction,
+  generateBackup,
+  restoreBackup,
+} from "@/app/actions/settings"
 import { getSystemBackups, getBackupDownloadUrl } from "@/app/actions/backupActions"
 import { createNotice, toggleNotice, deleteNotice } from "@/app/actions/notice"
-import { Save, Download, Upload, AlertTriangle, CheckCircle2, Megaphone, Trash2, Power, Database } from "lucide-react"
+import {
+  Save,
+  Download,
+  Upload,
+  AlertTriangle,
+  CheckCircle2,
+  Megaphone,
+  Trash2,
+  Power,
+  Database,
+  Send,
+  Bell,
+  Bot,
+  Mail,
+  Loader2,
+  Info,
+} from "lucide-react"
 
 export function ProfileForm({ user }: { user: any }) {
   const [status, setStatus] = useState("")
@@ -41,6 +63,10 @@ export function ProfileForm({ user }: { user: any }) {
 
 export function GlobalSettingsForm({ settingsMap }: { settingsMap: Record<string, string> }) {
   const [status, setStatus] = useState("")
+  const [telegramToken, setTelegramToken] = useState(settingsMap["TELEGRAM_BOT_TOKEN"] || "")
+  const [telegramChatId, setTelegramChatId] = useState(settingsMap["TELEGRAM_CHAT_ID"] || "")
+  const [isTestingTelegram, setIsTestingTelegram] = useState(false)
+  const [testResult, setTestResult] = useState<{ success?: boolean; message?: string } | null>(null)
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -50,20 +76,239 @@ export function GlobalSettingsForm({ settingsMap }: { settingsMap: Record<string
     setTimeout(() => setStatus(""), 3000)
   }
 
+  const handleTestTelegram = async () => {
+    if (!telegramToken.trim() || !telegramChatId.trim()) {
+      setTestResult({
+        success: false,
+        message: "Sila masukkan kedua-dua Telegram Bot Token dan Chat ID sebelum membuat ujian.",
+      })
+      return
+    }
+
+    setIsTestingTelegram(true)
+    setTestResult(null)
+
+    const res = await testTelegramNotificationAction(telegramToken, telegramChatId)
+    setIsTestingTelegram(false)
+
+    if (res.success) {
+      setTestResult({
+        success: true,
+        message: "✅ Ujian Berjaya! Mesej test alert telah dihantar ke Telegram anda.",
+      })
+    } else {
+      setTestResult({
+        success: false,
+        message: `❌ Ujian Gagal: ${res.error || "Sila pastikan Bot Token & Chat ID adalah betul dan bot telah dimasukkan ke dalam group."}`,
+      })
+    }
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 max-w-md">
-      <div>
-        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Company Name</label>
-        <input type="text" name="COMPANY_NAME" defaultValue={settingsMap["COMPANY_NAME"] || ""} placeholder="e.g. Acme Corp" className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200/80 rounded-lg text-sm outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-zinc-950/20 focus:border-zinc-950 text-zinc-800 placeholder:text-zinc-400" />
+    <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl">
+      {/* General Settings */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-5">
+        <div className="border-b border-gray-100 pb-3">
+          <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+            Company & System Profile
+          </h3>
+          <p className="text-xs text-gray-500 mt-0.5">Basic organization identification details.</p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-zinc-600 uppercase tracking-wider mb-1.5">Company Name</label>
+            <input
+              type="text"
+              name="COMPANY_NAME"
+              defaultValue={settingsMap["COMPANY_NAME"] || ""}
+              placeholder="e.g. Bubbles O2 Sdn Bhd"
+              className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200/80 rounded-xl text-sm outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-600 text-zinc-800 placeholder:text-zinc-400"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-zinc-600 uppercase tracking-wider mb-1.5">Support Email</label>
+            <input
+              type="email"
+              name="SUPPORT_EMAIL"
+              defaultValue={settingsMap["SUPPORT_EMAIL"] || ""}
+              placeholder="e.g. it@bubbleso2.com"
+              className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200/80 rounded-xl text-sm outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-600 text-zinc-800 placeholder:text-zinc-400"
+            />
+          </div>
+        </div>
       </div>
-      <div>
-        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Support Email</label>
-        <input type="email" name="SUPPORT_EMAIL" defaultValue={settingsMap["SUPPORT_EMAIL"] || ""} placeholder="e.g. it@acme.com" className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200/80 rounded-lg text-sm outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-zinc-950/20 focus:border-zinc-950 text-zinc-800 placeholder:text-zinc-400" />
+
+      {/* Telegram Bot & Inspection Notification Settings */}
+      <div className="bg-gradient-to-br from-white to-cyan-50/40 border border-cyan-200/80 rounded-2xl p-6 shadow-sm space-y-6">
+        <div className="border-b border-cyan-100 pb-4 flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="p-2 bg-cyan-100 text-cyan-800 rounded-xl">
+                <Bot className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
+                  Telegram Bot & FUV Inspection Notifications
+                </h3>
+                <p className="text-xs text-cyan-900/80 mt-0.5 font-medium">
+                  Sistem amaran berkala 2-jam untuk borang SGMP/19/FUV (Hazard & Process Control Records).
+                </p>
+              </div>
+            </div>
+          </div>
+          <span className="px-2.5 py-1 bg-cyan-100 text-cyan-800 rounded-full text-[11px] font-bold uppercase tracking-wider">
+            100% Percuma
+          </span>
+        </div>
+
+        {/* Telegram Configuration */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-xl">
+            <div className="flex items-center gap-2.5">
+              <Bell className="w-4 h-4 text-cyan-700" />
+              <div>
+                <span className="text-xs font-bold text-gray-800 block">Aktifkan Notifikasi Telegram</span>
+                <span className="text-[11px] text-gray-500">Hantar mesej ke Telegram Group operator loji setiap 2 jam.</span>
+              </div>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                name="TELEGRAM_NOTIFICATIONS_ENABLED"
+                value="true"
+                defaultChecked={settingsMap["TELEGRAM_NOTIFICATIONS_ENABLED"] !== "false"}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-600"></div>
+            </label>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+              Telegram Bot Token
+            </label>
+            <input
+              type="text"
+              name="TELEGRAM_BOT_TOKEN"
+              value={telegramToken}
+              onChange={(e) => setTelegramToken(e.target.value)}
+              placeholder="e.g. 7123456789:AAHq_AbCdEfGhIjKlMnOpQrStUvWxYz"
+              className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-mono outline-none transition-all duration-200 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-600 text-gray-900 placeholder:text-gray-400"
+            />
+            <p className="text-[11px] text-gray-500">
+              Dapatkan daripada akaun <strong>@BotFather</strong> di Telegram apabila anda membina bot baru.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+              Telegram Chat ID / Group ID
+            </label>
+            <input
+              type="text"
+              name="TELEGRAM_CHAT_ID"
+              value={telegramChatId}
+              onChange={(e) => setTelegramChatId(e.target.value)}
+              placeholder="e.g. -1001987654321 atau @nama_group_anda"
+              className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-mono outline-none transition-all duration-200 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-600 text-gray-900 placeholder:text-gray-400"
+            />
+            <p className="text-[11px] text-gray-500">
+              ID kumpulan Telegram operator kilang (Group Chat ID biasanya bermula dengan <code>-100...</code>).
+            </p>
+          </div>
+
+          {/* Test Telegram Button */}
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={handleTestTelegram}
+              disabled={isTestingTelegram}
+              className="px-4 py-2 bg-white hover:bg-cyan-50 text-cyan-800 border border-cyan-300 rounded-xl text-xs font-bold inline-flex items-center gap-2 transition-all shadow-sm active:scale-95 disabled:opacity-50"
+            >
+              {isTestingTelegram ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Menghantar Ujian...
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5 text-cyan-600" /> Uji Sambungan Telegram (Test Ping)
+                </>
+              )}
+            </button>
+
+            {testResult && (
+              <p
+                className={`text-xs font-bold mt-2 p-2.5 rounded-lg ${
+                  testResult.success
+                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                    : "bg-red-50 text-red-800 border border-red-200"
+                }`}
+              >
+                {testResult.message}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Email Notification Configuration */}
+        <div className="border-t border-cyan-100 pt-5 space-y-4">
+          <div className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-xl">
+            <div className="flex items-center gap-2.5">
+              <Mail className="w-4 h-4 text-cyan-700" />
+              <div>
+                <span className="text-xs font-bold text-gray-800 block">Aktifkan Notifikasi Emel (10 Minit Sebelum)</span>
+                <span className="text-[11px] text-gray-500">Hantar emel amaran 10 minit sebelum setiap slot pemeriksaan.</span>
+              </div>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                name="EMAIL_NOTIFICATIONS_ENABLED"
+                value="true"
+                defaultChecked={settingsMap["EMAIL_NOTIFICATIONS_ENABLED"] !== "false"}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-600"></div>
+            </label>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+              Senarai Emel Penerima Peringatan FUV
+            </label>
+            <textarea
+              name="FUV_NOTIFICATION_EMAILS"
+              defaultValue={settingsMap["FUV_NOTIFICATION_EMAILS"] || ""}
+              rows={2}
+              placeholder="e.g. qc@bubbleso2.com, operator@bubbleso2.com, plant.lead@bubbleso2.com"
+              className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs outline-none transition-all duration-200 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-600 text-gray-900 placeholder:text-gray-400"
+            />
+            <p className="text-[11px] text-gray-500">
+              Masukkan alamat emel kakitangan / operator bertugas (asingkan setiap emel dengan koma).
+            </p>
+          </div>
+        </div>
       </div>
-      <button type="submit" className="bg-zinc-900 hover:bg-zinc-800 text-white shadow-sm hover:shadow active:scale-[0.98] transition-all px-4.5 py-2.5 rounded-lg text-sm font-bold flex items-center">
-        <Save className="h-4 w-4 mr-2" /> Save Configuration
-      </button>
-      {status && <p className={`text-sm ${status.includes("Error") ? "text-red-500" : "text-emerald-600"} font-semibold mt-2`}>{status}</p>}
+
+      {/* Save Button */}
+      <div className="flex items-center gap-4">
+        <button
+          type="submit"
+          className="bg-zinc-900 hover:bg-zinc-800 text-white shadow-sm hover:shadow active:scale-[0.98] transition-all px-6 py-3 rounded-xl text-sm font-bold flex items-center gap-2"
+        >
+          <Save className="h-4 w-4" /> Simpan Semua Konfigurasi
+        </button>
+        {status && (
+          <p
+            className={`text-sm font-bold ${
+              status.includes("Error") ? "text-red-500" : "text-emerald-600"
+            }`}
+          >
+            {status}
+          </p>
+        )}
+      </div>
     </form>
   )
 }
@@ -177,7 +422,7 @@ export function BackupRestorePanel() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {sqlBackups.map((bkp) => (
+                    {sqlBackups.map((bkp: any) => (
                       <tr key={bkp.name} className="hover:bg-gray-50 transition-colors">
                         <td className="px-4 py-3 font-medium text-gray-800">{bkp.name}</td>
                         <td className="px-4 py-3 text-gray-500">{new Date(bkp.created_at).toLocaleString('en-GB')}</td>

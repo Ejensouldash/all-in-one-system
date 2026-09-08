@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import bcrypt from "bcryptjs"
 import { revalidatePath } from "next/cache"
+import { testTelegramConnection } from "@/lib/telegram"
 
 export async function updateProfile(formData: FormData) {
   const session = await auth()
@@ -36,25 +37,50 @@ export async function updateGlobalSettings(formData: FormData) {
 
   const companyName = formData.get("COMPANY_NAME") as string
   const supportEmail = formData.get("SUPPORT_EMAIL") as string
+  const telegramBotToken = formData.get("TELEGRAM_BOT_TOKEN") as string
+  const telegramChatId = formData.get("TELEGRAM_CHAT_ID") as string
+  const fuvEmails = formData.get("FUV_NOTIFICATION_EMAILS") as string
+  const telegramEnabled = formData.get("TELEGRAM_NOTIFICATIONS_ENABLED") ? "true" : "false"
+  const emailEnabled = formData.get("EMAIL_NOTIFICATIONS_ENABLED") ? "true" : "false"
 
   try {
-    const upsertSetting = async (key: string, value: string) => {
-      if (value) {
-        await prisma.setting.upsert({
-          where: { key },
-          update: { value },
-          create: { key, value }
-        })
-      }
+    const upsertSetting = async (key: string, value: string | null) => {
+      const val = value !== null && value !== undefined ? value.trim() : ""
+      await prisma.setting.upsert({
+        where: { key },
+        update: { value: val },
+        create: { key, value: val }
+      })
     }
 
-    await upsertSetting("COMPANY_NAME", companyName)
-    await upsertSetting("SUPPORT_EMAIL", supportEmail)
+    await Promise.all([
+      upsertSetting("COMPANY_NAME", companyName),
+      upsertSetting("SUPPORT_EMAIL", supportEmail),
+      upsertSetting("TELEGRAM_BOT_TOKEN", telegramBotToken),
+      upsertSetting("TELEGRAM_CHAT_ID", telegramChatId),
+      upsertSetting("FUV_NOTIFICATION_EMAILS", fuvEmails),
+      upsertSetting("TELEGRAM_NOTIFICATIONS_ENABLED", telegramEnabled),
+      upsertSetting("EMAIL_NOTIFICATIONS_ENABLED", emailEnabled),
+    ])
 
+    revalidatePath("/settings")
     revalidatePath("/")
     return { success: true }
   } catch (error: any) {
     return { success: false, error: error.message }
+  }
+}
+
+export async function testTelegramNotificationAction(token?: string, chatId?: string) {
+  const session = await auth()
+  if (session?.user.role !== "SUPERADMIN") return { success: false, error: "Unauthorized" }
+
+  try {
+    const res = await testTelegramConnection(token || "", chatId || "")
+    return res
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { success: false, error: message }
   }
 }
 

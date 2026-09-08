@@ -2,35 +2,114 @@ import nodemailer from "nodemailer"
 import * as ics from "ics"
 import { format } from "date-fns"
 import path from "path"
+import { prisma } from "@/lib/prisma"
 
-interface EmailOptions {
+export interface EmailOptions {
   to: string[]
   subject: string
   html: string
   icsContent?: string
+  smtpEmailOverride?: string
+  smtpPasswordOverride?: string
 }
 
-export async function sendEmail({ to, subject, html, icsContent }: EmailOptions) {
-  if (!process.env.SMTP_EMAIL || !process.env.SMTP_PASSWORD) {
-    console.warn("SMTP credentials not configured. Skipping email send.")
-    return false
+export interface SendEmailResult {
+  success: boolean
+  error?: string
+}
+
+/**
+ * Retrieve SMTP configuration from database Setting table with fallback to environment variables.
+ */
+export async function getSMTPConfig(): Promise<{
+  email: string
+  password: string
+  isConfigured: boolean
+  source: "database" | "env" | "none"
+}> {
+  try {
+    const settings = await prisma.setting.findMany({
+      where: {
+        key: {
+          in: ["SMTP_EMAIL", "SMTP_PASSWORD"],
+        },
+      },
+    })
+
+    const configMap: Record<string, string> = {}
+    settings.forEach((s) => {
+      configMap[s.key] = s.value
+    })
+
+    const dbEmail = configMap["SMTP_EMAIL"]?.trim() || ""
+    const dbPass = configMap["SMTP_PASSWORD"]?.trim() || ""
+
+    const envEmail = (process.env.SMTP_EMAIL || "").trim()
+    const envPass = (process.env.SMTP_PASSWORD || "").trim()
+
+    const email = dbEmail || envEmail
+    const password = dbPass || envPass
+
+    return {
+      email,
+      password,
+      isConfigured: Boolean(email && password),
+      source: dbEmail && dbPass ? "database" : envEmail && envPass ? "env" : "none",
+    }
+  } catch (err: unknown) {
+    console.error("Failed to read SMTP settings from database:", err)
+    const envEmail = (process.env.SMTP_EMAIL || "").trim()
+    const envPass = (process.env.SMTP_PASSWORD || "").trim()
+    return {
+      email: envEmail,
+      password: envPass,
+      isConfigured: Boolean(envEmail && envPass),
+      source: envEmail && envPass ? "env" : "none",
+    }
+  }
+}
+
+/**
+ * Send emails with full diagnostic error feedback.
+ */
+export async function sendEmailWithDetails({
+  to,
+  subject,
+  html,
+  icsContent,
+  smtpEmailOverride,
+  smtpPasswordOverride,
+}: EmailOptions): Promise<SendEmailResult> {
+  const config = await getSMTPConfig()
+  const user = (smtpEmailOverride?.trim() || config.email).trim()
+  const pass = (smtpPasswordOverride?.trim() || config.password).trim()
+
+  if (!user || !pass) {
+    const missing = !user && !pass ? "Emel Penghantar & Kata Laluan Aplikasi" : !user ? "Emel Penghantar" : "Kata Laluan Aplikasi"
+    return {
+      success: false,
+      error: `Kredensial SMTP tidak lengkap (${missing} tiada). Sila lengkapkan maklumat SMTP di bawah atau di fail .env.`,
+    }
   }
 
-  // Instantiate transporter inside the function to avoid stale sockets in serverless environments
+  // Remove whitespace from Google App Password if user pasted with spaces
+  const cleanPass = pass.replace(/\s+/g, "")
+
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
-      user: process.env.SMTP_EMAIL,
-      pass: process.env.SMTP_PASSWORD,
+      user,
+      pass: cleanPass,
     },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
   })
 
   try {
-    // Send emails individually so Gmail recognizes each recipient directly in the 'To' header.
-    // This is crucial for Gmail to display the native RSVP "Yes/No/Maybe" buttons.
     const promises = to.map(async (email) => {
       const mailOptions: nodemailer.SendMailOptions = {
-        from: `"Sistem Kalendar BubblesO2" <${process.env.SMTP_EMAIL}>`,
+        from: `"BubblesO2 AIO System" <${user}>`,
         to: email,
         subject,
         html,
@@ -48,12 +127,36 @@ export async function sendEmail({ to, subject, html, icsContent }: EmailOptions)
     })
 
     await Promise.all(promises)
-    transporter.close() // Close the connection pool explicitly
-    return true
-  } catch (error) {
+    return { success: true }
+  } catch (error: any) {
     console.error("Error sending email:", error)
-    return false
+    const rawMsg = error?.message || String(error)
+    let friendly = rawMsg
+
+    if (
+      rawMsg.includes("Invalid login") ||
+      rawMsg.includes("535") ||
+      rawMsg.includes("BadCredentials") ||
+      rawMsg.includes("Username and Password not accepted")
+    ) {
+      friendly =
+        "Gmail menolak kata laluan (535 5.7.8 Bad Credentials). Sila pastikan anda menggunakan 16-digit Google App Password (dijana dari akaun Google > Security > 2-Step Verification > App passwords) dan bukannya kata laluan biasa."
+    } else if (rawMsg.includes("ETIMEDOUT") || rawMsg.includes("ECONNECTION") || rawMsg.includes("timeout")) {
+      friendly = "Sambungan ke pelayan Gmail SMTP tamat masa (timeout). Sila semak sambungan internet atau firewall."
+    }
+
+    return { success: false, error: friendly }
+  } finally {
+    transporter.close()
   }
+}
+
+/**
+ * Standard sendEmail returning boolean for backward compatibility.
+ */
+export async function sendEmail(options: EmailOptions): Promise<boolean> {
+  const res = await sendEmailWithDetails(options)
+  return res.success
 }
 
 export function generateIcs(event: {

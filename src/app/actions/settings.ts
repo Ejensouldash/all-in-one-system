@@ -5,7 +5,7 @@ import { auth } from "@/auth"
 import bcrypt from "bcryptjs"
 import { revalidatePath } from "next/cache"
 import { testTelegramConnection, sendTelegramMessage, buildFUVTelegramAlertHtml } from "@/lib/telegram"
-import { sendEmail } from "@/lib/mailer"
+import { sendEmail, sendEmailWithDetails } from "@/lib/mailer"
 import { buildFUVInspectionEmailHtml } from "@/lib/fuv-email"
 
 export async function updateProfile(formData: FormData) {
@@ -42,6 +42,8 @@ export async function updateGlobalSettings(formData: FormData) {
   const telegramBotToken = formData.get("TELEGRAM_BOT_TOKEN") as string
   const telegramChatId = formData.get("TELEGRAM_CHAT_ID") as string
   const fuvEmails = formData.get("FUV_NOTIFICATION_EMAILS") as string
+  const smtpEmail = formData.get("SMTP_EMAIL") as string
+  const smtpPassword = formData.get("SMTP_PASSWORD") as string
   const telegramEnabled = formData.get("TELEGRAM_NOTIFICATIONS_ENABLED") ? "true" : "false"
   const emailEnabled = formData.get("EMAIL_NOTIFICATIONS_ENABLED") ? "true" : "false"
 
@@ -55,15 +57,23 @@ export async function updateGlobalSettings(formData: FormData) {
       })
     }
 
-    await Promise.all([
+    const tasks = [
       upsertSetting("COMPANY_NAME", companyName),
       upsertSetting("SUPPORT_EMAIL", supportEmail),
       upsertSetting("TELEGRAM_BOT_TOKEN", telegramBotToken),
       upsertSetting("TELEGRAM_CHAT_ID", telegramChatId),
       upsertSetting("FUV_NOTIFICATION_EMAILS", fuvEmails),
+      upsertSetting("SMTP_EMAIL", smtpEmail),
       upsertSetting("TELEGRAM_NOTIFICATIONS_ENABLED", telegramEnabled),
       upsertSetting("EMAIL_NOTIFICATIONS_ENABLED", emailEnabled),
-    ])
+    ]
+
+    // Only update SMTP_PASSWORD if user actually provided a new password
+    if (smtpPassword && smtpPassword.trim()) {
+      tasks.push(upsertSetting("SMTP_PASSWORD", smtpPassword.trim().replace(/\s+/g, "")))
+    }
+
+    await Promise.all(tasks)
 
     revalidatePath("/settings")
     revalidatePath("/")
@@ -86,7 +96,11 @@ export async function testTelegramNotificationAction(token?: string, chatId?: st
   }
 }
 
-export async function testEmailNotificationAction(emailListStr?: string) {
+export async function testEmailNotificationAction(
+  emailListStr?: string,
+  smtpEmail?: string,
+  smtpPassword?: string
+) {
   const session = await auth()
   if (session?.user.role !== "SUPERADMIN") return { success: false, error: "Unauthorized" }
 
@@ -101,7 +115,7 @@ export async function testEmailNotificationAction(emailListStr?: string) {
   }
 
   if (emails.length === 0) {
-    return { success: false, error: "Tiada alamat emel yang sah dimasukkan. Sila isi sekurang-kurangnya satu emel." }
+    return { success: false, error: "Tiada alamat emel penerima yang sah dimasukkan. Sila isi sekurang-kurangnya satu emel penerima." }
   }
 
   try {
@@ -117,14 +131,16 @@ export async function testEmailNotificationAction(emailListStr?: string) {
       targetMinute: `${timeFormatted} (Ujian SuperAdmin)`,
     })
 
-    const emailSent = await sendEmail({
+    const result = await sendEmailWithDetails({
       to: emails,
       subject: `🧪 [UJIAN SUPERADMIN] ${subject}`,
       html,
+      smtpEmailOverride: smtpEmail,
+      smtpPasswordOverride: smtpPassword,
     })
 
-    if (!emailSent) {
-      return { success: false, error: "Gagal menghantar emel. Sila pastikan SMTP credentials telah ditetapkan di fail persekitaran (.env)." }
+    if (!result.success) {
+      return { success: false, error: result.error || "Gagal menghantar emel." }
     }
 
     return { success: true, recipients: emails }
@@ -138,10 +154,14 @@ export async function testFUVFullAlertSimulationAction({
   token,
   chatId,
   emailsStr,
+  smtpEmail,
+  smtpPassword,
 }: {
   token?: string
   chatId?: string
   emailsStr?: string
+  smtpEmail?: string
+  smtpPassword?: string
 }) {
   const session = await auth()
   if (session?.user.role !== "SUPERADMIN") return { success: false, error: "Unauthorized" }
@@ -192,7 +212,7 @@ export async function testFUVFullAlertSimulationAction({
 
   // 2. Send Test Email Simulation
   try {
-    const emRes = await testEmailNotificationAction(emailsStr)
+    const emRes = await testEmailNotificationAction(emailsStr, smtpEmail, smtpPassword)
     results.email = emRes
   } catch (e: any) {
     results.email = { success: false, error: e.message }

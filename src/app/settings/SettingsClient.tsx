@@ -29,6 +29,8 @@ import {
   Loader2,
   Info,
   Rocket,
+  Lock,
+  KeyRound,
 } from "lucide-react"
 
 export function ProfileForm({ user }: { user: any }) {
@@ -69,6 +71,9 @@ export function GlobalSettingsForm({ settingsMap }: { settingsMap: Record<string
   const [telegramToken, setTelegramToken] = useState(settingsMap["TELEGRAM_BOT_TOKEN"] || "")
   const [telegramChatId, setTelegramChatId] = useState(settingsMap["TELEGRAM_CHAT_ID"] || "")
   const [fuvEmails, setFuvEmails] = useState(settingsMap["FUV_NOTIFICATION_EMAILS"] || "")
+  const [smtpEmail, setSmtpEmail] = useState(settingsMap["SMTP_EMAIL"] || "")
+  const [smtpPassword, setSmtpPassword] = useState("")
+  const hasSavedSmtpPassword = Boolean(settingsMap["SMTP_PASSWORD"])
 
   const [isTestingTelegram, setIsTestingTelegram] = useState(false)
   const [testResult, setTestResult] = useState<{ success?: boolean; message?: string } | null>(null)
@@ -134,7 +139,7 @@ export function GlobalSettingsForm({ settingsMap }: { settingsMap: Record<string
     setIsTestingEmail(true)
     setEmailTestResult(null)
 
-    const res = await testEmailNotificationAction(fuvEmails)
+    const res = await testEmailNotificationAction(fuvEmails, smtpEmail, smtpPassword)
     setIsTestingEmail(false)
 
     if (res.success) {
@@ -146,7 +151,7 @@ export function GlobalSettingsForm({ settingsMap }: { settingsMap: Record<string
     } else {
       setEmailTestResult({
         success: false,
-        message: `❌ Ujian Emel Gagal: ${res.error || "Sila pastikan SMTP credentials telah dikonfigurasi di .env"}`,
+        message: `❌ Ujian Emel Gagal: ${res.error || "Sila pastikan SMTP credentials telah dikonfigurasi."}`,
       })
     }
   }
@@ -167,6 +172,8 @@ export function GlobalSettingsForm({ settingsMap }: { settingsMap: Record<string
       token: telegramToken,
       chatId: telegramChatId,
       emailsStr: fuvEmails,
+      smtpEmail,
+      smtpPassword,
     })
     setIsTestingFull(false)
 
@@ -365,6 +372,61 @@ export function GlobalSettingsForm({ settingsMap }: { settingsMap: Record<string
               />
               <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-600"></div>
             </label>
+          </div>
+
+          {/* SMTP Gateway Credentials */}
+          <div className="p-4 bg-white border border-gray-200 rounded-xl space-y-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-cyan-700" />
+                <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider">
+                  Kredensial Gerbang SMTP (Gmail / Mail Server)
+                </h4>
+              </div>
+              {hasSavedSmtpPassword ? (
+                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md text-[10px] font-bold">
+                  ✅ Kredensial Tersimpan
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md text-[10px] font-bold">
+                  ⚠️ Belum Ditetapkan
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider">
+                  Emel Penghantar SMTP (Sender Email)
+                </label>
+                <input
+                  type="email"
+                  name="SMTP_EMAIL"
+                  value={smtpEmail}
+                  onChange={(e) => setSmtpEmail(e.target.value)}
+                  placeholder="e.g. admin.it.bubbleso2@gmail.com"
+                  className="w-full px-3 py-2 bg-zinc-50 border border-gray-300 rounded-lg text-xs outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-600 text-gray-900 placeholder:text-gray-400"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider">
+                  Kata Laluan Aplikasi (Google App Password)
+                </label>
+                <input
+                  type="password"
+                  name="SMTP_PASSWORD"
+                  value={smtpPassword}
+                  onChange={(e) => setSmtpPassword(e.target.value)}
+                  placeholder={hasSavedSmtpPassword ? "•••••••• (Kekalkan kata laluan sedia ada)" : "e.g. abcd efgh ijkl mnop (16-digit)"}
+                  className="w-full px-3 py-2 bg-zinc-50 border border-gray-300 rounded-lg text-xs font-mono outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-600 text-gray-900 placeholder:text-gray-400"
+                />
+              </div>
+            </div>
+
+            <p className="text-[11px] text-gray-500 leading-relaxed bg-cyan-50/50 p-2.5 rounded-lg border border-cyan-100/60">
+              💡 <strong>Panduan Gmail SMTP:</strong> Untuk akaun Gmail, gunakan <strong>16-digit Google App Password</strong> yang dijana di akaun Google anda di bawah <em>Security → 2-Step Verification → App passwords</em>. Jangan gunakan kata laluan log masuk peribadi biasa.
+            </p>
           </div>
 
           <div className="space-y-1.5">

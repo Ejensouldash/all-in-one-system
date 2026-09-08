@@ -195,51 +195,80 @@ function getSlotStatus(row: FUVRow): {
   }
 }
 
-export function FUVForm({ userName }: { userName: string }) {
-  const [date, setDate] = useState(() => new Date().toISOString().split("T")[0])
-  const [shift, setShift] = useState<"DAY" | "NIGHT">("DAY")
-  const [checkedBy, setCheckedBy] = useState(userName)
-  const [remarks, setRemarks] = useState("")
-  const [rows, setRows] = useState<FUVRow[]>(() => getDefaultShiftRows("DAY", userName))
+interface FUVFormProps {
+  userName: string
+  initialRecord?: any
+  initialDate?: string
+  initialShift?: "DAY" | "NIGHT"
+}
 
-  // UI state
-  const [activeSlotIndex, setActiveSlotIndex] = useState(0)
+export function FUVForm({
+  userName,
+  initialRecord,
+  initialDate,
+  initialShift,
+}: FUVFormProps) {
+  const [date, setDate] = useState(() => initialDate || new Date().toISOString().split("T")[0])
+  const [shift, setShift] = useState<"DAY" | "NIGHT">(() => initialShift || "DAY")
+  const [checkedBy, setCheckedBy] = useState(() => initialRecord?.checkedBy || userName)
+  const [remarks, setRemarks] = useState(() => initialRecord?.remarks || "")
+  const [existingId, setExistingId] = useState<string | null>(() => initialRecord?.id || null)
+  const [isLocked, setIsLocked] = useState(() => Boolean(initialRecord?.isLocked))
+  const [signature, setSignature] = useState<string | null>(() => initialRecord?.performedSignature || null)
+
+  const [rows, setRows] = useState<FUVRow[]>(() => {
+    const s = initialShift || "DAY"
+    const c = initialRecord?.checkedBy || userName
+    const defaultRows = getDefaultShiftRows(s, c)
+    if (initialRecord && Array.isArray(initialRecord.rows) && initialRecord.rows.length > 0) {
+      const savedRows = initialRecord.rows as FUVRow[]
+      return defaultRows.map((defRow) => {
+        const matched = savedRows.find((r: FUVRow) => r.time === defRow.time)
+        return matched ? { ...defRow, ...matched } : defRow
+      })
+    }
+    return defaultRows
+  })
+
+  // UI state - Synchronously calculate active slot based on current time
+  const [activeSlotIndex, setActiveSlotIndex] = useState(() => {
+    const currentHour = new Date().getHours()
+    const activeShift = initialShift || (currentHour >= 7 && currentHour < 19 ? "DAY" : "NIGHT")
+    if (activeShift === "DAY") {
+      if (currentHour < 9) return 0
+      if (currentHour < 11) return 1
+      if (currentHour < 13) return 2
+      if (currentHour < 15) return 3
+      if (currentHour < 17) return 4
+      return 5
+    } else {
+      if (currentHour >= 19 && currentHour < 21) return 0
+      if (currentHour >= 21 && currentHour < 23) return 1
+      if (currentHour >= 23 || currentHour < 1) return 2
+      if (currentHour < 3) return 3
+      if (currentHour < 5) return 4
+      return 5
+    }
+  })
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards")
   const [copyNotification, setCopyNotification] = useState("")
 
   const [isLoadingRecord, setIsLoadingRecord] = useState(false)
-  const [isLocked, setIsLocked] = useState(false)
-  const [existingId, setExistingId] = useState<string | null>(null)
-  const [signature, setSignature] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
   const [reloadTick, setReloadTick] = useState(0)
 
-  // Determine current slot based on time of day
-  useEffect(() => {
-    const currentHour = new Date().getHours()
-    // Day shift hours: 7-18
-    if (currentHour >= 7 && currentHour < 19) {
-      setShift("DAY")
-      if (currentHour < 9) setActiveSlotIndex(0) // 7.30 am
-      else if (currentHour < 11) setActiveSlotIndex(1) // 9.30 am
-      else if (currentHour < 13) setActiveSlotIndex(2) // 11.30 am
-      else if (currentHour < 15) setActiveSlotIndex(3) // 1.30 pm
-      else if (currentHour < 17) setActiveSlotIndex(4) // 3.30 pm
-      else setActiveSlotIndex(5) // 5.30 pm
-    } else {
-      setShift("NIGHT")
-      if (currentHour >= 19 && currentHour < 21) setActiveSlotIndex(0) // 7.30 pm
-      else if (currentHour >= 21 && currentHour < 23) setActiveSlotIndex(1) // 9.30 pm
-      else if (currentHour >= 23 || currentHour < 1) setActiveSlotIndex(2) // 11.30 pm
-      else if (currentHour < 3) setActiveSlotIndex(3) // 1.30 am
-      else if (currentHour < 5) setActiveSlotIndex(4) // 3.30 am
-      else setActiveSlotIndex(5) // 5.30 am
-    }
-  }, [])
+  const isInitialMount = useRef(true)
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      if (initialDate === date && (initialShift ? initialShift === shift : true)) {
+        return
+      }
+    }
+
     let cancelled = false
 
     async function load() {
@@ -249,7 +278,7 @@ export function FUVForm({ userName }: { userName: string }) {
         const res = await getHazardProcessRecordByDateAndShift(date, shift)
         if (cancelled) return
 
-        if (res.success && res.data) {
+        if (res && res.success && res.data) {
           setExistingId(res.data.id)
           setIsLocked(Boolean(res.data.isLocked))
           setCheckedBy(res.data.checkedBy || userName)
@@ -263,6 +292,8 @@ export function FUVForm({ userName }: { userName: string }) {
             return matched ? { ...defRow, ...matched } : defRow
           })
           setRows(mergedRows)
+        } else if (res && !res.success) {
+          setError(res.error || "Failed to load record for selected date/shift.")
         } else {
           setExistingId(null)
           setIsLocked(false)
@@ -273,8 +304,13 @@ export function FUVForm({ userName }: { userName: string }) {
         }
       } catch (err: unknown) {
         if (!cancelled) {
+          const errMessage = err instanceof Error ? err.message : String(err)
           console.error("Failed to load record:", err)
-          setError("Failed to load record for selected date/shift.")
+          if (errMessage.includes("Server Action") || errMessage.includes("deployment")) {
+            setError("Deployment update detected. Please refresh the page (Ctrl + F5).")
+          } else {
+            setError(errMessage || "Failed to load record for selected date/shift.")
+          }
         }
       } finally {
         if (!cancelled) {
@@ -288,7 +324,7 @@ export function FUVForm({ userName }: { userName: string }) {
     return () => {
       cancelled = true
     }
-  }, [date, shift, userName, reloadTick])
+  }, [date, shift, userName, reloadTick, initialDate, initialShift])
 
   // Draft integration
   const draft = useMaintenanceDraft("fuv", {
@@ -699,9 +735,17 @@ export function FUVForm({ userName }: { userName: string }) {
 
       {error && (
         <div className="bg-red-50 text-red-800 p-4 rounded-xl border border-red-200 font-medium text-sm flex items-center justify-between shadow-sm">
-          <span className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-red-600" /> {error}
-          </span>
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={() => setReloadTick((t) => t + 1)}
+              className="underline ml-3 font-bold text-xs uppercase hover:text-red-950 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
           <button onClick={() => setError("")} className="text-red-500 hover:text-red-700 font-bold ml-4">
             ✕
           </button>

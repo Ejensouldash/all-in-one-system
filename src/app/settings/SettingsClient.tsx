@@ -31,6 +31,7 @@ import {
   Rocket,
   Lock,
   KeyRound,
+  Zap,
 } from "lucide-react"
 
 export function ProfileForm({ user }: { user: any }) {
@@ -74,6 +75,13 @@ export function GlobalSettingsForm({ settingsMap }: { settingsMap: Record<string
   const [smtpEmail, setSmtpEmail] = useState(settingsMap["SMTP_EMAIL"] || "")
   const [smtpPassword, setSmtpPassword] = useState("")
   const hasSavedSmtpPassword = Boolean(settingsMap["SMTP_PASSWORD"])
+
+  const [resendApiKey, setResendApiKey] = useState("")
+  const hasSavedResendApiKey = Boolean(settingsMap["RESEND_API_KEY"])
+  const [resendFromEmail, setResendFromEmail] = useState(settingsMap["RESEND_FROM_EMAIL"] || "")
+  const [emailProvider, setEmailProvider] = useState<"resend" | "smtp">(
+    settingsMap["RESEND_API_KEY"] || !settingsMap["SMTP_EMAIL"] ? "resend" : "smtp"
+  )
 
   const [isTestingTelegram, setIsTestingTelegram] = useState(false)
   const [testResult, setTestResult] = useState<{ success?: boolean; message?: string } | null>(null)
@@ -139,7 +147,13 @@ export function GlobalSettingsForm({ settingsMap }: { settingsMap: Record<string
     setIsTestingEmail(true)
     setEmailTestResult(null)
 
-    const res = await testEmailNotificationAction(fuvEmails, smtpEmail, smtpPassword)
+    const res = await testEmailNotificationAction(
+      fuvEmails,
+      smtpEmail,
+      smtpPassword,
+      resendApiKey,
+      resendFromEmail
+    )
     setIsTestingEmail(false)
 
     if (res.success) {
@@ -151,7 +165,7 @@ export function GlobalSettingsForm({ settingsMap }: { settingsMap: Record<string
     } else {
       setEmailTestResult({
         success: false,
-        message: `❌ Ujian Emel Gagal: ${res.error || "Sila pastikan SMTP credentials telah dikonfigurasi."}`,
+        message: `❌ Ujian Emel Gagal: ${res.error || "Sila pastikan kredensial Resend / SMTP telah dikonfigurasi."}`,
       })
     }
   }
@@ -174,6 +188,8 @@ export function GlobalSettingsForm({ settingsMap }: { settingsMap: Record<string
       emailsStr: fuvEmails,
       smtpEmail,
       smtpPassword,
+      resendApiKey,
+      resendFrom: resendFromEmail,
     })
     setIsTestingFull(false)
 
@@ -374,59 +390,150 @@ export function GlobalSettingsForm({ settingsMap }: { settingsMap: Record<string
             </label>
           </div>
 
-          {/* SMTP Gateway Credentials */}
-          <div className="p-4 bg-white border border-gray-200 rounded-xl space-y-3.5">
-            <div className="flex items-center justify-between">
+          {/* Email Provider Selection & Credentials */}
+          <div className="p-4 bg-white border border-gray-200 rounded-xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
               <div className="flex items-center gap-2">
                 <Lock className="w-4 h-4 text-cyan-700" />
                 <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider">
-                  Kredensial Gerbang SMTP (Gmail / Mail Server)
+                  Konfigurasi Penghantar Emel
                 </h4>
               </div>
-              {hasSavedSmtpPassword ? (
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md text-[10px] font-bold">
-                  ✅ Kredensial Tersimpan
-                </span>
-              ) : (
-                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md text-[10px] font-bold">
-                  ⚠️ Belum Ditetapkan
-                </span>
-              )}
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider">
-                  Emel Penghantar SMTP (Sender Email)
-                </label>
-                <input
-                  type="email"
-                  name="SMTP_EMAIL"
-                  value={smtpEmail}
-                  onChange={(e) => setSmtpEmail(e.target.value)}
-                  placeholder="e.g. admin.it.bubbleso2@gmail.com"
-                  className="w-full px-3 py-2 bg-zinc-50 border border-gray-300 rounded-lg text-xs outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-600 text-gray-900 placeholder:text-gray-400"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider">
-                  Kata Laluan Aplikasi (Google App Password)
-                </label>
-                <input
-                  type="password"
-                  name="SMTP_PASSWORD"
-                  value={smtpPassword}
-                  onChange={(e) => setSmtpPassword(e.target.value)}
-                  placeholder={hasSavedSmtpPassword ? "•••••••• (Kekalkan kata laluan sedia ada)" : "e.g. abcd efgh ijkl mnop (16-digit)"}
-                  className="w-full px-3 py-2 bg-zinc-50 border border-gray-300 rounded-lg text-xs font-mono outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-600 text-gray-900 placeholder:text-gray-400"
-                />
+              {/* Provider Selector Tabs */}
+              <div className="flex items-center p-1 bg-zinc-100 rounded-lg text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setEmailProvider("resend")}
+                  className={`px-3 py-1 rounded-md transition-all flex items-center gap-1.5 ${
+                    emailProvider === "resend"
+                      ? "bg-white text-cyan-800 shadow-xs"
+                      : "text-zinc-600 hover:text-zinc-900"
+                  }`}
+                >
+                  <Zap className="w-3.5 h-3.5 text-amber-500" /> Resend API (Disyorkan ⭐)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEmailProvider("smtp")}
+                  className={`px-3 py-1 rounded-md transition-all flex items-center gap-1.5 ${
+                    emailProvider === "smtp"
+                      ? "bg-white text-cyan-800 shadow-xs"
+                      : "text-zinc-600 hover:text-zinc-900"
+                  }`}
+                >
+                  <Mail className="w-3.5 h-3.5 text-cyan-600" /> Gmail SMTP
+                </button>
               </div>
             </div>
 
-            <p className="text-[11px] text-gray-500 leading-relaxed bg-cyan-50/50 p-2.5 rounded-lg border border-cyan-100/60">
-              💡 <strong>Panduan Gmail SMTP:</strong> Untuk akaun Gmail, gunakan <strong>16-digit Google App Password</strong> yang dijana di akaun Google anda di bawah <em>Security → 2-Step Verification → App passwords</em>. Jangan gunakan kata laluan log masuk peribadi biasa.
-            </p>
+            {emailProvider === "resend" ? (
+              <div className="space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-zinc-700">Resend Developer Service</span>
+                  {hasSavedResendApiKey ? (
+                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md text-[10px] font-bold">
+                      ✅ Resend API Key Tersimpan
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md text-[10px] font-bold">
+                      ⚠️ Belum Ditetapkan
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider">
+                      Resend API Key
+                    </label>
+                    <input
+                      type="password"
+                      name="RESEND_API_KEY"
+                      value={resendApiKey}
+                      onChange={(e) => setResendApiKey(e.target.value)}
+                      placeholder={hasSavedResendApiKey ? "•••••••• (Kekalkan API Key sedia ada)" : "e.g. re_1234567890abcdef..."}
+                      className="w-full px-3 py-2 bg-zinc-50 border border-gray-300 rounded-lg text-xs font-mono outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-600 text-gray-900 placeholder:text-gray-400"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider">
+                      Emel Penghantar (Sender / From)
+                    </label>
+                    <input
+                      type="text"
+                      name="RESEND_FROM_EMAIL"
+                      value={resendFromEmail}
+                      onChange={(e) => setResendFromEmail(e.target.value)}
+                      placeholder="e.g. BubblesO2 Alerts <onboarding@resend.dev>"
+                      className="w-full px-3 py-2 bg-zinc-50 border border-gray-300 rounded-lg text-xs outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-600 text-gray-900 placeholder:text-gray-400"
+                    />
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-zinc-600 leading-relaxed bg-amber-50/70 p-3 rounded-xl border border-amber-200/80 space-y-1">
+                  <div className="font-bold text-amber-900 flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-amber-600" /> Mengapa guna Resend? (100% Bebas Risiko Ban Google)
+                  </div>
+                  <p>
+                    Resend menyediakan <strong>3,000 emel percuma setiap bulan</strong>. Tiada kata laluan peribadi diperlukan dan tiada risiko akaun disekat kerana menggunakan token API rasmi.
+                  </p>
+                  <p className="text-[10px] text-amber-800/90 pt-0.5">
+                    📌 <strong>Langkah Pantas:</strong> Daftar di <a href="https://resend.com" target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-900 hover:text-black">resend.com</a> → Cipta API Key di menu <em>API Keys</em> → Tampal di sini. Gunakan <code>onboarding@resend.dev</code> untuk ujian pantas!
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-zinc-700">Gmail SMTP Gateway</span>
+                  {hasSavedSmtpPassword ? (
+                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md text-[10px] font-bold">
+                      ✅ Kredensial Tersimpan
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md text-[10px] font-bold">
+                      ⚠️ Belum Ditetapkan
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider">
+                      Emel Penghantar SMTP (Sender Email)
+                    </label>
+                    <input
+                      type="email"
+                      name="SMTP_EMAIL"
+                      value={smtpEmail}
+                      onChange={(e) => setSmtpEmail(e.target.value)}
+                      placeholder="e.g. admin.it.bubbleso2@gmail.com"
+                      className="w-full px-3 py-2 bg-zinc-50 border border-gray-300 rounded-lg text-xs outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-600 text-gray-900 placeholder:text-gray-400"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider">
+                      Kata Laluan Aplikasi (Google App Password)
+                    </label>
+                    <input
+                      type="password"
+                      name="SMTP_PASSWORD"
+                      value={smtpPassword}
+                      onChange={(e) => setSmtpPassword(e.target.value)}
+                      placeholder={hasSavedSmtpPassword ? "•••••••• (Kekalkan kata laluan sedia ada)" : "e.g. abcd efgh ijkl mnop (16-digit)"}
+                      className="w-full px-3 py-2 bg-zinc-50 border border-gray-300 rounded-lg text-xs font-mono outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-600 text-gray-900 placeholder:text-gray-400"
+                    />
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-gray-500 leading-relaxed bg-cyan-50/50 p-2.5 rounded-lg border border-cyan-100/60">
+                  💡 <strong>Panduan Gmail SMTP:</strong> Untuk akaun Gmail, gunakan <strong>16-digit Google App Password</strong> yang dijana di akaun Google anda di bawah <em>Security → 2-Step Verification → App passwords</em>. Jangan gunakan kata laluan log masuk peribadi biasa.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-1.5">

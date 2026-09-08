@@ -44,6 +44,8 @@ export async function updateGlobalSettings(formData: FormData) {
   const fuvEmails = formData.get("FUV_NOTIFICATION_EMAILS") as string
   const smtpEmail = formData.get("SMTP_EMAIL") as string
   const smtpPassword = formData.get("SMTP_PASSWORD") as string
+  const resendApiKey = formData.get("RESEND_API_KEY") as string
+  const resendFrom = formData.get("RESEND_FROM_EMAIL") as string
   const telegramEnabled = formData.get("TELEGRAM_NOTIFICATIONS_ENABLED") ? "true" : "false"
   const emailEnabled = formData.get("EMAIL_NOTIFICATIONS_ENABLED") ? "true" : "false"
 
@@ -64,6 +66,7 @@ export async function updateGlobalSettings(formData: FormData) {
       upsertSetting("TELEGRAM_CHAT_ID", telegramChatId),
       upsertSetting("FUV_NOTIFICATION_EMAILS", fuvEmails),
       upsertSetting("SMTP_EMAIL", smtpEmail),
+      upsertSetting("RESEND_FROM_EMAIL", resendFrom),
       upsertSetting("TELEGRAM_NOTIFICATIONS_ENABLED", telegramEnabled),
       upsertSetting("EMAIL_NOTIFICATIONS_ENABLED", emailEnabled),
     ]
@@ -71,6 +74,11 @@ export async function updateGlobalSettings(formData: FormData) {
     // Only update SMTP_PASSWORD if user actually provided a new password
     if (smtpPassword && smtpPassword.trim()) {
       tasks.push(upsertSetting("SMTP_PASSWORD", smtpPassword.trim().replace(/\s+/g, "")))
+    }
+
+    // Only update RESEND_API_KEY if user actually provided a new key
+    if (resendApiKey && resendApiKey.trim()) {
+      tasks.push(upsertSetting("RESEND_API_KEY", resendApiKey.trim()))
     }
 
     await Promise.all(tasks)
@@ -99,7 +107,9 @@ export async function testTelegramNotificationAction(token?: string, chatId?: st
 export async function testEmailNotificationAction(
   emailListStr?: string,
   smtpEmail?: string,
-  smtpPassword?: string
+  smtpPassword?: string,
+  resendApiKey?: string,
+  resendFrom?: string
 ) {
   const session = await auth()
   if (session?.user.role !== "SUPERADMIN") return { success: false, error: "Unauthorized" }
@@ -137,6 +147,8 @@ export async function testEmailNotificationAction(
       html,
       smtpEmailOverride: smtpEmail,
       smtpPasswordOverride: smtpPassword,
+      resendApiKeyOverride: resendApiKey,
+      resendFromOverride: resendFrom,
     })
 
     if (!result.success) {
@@ -156,12 +168,16 @@ export async function testFUVFullAlertSimulationAction({
   emailsStr,
   smtpEmail,
   smtpPassword,
+  resendApiKey,
+  resendFrom,
 }: {
   token?: string
   chatId?: string
   emailsStr?: string
   smtpEmail?: string
   smtpPassword?: string
+  resendApiKey?: string
+  resendFrom?: string
 }) {
   const session = await auth()
   if (session?.user.role !== "SUPERADMIN") return { success: false, error: "Unauthorized" }
@@ -212,7 +228,7 @@ export async function testFUVFullAlertSimulationAction({
 
   // 2. Send Test Email Simulation
   try {
-    const emRes = await testEmailNotificationAction(emailsStr, smtpEmail, smtpPassword)
+    const emRes = await testEmailNotificationAction(emailsStr, smtpEmail, smtpPassword, resendApiKey, resendFrom)
     results.email = emRes
   } catch (e: any) {
     results.email = { success: false, error: e.message }

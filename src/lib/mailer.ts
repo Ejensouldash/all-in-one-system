@@ -4,6 +4,8 @@ import { format } from "date-fns"
 import path from "path"
 import { prisma } from "@/lib/prisma"
 
+import { Resend } from "resend"
+
 export interface EmailOptions {
   to: string[]
   subject: string
@@ -11,6 +13,8 @@ export interface EmailOptions {
   icsContent?: string
   smtpEmailOverride?: string
   smtpPasswordOverride?: string
+  resendApiKeyOverride?: string
+  resendFromOverride?: string
 }
 
 export interface SendEmailResult {
@@ -19,19 +23,21 @@ export interface SendEmailResult {
 }
 
 /**
- * Retrieve SMTP configuration from database Setting table with fallback to environment variables.
+ * Retrieve Email and SMTP configuration from database Setting table with fallback to environment variables.
  */
 export async function getSMTPConfig(): Promise<{
   email: string
   password: string
+  resendApiKey: string
+  resendFrom: string
   isConfigured: boolean
-  source: "database" | "env" | "none"
+  source: "resend" | "database" | "env" | "none"
 }> {
   try {
     const settings = await prisma.setting.findMany({
       where: {
         key: {
-          in: ["SMTP_EMAIL", "SMTP_PASSWORD"],
+          in: ["SMTP_EMAIL", "SMTP_PASSWORD", "RESEND_API_KEY", "RESEND_FROM_EMAIL"],
         },
       },
     })
@@ -41,36 +47,63 @@ export async function getSMTPConfig(): Promise<{
       configMap[s.key] = s.value
     })
 
+    const dbResendKey = configMap["RESEND_API_KEY"]?.trim() || ""
+    const dbResendFrom = configMap["RESEND_FROM_EMAIL"]?.trim() || ""
+    const envResendKey = (process.env.RESEND_API_KEY || "").trim()
+    const envResendFrom = (process.env.RESEND_FROM_EMAIL || "").trim()
+
+    const resendApiKey = dbResendKey || envResendKey
+    const resendFrom = dbResendFrom || envResendFrom
+
     const dbEmail = configMap["SMTP_EMAIL"]?.trim() || ""
     const dbPass = configMap["SMTP_PASSWORD"]?.trim() || ""
-
     const envEmail = (process.env.SMTP_EMAIL || "").trim()
     const envPass = (process.env.SMTP_PASSWORD || "").trim()
 
     const email = dbEmail || envEmail
     const password = dbPass || envPass
 
+    const isResendConfigured = Boolean(resendApiKey)
+    const isSmtpConfigured = Boolean(email && password)
+
+    let source: "resend" | "database" | "env" | "none" = "none"
+    if (isResendConfigured) {
+      source = "resend"
+    } else if (dbEmail && dbPass) {
+      source = "database"
+    } else if (envEmail && envPass) {
+      source = "env"
+    }
+
     return {
       email,
       password,
-      isConfigured: Boolean(email && password),
-      source: dbEmail && dbPass ? "database" : envEmail && envPass ? "env" : "none",
+      resendApiKey,
+      resendFrom,
+      isConfigured: isResendConfigured || isSmtpConfigured,
+      source,
     }
   } catch (err: unknown) {
-    console.error("Failed to read SMTP settings from database:", err)
+    console.error("Failed to read Email/SMTP settings from database:", err)
     const envEmail = (process.env.SMTP_EMAIL || "").trim()
     const envPass = (process.env.SMTP_PASSWORD || "").trim()
+    const envResendKey = (process.env.RESEND_API_KEY || "").trim()
+    const envResendFrom = (process.env.RESEND_FROM_EMAIL || "").trim()
+
     return {
       email: envEmail,
       password: envPass,
-      isConfigured: Boolean(envEmail && envPass),
-      source: envEmail && envPass ? "env" : "none",
+      resendApiKey: envResendKey,
+      resendFrom: envResendFrom,
+      isConfigured: Boolean(envResendKey || (envEmail && envPass)),
+      source: envResendKey ? "resend" : envEmail && envPass ? "env" : "none",
     }
   }
 }
 
 /**
  * Send emails with full diagnostic error feedback.
+ * Supports Resend API (modern, reliable) and Gmail SMTP fallback.
  */
 export async function sendEmailWithDetails({
   to,
@@ -79,16 +112,50 @@ export async function sendEmailWithDetails({
   icsContent,
   smtpEmailOverride,
   smtpPasswordOverride,
+  resendApiKeyOverride,
+  resendFromOverride,
 }: EmailOptions): Promise<SendEmailResult> {
   const config = await getSMTPConfig()
+
+  // 1. PRIORITY: Check if Resend API is provided
+  const activeResendKey = (resendApiKeyOverride?.trim() || config.resendApiKey).trim()
+  if (activeResendKey) {
+    try {
+      const resend = new Resend(activeResendKey)
+      const sender = (resendFromOverride?.trim() || config.resendFrom || "BubblesO2 System <onboarding@resend.dev>").trim()
+
+      const { data, error } = await resend.emails.send({
+        from: sender,
+        to,
+        subject,
+        html,
+      })
+
+      if (error) {
+        console.error("Resend API error:", error)
+        let friendly = error.message || "Ralat penghantaran emel daripada Resend."
+        if (friendly.includes("not verified") || friendly.includes("validation_error")) {
+          friendly = `Resend Error: Domain '${sender}' belum disahkan di Resend. Untuk ujian pantas tanpa domain, gunakan penghantar 'onboarding@resend.dev' dan hantar ke alamat emel pendaftaran akaun Resend anda.`
+        }
+        return { success: false, error: friendly }
+      }
+
+      return { success: true }
+    } catch (err: unknown) {
+      console.error("Resend send error:", err)
+      const rawMsg = err instanceof Error ? err.message : String(err)
+      return { success: false, error: `Ralat perkhidmatan Resend: ${rawMsg}` }
+    }
+  }
+
+  // 2. FALLBACK: Gmail SMTP Transporter
   const user = (smtpEmailOverride?.trim() || config.email).trim()
   const pass = (smtpPasswordOverride?.trim() || config.password).trim()
 
   if (!user || !pass) {
-    const missing = !user && !pass ? "Emel Penghantar & Kata Laluan Aplikasi" : !user ? "Emel Penghantar" : "Kata Laluan Aplikasi"
     return {
       success: false,
-      error: `Kredensial SMTP tidak lengkap (${missing} tiada). Sila lengkapkan maklumat SMTP di bawah atau di fail .env.`,
+      error: `Kredensial emel tidak lengkap. Sila masukkan Resend API Key ATAU maklumat Gmail SMTP (Emel & Google App Password).`,
     }
   }
 
@@ -129,7 +196,7 @@ export async function sendEmailWithDetails({
     await Promise.all(promises)
     return { success: true }
   } catch (error: any) {
-    console.error("Error sending email:", error)
+    console.error("Error sending email via SMTP:", error)
     const rawMsg = error?.message || String(error)
     let friendly = rawMsg
 

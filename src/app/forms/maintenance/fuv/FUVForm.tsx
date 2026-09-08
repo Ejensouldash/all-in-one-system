@@ -274,7 +274,7 @@ export function FUVForm({ userName }: { userName: string }) {
       } catch (err: unknown) {
         if (!cancelled) {
           console.error("Failed to load record:", err)
-          setError("Gagal memuat rekod bagi tarikh/syif yang dipilih.")
+          setError("Failed to load record for selected date/shift.")
         }
       } finally {
         if (!cancelled) {
@@ -372,14 +372,14 @@ export function FUVForm({ userName }: { userName: string }) {
     })
 
     setCopyNotification(
-      `Semua nilai dari slot ${prevRow.time} telah berjaya disalin ke slot ${rows[currentIdx].time}!`
+      `All values from slot ${prevRow.time} successfully copied to slot ${rows[currentIdx].time}!`
     )
     setTimeout(() => setCopyNotification(""), 4500)
   }
 
   function handleClearSlot(index: number) {
     if (isLocked) return
-    if (!confirm(`Adakah anda pasti untuk mengosongkan semua bacaan bagi slot ${rows[index].time}?`)) {
+    if (!confirm(`Are you sure you want to clear all readings for time slot ${rows[index].time}?`)) {
       return
     }
     setRows((prev) => {
@@ -400,12 +400,12 @@ export function FUVForm({ userName }: { userName: string }) {
 
   async function handleSubmit() {
     if (isLocked) {
-      setError("Rekod ini telah disahkan dan dikunci oleh Penyelia / QC.")
+      setError("This record has been verified and locked by Supervisor / QC.")
       return
     }
 
     if (!signature) {
-      setError("Tandatangan digital diperlukan sebelum menghantar borang.")
+      setError("Digital signature is required before submitting the form.")
       const sigElement = document.getElementById("signature-section")
       if (sigElement) sigElement.scrollIntoView({ behavior: "smooth" })
       return
@@ -413,7 +413,7 @@ export function FUVForm({ userName }: { userName: string }) {
 
     if (ccpViolated && !remarks.trim()) {
       setError(
-        "AMARAN CCP: Terdapat parameter CCP yang melebihi/di luar had piawai. Anda WAJIB mengisi ruangan Catatan / Tindakan Pembetulan (Corrective Action) sebelum menghantar!"
+        "CCP ALERT: One or more CCP parameters are outside safe operating limits. You MUST fill in the Remarks / Corrective Actions field before submitting!"
       )
       const remarksElement = document.getElementById("remarks-section")
       if (remarksElement) remarksElement.scrollIntoView({ behavior: "smooth" })
@@ -440,7 +440,7 @@ export function FUVForm({ userName }: { userName: string }) {
       setSuccess(true)
       window.scrollTo({ top: 0, behavior: "smooth" })
     } else {
-      setError(res.error || "Gagal menyimpan rekod.")
+      setError(res.error || "Failed to save record.")
     }
 
     setIsSubmitting(false)
@@ -456,15 +456,13 @@ export function FUVForm({ userName }: { userName: string }) {
           <CheckCircle2 className="w-10 h-10" />
         </div>
         <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-black uppercase tracking-wider rounded-full inline-block mb-3">
-          Rekod Berjaya Dihantar
+          Record Successfully Submitted
         </span>
         <h2 className="text-2xl sm:text-3xl font-black text-gray-900 uppercase tracking-tight mb-2">
-          Hazard & Process Control Disimpan!
+          Hazard & Process Control Saved!
         </h2>
         <p className="text-gray-600 text-sm mb-6 leading-relaxed">
-          Borang SGMP/19/FUV bagi tarikh <strong>{date}</strong> (Syif{" "}
-          <strong>{shift === "DAY" ? "Pagi" : "Malam"}</strong>) telah selamat direkodkan ke dalam
-          pangkalan data bersama tandatangan digital anda.
+          SGMP/19/FUV record for <strong>{date}</strong> (<strong>{shift === "DAY" ? "Day Shift" : "Night Shift"}</strong>) has been securely saved into the database with your digital signature.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
@@ -474,13 +472,13 @@ export function FUVForm({ userName }: { userName: string }) {
             }}
             className="w-full sm:w-auto px-6 py-3 bg-cyan-700 hover:bg-cyan-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md"
           >
-            Kemas Kini Rekod Ini
+            Edit This Record
           </button>
           <Link
             href="/forms/maintenance/reports/fuv"
             className="w-full sm:w-auto px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-black uppercase tracking-wider transition-colors"
           >
-            Buka Laporan Bulanan (Audit View)
+            View Monthly Report (Audit View)
           </Link>
         </div>
       </div>
@@ -489,7 +487,7 @@ export function FUVForm({ userName }: { userName: string }) {
 
   return (
     <div className="space-y-6">
-      {/* 1. Official GMP Document Header (Paper-like Card Style) */}
+      {/* 1. Official Document Header (Paper-like Card Style) */}
       <div className="bg-white rounded-3xl shadow-md border border-gray-200 overflow-hidden">
         <div className="bg-gradient-to-r from-slate-900 via-cyan-950 to-blue-950 text-white p-6 sm:p-8">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -497,7 +495,7 @@ export function FUVForm({ userName }: { userName: string }) {
               <Link
                 href="/forms/maintenance"
                 className="p-2.5 bg-white/10 hover:bg-white/20 rounded-2xl transition-colors backdrop-blur-sm mt-1"
-                title="Kembali ke Menu GMP"
+                title="Back to Maintenance Forms"
               >
                 <ChevronLeft className="w-5 h-5 text-white" />
               </Link>
@@ -509,12 +507,9 @@ export function FUVForm({ userName }: { userName: string }) {
                   <span className="px-2.5 py-1 bg-white/10 text-white/90 rounded-full text-xs font-bold uppercase">
                     Rev 4
                   </span>
-                  <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-full text-xs font-bold uppercase flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5" /> GMP KKM Compliant
-                  </span>
                   {isLocked && (
                     <span className="flex items-center px-2.5 py-1 bg-amber-500/30 text-amber-200 border border-amber-400/30 rounded-full text-xs font-black uppercase">
-                      <Lock className="w-3.5 h-3.5 mr-1" /> Terkunci (Audit-Proof)
+                      <Lock className="w-3.5 h-3.5 mr-1" /> Locked (Audit-Proof)
                     </span>
                   )}
                 </div>
@@ -523,7 +518,7 @@ export function FUVForm({ userName }: { userName: string }) {
                   Hazard and Process Control Records
                 </h1>
                 <p className="text-xs sm:text-sm text-cyan-100/80 font-medium mt-1">
-                  Bahagian GMP - Production • BUBBLES O2 SDN BHD, Kompleks Al-Ammar, Rantau
+                  GMP - Production • BUBBLES O2 SDN BHD, Kompleks Al-Ammar, Rantau
                 </p>
               </div>
             </div>
@@ -534,7 +529,7 @@ export function FUVForm({ userName }: { userName: string }) {
                 href="/forms/maintenance/reports/fuv"
                 className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase rounded-xl transition-all border border-white/20 backdrop-blur-sm flex items-center gap-1.5"
               >
-                <FileText className="w-4 h-4" /> Laporan & Cetakan
+                <FileText className="w-4 h-4" /> Reports & Print
               </Link>
             </div>
           </div>
@@ -542,19 +537,19 @@ export function FUVForm({ userName }: { userName: string }) {
           {/* Quick Doc Control Chips */}
           <div className="mt-6 pt-4 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-white/70">
             <div>
-              <span className="text-white/40 block text-[10px] uppercase font-bold">No. Rujukan</span>
+              <span className="text-white/40 block text-[10px] uppercase font-bold">Rec. No</span>
               <strong className="text-white font-mono">SGMP/19/FUV</strong>
             </div>
             <div>
-              <span className="text-white/40 block text-[10px] uppercase font-bold">Tarikh Kuat Kuasa</span>
+              <span className="text-white/40 block text-[10px] uppercase font-bold">Effective Date</span>
               <strong className="text-white">02/03/2026</strong>
             </div>
             <div>
-              <span className="text-white/40 block text-[10px] uppercase font-bold">Kitaran Pemeriksaan</span>
-              <strong className="text-white">Setiap 2 Jam (6 Slot / Syif)</strong>
+              <span className="text-white/40 block text-[10px] uppercase font-bold">Inspection Frequency</span>
+              <strong className="text-white">Every 2 Hours (6 Slots / Shift)</strong>
             </div>
             <div>
-              <span className="text-white/40 block text-[10px] uppercase font-bold">Titik Kawalan Kritikal</span>
+              <span className="text-white/40 block text-[10px] uppercase font-bold">Critical Control Points</span>
               <strong className="text-amber-300">CCP1 (PG02/PG05) & CCP2 (UV)</strong>
             </div>
           </div>
@@ -565,7 +560,7 @@ export function FUVForm({ userName }: { userName: string }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-end">
             <div>
               <label className="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1.5">
-                Tarikh Pemeriksaan (Date) <span className="text-red-500">*</span>
+                Inspection Date <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
@@ -578,7 +573,7 @@ export function FUVForm({ userName }: { userName: string }) {
 
             <div>
               <label className="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1.5">
-                Pilihan Syif Kerja (Shift) <span className="text-red-500">*</span>
+                Shift Selection <span className="text-red-500">*</span>
               </label>
               <div className="grid grid-cols-2 gap-2 bg-gray-200 p-1 rounded-xl">
                 <button
@@ -594,7 +589,7 @@ export function FUVForm({ userName }: { userName: string }) {
                       : "text-gray-600 hover:text-gray-900"
                   } disabled:opacity-60`}
                 >
-                  <Sun className="w-4 h-4 text-amber-100" /> Syif Pagi (Day)
+                  <Sun className="w-4 h-4 text-amber-100" /> Day Shift
                 </button>
                 <button
                   type="button"
@@ -609,21 +604,21 @@ export function FUVForm({ userName }: { userName: string }) {
                       : "text-gray-600 hover:text-gray-900"
                   } disabled:opacity-60`}
                 >
-                  <Moon className="w-4 h-4 text-indigo-200" /> Syif Malam (Night)
+                  <Moon className="w-4 h-4 text-indigo-200" /> Night Shift
                 </button>
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1.5">
-                Pemeriksa Bertugas (Checked By) <span className="text-red-500">*</span>
+                Checked By <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={checkedBy}
                 disabled={isLocked}
                 onChange={(e) => setCheckedBy(e.target.value)}
-                placeholder="Nama Operator / Pemeriksa"
+                placeholder="Operator / Inspector Name"
                 className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-600 disabled:opacity-60 shadow-sm"
               />
             </div>
@@ -633,11 +628,11 @@ export function FUVForm({ userName }: { userName: string }) {
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-cyan-600" />
               <span>
-                Waktu Bertugas: <strong>{shift === "DAY" ? "07:30 AM – 05:30 PM" : "07:30 PM – 05:30 AM"}</strong>
+                Shift Hours: <strong>{shift === "DAY" ? "07:30 AM – 05:30 PM" : "07:30 PM – 05:30 AM"}</strong>
               </span>
               <span className="text-gray-300">•</span>
               <span>
-                Status Syif: <strong>{completedSlotsCount} dari 6 Slot Selesai</strong>
+                Shift Status: <strong>{completedSlotsCount} of 6 Slots Completed</strong>
               </span>
             </div>
 
@@ -652,7 +647,7 @@ export function FUVForm({ userName }: { userName: string }) {
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                <LayoutGrid className="w-3.5 h-3.5" /> Mod Kad Slot (Fokus)
+                <LayoutGrid className="w-3.5 h-3.5" /> Focus Cards Mode
               </button>
               <button
                 type="button"
@@ -663,7 +658,7 @@ export function FUVForm({ userName }: { userName: string }) {
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                <Table className="w-3.5 h-3.5" /> Jadual Matriks Penuh
+                <Table className="w-3.5 h-3.5" /> Full Matrix Table
               </button>
             </div>
           </div>
@@ -677,9 +672,9 @@ export function FUVForm({ userName }: { userName: string }) {
         <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 flex items-start gap-3 text-amber-900 shadow-sm">
           <Lock className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
           <div className="text-sm">
-            <p className="font-bold">Rekod ini telah disahkan dan dikunci oleh Penyelia / QC.</p>
+            <p className="font-bold">This record has been verified and locked by Supervisor / QC.</p>
             <p className="text-xs text-amber-800 mt-0.5">
-              Sebarang pengubahsuaian tidak dibenarkan bagi mematuhi syarat kawalan audit GMP & KKM.
+              Modifications are strictly prohibited to comply with audit standards.
             </p>
           </div>
         </div>
@@ -691,12 +686,12 @@ export function FUVForm({ userName }: { userName: string }) {
           <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5 animate-bounce" />
           <div className="text-sm">
             <h4 className="font-black uppercase tracking-tight text-red-800 text-base">
-              AMARAN KRITIKAL: Pelanggaran Had CCP Dikesan!
+              CRITICAL ALERT: CCP Limit Breach Detected!
             </h4>
             <p className="text-xs text-red-700 mt-1 leading-relaxed">
-              Terdapat bacaan parameter CCP di luar julat selamat (PG02 &gt; 3.0 Bar, PG05 &gt; 2.0 Bar, atau UV Intensity &lt; 80% / &gt; 99%).
-              Bagi mematuhi syarat audit HACCP & GMP, anda <strong>WAJIB</strong> memasukkan penerangan tindakan
-              pembetulan di bahagian <em>Catatan / Tindakan Pembetulan</em> di bawah sebelum menghantar borang.
+              One or more CCP parameters are outside safe operating limits (PG02 &gt; 3.0 Bar, PG05 &gt; 2.0 Bar, or UV Intensity &lt; 80% / &gt; 99%).
+              In accordance with HACCP & GMP audit requirements, you <strong>MUST</strong> provide a corrective action explanation in the
+              <em>Remarks / Corrective Actions</em> section below before submitting this record.
             </p>
           </div>
         </div>
@@ -727,10 +722,10 @@ export function FUVForm({ userName }: { userName: string }) {
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200">
             <div className="flex items-center justify-between mb-3 px-1">
               <span className="text-xs font-black uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-cyan-600" /> Pilih Slot Masa Pemeriksaan:
+                <Clock className="w-4 h-4 text-cyan-600" /> Select Inspection Time Slot:
               </span>
               <span className="text-[11px] font-bold text-gray-500">
-                Klik mana-mana slot untuk mula mengisi
+                Click any slot to begin inspection
               </span>
             </div>
 
@@ -759,7 +754,7 @@ export function FUVForm({ userName }: { userName: string }) {
                         {row.time}
                       </span>
                       {status.hasBreach ? (
-                        <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" title="Pelanggaran CCP" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" title="CCP Breach" />
                       ) : status.isOff ? (
                         <span className="px-1.5 py-0.5 rounded bg-gray-200 text-gray-600 text-[9px] font-bold uppercase">
                           OFF
@@ -776,16 +771,16 @@ export function FUVForm({ userName }: { userName: string }) {
                     <div className="flex items-center justify-between text-[10px] font-bold">
                       {status.hasBreach ? (
                         <span className="text-red-600 flex items-center gap-0.5">
-                          <AlertTriangle className="w-3 h-3" /> Amaran CCP
+                          <AlertTriangle className="w-3 h-3" /> CCP Alert
                         </span>
                       ) : status.isOff ? (
-                        <span className="text-gray-500">Henti Tugas</span>
+                        <span className="text-gray-500">Downtime</span>
                       ) : status.isCompleted ? (
-                        <span className="text-emerald-700">Lengkap (21/21)</span>
+                        <span className="text-emerald-700">Completed (21/21)</span>
                       ) : status.isPartiallyFilled ? (
-                        <span className="text-blue-600">{status.filledCount}/21 Diisi</span>
+                        <span className="text-blue-600">{status.filledCount}/21 Filled</span>
                       ) : (
-                        <span className="text-gray-400">Belum Diisi</span>
+                        <span className="text-gray-400">Pending</span>
                       )}
                     </div>
                   </button>
@@ -804,16 +799,16 @@ export function FUVForm({ userName }: { userName: string }) {
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-lg sm:text-xl font-black uppercase tracking-tight text-gray-900">
-                      Pemeriksaan Slot Masa: {activeRow.time}
+                      Inspection Time Slot: {activeRow.time}
                     </h2>
                     {isCurrentSlotOff && (
                       <span className="px-2.5 py-0.5 rounded-full bg-gray-200 text-gray-700 font-black text-[10px] uppercase">
-                        Henti Tugas (Downtime)
+                        Downtime (OFF)
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-gray-500 font-medium">
-                    Sila lengkapkan bacaan bagi semua zon rawatan air di bawah
+                    Please complete readings for all water treatment zones below
                   </p>
                 </div>
               </div>
@@ -832,7 +827,7 @@ export function FUVForm({ userName }: { userName: string }) {
                         : "text-gray-600 hover:text-gray-900"
                     } disabled:opacity-50`}
                   >
-                    Beroperasi (RUNNING)
+                    RUNNING
                   </button>
                   <button
                     type="button"
@@ -844,7 +839,7 @@ export function FUVForm({ userName }: { userName: string }) {
                         : "text-gray-600 hover:text-gray-900"
                     } disabled:opacity-50`}
                   >
-                    Henti Tugas (OFF)
+                    DOWNTIME (OFF)
                   </button>
                 </div>
 
@@ -853,10 +848,10 @@ export function FUVForm({ userName }: { userName: string }) {
                   <button
                     type="button"
                     onClick={() => handleCopyFromPrevious(activeSlotIndex)}
-                    title={`Salin nilai dari slot ${rows[activeSlotIndex - 1].time}`}
+                    title={`Copy values from slot ${rows[activeSlotIndex - 1].time}`}
                     className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 border border-gray-200"
                   >
-                    <Copy className="w-3.5 h-3.5" /> Salin Slot Sebelum
+                    <Copy className="w-3.5 h-3.5" /> Copy Previous Slot
                   </button>
                 )}
 
@@ -865,7 +860,7 @@ export function FUVForm({ userName }: { userName: string }) {
                   <button
                     type="button"
                     onClick={() => handleClearSlot(activeSlotIndex)}
-                    title="Kosongkan semua bacaan slot ini"
+                    title="Clear readings for this slot"
                     className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                   >
                     <RotateCcw className="w-4 h-4" />
@@ -881,10 +876,10 @@ export function FUVForm({ userName }: { userName: string }) {
                   OFF
                 </div>
                 <h3 className="text-base font-black uppercase text-gray-800">
-                  Loji / Mesin Dimatikan (Downtime) pada {activeRow.time}
+                  Plant / Machinery OFF (Downtime) at {activeRow.time}
                 </h3>
                 <p className="text-xs text-gray-500 max-w-md mx-auto mt-1 mb-4">
-                  Slot ini telah ditandakan sebagai henti tugas. Semua bacaan secara automatik diisi dengan tanda &quot;-&quot; mengikut piawaian audit GMP.
+                  This slot has been marked as downtime. All readings are automatically populated with &quot;-&quot; according to audit standards.
                 </p>
                 <button
                   type="button"
@@ -892,13 +887,13 @@ export function FUVForm({ userName }: { userName: string }) {
                   onClick={() => handleToggleOff(activeSlotIndex, false)}
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-sm transition-colors"
                 >
-                  Tukar ke Status Beroperasi (RUNNING)
+                  Switch to RUNNING Status
                 </button>
               </div>
             ) : (
               /* 4. The 6 Physical Process Cards (Paper-like form fields) */
               <div className="mt-6 space-y-6">
-                {/* KAD 1: PAM AIR MENTAH & BOOSTER */}
+                {/* CARD 1: SOURCE WATER & BOOSTER PUMPS */}
                 <div className="bg-slate-50/70 border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
                   <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200">
                     <div className="flex items-center gap-2.5">
@@ -907,14 +902,14 @@ export function FUVForm({ userName }: { userName: string }) {
                       </div>
                       <div>
                         <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
-                          Zon 01
+                          Zone 01
                         </span>
                         <h3 className="text-sm font-black uppercase tracking-wide text-gray-900 mt-0.5">
-                          Stesen Pam (Source & Booster Pumps)
+                          Pump Station (Source Water & Booster Pumps)
                         </h3>
                       </div>
                     </div>
-                    <span className="text-[11px] font-bold text-gray-500">Had: Max 25 Hz</span>
+                    <span className="text-[11px] font-bold text-gray-500">Limit: Max 25 Hz</span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -934,7 +929,7 @@ export function FUVForm({ userName }: { userName: string }) {
                           disabled={isLocked}
                           value={activeRow.vfd01 || ""}
                           onChange={(e) => handleRowChange(activeSlotIndex, "vfd01", e.target.value)}
-                          placeholder="cth: 22.5"
+                          placeholder="e.g. 22.5"
                           className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-bold outline-none transition-all pr-10 ${
                             checkCellStatus("vfd01", activeRow) === "warning"
                               ? "border-amber-400 bg-amber-50 text-amber-900 focus:ring-2 focus:ring-amber-500"
@@ -944,7 +939,7 @@ export function FUVForm({ userName }: { userName: string }) {
                         <span className="absolute right-3 top-2.5 text-xs font-bold text-gray-400">Hz</span>
                       </div>
                       {checkCellStatus("vfd01", activeRow) === "warning" && (
-                        <p className="text-[11px] font-bold text-amber-600">⚠️ Melebihi had piawai (Max 25 Hz)</p>
+                        <p className="text-[11px] font-bold text-amber-600">⚠️ Exceeds standard limit (Max 25 Hz)</p>
                       )}
                     </div>
 
@@ -964,7 +959,7 @@ export function FUVForm({ userName }: { userName: string }) {
                           disabled={isLocked}
                           value={activeRow.vfd02 || ""}
                           onChange={(e) => handleRowChange(activeSlotIndex, "vfd02", e.target.value)}
-                          placeholder="cth: 24.0"
+                          placeholder="e.g. 24.0"
                           className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-bold outline-none transition-all pr-10 ${
                             checkCellStatus("vfd02", activeRow) === "warning"
                               ? "border-amber-400 bg-amber-50 text-amber-900 focus:ring-2 focus:ring-amber-500"
@@ -974,13 +969,13 @@ export function FUVForm({ userName }: { userName: string }) {
                         <span className="absolute right-3 top-2.5 text-xs font-bold text-gray-400">Hz</span>
                       </div>
                       {checkCellStatus("vfd02", activeRow) === "warning" && (
-                        <p className="text-[11px] font-bold text-amber-600">⚠️ Melebihi had piawai (Max 25 Hz)</p>
+                        <p className="text-[11px] font-bold text-amber-600">⚠️ Exceeds standard limit (Max 25 Hz)</p>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* KAD 2: SALURAN AIR MENTAH */}
+                {/* CARD 2: SOURCE WATER LINE */}
                 <div className="bg-slate-50/70 border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
                   <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200">
                     <div className="flex items-center gap-2.5">
@@ -989,22 +984,22 @@ export function FUVForm({ userName }: { userName: string }) {
                       </div>
                       <div>
                         <span className="text-[10px] font-black uppercase tracking-wider text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded">
-                          Zon 02
+                          Zone 02
                         </span>
                         <h3 className="text-sm font-black uppercase tracking-wide text-gray-900 mt-0.5">
-                          Saluran Air Mentah (Source Water Line)
+                          Source Water Line
                         </h3>
                       </div>
                     </div>
-                    <span className="text-[11px] font-bold text-gray-500">4 Parameter Kawalan</span>
+                    <span className="text-[11px] font-bold text-gray-500">4 Control Parameters</span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* SP01 pH & Rupa Bentuk */}
+                    {/* SP01 pH & Appearance */}
                     <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-2">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-bold text-gray-800">
-                          pH & Rupa <span className="font-mono text-cyan-700 bg-cyan-50 px-1 py-0.5 rounded text-[10px]">SP01</span>
+                          pH & Appearance <span className="font-mono text-cyan-700 bg-cyan-50 px-1 py-0.5 rounded text-[10px]">SP01</span>
                         </label>
                         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
                           6.5 - 7.5
@@ -1015,7 +1010,7 @@ export function FUVForm({ userName }: { userName: string }) {
                         disabled={isLocked}
                         value={activeRow.sp01Ph || ""}
                         onChange={(e) => handleRowChange(activeSlotIndex, "sp01Ph", e.target.value)}
-                        placeholder="Nilai pH (cth: 7.2)"
+                        placeholder="pH value (e.g. 7.2)"
                         className={`w-full px-3 py-2 rounded-xl border text-sm font-bold outline-none ${
                           checkCellStatus("sp01Ph", activeRow) === "warning"
                             ? "border-amber-400 bg-amber-50 text-amber-900"
@@ -1041,7 +1036,7 @@ export function FUVForm({ userName }: { userName: string }) {
                     <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-bold text-gray-800">
-                          Konduktiviti <span className="font-mono text-cyan-700 bg-cyan-50 px-1 py-0.5 rounded text-[10px]">CS02</span>
+                          Conductivity <span className="font-mono text-cyan-700 bg-cyan-50 px-1 py-0.5 rounded text-[10px]">CS02</span>
                         </label>
                         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
                           50 - 270
@@ -1053,7 +1048,7 @@ export function FUVForm({ userName }: { userName: string }) {
                           disabled={isLocked}
                           value={activeRow.cs02 || ""}
                           onChange={(e) => handleRowChange(activeSlotIndex, "cs02", e.target.value)}
-                          placeholder="cth: 120"
+                          placeholder="e.g. 120"
                           className={`w-full px-3 py-2.5 rounded-xl border text-sm font-bold outline-none pr-14 ${
                             checkCellStatus("cs02", activeRow) === "warning"
                               ? "border-amber-400 bg-amber-50 text-amber-900"
@@ -1063,7 +1058,7 @@ export function FUVForm({ userName }: { userName: string }) {
                         <span className="absolute right-2.5 top-2.5 text-[11px] font-bold text-gray-400">µS/cm</span>
                       </div>
                       {checkCellStatus("cs02", activeRow) === "warning" && (
-                        <p className="text-[10px] font-bold text-amber-600">⚠️ Julat selamat: 50-270 µS/cm</p>
+                        <p className="text-[10px] font-bold text-amber-600">⚠️ Safe range: 50 - 270 µS/cm</p>
                       )}
                     </div>
 
@@ -1071,7 +1066,7 @@ export function FUVForm({ userName }: { userName: string }) {
                     <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-bold text-gray-800">
-                          Tolok Tekanan <span className="font-mono text-cyan-700 bg-cyan-50 px-1 py-0.5 rounded text-[10px]">PG01</span>
+                          Pressure Gauge <span className="font-mono text-cyan-700 bg-cyan-50 px-1 py-0.5 rounded text-[10px]">PG01</span>
                         </label>
                         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
                           Max 1.1 Bar
@@ -1083,7 +1078,7 @@ export function FUVForm({ userName }: { userName: string }) {
                           disabled={isLocked}
                           value={activeRow.pg01 || ""}
                           onChange={(e) => handleRowChange(activeSlotIndex, "pg01", e.target.value)}
-                          placeholder="cth: 0.8"
+                          placeholder="e.g. 0.8"
                           className={`w-full px-3 py-2.5 rounded-xl border text-sm font-bold outline-none pr-10 ${
                             checkCellStatus("pg01", activeRow) === "warning"
                               ? "border-amber-400 bg-amber-50 text-amber-900"
@@ -1093,7 +1088,7 @@ export function FUVForm({ userName }: { userName: string }) {
                         <span className="absolute right-2.5 top-2.5 text-xs font-bold text-gray-400">Bar</span>
                       </div>
                       {checkCellStatus("pg01", activeRow) === "warning" && (
-                        <p className="text-[10px] font-bold text-amber-600">⚠️ Melebihi had (Max 1.1 Bar)</p>
+                        <p className="text-[10px] font-bold text-amber-600">⚠️ Exceeds limit (Max 1.1 Bar)</p>
                       )}
                     </div>
 
@@ -1101,7 +1096,7 @@ export function FUVForm({ userName }: { userName: string }) {
                     <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-bold text-gray-800">
-                          Pemancar Tekanan <span className="font-mono text-cyan-700 bg-cyan-50 px-1 py-0.5 rounded text-[10px]">PT01</span>
+                          Pressure Transmitter <span className="font-mono text-cyan-700 bg-cyan-50 px-1 py-0.5 rounded text-[10px]">PT01</span>
                         </label>
                         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
                           Max 1.1 Bar
@@ -1113,7 +1108,7 @@ export function FUVForm({ userName }: { userName: string }) {
                           disabled={isLocked}
                           value={activeRow.pt01 || ""}
                           onChange={(e) => handleRowChange(activeSlotIndex, "pt01", e.target.value)}
-                          placeholder="cth: 0.8"
+                          placeholder="e.g. 0.8"
                           className={`w-full px-3 py-2.5 rounded-xl border text-sm font-bold outline-none pr-10 ${
                             checkCellStatus("pt01", activeRow) === "warning"
                               ? "border-amber-400 bg-amber-50 text-amber-900"
@@ -1123,13 +1118,13 @@ export function FUVForm({ userName }: { userName: string }) {
                         <span className="absolute right-2.5 top-2.5 text-xs font-bold text-gray-400">Bar</span>
                       </div>
                       {checkCellStatus("pt01", activeRow) === "warning" && (
-                        <p className="text-[10px] font-bold text-amber-600">⚠️ Melebihi had (Max 1.1 Bar)</p>
+                        <p className="text-[10px] font-bold text-amber-600">⚠️ Exceeds limit (Max 1.1 Bar)</p>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* KAD 3: PENAPIS PASIR & KARBON TERAKTIF (DENGAN CCP1) */}
+                {/* CARD 3: SAND FILTER & ACTIVATED CARBON FILTER (WITH CCP1) */}
                 <div className="bg-amber-50/40 border border-amber-200/80 rounded-2xl p-5 sm:p-6 shadow-sm">
                   <div className="flex items-center justify-between mb-4 pb-3 border-b border-amber-200/60">
                     <div className="flex items-center gap-2.5">
@@ -1139,18 +1134,18 @@ export function FUVForm({ userName }: { userName: string }) {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
-                            Zon 03
+                            Zone 03
                           </span>
                           <span className="px-2 py-0.5 rounded bg-amber-500 text-white font-black text-[9px] uppercase tracking-wider">
-                            Mengandungi CCP1
+                            Contains CCP1
                           </span>
                         </div>
                         <h3 className="text-sm font-black uppercase tracking-wide text-gray-900 mt-0.5">
-                          Penapis Pasir & Karbon Teraktif (Sand & Activated Carbon)
+                          Sand Filter & Activated Carbon Filter
                         </h3>
                       </div>
                     </div>
-                    <span className="text-[11px] font-bold text-amber-800">Had CCP1: Max 3.0 Bar</span>
+                    <span className="text-[11px] font-bold text-amber-800">CCP1 Limit: Max 3.0 Bar</span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1169,7 +1164,7 @@ export function FUVForm({ userName }: { userName: string }) {
                         disabled={isLocked}
                         value={activeRow.sp02Ph || ""}
                         onChange={(e) => handleRowChange(activeSlotIndex, "sp02Ph", e.target.value)}
-                        placeholder="Nilai pH"
+                        placeholder="pH value"
                         className={`w-full px-3 py-2 rounded-xl border text-sm font-bold outline-none ${
                           checkCellStatus("sp02Ph", activeRow) === "warning"
                             ? "border-amber-400 bg-amber-50 text-amber-900"
@@ -1206,7 +1201,7 @@ export function FUVForm({ userName }: { userName: string }) {
                         disabled={isLocked}
                         value={activeRow.sp03Ph || ""}
                         onChange={(e) => handleRowChange(activeSlotIndex, "sp03Ph", e.target.value)}
-                        placeholder="Nilai pH"
+                        placeholder="pH value"
                         className={`w-full px-3 py-2 rounded-xl border text-sm font-bold outline-none ${
                           checkCellStatus("sp03Ph", activeRow) === "warning"
                             ? "border-amber-400 bg-amber-50 text-amber-900"
@@ -1250,7 +1245,7 @@ export function FUVForm({ userName }: { userName: string }) {
                           disabled={isLocked}
                           value={activeRow.pg02 || ""}
                           onChange={(e) => handleRowChange(activeSlotIndex, "pg02", e.target.value)}
-                          placeholder="cth: 2.1"
+                          placeholder="e.g. 2.1"
                           className={`w-full px-3 py-2.5 rounded-xl border text-sm font-black outline-none pr-10 ${
                             checkCellStatus("pg02", activeRow) === "ccp-breach"
                               ? "border-red-600 bg-white text-red-900 focus:ring-2 focus:ring-red-500"
@@ -1261,18 +1256,18 @@ export function FUVForm({ userName }: { userName: string }) {
                       </div>
                       {checkCellStatus("pg02", activeRow) === "ccp-breach" ? (
                         <p className="text-[11px] font-black text-red-700 animate-pulse flex items-center gap-1">
-                          <AlertTriangle className="w-3.5 h-3.5" /> PELANGGARAN CCP1 (&gt; 3.0 Bar)!
+                          <AlertTriangle className="w-3.5 h-3.5" /> CCP1 BREACH (&gt; 3.0 Bar)!
                         </p>
                       ) : (
                         <p className="text-[10px] font-bold text-amber-800">
-                          Titik Kawalan Kritikal (Had Selamat: &le; 3.0 Bar)
+                          Critical Control Point (Safe Limit: &le; 3.0 Bar)
                         </p>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* KAD 4: PENAPIS KETEPATAN (PRECISION FILTERS) */}
+                {/* CARD 4: PRECISION FILTERS */}
                 <div className="bg-slate-50/70 border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
                   <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200">
                     <div className="flex items-center gap-2.5">
@@ -1281,14 +1276,14 @@ export function FUVForm({ userName }: { userName: string }) {
                       </div>
                       <div>
                         <span className="text-[10px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 px-2 py-0.5 rounded">
-                          Zon 04
+                          Zone 04
                         </span>
                         <h3 className="text-sm font-black uppercase tracking-wide text-gray-900 mt-0.5">
-                          Penapis Ketepatan (10µm & 5µm Precision Filters)
+                          Precision Filters (10µm & 5µm)
                         </h3>
                       </div>
                     </div>
-                    <span className="text-[11px] font-bold text-gray-500">Had: Min 0.9 Bar</span>
+                    <span className="text-[11px] font-bold text-gray-500">Limit: Min 0.9 Bar</span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1308,7 +1303,7 @@ export function FUVForm({ userName }: { userName: string }) {
                           disabled={isLocked}
                           value={activeRow.pg03 || ""}
                           onChange={(e) => handleRowChange(activeSlotIndex, "pg03", e.target.value)}
-                          placeholder="cth: 1.2"
+                          placeholder="e.g. 1.2"
                           className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-bold outline-none pr-10 ${
                             checkCellStatus("pg03", activeRow) === "warning"
                               ? "border-amber-400 bg-amber-50 text-amber-900"
@@ -1318,7 +1313,7 @@ export function FUVForm({ userName }: { userName: string }) {
                         <span className="absolute right-3 top-2.5 text-xs font-bold text-gray-400">Bar</span>
                       </div>
                       {checkCellStatus("pg03", activeRow) === "warning" && (
-                        <p className="text-[10px] font-bold text-amber-600">⚠️ Di bawah had minimum (Min 0.9 Bar)</p>
+                        <p className="text-[10px] font-bold text-amber-600">⚠️ Below minimum limit (Min 0.9 Bar)</p>
                       )}
                     </div>
 
@@ -1338,7 +1333,7 @@ export function FUVForm({ userName }: { userName: string }) {
                           disabled={isLocked}
                           value={activeRow.pt02 || ""}
                           onChange={(e) => handleRowChange(activeSlotIndex, "pt02", e.target.value)}
-                          placeholder="cth: 1.1"
+                          placeholder="e.g. 1.1"
                           className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-bold outline-none pr-10 ${
                             checkCellStatus("pt02", activeRow) === "warning"
                               ? "border-amber-400 bg-amber-50 text-amber-900"
@@ -1348,13 +1343,13 @@ export function FUVForm({ userName }: { userName: string }) {
                         <span className="absolute right-3 top-2.5 text-xs font-bold text-gray-400">Bar</span>
                       </div>
                       {checkCellStatus("pt02", activeRow) === "warning" && (
-                        <p className="text-[10px] font-bold text-amber-600">⚠️ Di bawah had minimum (Min 0.9 Bar)</p>
+                        <p className="text-[10px] font-bold text-amber-600">⚠️ Below minimum limit (Min 0.9 Bar)</p>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* KAD 5: SISTEM MEMBRAN ULTRAFILTRATION (UF) (DENGAN CCP1) */}
+                {/* CARD 5: ULTRAFILTRATION (UF) MEMBRANE SYSTEM (WITH CCP1) */}
                 <div className="bg-slate-50/70 border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
                   <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200">
                     <div className="flex items-center gap-2.5">
@@ -1364,25 +1359,25 @@ export function FUVForm({ userName }: { userName: string }) {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-black uppercase tracking-wider text-teal-800 bg-teal-100 px-2 py-0.5 rounded">
-                            Zon 05
+                            Zone 05
                           </span>
                           <span className="px-2 py-0.5 rounded bg-amber-500 text-white font-black text-[9px] uppercase tracking-wider">
-                            Mengandungi CCP1 (PG05)
+                            Contains CCP1 (PG05)
                           </span>
                         </div>
                         <h3 className="text-sm font-black uppercase tracking-wide text-gray-900 mt-0.5">
-                          Sistem Membran Ultrafiltration (Inlet, Outlet CCP1 & Reject)
+                          UF Membrane System (Inlet, Outlet CCP1 & Reject)
                         </h3>
                       </div>
                     </div>
-                    <span className="text-[11px] font-bold text-gray-500">7 Parameter Membran</span>
+                    <span className="text-[11px] font-bold text-gray-500">7 Membrane Parameters</span>
                   </div>
 
                   <div className="space-y-4">
                     {/* Inlet UF Sub-section */}
                     <div>
                       <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 mb-2 block">
-                        • Bahagian Masuk (Inlet UF Membrane)
+                        • Inlet UF Membrane
                       </span>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {/* PT03 */}
@@ -1401,7 +1396,7 @@ export function FUVForm({ userName }: { userName: string }) {
                               disabled={isLocked}
                               value={activeRow.pt03 || ""}
                               onChange={(e) => handleRowChange(activeSlotIndex, "pt03", e.target.value)}
-                              placeholder="cth: 4.5"
+                              placeholder="e.g. 4.5"
                               className={`w-full px-3 py-2 rounded-xl border text-sm font-bold outline-none pr-10 ${
                                 checkCellStatus("pt03", activeRow) === "warning"
                                   ? "border-amber-400 bg-amber-50 text-amber-900"
@@ -1428,7 +1423,7 @@ export function FUVForm({ userName }: { userName: string }) {
                               disabled={isLocked}
                               value={activeRow.pg04 || ""}
                               onChange={(e) => handleRowChange(activeSlotIndex, "pg04", e.target.value)}
-                              placeholder="cth: 4.6"
+                              placeholder="e.g. 4.6"
                               className={`w-full px-3 py-2 rounded-xl border text-sm font-bold outline-none pr-10 ${
                                 checkCellStatus("pg04", activeRow) === "warning"
                                   ? "border-amber-400 bg-amber-50 text-amber-900"
@@ -1444,7 +1439,7 @@ export function FUVForm({ userName }: { userName: string }) {
                     {/* Outlet UF Sub-section (With CCP1 PG05) */}
                     <div>
                       <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 mb-2 block">
-                        • Bahagian Keluar (Outlet UF Membrane - Termasuk CCP1)
+                        • Outlet UF Membrane (Includes CCP1)
                       </span>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         {/* PG05 - CCP1 */}
@@ -1469,7 +1464,7 @@ export function FUVForm({ userName }: { userName: string }) {
                               disabled={isLocked}
                               value={activeRow.pg05 || ""}
                               onChange={(e) => handleRowChange(activeSlotIndex, "pg05", e.target.value)}
-                              placeholder="cth: 1.4"
+                              placeholder="e.g. 1.4"
                               className={`w-full px-3 py-2 rounded-xl border text-sm font-black outline-none pr-10 ${
                                 checkCellStatus("pg05", activeRow) === "ccp-breach"
                                   ? "border-red-600 bg-white text-red-900 focus:ring-2 focus:ring-red-500"
@@ -1480,11 +1475,11 @@ export function FUVForm({ userName }: { userName: string }) {
                           </div>
                           {checkCellStatus("pg05", activeRow) === "ccp-breach" ? (
                             <p className="text-[10px] font-black text-red-700 animate-pulse">
-                              🚨 PELANGGARAN CCP1 (&gt; 2.0 Bar)!
+                              🚨 CCP1 BREACH (&gt; 2.0 Bar)!
                             </p>
                           ) : (
                             <p className="text-[10px] font-bold text-amber-800">
-                              Had Selamat: &le; 2.0 Bar
+                              Safe Limit: &le; 2.0 Bar
                             </p>
                           )}
                         </div>
@@ -1505,7 +1500,7 @@ export function FUVForm({ userName }: { userName: string }) {
                               disabled={isLocked}
                               value={activeRow.cs01 || ""}
                               onChange={(e) => handleRowChange(activeSlotIndex, "cs01", e.target.value)}
-                              placeholder="cth: 115"
+                              placeholder="e.g. 115"
                               className={`w-full px-3 py-2 rounded-xl border text-sm font-bold outline-none pr-14 ${
                                 checkCellStatus("cs01", activeRow) === "warning"
                                   ? "border-amber-400 bg-amber-50 text-amber-900"
@@ -1532,7 +1527,7 @@ export function FUVForm({ userName }: { userName: string }) {
                               disabled={isLocked}
                               value={activeRow.fm01 || ""}
                               onChange={(e) => handleRowChange(activeSlotIndex, "fm01", e.target.value)}
-                              placeholder="cth: 3.5"
+                              placeholder="e.g. 3.5"
                               className="w-full px-3 py-2 rounded-xl border border-gray-300 text-sm font-bold outline-none focus:border-teal-600 pr-14"
                             />
                             <span className="absolute right-2.5 top-2 text-[10px] font-bold text-gray-400">m³/Hr</span>
@@ -1544,7 +1539,7 @@ export function FUVForm({ userName }: { userName: string }) {
                     {/* Reject Line Sub-section */}
                     <div>
                       <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 mb-2 block">
-                        • Talian Buangan (UF Membrane Reject Line)
+                        • UF Membrane Reject Line
                       </span>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {/* PG06 */}
@@ -1563,7 +1558,7 @@ export function FUVForm({ userName }: { userName: string }) {
                               disabled={isLocked}
                               value={activeRow.pg06 || ""}
                               onChange={(e) => handleRowChange(activeSlotIndex, "pg06", e.target.value)}
-                              placeholder="cth: 0.1 / Nil"
+                              placeholder="e.g. 0.1 / Nil"
                               className="w-full px-3 py-2 rounded-xl border border-gray-300 text-sm font-bold outline-none focus:border-teal-600 pr-10"
                             />
                             <span className="absolute right-2.5 top-2 text-xs font-bold text-gray-400">Bar</span>
@@ -1586,7 +1581,7 @@ export function FUVForm({ userName }: { userName: string }) {
                               disabled={isLocked}
                               value={activeRow.fm02 || ""}
                               onChange={(e) => handleRowChange(activeSlotIndex, "fm02", e.target.value)}
-                              placeholder="cth: 1.5"
+                              placeholder="e.g. 1.5"
                               className={`w-full px-3 py-2 rounded-xl border text-sm font-bold outline-none pr-14 ${
                                 checkCellStatus("fm02", activeRow) === "warning"
                                   ? "border-amber-400 bg-amber-50 text-amber-900"
@@ -1596,7 +1591,7 @@ export function FUVForm({ userName }: { userName: string }) {
                             <span className="absolute right-2.5 top-2 text-[10px] font-bold text-gray-400">m³/Hr</span>
                           </div>
                           {checkCellStatus("fm02", activeRow) === "warning" && (
-                            <p className="text-[10px] font-bold text-amber-600">⚠️ Julat had reject: 1.2 - 1.8 m³/Hr</p>
+                            <p className="text-[10px] font-bold text-amber-600">⚠️ Reject flow range: 1.2 - 1.8 m³/Hr</p>
                           )}
                         </div>
                       </div>
@@ -1604,7 +1599,7 @@ export function FUVForm({ userName }: { userName: string }) {
                   </div>
                 </div>
 
-                {/* KAD 6: SISTEM PENSTERILAN UV (CCP2) */}
+                {/* CARD 6: ULTRAVIOLET (UV) SYSTEM (CCP2) */}
                 <div className="bg-rose-50/40 border border-rose-200/80 rounded-2xl p-5 sm:p-6 shadow-sm">
                   <div className="flex items-center justify-between mb-4 pb-3 border-b border-rose-200/60">
                     <div className="flex items-center gap-2.5">
@@ -1614,18 +1609,18 @@ export function FUVForm({ userName }: { userName: string }) {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-black uppercase tracking-wider text-rose-800 bg-rose-100 px-2 py-0.5 rounded">
-                            Zon 06
+                            Zone 06
                           </span>
                           <span className="px-2 py-0.5 rounded bg-rose-600 text-white font-black text-[9px] uppercase tracking-wider">
-                            Titik Kawalan Kritikal (CCP2)
+                            Critical Control Point (CCP2)
                           </span>
                         </div>
                         <h3 className="text-sm font-black uppercase tracking-wide text-gray-900 mt-0.5">
-                          Sistem Pensterilan Ultraviolet (UV System - CCP2)
+                          Ultraviolet (UV) System (CCP2)
                         </h3>
                       </div>
                     </div>
-                    <span className="text-[11px] font-bold text-rose-800">Had CCP2: 80% – 99%</span>
+                    <span className="text-[11px] font-bold text-rose-800">CCP2 Limit: 80% – 99%</span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1651,7 +1646,7 @@ export function FUVForm({ userName }: { userName: string }) {
                           disabled={isLocked}
                           value={activeRow.uvIntensity || ""}
                           onChange={(e) => handleRowChange(activeSlotIndex, "uvIntensity", e.target.value)}
-                          placeholder="cth: 95"
+                          placeholder="e.g. 95"
                           className={`w-full px-3 py-2.5 rounded-xl border text-sm font-black outline-none pr-10 ${
                             checkCellStatus("uvIntensity", activeRow) === "ccp-breach"
                               ? "border-red-600 bg-white text-red-900 focus:ring-2 focus:ring-red-500"
@@ -1662,11 +1657,11 @@ export function FUVForm({ userName }: { userName: string }) {
                       </div>
                       {checkCellStatus("uvIntensity", activeRow) === "ccp-breach" ? (
                         <p className="text-[11px] font-black text-red-700 animate-pulse flex items-center gap-1">
-                          <AlertTriangle className="w-3.5 h-3.5" /> PELANGGARAN CCP2 (Bawah 80% / Atas 99%)!
+                          <AlertTriangle className="w-3.5 h-3.5" /> CCP2 BREACH (Below 80% / Above 99%)!
                         </p>
                       ) : (
                         <p className="text-[10px] font-bold text-rose-800">
-                          Keamatan Selamat: Min 80%
+                          Safe Intensity: Min 80%
                         </p>
                       )}
                     </div>
@@ -1685,7 +1680,7 @@ export function FUVForm({ userName }: { userName: string }) {
                           disabled={isLocked}
                           value={activeRow.operatingHour || ""}
                           onChange={(e) => handleRowChange(activeSlotIndex, "operatingHour", e.target.value)}
-                          placeholder="cth: 4500"
+                          placeholder="e.g. 4500"
                           className={`w-full px-3 py-2.5 rounded-xl border text-sm font-bold outline-none pr-10 ${
                             checkCellStatus("operatingHour", activeRow) === "warning"
                               ? "border-amber-400 bg-amber-50 text-amber-900"
@@ -1695,7 +1690,7 @@ export function FUVForm({ userName }: { userName: string }) {
                         <span className="absolute right-3 top-2.5 text-xs font-bold text-gray-400">Hr</span>
                       </div>
                       {checkCellStatus("operatingHour", activeRow) === "warning" && (
-                        <p className="text-[10px] font-bold text-amber-600">⚠️ Melebihi had hayat 9000 jam!</p>
+                        <p className="text-[10px] font-bold text-amber-600">⚠️ Exceeds 9000 hours service life!</p>
                       )}
                     </div>
 
@@ -1713,10 +1708,10 @@ export function FUVForm({ userName }: { userName: string }) {
                           disabled={isLocked}
                           value={activeRow.totalRunningDays || ""}
                           onChange={(e) => handleRowChange(activeSlotIndex, "totalRunningDays", e.target.value)}
-                          placeholder="cth: 180"
+                          placeholder="e.g. 180"
                           className="w-full px-3 py-2.5 rounded-xl border border-gray-300 text-sm font-bold outline-none focus:border-rose-600 pr-14"
                         />
-                        <span className="absolute right-3 top-2.5 text-xs font-bold text-gray-400">Hari</span>
+                        <span className="absolute right-3 top-2.5 text-xs font-bold text-gray-400">Days</span>
                       </div>
                     </div>
                   </div>
@@ -1732,7 +1727,7 @@ export function FUVForm({ userName }: { userName: string }) {
                 onClick={() => setActiveSlotIndex((prev) => Math.max(0, prev - 1))}
                 className="w-full sm:w-auto px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs uppercase rounded-xl transition-colors disabled:opacity-30 flex items-center justify-center gap-1.5"
               >
-                <ChevronLeft className="w-4 h-4" /> Slot Sebelumnya ({rows[Math.max(0, activeSlotIndex - 1)]?.time})
+                <ChevronLeft className="w-4 h-4" /> Previous Slot ({rows[Math.max(0, activeSlotIndex - 1)]?.time})
               </button>
 
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
@@ -1745,7 +1740,7 @@ export function FUVForm({ userName }: { userName: string }) {
                     }}
                     className="w-full sm:w-auto px-6 py-2.5 bg-cyan-700 hover:bg-cyan-800 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
                   >
-                    Simpan & Ke Slot Seterusnya ({rows[activeSlotIndex + 1]?.time}) <ChevronRight className="w-4 h-4" />
+                    Save & Next Slot ({rows[activeSlotIndex + 1]?.time}) <ChevronRight className="w-4 h-4" />
                   </button>
                 ) : (
                   <button
@@ -1756,7 +1751,7 @@ export function FUVForm({ userName }: { userName: string }) {
                     }}
                     className="w-full sm:w-auto px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
                   >
-                    Semak Ringkasan & Tandatangan <ArrowRight className="w-4 h-4" />
+                    Review Summary & Sign-off <ArrowRight className="w-4 h-4" />
                   </button>
                 )}
               </div>
@@ -1769,10 +1764,10 @@ export function FUVForm({ userName }: { userName: string }) {
           <div className="p-5 bg-slate-100 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 className="text-sm font-black uppercase tracking-wider text-gray-800 flex items-center gap-2">
-                <Table className="w-4 h-4 text-cyan-700" /> Jadual Matriks Penuh (25 Kolum)
+                <Table className="w-4 h-4 text-cyan-700" /> Full Matrix Table (25 Columns)
               </h3>
               <p className="text-xs text-gray-500 font-medium">
-                Paparan jadual penuh mengikut format lembaran Excel asal bagi semakan silang
+                Complete tabular view matching the original Excel spreadsheet layout for cross-checking
               </p>
             </div>
             <div className="flex items-center gap-3 text-xs font-bold">
@@ -1780,10 +1775,10 @@ export function FUVForm({ userName }: { userName: string }) {
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Normal
               </span>
               <span className="flex items-center gap-1 text-amber-700">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> Amaran Had
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> Range Warning
               </span>
               <span className="flex items-center gap-1 text-red-700">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block animate-ping"></span> Pelanggaran CCP
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block animate-ping"></span> CCP Breach
               </span>
             </div>
           </div>
@@ -1793,7 +1788,7 @@ export function FUVForm({ userName }: { userName: string }) {
               <thead>
                 <tr className="bg-slate-800 text-white font-bold border-b border-slate-700 text-[11px]">
                   <th rowSpan={3} className="p-2 border border-slate-700 w-24 sticky left-0 z-20 bg-slate-800">
-                    Masa (Time)
+                    Time of Inspection
                   </th>
                   <th rowSpan={3} className="p-2 border border-slate-700 w-20 sticky left-24 z-20 bg-slate-800">
                     OFF
@@ -1810,7 +1805,7 @@ export function FUVForm({ userName }: { userName: string }) {
                   <th colSpan={3} className="p-2 border border-slate-700 bg-amber-950/70 text-amber-200">Outlet UF (CCP1)</th>
                   <th colSpan={2} className="p-2 border border-slate-700">UF Reject</th>
                   <th colSpan={3} className="p-2 border border-slate-700 bg-red-950/80 text-rose-200">UV SYSTEM (CCP2)</th>
-                  <th rowSpan={3} className="p-2 border border-slate-700 w-28">Pemeriksa</th>
+                  <th rowSpan={3} className="p-2 border border-slate-700 w-28">Checked By</th>
                 </tr>
                 <tr className="bg-slate-700 text-slate-200 text-[10px] border-b border-slate-600">
                   <th className="p-1 border border-slate-600">Max 25Hz</th>
@@ -2094,14 +2089,14 @@ export function FUVForm({ userName }: { userName: string }) {
         <div className="flex items-center justify-between pb-4 border-b border-gray-200">
           <div>
             <span className="text-[10px] font-black uppercase tracking-widest text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded">
-              Pengesahan Syif
+              Shift Verification
             </span>
             <h3 className="text-base sm:text-lg font-black uppercase tracking-tight text-gray-900 mt-1">
-              Ringkasan Rekod, Catatan & Tandatangan Digital
+              Record Summary, Remarks & Digital Signature
             </h3>
           </div>
           <div className="text-right">
-            <span className="text-xs font-bold text-gray-500 block">Status Keseluruhan:</span>
+            <span className="text-xs font-bold text-gray-500 block">Overall Status:</span>
             <span
               className={`text-xs font-black uppercase px-2.5 py-0.5 rounded-full inline-block ${
                 ccpViolated
@@ -2112,10 +2107,10 @@ export function FUVForm({ userName }: { userName: string }) {
               }`}
             >
               {ccpViolated
-                ? "Pelanggaran CCP Dikesan"
+                ? "CCP Breach Detected"
                 : completedSlotsCount === 6
-                ? "Semua 6 Slot Selesai"
-                : `${completedSlotsCount}/6 Slot Diisi`}
+                ? "All 6 Slots Completed"
+                : `${completedSlotsCount}/6 Slots Completed`}
             </span>
           </div>
         </div>
@@ -2123,13 +2118,13 @@ export function FUVForm({ userName }: { userName: string }) {
         {/* Remarks / Corrective Actions (Mandatory if CCP breach) */}
         <div id="remarks-section" className="space-y-2">
           <label className="block text-xs font-black uppercase tracking-wider text-gray-800">
-            Catatan / Tindakan Pembetulan (Remarks / Corrective Actions)
+            Remarks / Corrective Actions
             {ccpViolated ? (
               <span className="text-red-600 font-black ml-2 animate-pulse">
-                * WAJIB DIISI KERANA TERDAPAT PELANGGARAN HAD CCP!
+                * MANDATORY: CCP LIMIT BREACH DETECTED!
               </span>
             ) : (
-              <span className="text-gray-400 font-normal ml-2">(Pilihan)</span>
+              <span className="text-gray-400 font-normal ml-2">(Optional)</span>
             )}
           </label>
           <textarea
@@ -2139,8 +2134,8 @@ export function FUVForm({ userName }: { userName: string }) {
             onChange={(e) => setRemarks(e.target.value)}
             placeholder={
               ccpViolated
-                ? "Sila nyatakan punca sisihan CCP (PG02/PG05/UV Intensity) dan tindakan pembetulan (corrective action) yang diambil dengan segera mengikut prosedur operasi..."
-                : "Masukkan sebarang pemerhatian, nota operasi atau status mesin di sini jika ada..."
+                ? "Please state the root cause of the CCP deviation (PG02 / PG05 / UV Intensity) and immediate corrective actions taken in accordance with standard operating procedures..."
+                : "Enter any observations, operating notes, or equipment downtime remarks here..."
             }
             className={`w-full p-4 rounded-2xl border text-sm outline-none transition-all ${
               ccpViolated && !remarks.trim()
@@ -2153,13 +2148,13 @@ export function FUVForm({ userName }: { userName: string }) {
         {/* Operator Signature Pad */}
         <div id="signature-section" className="space-y-3 pt-2">
           <label className="block text-xs font-black uppercase tracking-wider text-gray-800">
-            Tandatangan Digital Kakitangan Bertugas (Staff Signature) <span className="text-red-500">*</span>
+            Staff Digital Signature (Checked By) <span className="text-red-500">*</span>
           </label>
 
           {signature && (
             <div className="p-3 bg-gray-50 border border-gray-200 rounded-2xl inline-block">
               <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">
-                Tandatangan Tersimpan ({checkedBy}):
+                Saved Signature ({checkedBy}):
               </p>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -2173,7 +2168,7 @@ export function FUVForm({ userName }: { userName: string }) {
           {!isLocked && (
             <div className="max-w-md">
               <p className="text-xs text-gray-500 mb-2 font-medium">
-                Sila tandatangan di dalam kotak di bawah untuk mengesahkan integriti data pemeriksaan syif ini:
+                Please sign inside the box below to verify the accuracy and integrity of this shift's inspection data:
               </p>
               <SignaturePadClient onSave={setSignature} />
             </div>
@@ -2191,7 +2186,7 @@ export function FUVForm({ userName }: { userName: string }) {
               href="/forms/maintenance"
               className="w-full sm:w-auto px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase tracking-wider text-center transition-colors"
             >
-              Batal
+              Cancel
             </Link>
             <button
               type="button"
@@ -2201,11 +2196,11 @@ export function FUVForm({ userName }: { userName: string }) {
             >
               {isSubmitting ? (
                 <>
-                  <RefreshCw className="w-4 h-4 animate-spin" /> Menyimpan Rekod...
+                  <RefreshCw className="w-4 h-4 animate-spin" /> Saving Record...
                 </>
               ) : (
                 <>
-                  <Save className="w-4 h-4" /> Simpan Rekod Syif (SGMP/19/FUV)
+                  <Save className="w-4 h-4" /> Save Shift Record (SGMP/19/FUV)
                 </>
               )}
             </button>

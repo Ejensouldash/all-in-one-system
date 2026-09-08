@@ -69,7 +69,7 @@ export async function createOrUpdateHazardProcessRecord(data: FUVFormData) {
     if (existing && existing.isLocked) {
       return {
         success: false,
-        error: "Rekod ini telah disahkan dan dikunci oleh Penyelia / QC. Pengubahsuaian tidak dibenarkan.",
+        error: "This record has been verified and locked by Supervisor / QC. Modifications are not allowed.",
       }
     }
 
@@ -83,7 +83,7 @@ export async function createOrUpdateHazardProcessRecord(data: FUVFormData) {
       return {
         success: false,
         error:
-          "AMARAN CCP: Terdapat parameter CCP yang melebihi/di luar had piawai (PG02 > 3 Bar, PG05 > 2 Bar, atau UV Intensity < 80% / > 99%). Ruangan Catatan / Tindakan Pembetulan (Corrective Action) WAJIB diisi.",
+          "CCP ALERT: A CCP parameter is outside the standard limit (PG02 > 3 Bar, PG05 > 2 Bar, or UV Intensity < 80% / > 99%). Remarks / Corrective Actions is MANDATORY.",
       }
     }
 
@@ -123,7 +123,7 @@ export async function createOrUpdateHazardProcessRecord(data: FUVFormData) {
   } catch (error: unknown) {
     const err = error as Error
     console.error("Error saving FUV record:", err)
-    return { success: false, error: err.message || "Gagal menyimpan rekod FUV." }
+    return { success: false, error: err.message || "Failed to save FUV record." }
   }
 }
 

@@ -70,6 +70,9 @@ function sanitizeError(err: unknown): string {
   if (err instanceof Error) {
     const msg = err.message
     if (
+      msg.includes("Server Components render") ||
+      msg.includes("omitted in production") ||
+      msg.includes("digest property") ||
       msg.includes("Prisma") ||
       msg.includes("prisma") ||
       msg.includes("Unique constraint") ||
@@ -78,7 +81,7 @@ function sanitizeError(err: unknown): string {
       msg.includes("SELECT") ||
       msg.includes("syntax error")
     ) {
-      return "Ralat sistem berlaku. Sila hubungi pentadbir jika masalah berlarutan."
+      return "Ralat pangkalan data: Jadual Preventive Maintenance belum dicipta atau migrasi belum dijalankan di pangkalan data."
     }
     return msg
   }

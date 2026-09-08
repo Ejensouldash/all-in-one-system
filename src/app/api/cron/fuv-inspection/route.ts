@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/mailer"
-import { sendTelegramMessage, getTelegramConfig } from "@/lib/telegram"
+import { sendTelegramMessage, getTelegramConfig, buildFUVTelegramAlertHtml } from "@/lib/telegram"
 import { buildFUVInspectionEmailHtml } from "@/lib/fuv-email"
 import type { FUVRow } from "@/app/forms/maintenance/fuv/types"
 
@@ -212,23 +212,21 @@ async function handleInspectionDispatch(request: NextRequest) {
   // 6. Send Telegram Alert (if enabled & token/chatId available)
   if (telegramEnabled) {
     try {
-      const telegramMessage =
-        `⏰ <b>PERINGATAN PEMERIKSAAN FUV (SLOT ${slotTime.toUpperCase()})</b>\n\n` +
-        `🚨 <b>Peringatan 10 Minit:</b> Slot pemeriksaan <b>${slotTime}</b> akan bermula sebentar lagi!\n\n` +
-        `📅 <b>Tarikh:</b> <code>${mytDateStr}</code>\n` +
-        `⏱ <b>Syif:</b> ${shift === "DAY" ? "Syif Siang ☀️" : "Syif Malam 🌙"}\n\n` +
-        `📋 <b>Parameter Kritikal Wajib Diambil:</b>\n` +
-        `• <b>VFD01 & VFD02</b>: Pam Air Mentah & Booster (Max 25 Hz)\n` +
-        `• <b>SP01, SP02, SP03</b>: Nilai pH & Rupa Air (pH 6.5 - 7.5)\n` +
-        `• 🚨 <b>PG02 (CCP1)</b>: Sand + Carbon Pressure (Max 3.0 Bar)\n` +
-        `• 🚨 <b>PG05 (CCP1)</b>: Outlet UF Pressure (Max 2.0 Bar)\n` +
-        `• 🚨 <b>UV Intensity (CCP2)</b>: Sistem UV (80% – 99%)\n\n` +
-        `Sila ambil bacaan instrumen loji sekarang dan rekodkan ke dalam sistem AIO.`
+      const telegramMessage = buildFUVTelegramAlertHtml({
+        slotTime,
+        shift,
+        dateStr: mytDateStr,
+        timeFormatted,
+      })
+
+      const reportUrl = `${appBaseUrl}/forms/maintenance/reports/fuv`
 
       const tgResult = await sendTelegramMessage({
         message: telegramMessage,
-        buttonText: `📝 Buka Borang FUV (${slotTime})`,
-        buttonUrl: formUrl,
+        buttons: [
+          [{ text: `📝 Buka Borang FUV (Slot ${slotTime})`, url: formUrl }],
+          [{ text: `📊 Lihat Laporan & Status Audit`, url: reportUrl }],
+        ],
         parseMode: "HTML",
       })
 

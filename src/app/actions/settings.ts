@@ -4,7 +4,9 @@ import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import bcrypt from "bcryptjs"
 import { revalidatePath } from "next/cache"
-import { testTelegramConnection } from "@/lib/telegram"
+import { testTelegramConnection, sendTelegramMessage, buildFUVTelegramAlertHtml } from "@/lib/telegram"
+import { sendEmail } from "@/lib/mailer"
+import { buildFUVInspectionEmailHtml } from "@/lib/fuv-email"
 
 export async function updateProfile(formData: FormData) {
   const session = await auth()
@@ -82,6 +84,121 @@ export async function testTelegramNotificationAction(token?: string, chatId?: st
     const message = err instanceof Error ? err.message : String(err)
     return { success: false, error: message }
   }
+}
+
+export async function testEmailNotificationAction(emailListStr?: string) {
+  const session = await auth()
+  if (session?.user.role !== "SUPERADMIN") return { success: false, error: "Unauthorized" }
+
+  let emails: string[] = []
+  if (emailListStr && emailListStr.trim()) {
+    emails = emailListStr.split(",").map(e => e.trim()).filter(e => e && e.includes("@"))
+  } else {
+    const setting = await prisma.setting.findUnique({ where: { key: "FUV_NOTIFICATION_EMAILS" } })
+    if (setting?.value) {
+      emails = setting.value.split(",").map(e => e.trim()).filter(e => e && e.includes("@"))
+    }
+  }
+
+  if (emails.length === 0) {
+    return { success: false, error: "Tiada alamat emel yang sah dimasukkan. Sila isi sekurang-kurangnya satu emel." }
+  }
+
+  try {
+    const baseUrl = process.env.NEXTAUTH_URL || "https://bubbleso2-aio.vercel.app"
+    const nowStr = new Date().toLocaleDateString("ms-MY", { timeZone: "Asia/Kuala_Lumpur" })
+    const timeFormatted = new Date().toLocaleTimeString("ms-MY", { timeZone: "Asia/Kuala_Lumpur", hour: "2-digit", minute: "2-digit" }) + " MYT"
+
+    const { subject, html } = buildFUVInspectionEmailHtml({
+      slotTime: "11.30 AM [UJIAN SISTEM]",
+      shift: "DAY",
+      dateStr: nowStr,
+      formUrl: `${baseUrl}/forms/maintenance/fuv`,
+      targetMinute: `${timeFormatted} (Ujian SuperAdmin)`,
+    })
+
+    const emailSent = await sendEmail({
+      to: emails,
+      subject: `🧪 [UJIAN SUPERADMIN] ${subject}`,
+      html,
+    })
+
+    if (!emailSent) {
+      return { success: false, error: "Gagal menghantar emel. Sila pastikan SMTP credentials telah ditetapkan di fail persekitaran (.env)." }
+    }
+
+    return { success: true, recipients: emails }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { success: false, error: message }
+  }
+}
+
+export async function testFUVFullAlertSimulationAction({
+  token,
+  chatId,
+  emailsStr,
+}: {
+  token?: string
+  chatId?: string
+  emailsStr?: string
+}) {
+  const session = await auth()
+  if (session?.user.role !== "SUPERADMIN") return { success: false, error: "Unauthorized" }
+
+  const results: {
+    telegram?: { success: boolean; error?: string }
+    email?: { success: boolean; recipients?: string[]; error?: string }
+  } = {}
+
+  const baseUrl = process.env.NEXTAUTH_URL || "https://bubbleso2-aio.vercel.app"
+  const nowStr = new Date().toLocaleDateString("ms-MY", { timeZone: "Asia/Kuala_Lumpur" })
+  const timeFormatted =
+    new Date().toLocaleTimeString("ms-MY", {
+      timeZone: "Asia/Kuala_Lumpur",
+      hour: "2-digit",
+      minute: "2-digit",
+    }) + " MYT"
+
+  // 1. Send Rich FUV Telegram Simulation
+  try {
+    const rawAlertHtml = buildFUVTelegramAlertHtml({
+      slotTime: "11.30 AM",
+      shift: "DAY",
+      dateStr: nowStr,
+      timeFormatted: `${timeFormatted} (Simulasi Ujian)`,
+    })
+
+    const tgMessage =
+      `🧪 <b>[SIMULASI UJIAN SUPERADMIN]</b>\n` +
+      `<i>Mesej di bawah adalah contoh paparan sebenar yang akan disiarkan kepada operator setiap 2 jam.</i>\n\n` +
+      rawAlertHtml
+
+    const tgRes = await sendTelegramMessage({
+      message: tgMessage,
+      tokenOverride: token,
+      chatIdOverride: chatId,
+      buttons: [
+        [{ text: "📝 Buka Borang FUV (Slot 11.30 AM)", url: `${baseUrl}/forms/maintenance/fuv` }],
+        [{ text: "📊 Buka Laporan & Audit", url: `${baseUrl}/forms/maintenance/reports/fuv` }],
+      ],
+      parseMode: "HTML",
+    })
+
+    results.telegram = tgRes
+  } catch (e: any) {
+    results.telegram = { success: false, error: e.message }
+  }
+
+  // 2. Send Test Email Simulation
+  try {
+    const emRes = await testEmailNotificationAction(emailsStr)
+    results.email = emRes
+  } catch (e: any) {
+    results.email = { success: false, error: e.message }
+  }
+
+  return { success: true, results }
 }
 
 export async function generateBackup() {

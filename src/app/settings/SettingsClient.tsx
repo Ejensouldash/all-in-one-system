@@ -5,6 +5,8 @@ import {
   updateProfile,
   updateGlobalSettings,
   testTelegramNotificationAction,
+  testEmailNotificationAction,
+  testFUVFullAlertSimulationAction,
   generateBackup,
   restoreBackup,
 } from "@/app/actions/settings"
@@ -26,6 +28,7 @@ import {
   Mail,
   Loader2,
   Info,
+  Rocket,
 } from "lucide-react"
 
 export function ProfileForm({ user }: { user: any }) {
@@ -65,8 +68,23 @@ export function GlobalSettingsForm({ settingsMap }: { settingsMap: Record<string
   const [status, setStatus] = useState("")
   const [telegramToken, setTelegramToken] = useState(settingsMap["TELEGRAM_BOT_TOKEN"] || "")
   const [telegramChatId, setTelegramChatId] = useState(settingsMap["TELEGRAM_CHAT_ID"] || "")
+  const [fuvEmails, setFuvEmails] = useState(settingsMap["FUV_NOTIFICATION_EMAILS"] || "")
+
   const [isTestingTelegram, setIsTestingTelegram] = useState(false)
   const [testResult, setTestResult] = useState<{ success?: boolean; message?: string } | null>(null)
+
+  const [isTestingEmail, setIsTestingEmail] = useState(false)
+  const [emailTestResult, setEmailTestResult] = useState<{ success?: boolean; message?: string } | null>(null)
+
+  const [isTestingFull, setIsTestingFull] = useState(false)
+  const [fullTestResult, setFullTestResult] = useState<{
+    success?: boolean
+    message?: string
+    details?: {
+      telegram?: { success: boolean; messageId?: number; error?: string }
+      email?: { success: boolean; recipients?: string[]; error?: string }
+    }
+  } | null>(null)
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -100,6 +118,82 @@ export function GlobalSettingsForm({ settingsMap }: { settingsMap: Record<string
       setTestResult({
         success: false,
         message: `❌ Ujian Gagal: ${res.error || "Sila pastikan Bot Token & Chat ID adalah betul dan bot telah dimasukkan ke dalam group."}`,
+      })
+    }
+  }
+
+  const handleTestEmail = async () => {
+    if (!fuvEmails.trim()) {
+      setEmailTestResult({
+        success: false,
+        message: "Sila masukkan sekurang-kurangnya satu alamat emel penerima sebelum membuat ujian.",
+      })
+      return
+    }
+
+    setIsTestingEmail(true)
+    setEmailTestResult(null)
+
+    const res = await testEmailNotificationAction(fuvEmails)
+    setIsTestingEmail(false)
+
+    if (res.success) {
+      const recipientList = res.recipients ? res.recipients.join(", ") : fuvEmails
+      setEmailTestResult({
+        success: true,
+        message: `✅ Emel Ujian Berjaya Dihantar kepada: ${recipientList}`,
+      })
+    } else {
+      setEmailTestResult({
+        success: false,
+        message: `❌ Ujian Emel Gagal: ${res.error || "Sila pastikan SMTP credentials telah dikonfigurasi di .env"}`,
+      })
+    }
+  }
+
+  const handleTestFullSimulation = async () => {
+    if (!telegramToken.trim() && !fuvEmails.trim()) {
+      setFullTestResult({
+        success: false,
+        message: "Sila masukkan sekurang-kurangnya konfigurasi Telegram atau Emel sebelum memulakan simulasi.",
+      })
+      return
+    }
+
+    setIsTestingFull(true)
+    setFullTestResult(null)
+
+    const res = await testFUVFullAlertSimulationAction({
+      token: telegramToken,
+      chatId: telegramChatId,
+      emailsStr: fuvEmails,
+    })
+    setIsTestingFull(false)
+
+    if (res.success && res.results) {
+      const tgOk = res.results.telegram?.success
+      const emOk = res.results.email?.success
+
+      let msg = ""
+      if (tgOk && emOk) {
+        msg = "🎉 SIMULASI PENUH BERJAYA! Kedua-dua notifikasi Telegram dan Emel telah selamat dihantar kepada operator."
+      } else if (tgOk && !emOk) {
+        msg = `⚠️ Telegram Berjaya, tetapi penghantaran Emel gagal: ${res.results.email?.error || "Ralat penghantaran emel."}`
+      } else if (!tgOk && emOk) {
+        msg = `⚠️ Emel Berjaya, tetapi sambungan Telegram gagal: ${res.results.telegram?.error || "Ralat Telegram Bot."}`
+      } else {
+        msg = `❌ Simulasi Gagal pada kedua-dua saluran. Sila semak semula konfigurasi di atas.`
+      }
+
+      setFullTestResult({
+        success: Boolean(tgOk || emOk),
+        message: msg,
+        details: res.results,
+      })
+    } else {
+      setFullTestResult({
+        success: false,
+        message: `❌ Simulasi Gagal: ${res.error || "Ralat tidak diketahui"}`,
       })
     }
   }
@@ -279,7 +373,8 @@ export function GlobalSettingsForm({ settingsMap }: { settingsMap: Record<string
             </label>
             <textarea
               name="FUV_NOTIFICATION_EMAILS"
-              defaultValue={settingsMap["FUV_NOTIFICATION_EMAILS"] || ""}
+              value={fuvEmails}
+              onChange={(e) => setFuvEmails(e.target.value)}
               rows={2}
               placeholder="e.g. qc@bubbleso2.com, operator@bubbleso2.com, plant.lead@bubbleso2.com"
               className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs outline-none transition-all duration-200 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-600 text-gray-900 placeholder:text-gray-400"
@@ -288,6 +383,120 @@ export function GlobalSettingsForm({ settingsMap }: { settingsMap: Record<string
               Masukkan alamat emel kakitangan / operator bertugas (asingkan setiap emel dengan koma).
             </p>
           </div>
+
+          {/* Test Email Button */}
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={handleTestEmail}
+              disabled={isTestingEmail}
+              className="px-4 py-2 bg-white hover:bg-cyan-50 text-cyan-800 border border-cyan-300 rounded-xl text-xs font-bold inline-flex items-center gap-2 transition-all shadow-sm active:scale-95 disabled:opacity-50"
+            >
+              {isTestingEmail ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Menghantar Emel Ujian...
+                </>
+              ) : (
+                <>
+                  <Mail className="w-3.5 h-3.5 text-cyan-600" /> Uji Penghantaran Emel (Test Email)
+                </>
+              )}
+            </button>
+
+            {emailTestResult && (
+              <p
+                className={`text-xs font-bold mt-2 p-2.5 rounded-lg ${
+                  emailTestResult.success
+                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                    : "bg-red-50 text-red-800 border border-red-200"
+                }`}
+              >
+                {emailTestResult.message}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* SuperAdmin Diagnostic & Full Simulation Test Card */}
+        <div className="border-t-2 border-dashed border-cyan-200 pt-5 mt-2 bg-cyan-50/70 -mx-6 -mb-6 p-6 rounded-b-2xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 bg-cyan-700 text-white rounded-lg shadow-sm">
+                  <Rocket className="w-4 h-4" />
+                </span>
+                <h4 className="text-xs font-black uppercase tracking-wider text-cyan-950">
+                  Ujian Simulasi Penuh FUV Alert (SuperAdmin)
+                </h4>
+              </div>
+              <p className="text-[11px] text-cyan-900/80 mt-1 max-w-lg">
+                Uji dan siarkan mesej amaran FUV sebenar serentak ke <b>Telegram</b> dan <b>Emel</b> untuk menyemak ketepatan reka bentuk mesej, senarai CCP, serta pautan butang borang.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleTestFullSimulation}
+              disabled={isTestingFull}
+              className="shrink-0 px-4.5 py-2.5 bg-gradient-to-r from-cyan-600 to-teal-700 hover:from-cyan-700 hover:to-teal-800 text-white shadow-md hover:shadow-lg rounded-xl text-xs font-bold inline-flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+            >
+              {isTestingFull ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Menjalankan Simulasi...
+                </>
+              ) : (
+                <>
+                  <Rocket className="w-4 h-4" /> Simulasi Penuh (Telegram + Emel)
+                </>
+              )}
+            </button>
+          </div>
+
+          {fullTestResult && (
+            <div
+              className={`text-xs font-medium mt-3.5 p-3 rounded-xl border ${
+                fullTestResult.success
+                  ? "bg-emerald-50 text-emerald-900 border-emerald-300"
+                  : "bg-red-50 text-red-900 border-red-300"
+              }`}
+            >
+              <div className="font-bold flex items-center gap-2">
+                {fullTestResult.success ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                )}
+                <span>{fullTestResult.message}</span>
+              </div>
+              {fullTestResult.details && (
+                <div className="mt-2 text-[11px] grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-current/10">
+                  <div className="bg-white/60 p-2 rounded-lg border border-black/5">
+                    <span className="font-bold block text-gray-700">📱 Telegram Alert:</span>
+                    {fullTestResult.details.telegram?.success ? (
+                      <span className="text-emerald-700 font-bold">
+                        ✅ Berjaya Dihantar {fullTestResult.details.telegram?.messageId ? `(Msg ID: ${fullTestResult.details.telegram?.messageId})` : ""}
+                      </span>
+                    ) : (
+                      <span className="text-red-700 font-bold">
+                        ❌ Gagal: {fullTestResult.details.telegram?.error || "Ralat Telegram"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="bg-white/60 p-2 rounded-lg border border-black/5">
+                    <span className="font-bold block text-gray-700">📧 Emel Alert:</span>
+                    {fullTestResult.details.email?.success ? (
+                      <span className="text-emerald-700 font-bold">
+                        ✅ Berjaya Dihantar ({fullTestResult.details.email?.recipients?.length || 0} penerima)
+                      </span>
+                    ) : (
+                      <span className="text-red-700 font-bold">
+                        ❌ Gagal: {fullTestResult.details.email?.error || "Ralat Emel"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

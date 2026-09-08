@@ -1,9 +1,15 @@
 import { prisma } from "@/lib/prisma"
 
+export interface TelegramInlineButton {
+  text: string
+  url: string
+}
+
 interface SendTelegramOptions {
   message: string
   buttonText?: string
   buttonUrl?: string
+  buttons?: TelegramInlineButton[][]
   tokenOverride?: string
   chatIdOverride?: string
   parseMode?: "HTML" | "MarkdownV2" | "Markdown"
@@ -55,12 +61,56 @@ export async function getTelegramConfig(): Promise<{ token: string; chatId: stri
 }
 
 /**
- * Send a message via Telegram Bot API with optional inline keyboard link button.
+ * Build a beautifully styled HTML message for 2-hour FUV inspection alerts in Telegram.
+ */
+export function buildFUVTelegramAlertHtml({
+  slotTime,
+  shift,
+  dateStr,
+  timeFormatted,
+}: {
+  slotTime: string
+  shift: "DAY" | "NIGHT"
+  dateStr: string
+  timeFormatted: string
+}): string {
+  const shiftBadge =
+    shift === "DAY" ? "☀️ <b>Syif Siang</b> (07:30 AM – 05:30 PM)" : "🌙 <b>Syif Malam</b> (07:30 PM – 05:30 AM)"
+
+  return (
+    `💧 <b>BUBBLES O2 • GMP WATER TREATMENT PLANT</b>\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `⏰ <b>PERINGATAN PEMERIKSAAN BERKALA (2-JAM)</b>\n` +
+    `📋 <b>Borang:</b> <code>SGMP/19/FUV</code> • Hazard & Process Control\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `🕒 <b>Slot Sasaran:</b> <b><u>${slotTime.toUpperCase()}</u></b>\n` +
+    `⏳ <b>Masa Peringatan:</b> ⚠️ <i>Bermula dalam 10 minit</i> (${timeFormatted})\n` +
+    `📅 <b>Tarikh Pemeriksaan:</b> <code>${dateStr}</code>\n` +
+    `🔄 <b>Syif Bertugas:</b> ${shiftBadge}\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `⚙️ <b>SENARAI SEMAKAN PARAMETER KRITIKAL:</b>\n` +
+    `🔹 <b>[VFD01 / VFD02]</b> Pam Mentah & Booster : <code>Max 25 Hz</code>\n` +
+    `🔹 <b>[SP01 / 02 / 03]</b> Kualiti Air & pH : <code>6.5 – 7.5 (Clear)</code>\n` +
+    `🔹 <b>[CS02 / CS01]</b> Konduktiviti Air : <code>50 – 270 µS/cm</code>\n` +
+    `🔹 <b>[PG01 / PT01]</b> Tekanan Saluran Mentah : <code>Max 1.1 Bar</code>\n` +
+    `🚨 <b>[PG02] Sand + Carbon : CCP1 (Max 3.0 Bar)</b>\n` +
+    `🚨 <b>[PG05] Outlet UF Memb : CCP1 (Max 2.0 Bar)</b>\n` +
+    `🚨 <b>[UV INTENSITY] Sistem UV : CCP2 (80% – 99%)</b>\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `📢 <i>Sila ambil bacaan instrumen loji sekarang dan lengkapkan rekod di dalam sistem AIO.</i>\n\n` +
+    `⚠️ <b>Peringatan Kepatuhan GMP:</b>\n` +
+    `<i>Sekiranya terdapat sebarang sisihan had CCP di atas, ruangan Catatan / Tindakan Pembetulan (Corrective Action) WAJIB diisi sebelum rekod disimpan.</i>`
+  )
+}
+
+/**
+ * Send a message via Telegram Bot API with optional inline keyboard link button(s).
  */
 export async function sendTelegramMessage({
   message,
   buttonText,
   buttonUrl,
+  buttons,
   tokenOverride,
   chatIdOverride,
   parseMode = "HTML",
@@ -72,7 +122,7 @@ export async function sendTelegramMessage({
   if (!token || !chatId) {
     return {
       success: false,
-      error: "Telegram Bot Token or Chat ID is missing. Please configure it in System Settings.",
+      error: "Telegram Bot Token atau Chat ID tiada. Sila masukkan konfigurasi di menu Settings.",
     }
   }
 
@@ -85,16 +135,18 @@ export async function sendTelegramMessage({
     disable_web_page_preview: false,
   }
 
-  if (buttonText && buttonUrl) {
+  // Construct inline keyboard (support multi-row array or single button fallback)
+  let inlineKeyboard: TelegramInlineButton[][] | undefined
+
+  if (buttons && buttons.length > 0) {
+    inlineKeyboard = buttons
+  } else if (buttonText && buttonUrl) {
+    inlineKeyboard = [[{ text: buttonText, url: buttonUrl }]]
+  }
+
+  if (inlineKeyboard) {
     payload.reply_markup = {
-      inline_keyboard: [
-        [
-          {
-            text: buttonText,
-            url: buttonUrl,
-          },
-        ],
-      ],
+      inline_keyboard: inlineKeyboard,
     }
   }
 
@@ -124,29 +176,45 @@ export async function sendTelegramMessage({
     console.error("Network error sending Telegram message:", err)
     return {
       success: false,
-      error: message || "Network error communicating with Telegram API",
+      error: message || "Ralat sambungan rangkaian ke Telegram API",
     }
   }
 }
 
 /**
- * Test connectivity with a Telegram Bot Token and Chat ID by sending a ping message.
+ * Test connectivity with a Telegram Bot Token and Chat ID by sending an upgraded ping message.
  */
 export async function testTelegramConnection(
   token: string,
   chatId: string
 ): Promise<TelegramResult> {
-  const testMessage = `🤖 <b>Bubbles O2 AIO System - Telegram Test Alert</b>\n\n` +
-    `✅ Sambungan Telegram Bot berjaya disahkan!\n` +
-    `📅 Tarikh/Masa: <code>${new Date().toLocaleString("ms-MY", { timeZone: "Asia/Kuala_Lumpur" })}</code>\n` +
-    `🔔 Sistem bersedia untuk menghantar peringatan pemeriksaan berjadual SGMP/19/FUV.`
+  const nowStr = new Date().toLocaleString("ms-MY", {
+    timeZone: "Asia/Kuala_Lumpur",
+    dateStyle: "full",
+    timeStyle: "medium",
+  })
+
+  const baseUrl = process.env.NEXTAUTH_URL || "https://bubbleso2-aio.vercel.app"
+
+  const testMessage =
+    `🤖 <b>BUBBLES O2 AIO SYSTEM • BOT DIAGNOSTIC PING</b>\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `✅ <b>STATUS: SAMBUNGAN TELEGRAM BERJAYA DISAHKAN!</b>\n\n` +
+    `Bot rasmi telah berjaya disambungkan ke kumpulan operasi loji ini.\n\n` +
+    `📅 <b>Masa Ujian:</b> <code>${nowStr}</code>\n` +
+    `🔐 <b>Keselamatan:</b> Mod Penyulitan Aktif (Verified Admin)\n` +
+    `🎯 <b>Skop Operasi:</b> Notifikasi Peringatan SGMP/19/FUV (Setiap 2 Jam)\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `<i>Sistem kini bersedia untuk menyiarkan amaran berkala 10 minit sebelum setiap slot pemeriksaan kepada semua operator dan penyelia bertugas.</i>`
 
   return sendTelegramMessage({
     message: testMessage,
     tokenOverride: token,
     chatIdOverride: chatId,
-    buttonText: "🌐 Buka Sistem AIO",
-    buttonUrl: process.env.NEXTAUTH_URL || "https://bubbleso2-aio.vercel.app",
+    buttons: [
+      [{ text: "📝 Uji Buka Borang FUV", url: `${baseUrl}/forms/maintenance/fuv` }],
+      [{ text: "📊 Buka Dashboard Laporan", url: `${baseUrl}/forms/maintenance/reports/fuv` }],
+    ],
     parseMode: "HTML",
   })
 }

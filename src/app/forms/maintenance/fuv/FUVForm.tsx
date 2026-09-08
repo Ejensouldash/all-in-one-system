@@ -29,6 +29,9 @@ import {
   ArrowRight,
   HelpCircle,
   Building2,
+  Zap,
+  Send,
+  Loader2,
 } from "lucide-react"
 import Link from "next/link"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
@@ -37,6 +40,7 @@ import { DraftBanner, SaveDraftButton } from "../_components/DraftControls"
 import {
   getHazardProcessRecordByDateAndShift,
   createOrUpdateHazardProcessRecord,
+  simulateFUVInspectionAlertAction,
 } from "./actions"
 import {
   type FUVRow,
@@ -200,6 +204,7 @@ interface FUVFormProps {
   initialRecord?: any
   initialDate?: string
   initialShift?: "DAY" | "NIGHT"
+  isSuperAdmin?: boolean
 }
 
 export function FUVForm({
@@ -207,6 +212,7 @@ export function FUVForm({
   initialRecord,
   initialDate,
   initialShift,
+  isSuperAdmin,
 }: FUVFormProps) {
   const [date, setDate] = useState(() => initialDate || new Date().toISOString().split("T")[0])
   const [shift, setShift] = useState<"DAY" | "NIGHT">(() => initialShift || "DAY")
@@ -215,6 +221,21 @@ export function FUVForm({
   const [existingId, setExistingId] = useState<string | null>(() => initialRecord?.id || null)
   const [isLocked, setIsLocked] = useState(() => Boolean(initialRecord?.isLocked))
   const [signature, setSignature] = useState<string | null>(() => initialRecord?.performedSignature || null)
+
+  // 2-Hour Routine Alert & Simulation state
+  const [selectedSimSlot, setSelectedSimSlot] = useState<string>("AUTO")
+  const [isSimulatingAlert, setIsSimulatingAlert] = useState(false)
+  const [simulationResult, setSimulationResult] = useState<{
+    success: boolean
+    message: string
+  } | null>(null)
+  const [nowTime, setNowTime] = useState(() => new Date())
+
+  // Timer tick for live countdown
+  useEffect(() => {
+    const timer = setInterval(() => setNowTime(new Date()), 30000)
+    return () => clearInterval(timer)
+  }, [])
 
   const [rows, setRows] = useState<FUVRow[]>(() => {
     const s = initialShift || "DAY"
@@ -434,6 +455,90 @@ export function FUVForm({
 
   const completedSlotsCount = slotSummaries.filter((s) => s.isCompleted).length
 
+  // Calculate upcoming slot & remaining minutes
+  const upcomingSlotInfo = useMemo(() => {
+    const currentHour = nowTime.getHours()
+    const currentMinute = nowTime.getMinutes()
+    const currentTotalMinutes = currentHour * 60 + currentMinute
+
+    // 12 Slots across 24 hours
+    const allSlots: { time: string; shift: "DAY" | "NIGHT"; minutes: number }[] = [
+      { time: "7.30 am", shift: "DAY", minutes: 7 * 60 + 30 },
+      { time: "9.30 am", shift: "DAY", minutes: 9 * 60 + 30 },
+      { time: "11.30 am", shift: "DAY", minutes: 11 * 60 + 30 },
+      { time: "1.30 pm", shift: "DAY", minutes: 13 * 60 + 30 },
+      { time: "3.30 pm", shift: "DAY", minutes: 15 * 60 + 30 },
+      { time: "5.30 pm", shift: "DAY", minutes: 17 * 60 + 30 },
+      { time: "7.30 pm", shift: "NIGHT", minutes: 19 * 60 + 30 },
+      { time: "9.30 pm", shift: "NIGHT", minutes: 21 * 60 + 30 },
+      { time: "11.30 pm", shift: "NIGHT", minutes: 23 * 60 + 30 },
+      { time: "1.30 am", shift: "NIGHT", minutes: 1 * 60 + 30 },
+      { time: "3.30 am", shift: "NIGHT", minutes: 3 * 60 + 30 },
+      { time: "5.30 am", shift: "NIGHT", minutes: 5 * 60 + 30 },
+    ]
+
+    let next = allSlots.find((s) => s.minutes > currentTotalMinutes)
+    if (!next) next = allSlots[0]
+
+    const diffMinutes =
+      next.minutes >= currentTotalMinutes
+        ? next.minutes - currentTotalMinutes
+        : 24 * 60 - currentTotalMinutes + next.minutes
+
+    return {
+      slotTime: next.time,
+      shift: next.shift,
+      diffMinutes,
+    }
+  }, [nowTime])
+
+  // Handle SuperAdmin FUV 2-Hour Alert Simulation
+  const handleSimulateFUVAlert = async () => {
+    setIsSimulatingAlert(true)
+    setSimulationResult(null)
+
+    const targetSlot =
+      selectedSimSlot === "AUTO"
+        ? upcomingSlotInfo.slotTime
+        : selectedSimSlot
+
+    const targetShift =
+      selectedSimSlot === "AUTO"
+        ? upcomingSlotInfo.shift
+        : (["7.30 am", "9.30 am", "11.30 am", "1.30 pm", "3.30 pm", "5.30 pm"].includes(targetSlot)
+            ? "DAY"
+            : "NIGHT")
+
+    try {
+      const res = await simulateFUVInspectionAlertAction({
+        slotTime: targetSlot,
+        shift: targetShift,
+      })
+
+      if (res.success) {
+        let msg = `🎉 Simulasi Amaran 2-Jam Berjaya Disiarkan!\n`
+        msg += `🕒 Slot Diuji: ${targetSlot.toUpperCase()} (${targetShift === "DAY" ? "Syif Siang" : "Syif Malam"})\n`
+        msg += `✉️ Emel & jemputan Google Calendar (.ics) dihantar ke: ${(res.recipients || []).join(", ")}.`
+        if (res.telegramSent) {
+          msg += `\n🤖 Notifikasi Telegram Bot juga berjaya disiarkan ke kumpulan operasi loji!`
+        } else if (res.telegramError) {
+          msg += `\n⚠️ Telegram: ${res.telegramError}`
+        }
+        setSimulationResult({ success: true, message: msg })
+      } else {
+        setSimulationResult({
+          success: false,
+          message: `❌ Simulasi Gagal: ${res.error || "Ralat tidak diketahui"}`,
+        })
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setSimulationResult({ success: false, message: `❌ Ralat: ${msg}` })
+    } finally {
+      setIsSimulatingAlert(false)
+    }
+  }
+
   async function handleSubmit() {
     if (isLocked) {
       setError("This record has been verified and locked by Supervisor / QC.")
@@ -589,6 +694,177 @@ export function FUVForm({
               <strong className="text-amber-300">CCP1 (PG02/PG05) & CCP2 (UV)</strong>
             </div>
           </div>
+        </div>
+
+        {/* 2-Hour Routine Inspection Smart Banner & SuperAdmin Simulation */}
+        <div className="p-5 sm:p-6 bg-gradient-to-br from-slate-900 via-cyan-950 to-slate-950 text-white border-b border-cyan-500/20">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-cyan-500/20 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-cyan-500/20 rounded-2xl border border-cyan-400/30 text-cyan-300">
+                <Clock className="w-6 h-6 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 bg-cyan-400 text-slate-950 text-[10px] font-black uppercase tracking-wider rounded-full">
+                    Peringatan Berkala 2-Jam (SGMP/19/FUV)
+                  </span>
+                  <span className="text-xs text-cyan-200/80 font-mono">
+                    {nowTime.toLocaleTimeString("ms-MY", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kuala_Lumpur" })} MYT
+                  </span>
+                </div>
+                <h2 className="text-base sm:text-lg font-black text-white mt-1 flex items-center gap-2">
+                  Slot Seterusnya: <span className="text-cyan-400 underline decoration-cyan-400/50 underline-offset-4">{upcomingSlotInfo.slotTime.toUpperCase()}</span>
+                  <span className="text-xs font-semibold text-cyan-200/70 bg-white/10 px-2.5 py-0.5 rounded-lg">
+                    (Baki {upcomingSlotInfo.diffMinutes} minit)
+                  </span>
+                </h2>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs text-cyan-100/80 bg-white/5 border border-white/10 px-3.5 py-2 rounded-2xl self-start md:self-auto">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>Status Syif Semasa: <strong>{completedSlotsCount} / {rows.length} Slot Selesai</strong></span>
+            </div>
+          </div>
+
+          {/* 6 Shift Slot Pills */}
+          <div className="mt-4">
+            <div className="text-[11px] font-bold text-cyan-200/70 uppercase tracking-wider mb-2">
+              Status Pemeriksaan Syif Semasa ({shift === "DAY" ? "Syif Siang" : "Syif Malam"}):
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+              {rows.map((r, idx) => {
+                const status = slotSummaries[idx]
+                const isSelected = activeSlotIndex === idx
+                const isUpcoming = r.time.toLowerCase() === upcomingSlotInfo.slotTime.toLowerCase() && shift === upcomingSlotInfo.shift
+
+                return (
+                  <button
+                    key={r.time}
+                    type="button"
+                    onClick={() => setActiveSlotIndex(idx)}
+                    className={`p-2.5 rounded-2xl border text-left transition-all ${
+                      isSelected
+                        ? "bg-cyan-500 text-slate-950 border-cyan-300 shadow-lg shadow-cyan-500/20 font-black scale-102"
+                        : status.isCompleted
+                        ? "bg-emerald-950/60 border-emerald-500/40 text-emerald-200 hover:bg-emerald-900/60"
+                        : isUpcoming
+                        ? "bg-amber-950/60 border-amber-500/60 text-amber-200 hover:bg-amber-900/60 ring-2 ring-amber-400/30"
+                        : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold">{r.time.toUpperCase()}</span>
+                      {status.isCompleted ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      ) : isUpcoming ? (
+                        <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                      ) : (
+                        <span className="w-1.5 h-1.5 rounded-full bg-white/30" />
+                      )}
+                    </div>
+                    <div className="text-[10px] mt-1 opacity-80 truncate">
+                      {status.isCompleted
+                        ? status.isOff
+                          ? "Mesin OFF"
+                          : "Lengkap Diisi"
+                        : isUpcoming
+                        ? "Masa Semakan!"
+                        : "Belum Diisi"}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* SuperAdmin Simulation Section */}
+          {isSuperAdmin && (
+            <div className="mt-5 pt-4 border-t border-cyan-500/20 bg-black/30 rounded-2xl p-4 border border-cyan-400/20">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 bg-amber-500/20 text-amber-300 border border-amber-400/30 rounded-lg">
+                    <Zap className="w-4 h-4" />
+                  </span>
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-amber-300">
+                      Kawalan Khas SuperAdmin • Uji Simulasi Peringatan 2-Jam
+                    </h3>
+                    <p className="text-[11px] text-gray-300 mt-0.5">
+                      Hantar notifikasi sebenar (Emel + Google Calendar .ics + Telegram Bot loji) bagi mana-mana slot 2-jam untuk pengesahan sistem.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <div className="sm:w-64">
+                  <label className="block text-[10px] font-bold uppercase text-cyan-200/80 mb-1">
+                    Pilih Slot Ujian:
+                  </label>
+                  <select
+                    value={selectedSimSlot}
+                    onChange={(e) => setSelectedSimSlot(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-900/90 border border-cyan-500/40 text-white rounded-xl text-xs font-semibold focus:ring-2 focus:ring-cyan-400 outline-none"
+                  >
+                    <option value="AUTO">🎯 Ikut Slot Semasa ({upcomingSlotInfo.slotTime.toUpperCase()})</option>
+                    <optgroup label="☀️ Syif Siang (Day Shift)">
+                      <option value="7.30 am">7.30 AM (Syif Siang)</option>
+                      <option value="9.30 am">9.30 AM (Syif Siang)</option>
+                      <option value="11.30 am">11.30 AM (Syif Siang)</option>
+                      <option value="1.30 pm">1.30 PM (Syif Siang)</option>
+                      <option value="3.30 pm">3.30 PM (Syif Siang)</option>
+                      <option value="5.30 pm">5.30 PM (Syif Siang)</option>
+                    </optgroup>
+                    <optgroup label="🌙 Syif Malam (Night Shift)">
+                      <option value="7.30 pm">7.30 PM (Syif Malam)</option>
+                      <option value="9.30 pm">9.30 PM (Syif Malam)</option>
+                      <option value="11.30 pm">11.30 PM (Syif Malam)</option>
+                      <option value="1.30 am">1.30 AM (Syif Malam)</option>
+                      <option value="3.30 am">3.30 AM (Syif Malam)</option>
+                      <option value="5.30 am">5.30 AM (Syif Malam)</option>
+                    </optgroup>
+                  </select>
+                </div>
+
+                <div className="flex-1 flex flex-col justify-end">
+                  <label className="hidden sm:block text-[10px] font-bold uppercase text-transparent mb-1">
+                    Action
+                  </label>
+                  <button
+                    type="button"
+                    disabled={isSimulatingAlert}
+                    onClick={handleSimulateFUVAlert}
+                    className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 active:scale-95 disabled:opacity-50 transition-all"
+                  >
+                    {isSimulatingAlert ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                        Menghantar Simulasi (Emel, Kalendar &amp; Telegram)…
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4" />
+                        🧪 Uji Simulasi Peringatan 2-Jam (Emel + Kalendar + Telegram)
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {simulationResult && (
+                <div
+                  className={`mt-3 p-3.5 rounded-xl text-xs font-semibold whitespace-pre-line border ${
+                    simulationResult.success
+                      ? "bg-emerald-950/80 text-emerald-200 border-emerald-500/40"
+                      : "bg-red-950/80 text-red-200 border-red-500/40"
+                  }`}
+                >
+                  {simulationResult.message}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Shift, Date & View Mode Selection Bar */}

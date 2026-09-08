@@ -28,6 +28,8 @@ export default async function FUVPage() {
     console.error("Failed to preload FUV record on server:", e)
   }
 
+  const isSuperAdmin = session.user.role === "SUPERADMIN"
+
   return (
     <div className="bg-slate-50 min-h-screen pt-6 pb-24">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -36,6 +38,7 @@ export default async function FUVPage() {
           initialRecord={initialRecord}
           initialDate={todayStr}
           initialShift={defaultShift}
+          isSuperAdmin={isSuperAdmin}
         />
       </div>
     </div>

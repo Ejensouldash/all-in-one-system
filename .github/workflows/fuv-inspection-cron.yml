@@ -20,7 +20,11 @@ jobs:
     steps:
       - name: Trigger FUV Inspection Alert Endpoint
         run: |
-          URL="${{ secrets.APP_URL }}/api/cron/fuv-inspection"
+          APP_URL="${{ secrets.APP_URL }}"
+          if [ -z "$APP_URL" ]; then
+            APP_URL="https://bubbleso2-aio.vercel.app"
+          fi
+          URL="${APP_URL}/api/cron/fuv-inspection"
           if [ -n "${{ github.event.inputs.forceSlot }}" ]; then
             URL="${URL}?forceSlot=${{ github.event.inputs.forceSlot }}"
           fi

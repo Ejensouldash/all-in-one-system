@@ -3,6 +3,7 @@ import { BellRing, Sparkles, Zap } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
 import { RemindersClient } from "@/components/reminders/RemindersClient"
+import { RemindersTabs } from "@/components/reminders/RemindersTabs"
 
 export const dynamic = "force-dynamic"
 
@@ -99,14 +100,14 @@ export default async function RemindersPage() {
         </div>
       </div>
 
-      <RemindersClient
+      <RemindersTabs><RemindersClient
         reminders={reminders as any}
         allUsers={allUsers}
         units={units}
         currentUserId={access.userId}
         isSuperAdmin={access.isSuperAdmin}
         showSeedButton={access.isSuperAdmin && seededCount < 3}
-      />
+      /></RemindersTabs>
     </div>
   )
 }

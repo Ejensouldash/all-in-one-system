@@ -1448,6 +1448,74 @@ model Reminder {
   @@index([enabled, frequency])
 }
 
+// SGMP-03 belongs exclusively to Reminders. User IDs are retained as audit
+// references, so deleting/reassigning a user cannot erase maintenance history.
+model ReminderPMImport {
+  id          String   @id @default(uuid())
+  fileHash    String   @unique
+  fileName    String
+  rows        Json
+  review      Json?
+  createdById String
+  createdAt   DateTime @default(now())
+  confirmedAt DateTime?
+}
+
+model ReminderPMSchedule {
+  id             String   @id @default(uuid())
+  sourceKey      String?  @unique
+  importId       String?
+  sourceRows     Json?
+  equipment      String
+  srs            String?
+  checklist      String[]
+  startDate      String
+  intervalUnit   String
+  intervalCount  Int
+  activationDate String
+  generationFrom String
+  picIds         String[]
+  createdById    String
+  archivedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  occurrences    ReminderPMOccurrence[]
+
+  @@index([archivedAt])
+}
+
+model ReminderPMOccurrence {
+  id            String   @id @default(uuid())
+  scheduleId    String
+  dueDate       String
+  equipment     String
+  srs           String?
+  checklist     String[]
+  picIds        String[]
+  result        String?
+  notes         String?  @db.Text
+  inspectedDate String?
+  completedById String?
+  completedAt   DateTime?
+  schedule      ReminderPMSchedule @relation(fields: [scheduleId], references: [id], onDelete: Restrict)
+
+  @@unique([scheduleId, dueDate])
+  @@index([dueDate, completedAt])
+}
+
+model ReminderPMDelivery {
+  id          String   @id @default(uuid())
+  userId      String
+  digestDate  String
+  status      String   @default("SENDING")
+  attempts    Int      @default(1)
+  detail      String?  @db.Text
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, digestDate])
+}
+
 model ReminderRecipient {
   id         String   @id @default(uuid())
   reminderId String

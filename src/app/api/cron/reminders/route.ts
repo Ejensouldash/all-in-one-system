@@ -1,4 +1,5 @@
 import { runReminderDispatch } from "@/lib/reminder-engine"
+import { runPMDispatch } from "@/lib/reminders/pm-dispatch"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 60
@@ -17,8 +18,11 @@ export async function GET(request: Request) {
   }
 
   try {
-    const summary = await runReminderDispatch(new Date())
-    return Response.json({ ok: true, ...summary })
+    const now = new Date()
+    const [general, pm] = await Promise.allSettled([runReminderDispatch(now), runPMDispatch(now)])
+    if (general.status === "rejected") throw general.reason
+    if (pm.status === "rejected") console.error("PM reminder dispatch failed:", pm.reason)
+    return Response.json({ ok: pm.status === "fulfilled", ...general.value, pm: pm.status === "fulfilled" ? pm.value : { error: "PM dispatch failed" } }, { status: pm.status === "fulfilled" ? 200 : 500 })
   } catch (error: any) {
     console.error("Reminder dispatch error:", error)
     return Response.json({ ok: false, error: error?.message || "Dispatch failed" }, { status: 500 })

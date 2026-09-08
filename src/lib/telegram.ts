@@ -219,3 +219,61 @@ export async function testTelegramConnection(
   })
 }
 
+/**
+ * Helper to escape special HTML characters for Telegram Bot HTML parse mode.
+ */
+function escapeTgHtml(text: string): string {
+  return (text || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+}
+
+/**
+ * Build a beautifully formatted HTML message for Preventive Maintenance (SGMP-03) alerts in Telegram.
+ */
+export function buildPMTaskTelegramHtml({
+  equipment,
+  srs,
+  dueDate,
+  statusLabel,
+  checklist,
+  picNames,
+  isSimulation = false,
+}: {
+  equipment: string
+  srs?: string | null
+  dueDate: string
+  statusLabel: string
+  checklist: string[]
+  picNames: string
+  isSimulation?: boolean
+}): string {
+  const headerBadge = isSimulation
+    ? `🧪 <b>[SIMULASI SUPERADMIN • TUGASAN PM SEBENAR]</b>\n`
+    : `🔧 <b>BUBBLES O2 • PREVENTIVE MAINTENANCE</b>\n`
+
+  const checklistItems = (checklist || [])
+    .slice(0, 10)
+    .map((item, idx) => `  ${idx + 1}. ▫️ ${escapeTgHtml(item)}`)
+    .join("\n")
+
+  const extraCount = (checklist || []).length - 10
+  const moreText = extraCount > 0 ? `\n  <i>...dan ${extraCount} lagi arahan kerja</i>` : ""
+
+  return (
+    `${headerBadge}` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `📋 <b>PERINGATAN PENYELENGGARAAN PENCEGAHAN</b>\n` +
+    `🏷️ <b>SOP:</b> <code>SGMP-03</code> • Jadual Penyelenggaraan Berkala\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `⚙️ <b>Mesin / Peralatan:</b> <b><u>${escapeTgHtml(equipment)}</u></b>\n` +
+    (srs ? `📌 <b>Kod SRS:</b> <code>${escapeTgHtml(srs)}</code>\n` : "") +
+    `📅 <b>Tarikh Pemeriksaan:</b> <code>${escapeTgHtml(dueDate)}</code>\n` +
+    `📊 <b>Status:</b> <b>${escapeTgHtml(statusLabel)}</b>\n` +
+    `👤 <b>PIC Bertugas:</b> <code>${escapeTgHtml(picNames)}</code>\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `📝 <b>SENARAI SEMAKAN / ARAHAN KERJA:</b>\n` +
+    `${checklistItems}${moreText}\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `📢 <i>Sila laksanakan kerja penyelenggaraan mengikut checklist dan kemas kini status di dalam sistem AIO.</i>`
+  )
+}
+

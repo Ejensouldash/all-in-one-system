@@ -230,9 +230,15 @@ export function PMWorkspace() {
     try {
       const res = await simulatePMTaskReminderAction(occurrenceId)
       if (res.success) {
+        let msg = `🎉 Simulasi Berjaya!\n✉️ Emel & jemputan Google Calendar dihantar ke: ${(res.recipients || []).join(", ")}.`
+        if (res.telegramSent) {
+          msg += `\n🤖 Notifikasi Telegram Bot juga berjaya disiarkan ke kumpulan operasi loji!`
+        } else if (res.telegramError) {
+          msg += `\n⚠️ Telegram: ${res.telegramError}`
+        }
         setSimulationResult({
           success: true,
-          message: `🎉 Emel simulasi berjaya dihantar ke: ${(res.recipients || []).join(", ")}! Acara juga telah dimasukkan ke Google Calendar.`,
+          message: msg,
         })
       } else {
         setSimulationResult({
@@ -1276,7 +1282,7 @@ export function PMWorkspace() {
                   </span>
                 </div>
                 <p className="text-[11px] text-gray-500">
-                  Hantar emel notifikasi dan jemputan Google Calendar sebenar bagi tugasan pemeriksaan <strong>{selectedOccurrence.equipment}</strong> ini kepada PIC dan SuperAdmin.
+                  Hantar emel notifikasi, jemputan Google Calendar (.ics), dan siarkan mesej interaktif ke Telegram Bot bagi tugasan pemeriksaan <strong>{selectedOccurrence.equipment}</strong> ini.
                 </p>
                 <button
                   type="button"
@@ -1286,17 +1292,17 @@ export function PMWorkspace() {
                 >
                   {isSimulating ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" /> Menghantar Simulasi Emel &amp; Kalendar…
+                      <Loader2 className="h-4 w-4 animate-spin" /> Menghantar Simulasi (Emel, Kalendar &amp; Telegram)…
                     </>
                   ) : (
                     <>
-                      <Send className="h-4 w-4" /> 🧪 Uji Simulasi Peringatan (Hantar Emel &amp; Kalendar Task Ini)
+                      <Send className="h-4 w-4" /> 🧪 Uji Simulasi Peringatan (Emel + Kalendar + Telegram Bot)
                     </>
                   )}
                 </button>
                 {simulationResult && (
                   <div
-                    className={`p-3 rounded-xl text-xs font-semibold ${
+                    className={`p-3 rounded-xl text-xs font-semibold whitespace-pre-line ${
                       simulationResult.success
                         ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                         : "bg-red-50 text-red-800 border border-red-200"

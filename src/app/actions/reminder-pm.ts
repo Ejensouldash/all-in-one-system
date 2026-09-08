@@ -10,6 +10,7 @@ import { lockPM, materializePM, pmVisibleWhere, type PMTransaction } from "@/lib
 import { sendEmailWithDetails } from "@/lib/mailer"
 import { generatePMTaskCalendarInvite } from "@/lib/fuv-calendar"
 import { buildPMSingleTaskEmailHtml } from "@/lib/reminders/pm-dispatch"
+import { sendTelegramMessage, getTelegramConfig, buildPMTaskTelegramHtml } from "@/lib/telegram"
 import type { Prisma } from "@prisma/client"
 
 async function accessPM(admin = false) {
@@ -276,10 +277,54 @@ export async function simulatePMTaskReminderAction(occurrenceId: string) {
     icsContent: icsContent || undefined,
   })
 
+  // 4. Send Telegram Bot notification to plant operations group
+  let telegramSent = false
+  let telegramError: string | undefined
+
+  try {
+    const tgConfig = await getTelegramConfig()
+    if (tgConfig.enabled && tgConfig.token && tgConfig.chatId) {
+      const tgMessage = buildPMTaskTelegramHtml({
+        equipment: task.equipment,
+        srs: task.srs,
+        dueDate: task.dueDate,
+        statusLabel,
+        checklist: task.checklist,
+        picNames,
+        isSimulation: true,
+      })
+
+      const tgButtons = [
+        [{ text: "📝 Buka & Rekod Tugasan PM", url: formUrl }],
+      ]
+      if (googleCalendarUrl) {
+        tgButtons.push([{ text: "📅 Tambah ke Google Calendar", url: googleCalendarUrl }])
+      }
+
+      const tgRes = await sendTelegramMessage({
+        message: tgMessage,
+        buttons: tgButtons,
+        parseMode: "HTML",
+      })
+
+      telegramSent = tgRes.success
+      if (!tgRes.success) {
+        telegramError = tgRes.error
+      }
+    } else {
+      telegramError = "Telegram tidak diaktifkan atau token/chat ID belum dikonfigurasi dalam Settings."
+    }
+  } catch (tgErr: unknown) {
+    console.error("Telegram simulation dispatch error:", tgErr)
+    telegramError = tgErr instanceof Error ? tgErr.message : String(tgErr)
+  }
+
   if (!emailRes.success) {
     return {
       success: false,
       error: emailRes.error || "Gagal menghantar emel simulasi PM task.",
+      telegramSent,
+      telegramError,
     }
   }
 
@@ -288,5 +333,7 @@ export async function simulatePMTaskReminderAction(occurrenceId: string) {
     recipients: targetEmails,
     equipment: task.equipment,
     dueDate: task.dueDate,
+    telegramSent,
+    telegramError,
   }
 }

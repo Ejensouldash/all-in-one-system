@@ -128,10 +128,19 @@ const s = StyleSheet.create({
     borderBottomColor: C.brand,
     marginBottom: 10,
   },
-  logo: {
-    height: 32,
-    objectFit: "contain",
+  headerLeft: {
+    width: "60%",
+    alignItems: "flex-start",
+  },
+  logoWrapper: {
+    alignSelf: "flex-start",
     marginBottom: 4,
+  },
+  logo: {
+    width: 125,
+    height: 33,
+    objectFit: "contain",
+    alignSelf: "flex-start",
   },
   companyName: {
     fontSize: 10,
@@ -578,13 +587,13 @@ export function PMAuditReportDocument(props: PMAuditReportPayload) {
 
         {/* Corporate Header & Document Control */}
         <View style={s.headerBox}>
-          <View style={{ width: "60%" }}>
+          <View style={s.headerLeft}>
             {logo ? (
-              // eslint-disable-next-line jsx-a11y/alt-text
-              <Image src={logo} style={s.logo} />
-            ) : (
-              <Text style={s.companyName}>BUBBLES O2 SDN. BHD.</Text>
-            )}
+              <View style={s.logoWrapper}>
+                {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                <Image src={logo} style={s.logo} />
+              </View>
+            ) : null}
             <Text style={s.companyName}>BUBBLES O2 SDN. BHD.</Text>
             <Text style={s.companyAddress}>
               Kompleks Al-Ammar, Kampung Kanchong, 71200 Rantau, Negeri Sembilan, Malaysia.

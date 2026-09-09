@@ -33,11 +33,26 @@ export async function GET(request: Request) {
   const to = searchParams.get("to") || ""
   const equipment = searchParams.get("equipment") || ""
   const status = searchParams.get("status") || ""
+  const mode = searchParams.get("mode") === "AUDITOR" ? "AUDITOR" : "INTERNAL"
+  const hideInternalNotes = searchParams.get("hideInternalNotes") === "true"
+  const hideOverduePending = searchParams.get("hideOverduePending") === "true"
+  const hidePersonalContact = searchParams.get("hidePersonalContact") === "true"
+  const hideSignatures = searchParams.get("hideSignatures") === "true"
 
   try {
     const data = await fetchPMAuditData(
       { userId: access.userId, isSuperAdmin: access.isSuperAdmin, name: access.name || undefined },
-      { from, to, equipment, status }
+      {
+        from,
+        to,
+        equipment,
+        status,
+        mode,
+        hideInternalNotes,
+        hideOverduePending,
+        hidePersonalContact,
+        hideSignatures,
+      }
     )
 
     const logo = await loadLogo()
@@ -51,18 +66,20 @@ export async function GET(request: Request) {
     const buffer = await renderToBuffer(
       PMAuditReportDocument({
         logo: logo || undefined,
-        docRef: "SGMP-03 / PMIR",
+        docRef: "SGMP-03 / PMS",
         from: data.from,
         to: data.to,
+        mode: data.mode as "INTERNAL" | "AUDITOR",
         preparedBy: data.preparedBy,
         generatedAt,
+        executiveSummary: data.executiveSummary,
         summary: data.summary,
         calendarMatrix: data.calendarMatrix,
         records: data.records,
       })
     )
 
-    const safeFilename = `Laporan_Audit_PM_SGMP03_${data.from}_ke_${data.to}.pdf`
+    const safeFilename = `Laporan_Audit_PM_SGMP03_${data.mode}_${data.from}_ke_${data.to}.pdf`
 
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,

@@ -29,6 +29,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
+import { ExportPMModal } from "./ExportPMModal"
 import "../RemindersCSS.css"
 import { ModalShell } from "../ModalShell"
 import { PMFields, PICPicker, buttonClass, fieldClass } from "./PMFields"
@@ -149,6 +150,10 @@ export function PMWorkspace() {
 
   const [rangeMode, setRangeMode] = useState<"month" | "year">("month")
   const [exportingType, setExportingType] = useState<"pdf" | "excel" | null>(null)
+  const [exportModal, setExportModal] = useState<{ open: boolean; format: "pdf" | "excel" }>({
+    open: false,
+    format: "pdf",
+  })
 
   // Calculate boundaries for data fetch
   const { fromDate, toDate } = useMemo(() => {
@@ -803,37 +808,25 @@ export function PMWorkspace() {
               </div>
 
               {/* Export Actions */}
-              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
-                  disabled={!!exportingType}
-                  onClick={() => handleExport("pdf")}
-                  className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50"
-                  title="Eksport Laporan Audit PDF (A4 Portrait, Kad KPI, Matriks Kalendar & Tandatangan)"
+                  onClick={() => setExportModal({ open: true, format: "pdf" })}
+                  className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 transition hover:bg-rose-100"
+                  title="Eksport Laporan Audit PDF (A4 Portrait, Cover Page, TOC, Rumusan AI & Tandatangan)"
                 >
-                  {exportingType === "pdf" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <FileText className="h-3.5 w-3.5" />
-                  )}
+                  <FileText className="h-3.5 w-3.5" />
                   Export PDF
                 </button>
 
                 <button
                   type="button"
-                  disabled={!!exportingType}
-                  onClick={() => handleExport("excel")}
-                  className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
-                  title="Eksport Fail Excel (Multi-tab, Matriks, Log Bersih Tanpa Data Cleaning)"
+                  onClick={() => setExportModal({ open: true, format: "excel" })}
+                  className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100"
+                  title="Eksport Fail Excel (Multi-tab: SGMP-03 Asal, Log Terperinci, Pengesahan & Matriks)"
                 >
-                  {exportingType === "excel" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <FileSpreadsheet className="h-3.5 w-3.5" />
-                  )}
+                  <FileSpreadsheet className="h-3.5 w-3.5" />
                   Export Excel
                 </button>
-              </div>
 
               {/* Summary / Verification Link */}
               <Link
@@ -1741,6 +1734,21 @@ export function PMWorkspace() {
             </div>
           </div>
         </ModalShell>
+      )}
+
+      {/* Export Options Modal (Auditor vs Internal) */}
+      {exportModal.open && (
+        <ExportPMModal
+          open={exportModal.open}
+          onClose={() => setExportModal((prev) => ({ ...prev, open: false }))}
+          initialFormat={exportModal.format}
+          defaultFrom={fromDate}
+          defaultTo={toDate}
+          currentYear={cursor.getFullYear()}
+          currentMonth={cursor.getMonth()}
+          onSuccess={(text) => flash({ kind: "ok", text })}
+          onError={(text) => flash({ kind: "err", text })}
+        />
       )}
     </div>
   )

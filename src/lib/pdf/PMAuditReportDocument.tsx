@@ -2,6 +2,7 @@ import React from "react"
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer"
 
 export interface PMAuditRecord {
+  id?: string
   index: number
   dueDate: string
   inspectedDate: string | null
@@ -9,12 +10,17 @@ export interface PMAuditRecord {
   srs: string | null
   frequency: string
   checklist: string[]
+  completedChecklist?: string[]
   pics: string[]
   status: "DONE" | "ISSUE" | "OVERDUE" | "PENDING"
   result: string | null
   notes: string | null
+  performedSignature?: string | null
   completedBy: string | null
   completedAt: string | null
+  verifiedByName?: string | null
+  verifiedSignature?: string | null
+  verifiedAt?: string | null
 }
 
 export interface PMAuditMatrixRow {
@@ -31,8 +37,10 @@ export interface PMAuditReportPayload {
   docRef?: string
   from: string
   to: string
+  mode?: "INTERNAL" | "AUDITOR"
   preparedBy: string
   generatedAt: string
+  executiveSummary?: string
   summary: {
     totalTasks: number
     completedTasks: number
@@ -110,15 +118,15 @@ const s = StyleSheet.create({
     color: C.faint,
   },
 
-  // Document Header Box
+  // Document Header Box (Cover / First page)
   headerBox: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    paddingBottom: 12,
+    paddingBottom: 10,
     borderBottomWidth: 2,
     borderBottomColor: C.brand,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   logo: {
     height: 32,
@@ -136,30 +144,64 @@ const s = StyleSheet.create({
     color: C.muted,
     marginTop: 1,
   },
-  docTitleBlock: {
-    alignItems: "flex-end",
-  },
-  docRef: {
-    fontSize: 7.5,
-    fontFamily: "Helvetica-Bold",
-    color: C.brand,
-    backgroundColor: C.brandSoft,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+  docControlBox: {
+    borderWidth: 1,
+    borderColor: C.line,
     borderRadius: 3,
-    marginBottom: 4,
+    backgroundColor: C.subtle,
+    padding: 5,
+    minWidth: 140,
   },
-  docTitle: {
-    fontSize: 11,
+  docControlRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 1.5,
+  },
+  docControlLabel: {
+    fontSize: 5.5,
+    fontFamily: "Helvetica-Bold",
+    color: C.muted,
+    textTransform: "uppercase",
+  },
+  docControlVal: {
+    fontSize: 6,
     fontFamily: "Helvetica-Bold",
     color: C.ink,
-    textAlign: "right",
+  },
+  modeBadge: {
+    marginTop: 3,
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+    borderRadius: 2,
+    textAlign: "center",
+    fontSize: 6,
+    fontFamily: "Helvetica-Bold",
+  },
+  modeBadgeInternal: {
+    backgroundColor: C.brandSoft,
+    color: C.brand,
+  },
+  modeBadgeAuditor: {
+    backgroundColor: C.goodSoft,
+    color: C.good,
+  },
+
+  // Report Title Banner
+  titleBanner: {
+    marginVertical: 6,
+    alignItems: "center",
+  },
+  docTitle: {
+    fontSize: 12,
+    fontFamily: "Helvetica-Bold",
+    color: C.ink,
+    textAlign: "center",
     textTransform: "uppercase",
   },
   docSubtitle: {
-    fontSize: 7,
+    fontSize: 7.5,
     color: C.muted,
-    textAlign: "right",
+    textAlign: "center",
     marginTop: 2,
   },
 
@@ -171,7 +213,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.line,
     padding: 6,
-    marginBottom: 10,
+    marginVertical: 6,
     justifyContent: "space-between",
   },
   metaItem: {
@@ -190,27 +232,105 @@ const s = StyleSheet.create({
     marginTop: 1,
   },
 
+  // Table of Contents
+  tocBox: {
+    borderWidth: 1,
+    borderColor: C.line,
+    borderRadius: 4,
+    backgroundColor: "#ffffff",
+    padding: 8,
+    marginVertical: 6,
+  },
+  tocTitle: {
+    fontSize: 8,
+    fontFamily: "Helvetica-Bold",
+    color: C.ink,
+    textTransform: "uppercase",
+    marginBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: C.line,
+    paddingBottom: 2,
+  },
+  tocRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 2,
+  },
+  tocItem: {
+    fontSize: 7,
+    color: C.body,
+    fontFamily: "Helvetica",
+  },
+  tocDots: {
+    fontSize: 7,
+    color: C.line,
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  tocPage: {
+    fontSize: 7,
+    fontFamily: "Helvetica-Bold",
+    color: C.brand,
+  },
+
+  // Executive Summary Box
+  execBox: {
+    borderWidth: 1,
+    borderColor: "#e0e7ff",
+    borderRadius: 4,
+    backgroundColor: "#f5f7ff",
+    padding: 8,
+    marginVertical: 6,
+  },
+  execHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  execTitle: {
+    fontSize: 8,
+    fontFamily: "Helvetica-Bold",
+    color: C.brand,
+    textTransform: "uppercase",
+  },
+  execBadge: {
+    fontSize: 6,
+    fontFamily: "Helvetica-Bold",
+    color: "#4338ca",
+    backgroundColor: "#e0e7ff",
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 2,
+  },
+  execText: {
+    fontSize: 7,
+    lineHeight: 1.35,
+    color: C.body,
+    textAlign: "justify",
+  },
+
   // KPI Summary Strip
   kpiStrip: {
     flexDirection: "row",
-    gap: 6,
-    marginBottom: 12,
+    gap: 4,
+    marginVertical: 6,
   },
   kpiCard: {
     flex: 1,
     borderWidth: 1,
     borderColor: C.line,
     borderRadius: 4,
-    padding: 6,
+    padding: 5,
     backgroundColor: "#ffffff",
   },
   kpiValue: {
-    fontSize: 13,
+    fontSize: 11,
     fontFamily: "Helvetica-Bold",
     color: C.ink,
   },
   kpiLabel: {
-    fontSize: 6,
+    fontSize: 5.5,
     fontFamily: "Helvetica-Bold",
     color: C.muted,
     textTransform: "uppercase",
@@ -219,12 +339,15 @@ const s = StyleSheet.create({
 
   // Section Headers
   sectionTitle: {
-    fontSize: 8.5,
+    fontSize: 9,
     fontFamily: "Helvetica-Bold",
     color: C.ink,
     textTransform: "uppercase",
-    marginBottom: 4,
+    marginBottom: 3,
     marginTop: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: C.brand,
+    paddingBottom: 2,
   },
   sectionSubtitle: {
     fontSize: 6.5,
@@ -237,7 +360,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.line,
     borderRadius: 3,
-    marginBottom: 12,
+    marginBottom: 10,
     backgroundColor: "#ffffff",
   },
   matrixHeaderRow: {
@@ -296,246 +419,312 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.line,
     borderRadius: 3,
-    marginBottom: 12,
+    marginBottom: 10,
     backgroundColor: "#ffffff",
   },
   recordHeaderRow: {
     flexDirection: "row",
-    backgroundColor: "#f1f5f9",
+    backgroundColor: "#f8fafc",
     borderBottomWidth: 1,
     borderBottomColor: C.line,
     paddingVertical: 4,
-    paddingHorizontal: 2,
   },
   recordRow: {
     flexDirection: "row",
     borderBottomWidth: 1,
     borderBottomColor: "#f1f5f9",
     paddingVertical: 3.5,
-    paddingHorizontal: 2,
-    minHeight: 18,
+    alignItems: "flex-start",
   },
-  colNo: { width: "4%", textAlign: "center", fontSize: 6.5 },
-  colDue: { width: "11%", fontSize: 6.5 },
-  colInspected: { width: "11%", fontSize: 6.5 },
-  colEquip: { width: "23%", fontSize: 6.5 },
-  colTask: { width: "23%", fontSize: 6.5 },
-  colPic: { width: "12%", fontSize: 6.5 },
-  colStatus: { width: "16%", fontSize: 6.5 },
+  recColNo: { width: "4%", textAlign: "center", fontSize: 6.5 },
+  recColDate: { width: "13%", paddingLeft: 2, fontSize: 6.5 },
+  recColEquip: { width: "25%", paddingLeft: 2 },
+  recColCheck: { width: "28%", paddingLeft: 2 },
+  recColRes: { width: "12%", textAlign: "center" },
+  recColSign: { width: "18%", paddingLeft: 2, fontSize: 6 },
 
-  statusDone: {
-    backgroundColor: C.goodSoft,
+  badgeOK: {
     color: C.good,
-    paddingHorizontal: 3,
-    paddingVertical: 1,
-    borderRadius: 2,
     fontFamily: "Helvetica-Bold",
-    fontSize: 6,
-    textAlign: "center",
+    fontSize: 6.5,
   },
-  statusIssue: {
-    backgroundColor: C.warnSoft,
+  badgeIssue: {
     color: C.warn,
-    paddingHorizontal: 3,
-    paddingVertical: 1,
-    borderRadius: 2,
     fontFamily: "Helvetica-Bold",
-    fontSize: 6,
-    textAlign: "center",
+    fontSize: 6.5,
   },
-  statusOverdue: {
-    backgroundColor: C.badSoft,
+  badgeOverdue: {
     color: C.bad,
-    paddingHorizontal: 3,
-    paddingVertical: 1,
-    borderRadius: 2,
     fontFamily: "Helvetica-Bold",
-    fontSize: 6,
-    textAlign: "center",
+    fontSize: 6.5,
   },
-  statusPending: {
-    backgroundColor: "#f1f5f9",
+  badgePending: {
     color: C.muted,
-    paddingHorizontal: 3,
-    paddingVertical: 1,
-    borderRadius: 2,
-    fontSize: 6,
-    textAlign: "center",
+    fontSize: 6.5,
   },
 
-  // Sign-off Box
-  signBox: {
+  // Verification & Declarations
+  declarationBox: {
+    borderWidth: 1,
+    borderColor: C.line,
+    borderRadius: 4,
+    backgroundColor: C.subtle,
+    padding: 8,
+    marginVertical: 8,
+  },
+  declarationText: {
+    fontSize: 7,
+    lineHeight: 1.3,
+    color: C.body,
+    textAlign: "justify",
+    fontStyle: "italic",
+  },
+  signatureLedgerTable: {
+    borderWidth: 1,
+    borderColor: C.line,
+    borderRadius: 3,
+    marginBottom: 10,
+  },
+  sigHeaderRow: {
+    flexDirection: "row",
+    backgroundColor: "#f1f5f9",
+    borderBottomWidth: 1,
+    borderBottomColor: C.line,
+    paddingVertical: 3,
+  },
+  sigRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+    paddingVertical: 3,
+    alignItems: "center",
+  },
+  sigColEquip: { width: "30%", paddingLeft: 4 },
+  sigColTech: { width: "35%", paddingLeft: 4 },
+  sigColSup: { width: "35%", paddingLeft: 4 },
+  sigImg: {
+    height: 18,
+    objectFit: "contain",
+    marginTop: 1,
+  },
+
+  // Bottom Formal Signatures Block
+  signoffContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 12,
+    paddingTop: 8,
+  },
+  signoffBox: {
+    width: "48%",
     borderWidth: 1,
     borderColor: C.line,
     borderRadius: 4,
     padding: 8,
-    marginTop: 8,
     backgroundColor: "#ffffff",
   },
-  signGrid: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  signCol: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 3,
-    padding: 6,
-    backgroundColor: C.subtle,
-  },
-  signTitle: {
+  signoffTitle: {
     fontSize: 7,
     fontFamily: "Helvetica-Bold",
     color: C.ink,
     textTransform: "uppercase",
     borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
-    paddingBottom: 3,
-    marginBottom: 20,
+    borderBottomColor: C.line,
+    paddingBottom: 2,
+    marginBottom: 6,
   },
-  signLine: {
-    borderTopWidth: 1,
-    borderTopColor: C.line,
-    marginTop: 15,
-    paddingTop: 3,
+  signoffSpace: {
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  signText: {
-    fontSize: 6,
+  signoffMeta: {
+    fontSize: 6.5,
     color: C.muted,
-    marginBottom: 2,
+    marginTop: 1,
   },
 })
 
-export function PMAuditReportDocument({
-  logo,
-  docRef = "SGMP-03 / PMIR",
-  from,
-  to,
-  preparedBy,
-  generatedAt,
-  summary,
-  calendarMatrix,
-  records,
-}: PMAuditReportPayload) {
+export function PMAuditReportDocument(props: PMAuditReportPayload) {
+  const {
+    logo,
+    docRef = "SGMP-03 / PMS",
+    from,
+    to,
+    mode = "INTERNAL",
+    preparedBy,
+    generatedAt,
+    executiveSummary,
+    summary,
+    calendarMatrix,
+    records,
+  } = props
+
+  const isAuditor = mode === "AUDITOR"
+
   return (
-    <Document title="Laporan Audit Penyelenggaraan Pencegahan SGMP-03" author="Bubbles O2 Sdn. Bhd.">
-      {/* Page 1: Header, Executive Summary & Calendar Matrix */}
-      <Page size="A4" orientation="portrait" style={s.page}>
-        {/* Running Header */}
+    <Document title={`Laporan Audit PM SGMP-03 (${mode})`} author="Bubbles O2 Sdn Bhd">
+      {/* ============================================================ */}
+      {/* PAGE 1: Muka Hadapan & Executive Summary & TOC               */}
+      {/* ============================================================ */}
+      <Page size="A4" style={s.page}>
+        {/* Header Runner */}
         <View style={s.runHeader} fixed>
-          <Text style={s.runHeaderText}>BUBBLES O2 SDN. BHD. · SISTEM PENGURUSAN KUALITI GMP</Text>
-          <Text style={s.runHeaderText}>REKOD AUDIT SGMP-03</Text>
+          <Text style={s.runHeaderText}>BUBBLES O2 SDN. BHD. · FASILITI PEMPROSESAN SGMP-03</Text>
+          <Text style={s.runHeaderText}>
+            {docRef} · MOD: {isAuditor ? "AUDIT LUARAN" : "DALAMAN"}
+          </Text>
         </View>
 
-        {/* Official Header */}
+        {/* Corporate Header & Document Control */}
         <View style={s.headerBox}>
-          <View>
-            {logo ? <Image src={logo} style={s.logo} /> : null}
+          <View style={{ width: "60%" }}>
+            {logo ? (
+              // eslint-disable-next-line jsx-a11y/alt-text
+              <Image src={logo} style={s.logo} />
+            ) : (
+              <Text style={s.companyName}>BUBBLES O2 SDN. BHD.</Text>
+            )}
             <Text style={s.companyName}>BUBBLES O2 SDN. BHD.</Text>
-            <Text style={s.companyAddress}>Kilang Air Mineral Semulajadi, Kg. Pasir Mas, Rantau Panjang, Kelantan</Text>
+            <Text style={s.companyAddress}>
+              Kompleks Al-Ammar, Kampung Kanchong, 71200 Rantau, Negeri Sembilan, Malaysia.
+            </Text>
+            <Text style={s.companyAddress}>Sistem Pengurusan Keselamatan Kualiti & Penyelenggaraan GMP</Text>
           </View>
-          <View style={s.docTitleBlock}>
-            <Text style={s.docRef}>{docRef}</Text>
-            <Text style={s.docTitle}>Laporan Audit Penyelenggaraan</Text>
-            <Text style={s.docSubtitle}>Preventive Maintenance Compliance & Audit Trail</Text>
+
+          <View style={s.docControlBox}>
+            <View style={s.docControlRow}>
+              <Text style={s.docControlLabel}>Rec. No:</Text>
+              <Text style={s.docControlVal}>SGMP/03/PMS</Text>
+            </View>
+            <View style={s.docControlRow}>
+              <Text style={s.docControlLabel}>Issue Date:</Text>
+              <Text style={s.docControlVal}>01/10/2022</Text>
+            </View>
+            <View style={s.docControlRow}>
+              <Text style={s.docControlLabel}>Rev. No:</Text>
+              <Text style={s.docControlVal}>1</Text>
+            </View>
+            <View style={s.docControlRow}>
+              <Text style={s.docControlLabel}>Effective:</Text>
+              <Text style={s.docControlVal}>15/02/2023</Text>
+            </View>
+            <Text
+              style={[
+                s.modeBadge,
+                isAuditor ? s.modeBadgeAuditor : s.modeBadgeInternal,
+              ]}
+            >
+              {isAuditor ? "LAPORAN AUDITOR (TERPILIH)" : "LAPORAN DALAMAN PENUH"}
+            </Text>
           </View>
         </View>
 
-        {/* Meta Bar */}
+        {/* Title Banner */}
+        <View style={s.titleBanner}>
+          <Text style={s.docTitle}>LAPORAN AUDIT PENYELENGGARAAN PENCEGAHAN</Text>
+          <Text style={s.docSubtitle}>
+            PREVENTIVE MAINTENANCE SCHEDULE (SGMP-03) & VERIFIKASI PEMATUHAN GMP
+          </Text>
+        </View>
+
+        {/* Metadata Strip */}
         <View style={s.metaRow}>
           <View style={s.metaItem}>
             <Text style={s.metaKey}>Tempoh Audit</Text>
-            <Text style={s.metaVal}>{from} hingga {to}</Text>
-          </View>
-          <View style={s.metaItem}>
-            <Text style={s.metaKey}>Dijana Pada</Text>
-            <Text style={s.metaVal}>{generatedAt}</Text>
+            <Text style={s.metaVal}>
+              {from} hingga {to}
+            </Text>
           </View>
           <View style={s.metaItem}>
             <Text style={s.metaKey}>Disediakan Oleh</Text>
             <Text style={s.metaVal}>{preparedBy}</Text>
           </View>
           <View style={s.metaItem}>
-            <Text style={s.metaKey}>Kadar Pematuhan (KPI)</Text>
-            <Text style={[s.metaVal, { color: summary.complianceRate >= 90 ? C.good : C.warn }]}>
+            <Text style={s.metaKey}>Tarikh & Masa Jana</Text>
+            <Text style={s.metaVal}>{generatedAt}</Text>
+          </View>
+          <View style={s.metaItem}>
+            <Text style={s.metaKey}>Kadar Pematuhan</Text>
+            <Text
+              style={[
+                s.metaVal,
+                { color: summary.complianceRate >= 80 ? C.good : C.warn },
+              ]}
+            >
               {summary.complianceRate.toFixed(1)}%
             </Text>
           </View>
         </View>
 
-        {/* KPI Strip */}
+        {/* Table of Contents */}
+        <View style={s.tocBox}>
+          <Text style={s.tocTitle}>Isi Kandungan Laporan (Table of Contents)</Text>
+          <View style={s.tocRow}>
+            <Text style={s.tocItem}>1.0 Rumusan Eksekutif & Metrik KPI Pematuhan</Text>
+            <Text style={s.tocDots}>...................................................................................................................</Text>
+            <Text style={s.tocPage}>Muka Surat 1</Text>
+          </View>
+          <View style={s.tocRow}>
+            <Text style={s.tocItem}>2.0 Matriks Jadual Penyelenggaraan Tahunan (Januari – Disember)</Text>
+            <Text style={s.tocDots}>...................................................................................................................</Text>
+            <Text style={s.tocPage}>Muka Surat 2</Text>
+          </View>
+          <View style={s.tocRow}>
+            <Text style={s.tocItem}>3.0 Log Terperinci Pemeriksaan & Senarai Semak Arahan Kerja</Text>
+            <Text style={s.tocDots}>...................................................................................................................</Text>
+            <Text style={s.tocPage}>Muka Surat 3</Text>
+          </View>
+          <View style={s.tocRow}>
+            <Text style={s.tocItem}>4.0 Helaian Pengesahan & Perakuan Audit (Checked By & Verified By)</Text>
+            <Text style={s.tocDots}>...................................................................................................................</Text>
+            <Text style={s.tocPage}>Muka Surat Akhir</Text>
+          </View>
+        </View>
+
+        {/* Executive Summary Section (AI / Engine Generated) */}
+        <View style={s.execBox}>
+          <View style={s.execHeader}>
+            <Text style={s.execTitle}>1.0 Rumusan Eksekutif (Executive Summary)</Text>
+            <Text style={s.execBadge}>Dijana Analisis Pintar AI & Audit</Text>
+          </View>
+          <Text style={s.execText}>
+            {executiveSummary ||
+              `Laporan penyelenggaraan pencegahan SGMP-03 bagi tempoh ${from} hingga ${to} merangkumi ${calendarMatrix.length} alatan pemprosesan berjadual. Kadar pematuhan semasa dicatatkan pada ${summary.complianceRate.toFixed(1)}% dengan ${summary.completedTasks} tugasan disahkan selesai.`}
+          </Text>
+        </View>
+
+        {/* KPI Metrics Cards */}
         <View style={s.kpiStrip}>
           <View style={s.kpiCard}>
             <Text style={s.kpiValue}>{summary.totalTasks}</Text>
             <Text style={s.kpiLabel}>Jumlah Tugasan</Text>
           </View>
-          <View style={[s.kpiCard, { borderColor: C.goodSoft, backgroundColor: "#f0fdf4" }]}>
+          <View style={[s.kpiCard, { borderColor: "#bbf7d0", backgroundColor: "#f0fdf4" }]}>
             <Text style={[s.kpiValue, { color: C.good }]}>{summary.completedTasks}</Text>
             <Text style={s.kpiLabel}>Selesai (OK)</Text>
           </View>
-          <View style={[s.kpiCard, { borderColor: C.warnSoft, backgroundColor: "#fffbeb" }]}>
+          <View style={[s.kpiCard, { borderColor: "#fde68a", backgroundColor: "#fffbeb" }]}>
             <Text style={[s.kpiValue, { color: C.warn }]}>{summary.issueTasks}</Text>
             <Text style={s.kpiLabel}>Ada Isu / Catatan</Text>
           </View>
-          <View style={[s.kpiCard, { borderColor: C.badSoft, backgroundColor: "#fef2f2" }]}>
+          <View style={[s.kpiCard, { borderColor: "#fecaca", backgroundColor: "#fef2f2" }]}>
             <Text style={[s.kpiValue, { color: C.bad }]}>{summary.overdueTasks}</Text>
             <Text style={s.kpiLabel}>Tertunggak</Text>
           </View>
-          <View style={s.kpiCard}>
-            <Text style={s.kpiValue}>{summary.pendingTasks}</Text>
+          <View style={[s.kpiCard, { borderColor: "#c7d2fe", backgroundColor: "#eef2ff" }]}>
+            <Text style={[s.kpiValue, { color: C.brand }]}>{summary.pendingTasks}</Text>
             <Text style={s.kpiLabel}>Akan Datang</Text>
           </View>
-        </View>
-
-        {/* Bahagian 1: Matriks Kalendar Tahunan */}
-        <Text style={s.sectionTitle}>1. Matriks Jadual Penyelenggaraan Tahunan (12 Bulan)</Text>
-        <Text style={s.sectionSubtitle}>
-          Petunjuk status: [ ✓ ] Selesai · [ ! ] Ada Isu · [ • ] Belum Dibuat / Menunggu · [ × ] Tertunggak · [ - ] Tiada Jadual
-        </Text>
-
-        <View style={s.matrixTable}>
-          <View style={s.matrixHeaderRow}>
-            <Text style={[s.matrixColEquip, { fontFamily: "Helvetica-Bold" }]}>Peralatan & No. SRS</Text>
-            {MONTH_NAMES_SHORT.map((m) => (
-              <Text key={m} style={s.matrixColMonth}>{m}</Text>
-            ))}
-            <Text style={s.matrixColTotal}>Siap / Jumlah</Text>
+          <View style={[s.kpiCard, { borderColor: "#bbf7d0", backgroundColor: "#f0fdf4" }]}>
+            <Text style={[s.kpiValue, { color: C.good }]}>{summary.complianceRate.toFixed(1)}%</Text>
+            <Text style={s.kpiLabel}>Kadar Pematuhan</Text>
           </View>
-
-          {calendarMatrix.map((row, idx) => (
-            <View key={idx} style={s.matrixRow}>
-              <View style={s.matrixColEquip}>
-                <Text style={{ fontSize: 6.5, fontFamily: "Helvetica-Bold", color: C.ink }}>{row.equipment}</Text>
-                <Text style={{ fontSize: 5.5, color: C.muted }}>{row.srs || "Tanpa SRS"} · {row.frequency}</Text>
-              </View>
-
-              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
-                const cell = row.months[m] || { status: "NONE", count: 0 }
-                let symbol = "-"
-                let style = s.cellNone
-                if (cell.status === "DONE") { symbol = `✓${cell.count > 1 ? cell.count : ""}`; style = s.cellDone }
-                else if (cell.status === "ISSUE") { symbol = `!${cell.count > 1 ? cell.count : ""}`; style = s.cellIssue }
-                else if (cell.status === "OVERDUE") { symbol = `×${cell.count > 1 ? cell.count : ""}`; style = s.cellOverdue }
-                else if (cell.status === "PENDING") { symbol = `•${cell.count > 1 ? cell.count : ""}`; style = s.cellPending }
-
-                return (
-                  <Text key={m} style={[s.matrixColMonth, style]}>
-                    {symbol}
-                  </Text>
-                )
-              })}
-
-              <Text style={s.matrixColTotal}>
-                {row.totalCompleted}/{row.totalScheduled}
-              </Text>
-            </View>
-          ))}
         </View>
 
-        {/* Running Footer */}
+        {/* Footer Runner */}
         <View style={s.runFooter} fixed>
-          <Text style={s.runFooterText}>Borang SGMP-03 (Pindaan 2026) · Dokumen Terkawal Kualiti</Text>
+          <Text style={s.runFooterText}>Bubbles O2 Preventive Maintenance Report · Dokumen Kualiti GMP</Text>
           <Text
             style={s.runFooterText}
             render={({ pageNumber, totalPages }) => `Halaman ${pageNumber} daripada ${totalPages}`}
@@ -543,112 +732,356 @@ export function PMAuditReportDocument({
         </View>
       </Page>
 
-      {/* Page 2+: Detailed Inspection Records & Sign-off Block */}
-      <Page size="A4" orientation="portrait" style={s.page}>
+      {/* ============================================================ */}
+      {/* PAGE 2: Matriks Kalendar Bulanan Mesin (Annual Matrix)       */}
+      {/* ============================================================ */}
+      <Page size="A4" orientation="landscape" style={s.page}>
         <View style={s.runHeader} fixed>
-          <Text style={s.runHeaderText}>BUBBLES O2 SDN. BHD. · LOG PEMERIKSAAN PM</Text>
-          <Text style={s.runHeaderText}>{from} KE {to}</Text>
+          <Text style={s.runHeaderText}>BUBBLES O2 SDN. BHD. · SGMP-03 MATRIKS JADUAL BULANAN</Text>
+          <Text style={s.runHeaderText}>
+            {docRef} · MOD: {isAuditor ? "AUDIT LUARAN" : "DALAMAN"}
+          </Text>
         </View>
 
-        <Text style={s.sectionTitle}>2. Log Terperinci Rekod Pemeriksaan & Status Semasa</Text>
+        <Text style={s.sectionTitle}>
+          2.0 Matriks Jadual Penyelenggaraan Tahunan (Januari – Disember)
+        </Text>
         <Text style={s.sectionSubtitle}>
-          Menunjukkan rekod terperinci setiap tugasan mengikut tarikh patut, tarikh pelaksanaan, dan keputusan pemeriksaan.
+          Paparan matriks status pelaksanaan aktiviti penyelenggaraan pencegahan mengikut frekuensi dan alatan.
+        </Text>
+
+        <View style={s.matrixTable}>
+          <View style={s.matrixHeaderRow}>
+            <Text style={[s.matrixColEquip, { fontFamily: "Helvetica-Bold", fontSize: 6.5 }]}>
+              Nama Mesin / Alatan & Kekerapan
+            </Text>
+            {MONTH_NAMES_SHORT.map((m, idx) => (
+              <Text key={idx} style={s.matrixColMonth}>
+                {m}
+              </Text>
+            ))}
+            <Text style={s.matrixColTotal}>Selesai / Jumlah</Text>
+          </View>
+
+          {calendarMatrix.map((row, idx) => (
+            <View key={idx} style={s.matrixRow}>
+              <View style={s.matrixColEquip}>
+                <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 7, color: C.ink }}>
+                  {row.equipment}
+                </Text>
+                <Text style={{ fontSize: 5.5, color: C.muted }}>
+                  {row.srs ? `SRS: ${row.srs} | ` : ""}
+                  {row.frequency}
+                </Text>
+              </View>
+
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
+                const cell = row.months[m]
+                const status = cell?.status || "NONE"
+
+                let style = s.cellNone
+                let label = "-"
+
+                if (status === "DONE") {
+                  style = s.cellDone
+                  label = cell.count > 1 ? `OK(${cell.count})` : "OK"
+                } else if (status === "ISSUE") {
+                  style = s.cellIssue
+                  label = cell.count > 1 ? `ISU(${cell.count})` : "ISU"
+                } else if (status === "OVERDUE") {
+                  style = s.cellOverdue
+                  label = "LATE"
+                } else if (status === "PENDING") {
+                  style = s.cellPending
+                  label = "PLAN"
+                }
+
+                return (
+                  <Text key={m} style={[s.matrixColMonth, style]}>
+                    {label}
+                  </Text>
+                )
+              })}
+
+              <Text style={s.matrixColTotal}>
+                {row.totalCompleted} / {row.totalScheduled}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Legend */}
+        <View style={{ flexDirection: "row", gap: 12, marginTop: 4 }}>
+          <Text style={{ fontSize: 6, color: C.muted }}>Petunjuk (Legend):</Text>
+          <Text style={{ fontSize: 6, color: C.good, fontFamily: "Helvetica-Bold" }}>OK = Selesai Memuaskan</Text>
+          <Text style={{ fontSize: 6, color: C.warn, fontFamily: "Helvetica-Bold" }}>ISU = Ada Isu / Kerosakan</Text>
+          <Text style={{ fontSize: 6, color: C.bad, fontFamily: "Helvetica-Bold" }}>LATE = Tertunggak</Text>
+          <Text style={{ fontSize: 6, color: C.brand }}>PLAN = Dijadualkan (Akan Datang)</Text>
+          <Text style={{ fontSize: 6, color: "#cbd5e1" }}>- = Tiada Jadual</Text>
+        </View>
+
+        <View style={s.runFooter} fixed>
+          <Text style={s.runFooterText}>Bubbles O2 Preventive Maintenance Report · Dokumen Kualiti GMP</Text>
+          <Text
+            style={s.runFooterText}
+            render={({ pageNumber, totalPages }) => `Halaman ${pageNumber} daripada ${totalPages}`}
+          />
+        </View>
+      </Page>
+
+      {/* ============================================================ */}
+      {/* PAGE 3 onwards: Log Pemeriksaan Terperinci (Detailed Ledger) */}
+      {/* ============================================================ */}
+      <Page size="A4" style={s.page}>
+        <View style={s.runHeader} fixed>
+          <Text style={s.runHeaderText}>BUBBLES O2 SDN. BHD. · SGMP-03 LOG PEMERIKSAAN</Text>
+          <Text style={s.runHeaderText}>
+            {docRef} · MOD: {isAuditor ? "AUDIT LUARAN" : "DALAMAN"}
+          </Text>
+        </View>
+
+        <Text style={s.sectionTitle}>
+          3.0 Log Terperinci Pemeriksaan & Arahan Kerja (Checklist)
+        </Text>
+        <Text style={s.sectionSubtitle}>
+          Rekod pelaksanaan tugasan, status semakan arahan kerja, dan keputusan pemeriksaan teknikal.
         </Text>
 
         <View style={s.recordTable}>
           <View style={s.recordHeaderRow}>
-            <Text style={[s.colNo, { fontFamily: "Helvetica-Bold" }]}>No</Text>
-            <Text style={[s.colDue, { fontFamily: "Helvetica-Bold" }]}>Tarikh Patut</Text>
-            <Text style={[s.colInspected, { fontFamily: "Helvetica-Bold" }]}>Tarikh Siap</Text>
-            <Text style={[s.colEquip, { fontFamily: "Helvetica-Bold" }]}>Peralatan</Text>
-            <Text style={[s.colTask, { fontFamily: "Helvetica-Bold" }]}>Arahan / Tugasan</Text>
-            <Text style={[s.colPic, { fontFamily: "Helvetica-Bold" }]}>PIC / Pelaksana</Text>
-            <Text style={[s.colStatus, { fontFamily: "Helvetica-Bold" }]}>Status & Keputusan</Text>
+            <Text style={[s.recColNo, { fontFamily: "Helvetica-Bold" }]}>No</Text>
+            <Text style={[s.recColDate, { fontFamily: "Helvetica-Bold" }]}>Tarikh Jadual / Periksa</Text>
+            <Text style={[s.recColEquip, { fontFamily: "Helvetica-Bold" }]}>Mesin & Kekerapan</Text>
+            <Text style={[s.recColCheck, { fontFamily: "Helvetica-Bold" }]}>Arahan Kerja / Checklist</Text>
+            <Text style={[s.recColRes, { fontFamily: "Helvetica-Bold" }]}>Keputusan</Text>
+            <Text style={[s.recColSign, { fontFamily: "Helvetica-Bold" }]}>Pemeriksa (PIC)</Text>
           </View>
 
-          {records.length === 0 ? (
-            <View style={{ padding: 12, alignItems: "center" }}>
-              <Text style={{ fontSize: 7.5, color: C.muted }}>Tiada rekod tugasan dalam julat tarikh yang dipilih.</Text>
-            </View>
-          ) : (
-            records.map((r) => {
-              let statusNode = <Text style={s.statusPending}>MENUNGGU</Text>
-              if (r.status === "DONE") {
-                statusNode = <Text style={s.statusDone}>✓ SELESAI (OK)</Text>
-              } else if (r.status === "ISSUE") {
-                statusNode = <Text style={s.statusIssue}>! ADA ISU</Text>
-              } else if (r.status === "OVERDUE") {
-                statusNode = <Text style={s.statusOverdue}>× TERTUNGGAK</Text>
-              }
+          {records.slice(0, 15).map((rec) => {
+            const isDone = rec.status === "DONE"
+            const isIssue = rec.status === "ISSUE"
+            const isOverdue = rec.status === "OVERDUE"
 
-              return (
-                <View key={r.index} style={s.recordRow} wrap={false}>
-                  <Text style={s.colNo}>{r.index}</Text>
-                  <Text style={s.colDue}>{r.dueDate}</Text>
-                  <Text style={s.colInspected}>{r.inspectedDate || "-"}</Text>
-                  <View style={s.colEquip}>
-                    <Text style={{ fontFamily: "Helvetica-Bold", color: C.ink }}>{r.equipment}</Text>
-                    {r.srs && <Text style={{ fontSize: 5.5, color: C.muted }}>SRS: {r.srs}</Text>}
-                  </View>
-                  <View style={s.colTask}>
-                    <Text style={{ color: C.body }}>{r.checklist.slice(0, 2).join("; ")}</Text>
-                    {r.checklist.length > 2 && (
-                      <Text style={{ fontSize: 5.5, color: C.muted }}>+{r.checklist.length - 2} tugasan lagi</Text>
-                    )}
-                    {r.notes && (
-                      <Text style={{ fontSize: 5.5, color: C.warn, marginTop: 1 }}>Catatan: {r.notes}</Text>
-                    )}
-                  </View>
-                  <View style={s.colPic}>
-                    <Text style={{ color: C.ink }}>{r.pics.join(", ") || "Belum ditugaskan"}</Text>
-                    {r.completedBy && (
-                      <Text style={{ fontSize: 5.5, color: C.muted }}>Disah: {r.completedBy}</Text>
-                    )}
-                  </View>
-                  <View style={s.colStatus}>{statusNode}</View>
+            return (
+              <View key={rec.index} style={s.recordRow} wrap={false}>
+                <Text style={s.recColNo}>{rec.index}</Text>
+
+                <View style={s.recColDate}>
+                  <Text style={{ fontFamily: "Helvetica-Bold", color: C.ink }}>{rec.dueDate}</Text>
+                  {rec.inspectedDate && (
+                    <Text style={{ fontSize: 5.5, color: C.good, marginTop: 1 }}>
+                      Periksa: {rec.inspectedDate}
+                    </Text>
+                  )}
                 </View>
-              )
-            })
+
+                <View style={s.recColEquip}>
+                  <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 7, color: C.ink }}>
+                    {rec.equipment}
+                  </Text>
+                  <Text style={{ fontSize: 5.5, color: C.muted }}>
+                    {rec.srs ? `SRS: ${rec.srs} | ` : ""}
+                    {rec.frequency}
+                  </Text>
+                </View>
+
+                <View style={s.recColCheck}>
+                  {rec.checklist.slice(0, 3).map((item, cIdx) => (
+                    <Text key={cIdx} style={{ fontSize: 5.5, color: C.body, marginBottom: 1 }}>
+                      &bull; {item}
+                    </Text>
+                  ))}
+                  {rec.checklist.length > 3 && (
+                    <Text style={{ fontSize: 5, color: C.faint }}>
+                      +{rec.checklist.length - 3} item lagi...
+                    </Text>
+                  )}
+                </View>
+
+                <View style={s.recColRes}>
+                  <Text
+                    style={
+                      isDone
+                        ? s.badgeOK
+                        : isIssue
+                        ? s.badgeIssue
+                        : isOverdue
+                        ? s.badgeOverdue
+                        : s.badgePending
+                    }
+                  >
+                    {isDone ? "OK (PATUH)" : isIssue ? "ADA ISU" : isOverdue ? "TERTUNGGAK" : "DIJADUALKAN"}
+                  </Text>
+                  {rec.notes && (
+                    <Text style={{ fontSize: 5, color: C.muted, marginTop: 1, textAlign: "center" }}>
+                      {rec.notes.slice(0, 45)}
+                    </Text>
+                  )}
+                </View>
+
+                <View style={s.recColSign}>
+                  <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 6.5 }}>
+                    {rec.completedBy || rec.pics.join(", ") || "-"}
+                  </Text>
+                  {rec.verifiedByName && (
+                    <Text style={{ fontSize: 5.5, color: C.good, marginTop: 1 }}>
+                      Disahkan: {rec.verifiedByName}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            )
+          })}
+        </View>
+
+        {records.length > 15 && (
+          <Text style={{ fontSize: 6, fontStyle: "italic", color: C.muted, textAlign: "center" }}>
+            * Memaparkan 15 rekod pertama dalam pratonton ringkasan. Sila rujuk fail Excel lampiran untuk lejar penuh keseluruhan ({records.length} rekod).
+          </Text>
+        )}
+
+        <View style={s.runFooter} fixed>
+          <Text style={s.runFooterText}>Bubbles O2 Preventive Maintenance Report · Dokumen Kualiti GMP</Text>
+          <Text
+            style={s.runFooterText}
+            render={({ pageNumber, totalPages }) => `Halaman ${pageNumber} daripada ${totalPages}`}
+          />
+        </View>
+      </Page>
+
+      {/* ============================================================ */}
+      {/* FINAL PAGE: Helaian Pengesahan & Perakuan Audit              */}
+      {/* ============================================================ */}
+      <Page size="A4" style={s.page}>
+        <View style={s.runHeader} fixed>
+          <Text style={s.runHeaderText}>BUBBLES O2 SDN. BHD. · SGMP-03 PENGESAHAN & PERAKUAN AUDIT</Text>
+          <Text style={s.runHeaderText}>
+            {docRef} · MOD: {isAuditor ? "AUDIT LUARAN" : "DALAMAN"}
+          </Text>
+        </View>
+
+        <Text style={s.sectionTitle}>
+          4.0 Helaian Pengesahan & Perakuan Audit (Checked By & Verified By)
+        </Text>
+        <Text style={s.sectionSubtitle}>
+          Perakuan pematuhan operasi, integriti peralatan pemprosesan, dan tandatangan digital rasmi.
+        </Text>
+
+        {/* Declaration Statement */}
+        <View style={s.declarationBox}>
+          <Text style={s.declarationText}>
+            &ldquo;Dengan ini diperakui dan disahkan bahawa aktiviti penyelenggaraan pencegahan bagi alatan dan jentera loji Bubbles O2 Sdn. Bhd. telah dirancang, dilaksanakan mengikut senarai semak (checklist) piawai, dan disahkan oleh pihak penyelia selaras dengan keperluan Prosedur Operasi Standard GMP (SGMP-03) dan Piawaian Kualiti Keselamatan Makanan. Rekod ini adalah dokumen sah dan tepat untuk tujuan verifikasi kualiti dan semakan audit.&rdquo;
+          </Text>
+        </View>
+
+        {/* Verification Summary Ledger (Completed Tasks with actual signatures) */}
+        <Text style={{ fontSize: 7.5, fontFamily: "Helvetica-Bold", color: C.ink, marginBottom: 4, marginTop: 4 }}>
+          Senarai Rekod Pemeriksaan yang Telah Ditandatangani:
+        </Text>
+
+        <View style={s.signatureLedgerTable}>
+          <View style={s.sigHeaderRow}>
+            <Text style={[s.sigColEquip, { fontFamily: "Helvetica-Bold", fontSize: 6.5 }]}>
+              Alatan / Mesin & Tarikh
+            </Text>
+            <Text style={[s.sigColTech, { fontFamily: "Helvetica-Bold", fontSize: 6.5 }]}>
+              Pemeriksa (Checked By)
+            </Text>
+            <Text style={[s.sigColSup, { fontFamily: "Helvetica-Bold", fontSize: 6.5 }]}>
+              Pengesahan Penyelia (Verified By)
+            </Text>
+          </View>
+
+          {records
+            .filter((r) => r.status === "DONE" || r.status === "ISSUE")
+            .slice(0, 6)
+            .map((rec, idx) => (
+              <View key={idx} style={s.sigRow} wrap={false}>
+                <View style={s.sigColEquip}>
+                  <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 6.5, color: C.ink }}>
+                    {rec.equipment}
+                  </Text>
+                  <Text style={{ fontSize: 5.5, color: C.muted }}>
+                    Tarikh Periksa: {rec.inspectedDate || rec.dueDate} | Keputusan: {rec.result || "OK"}
+                  </Text>
+                </View>
+
+                <View style={s.sigColTech}>
+                  <Text style={{ fontSize: 6.5, fontFamily: "Helvetica-Bold" }}>
+                    {rec.completedBy || "Juruteknik Penyelenggaraan"}
+                  </Text>
+                  {rec.performedSignature ? (
+                    // eslint-disable-next-line jsx-a11y/alt-text
+                    <Image src={rec.performedSignature} style={s.sigImg} />
+                  ) : (
+                    <Text style={{ fontSize: 5.5, color: C.faint, fontStyle: "italic" }}>
+                      Tandatangan Digital Direkodkan
+                    </Text>
+                  )}
+                </View>
+
+                <View style={s.sigColSup}>
+                  <Text style={{ fontSize: 6.5, fontFamily: "Helvetica-Bold", color: C.good }}>
+                    {rec.verifiedByName || (rec.verifiedAt ? "Penyelia Operasi" : "Menunggu Pengesahan")}
+                  </Text>
+                  {rec.verifiedSignature ? (
+                    // eslint-disable-next-line jsx-a11y/alt-text
+                    <Image src={rec.verifiedSignature} style={s.sigImg} />
+                  ) : rec.verifiedAt ? (
+                    <Text style={{ fontSize: 5.5, color: C.good, fontStyle: "italic" }}>
+                      Telah Disahkan Secara Digital
+                    </Text>
+                  ) : (
+                    <Text style={{ fontSize: 5.5, color: C.warn, fontStyle: "italic" }}>
+                      Belum Ditandatangani
+                    </Text>
+                  )}
+                </View>
+              </View>
+            ))}
+
+          {records.filter((r) => r.status === "DONE" || r.status === "ISSUE").length === 0 && (
+            <View style={{ padding: 8, alignItems: "center" }}>
+              <Text style={{ fontSize: 6.5, color: C.muted, fontStyle: "italic" }}>
+                Tiada pemeriksaan selesai direkodkan dalam julat tarikh ini.
+              </Text>
+            </View>
           )}
         </View>
 
-        {/* Bahagian 3: Pengesahan & Tandatangan Audit */}
-        <View style={s.signBox} wrap={false}>
-          <Text style={s.sectionTitle}>3. Pengesahan & Perakuan Audit</Text>
-          <Text style={[s.sectionSubtitle, { marginBottom: 8 }]}>
-            Dengan ini diperakui bahawa rekod penyelenggaraan di atas telah dilaksanakan mengikut piawaian SOP SGMP-03 dan panduan GMP yang berkuatkuasa.
-          </Text>
-
-          <View style={s.signGrid}>
-            <View style={s.signCol}>
-              <Text style={s.signTitle}>Disediakan Oleh</Text>
-              <View style={s.signLine} />
-              <Text style={s.signText}>Nama: {preparedBy}</Text>
-              <Text style={s.signText}>Jawatan: Pegawai / PIC Penyelenggaraan</Text>
-              <Text style={s.signText}>Tarikh: {generatedAt.split(",")[0]}</Text>
+        {/* Master Sign-off Block */}
+        <View style={s.signoffContainer} wrap={false}>
+          <View style={s.signoffBox}>
+            <Text style={s.signoffTitle}>Disediakan Oleh (Pemeriksa / Juruteknik)</Text>
+            <View style={s.signoffSpace}>
+              <Text style={{ fontSize: 7, color: C.muted, fontStyle: "italic" }}>
+                (Tandatangan Digital & Rekod Sistem)
+              </Text>
             </View>
+            <Text style={[s.signoffMeta, { fontFamily: "Helvetica-Bold", color: C.ink }]}>
+              Nama: {preparedBy}
+            </Text>
+            <Text style={s.signoffMeta}>Jawatan: Pegawai Penyelenggaraan / Juruteknik Fasiliti</Text>
+            <Text style={s.signoffMeta}>Tarikh: {generatedAt.slice(0, 10)}</Text>
+          </View>
 
-            <View style={s.signCol}>
-              <Text style={s.signTitle}>Disemak Oleh</Text>
-              <View style={s.signLine} />
-              <Text style={s.signText}>Nama: ________________________</Text>
-              <Text style={s.signText}>Jawatan: Pengurus Kejuruteraan / Operasi</Text>
-              <Text style={s.signText}>Tarikh: ________________________</Text>
+          <View style={s.signoffBox}>
+            <Text style={s.signoffTitle}>Disemak & Disahkan Oleh (Penyelia / Kualiti GMP)</Text>
+            <View style={s.signoffSpace}>
+              <Text style={{ fontSize: 7, color: C.good, fontStyle: "italic" }}>
+                (Pengesahan Verifikasi Berkanun GMP)
+              </Text>
             </View>
-
-            <View style={s.signCol}>
-              <Text style={s.signTitle}>Disahkan Oleh (Juruaudit)</Text>
-              <View style={s.signLine} />
-              <Text style={s.signText}>Nama Juruaudit: ________________</Text>
-              <Text style={s.signText}>Badan / Bahagian: Quality Assurance</Text>
-              <Text style={s.signText}>Status: [  ] Patuh  [  ] NCR Terbit</Text>
-            </View>
+            <Text style={[s.signoffMeta, { fontFamily: "Helvetica-Bold", color: C.ink }]}>
+              Nama: Pengurus Fasiliti / Penyelia Kualiti
+            </Text>
+            <Text style={s.signoffMeta}>Jawatan: Ketua Operasi / Pengurus Penyelenggaraan</Text>
+            <Text style={s.signoffMeta}>Tarikh: {generatedAt.slice(0, 10)}</Text>
           </View>
         </View>
 
-        {/* Running Footer */}
         <View style={s.runFooter} fixed>
-          <Text style={s.runFooterText}>Borang SGMP-03 (Pindaan 2026) · Dokumen Terkawal Kualiti</Text>
+          <Text style={s.runFooterText}>Bubbles O2 Preventive Maintenance Report · Dokumen Kualiti GMP</Text>
           <Text
             style={s.runFooterText}
             render={({ pageNumber, totalPages }) => `Halaman ${pageNumber} daripada ${totalPages}`}

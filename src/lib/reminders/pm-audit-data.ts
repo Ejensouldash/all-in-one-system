@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { mytDate, ruleLabel, pmStatus, validDate } from "./pm-core"
 import { lockPM, materializePM, pmVisibleWhere } from "./pm-store"
+import { generatePMExecutiveSummaryAI } from "./pm-ai-summary"
 import type { PMAuditMatrixRow, PMAuditRecord } from "@/lib/pdf/PMAuditReportDocument"
 
 export interface PMAuditFilter {
@@ -8,6 +9,11 @@ export interface PMAuditFilter {
   to: string
   equipment?: string
   status?: string
+  mode?: "INTERNAL" | "AUDITOR"
+  hideInternalNotes?: boolean
+  hideOverduePending?: boolean
+  hidePersonalContact?: boolean
+  hideSignatures?: boolean
 }
 
 export async function fetchPMAuditData(
@@ -17,6 +23,7 @@ export async function fetchPMAuditData(
   const today = mytDate()
   const from = validDate(filter.from) ? filter.from : `${today.slice(0, 4)}-01-01`
   const to = validDate(filter.to) ? filter.to : `${today.slice(0, 4)}-12-31`
+  const isAuditorMode = filter.mode === "AUDITOR"
 
   // 1. Fetch schedules
   const scheduleWhere: any = {
@@ -73,6 +80,11 @@ export async function fetchPMAuditData(
     }
   }
 
+  // If auditor mode requested to hide overdue/pending tasks
+  if (isAuditorMode && filter.hideOverduePending) {
+    occurrenceWhere.completedAt = { not: null }
+  }
+
   const occurrences = await prisma.reminderPMOccurrence.findMany({
     where: occurrenceWhere,
     include: {
@@ -90,11 +102,12 @@ export async function fetchPMAuditData(
     orderBy: [{ dueDate: "asc" }, { equipment: "asc" }],
   })
 
-  // 4. Fetch User Name Map
+  // 4. Fetch User Name Map (PIC, completedById, verifiedById)
   const allUserIds = new Set<string>()
   occurrences.forEach((occ) => {
     occ.picIds.forEach((id) => allUserIds.add(id))
     if (occ.completedById) allUserIds.add(occ.completedById)
+    if (occ.verifiedById) allUserIds.add(occ.verifiedById)
   })
 
   const users = allUserIds.size > 0
@@ -112,11 +125,16 @@ export async function fetchPMAuditData(
   let issueTasks = 0
   let overdueTasks = 0
   let pendingTasks = 0
+  const issuesList: string[] = []
 
   occurrences.forEach((occ) => {
     if (occ.completedAt) {
-      if (occ.result === "ISSUE") issueTasks++
-      else completedTasks++
+      if (occ.result === "ISSUE") {
+        issueTasks++
+        if (occ.notes) issuesList.push(`${occ.equipment}: ${occ.notes}`)
+      } else {
+        completedTasks++
+      }
     } else if (occ.dueDate < today) {
       overdueTasks++
     } else {
@@ -127,11 +145,25 @@ export async function fetchPMAuditData(
   const totalTasks = occurrences.length
   const complianceRate =
     totalTasks > 0
-      ? ((completedTasks + issueTasks) / totalTasks) * 100
+      ? ((completedTasks + (isAuditorMode ? 0 : issueTasks)) / totalTasks) * 100
       : 100
 
-  // 6. Build 12-Month Calendar Matrix
-  // Group occurrences by scheduleId and month (1-12)
+  // 6. Generate AI / Rule-based Executive Summary
+  const executiveSummary = await generatePMExecutiveSummaryAI({
+    from,
+    to,
+    totalTasks,
+    completedTasks,
+    issueTasks,
+    overdueTasks,
+    pendingTasks,
+    complianceRate,
+    equipmentCount: schedules.length,
+    issuesSummary: issuesList,
+    isAuditorMode,
+  })
+
+  // 7. Build 12-Month Calendar Matrix
   const occsBySchedule = new Map<string, typeof occurrences>()
   occurrences.forEach((occ) => {
     const list = occsBySchedule.get(occ.scheduleId) || []
@@ -158,7 +190,11 @@ export async function fetchPMAuditData(
         status = "OVERDUE"
       }
 
-      // Priority: ISSUE > OVERDUE > DONE > PENDING
+      // In Auditor mode with overdue hidden, don't flag OVERDUE as red
+      if (isAuditorMode && filter.hideOverduePending && status === "OVERDUE") {
+        status = "PENDING"
+      }
+
       if (currentMonth.status === "NONE") {
         currentMonth.status = status
       } else if (status === "ISSUE" || currentMonth.status === "ISSUE") {
@@ -186,7 +222,7 @@ export async function fetchPMAuditData(
     }
   })
 
-  // 7. Build Formatted Clean Records
+  // 8. Build Formatted Clean Records with Auditor Filtering
   const records: PMAuditRecord[] = occurrences.map((occ, idx) => {
     let status: "DONE" | "ISSUE" | "OVERDUE" | "PENDING" = "PENDING"
     if (occ.completedAt) {
@@ -195,7 +231,24 @@ export async function fetchPMAuditData(
       status = "OVERDUE"
     }
 
+    // Auditor Sanitization
+    let cleanNotes = occ.notes
+    if (isAuditorMode && filter.hideInternalNotes) {
+      cleanNotes = occ.result === "ISSUE" ? "Tindakan pembetulan telah diselaraskan." : null
+    }
+
+    let pics = occ.picIds.map((id) => userMap.get(id) || id)
+    let completedBy = occ.completedById ? userMap.get(occ.completedById) || occ.completedById : null
+    let verifiedByName = occ.verifiedById ? userMap.get(occ.verifiedById) || occ.verifiedById : null
+
+    if (isAuditorMode && filter.hidePersonalContact) {
+      pics = pics.map(() => "Juruteknik Penyelenggaraan")
+      if (completedBy) completedBy = "Juruteknik Penyelenggaraan"
+      if (verifiedByName) verifiedByName = "Penyelia Operasi Kualiti GMP"
+    }
+
     return {
+      id: occ.id,
       index: idx + 1,
       dueDate: occ.dueDate,
       inspectedDate: occ.inspectedDate,
@@ -203,12 +256,17 @@ export async function fetchPMAuditData(
       srs: occ.srs,
       frequency: ruleLabel(occ.schedule),
       checklist: occ.checklist,
-      pics: occ.picIds.map((id) => userMap.get(id) || id),
+      completedChecklist: occ.completedChecklist || [],
+      pics,
       status,
       result: occ.result,
-      notes: occ.notes,
-      completedBy: occ.completedById ? userMap.get(occ.completedById) || occ.completedById : null,
+      notes: cleanNotes,
+      performedSignature: filter.hideSignatures ? null : occ.performedSignature,
+      completedBy,
       completedAt: occ.completedAt ? occ.completedAt.toISOString() : null,
+      verifiedByName,
+      verifiedSignature: filter.hideSignatures ? null : occ.verifiedSignature,
+      verifiedAt: occ.verifiedAt ? occ.verifiedAt.toISOString() : null,
     }
   })
 
@@ -216,7 +274,15 @@ export async function fetchPMAuditData(
     today,
     from,
     to,
+    mode: (isAuditorMode ? "AUDITOR" : "INTERNAL") as "AUDITOR" | "INTERNAL",
+    filterSettings: {
+      hideInternalNotes: Boolean(filter.hideInternalNotes),
+      hideOverduePending: Boolean(filter.hideOverduePending),
+      hidePersonalContact: Boolean(filter.hidePersonalContact),
+      hideSignatures: Boolean(filter.hideSignatures),
+    },
     preparedBy: access.name || "Pegawai Penyelenggaraan Bubbles O2",
+    executiveSummary,
     summary: {
       totalTasks,
       completedTasks,

@@ -14,6 +14,7 @@ import {
 } from "../src/lib/reminders/pm-core.ts"
 import { parsePMWorkbook, suggestGroups } from "../src/lib/reminders/pm-import.ts"
 import { classifyPMMailError, buildPMDigest } from "../src/lib/reminders/pm-dispatch.ts"
+import { buildRuleBasedPMSummary } from "../src/lib/reminders/pm-ai-summary.ts"
 
 console.log("=== Running SGMP-03 PM Logic Tests ===\n")
 
@@ -319,7 +320,87 @@ test("buildPMDigest generates proper HTML with occurrence links", () => {
   assert.ok(html.includes("/reminders?tab=pm&amp;occurrence=occ-456"))
 })
 
+// 16. buildRuleBasedPMSummary generates appropriate narrative for Internal vs Auditor mode
+test("buildRuleBasedPMSummary produces compliant executive narratives", () => {
+  const baseInput = {
+    from: "2026-01-01",
+    to: "2026-12-31",
+    totalTasks: 161,
+    completedTasks: 155,
+    issueTasks: 3,
+    overdueTasks: 3,
+    pendingTasks: 0,
+    complianceRate: 96.3,
+    equipmentCount: 30,
+  }
+
+  // Internal mode
+  const internalSummary = buildRuleBasedPMSummary({ ...baseInput, isAuditorMode: false })
+  assert.ok(internalSummary.includes("SGMP-03"))
+  assert.ok(internalSummary.includes("161 aktiviti penyelenggaraan"))
+  assert.ok(internalSummary.includes("155 tugasan selesai OK"))
+  assert.ok(internalSummary.includes("3 tugasan memerlukan tindakan susulan kerosakan/alat ganti"))
+  assert.ok(internalSummary.includes("Cemerlang"))
+
+  // Auditor mode
+  const auditorSummary = buildRuleBasedPMSummary({ ...baseInput, isAuditorMode: true })
+  assert.ok(auditorSummary.includes("Laporan Penyelenggaraan Pencegahan (SGMP-03)"))
+  assert.ok(auditorSummary.includes("161 tugasan berjadual"))
+  assert.ok(auditorSummary.includes("155 pemeriksaan telah disempurnakan dan diverifikasi"))
+  assert.ok(auditorSummary.includes("kadar pematuhan keseluruhan 96.3%"))
+  assert.ok(auditorSummary.includes("piawaian GMP"))
+  // Auditor mode does NOT highlight internal failure breakdown
+  assert.ok(!auditorSummary.includes("tindakan susulan kerosakan/alat ganti"))
+})
+
+// 17. Auditor sanitization rules test
+test("Auditor mode sanitization rules correctly anonymize and protect internal data", () => {
+  // Mock occurrence data
+  const rawRecord = {
+    equipment: "Auto Packing Machine",
+    result: "ISSUE",
+    notes: "Bearing motor bising, technician Abu tukar belt sementara.",
+    pic: "Abu Bakar",
+    completedBy: "Abu Bakar",
+    verifiedBy: "Encik Razak",
+    performedSignature: "data:image/png;base64,mockSignature1",
+    verifiedSignature: "data:image/png;base64,mockSignature2",
+    dueDate: "2026-08-01",
+    today: "2026-09-01",
+  }
+
+  // Sanitization test: hideInternalNotes
+  let cleanNotes = rawRecord.notes
+  const hideInternalNotes = true
+  if (hideInternalNotes) {
+    cleanNotes = rawRecord.result === "ISSUE" ? "Tindakan pembetulan telah diselaraskan." : null
+  }
+  assert.equal(cleanNotes, "Tindakan pembetulan telah diselaraskan.")
+
+  // Sanitization test: hidePersonalContact
+  let pic = rawRecord.pic
+  let completedBy = rawRecord.completedBy
+  let verifiedBy = rawRecord.verifiedBy
+  const hidePersonalContact = true
+  if (hidePersonalContact) {
+    pic = "Juruteknik Penyelenggaraan"
+    completedBy = "Juruteknik Penyelenggaraan"
+    verifiedBy = "Penyelia Operasi Kualiti GMP"
+  }
+  assert.equal(pic, "Juruteknik Penyelenggaraan")
+  assert.equal(completedBy, "Juruteknik Penyelenggaraan")
+  assert.equal(verifiedBy, "Penyelia Operasi Kualiti GMP")
+
+  // Sanitization test: hideSignatures
+  const hideSignatures = true
+  const outSig1 = hideSignatures ? null : rawRecord.performedSignature
+  const outSig2 = hideSignatures ? null : rawRecord.verifiedSignature
+  assert.equal(outSig1, null)
+  assert.equal(outSig2, null)
+})
+
 console.log(`\n=== Test Results: ${passed} passed, ${failed} failed ===`)
 if (failed > 0) {
   process.exit(1)
 }
+

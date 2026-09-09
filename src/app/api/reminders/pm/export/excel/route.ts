@@ -17,11 +17,26 @@ export async function GET(request: Request) {
   const to = searchParams.get("to") || ""
   const equipment = searchParams.get("equipment") || ""
   const status = searchParams.get("status") || ""
+  const mode = searchParams.get("mode") === "AUDITOR" ? "AUDITOR" : "INTERNAL"
+  const hideInternalNotes = searchParams.get("hideInternalNotes") === "true"
+  const hideOverduePending = searchParams.get("hideOverduePending") === "true"
+  const hidePersonalContact = searchParams.get("hidePersonalContact") === "true"
+  const hideSignatures = searchParams.get("hideSignatures") === "true"
 
   try {
     const data = await fetchPMAuditData(
       { userId: access.userId, isSuperAdmin: access.isSuperAdmin, name: access.name || undefined },
-      { from, to, equipment, status }
+      {
+        from,
+        to,
+        equipment,
+        status,
+        mode,
+        hideInternalNotes,
+        hideOverduePending,
+        hidePersonalContact,
+        hideSignatures,
+      }
     )
 
     const workbook = new ExcelJS.Workbook()
@@ -30,349 +45,455 @@ export async function GET(request: Request) {
     workbook.created = new Date()
     workbook.modified = new Date()
 
-    const monthNamesShort = ["Jan", "Feb", "Mac", "Apr", "Mei", "Jun", "Jul", "Ogo", "Sep", "Okt", "Nov", "Dis"]
+    const thinBorder: Partial<ExcelJS.Borders> = {
+      top: { style: "thin", color: { argb: "FFD1D5DB" } },
+      left: { style: "thin", color: { argb: "FFD1D5DB" } },
+      bottom: { style: "thin", color: { argb: "FFD1D5DB" } },
+      right: { style: "thin", color: { argb: "FFD1D5DB" } },
+    }
 
-    // ==========================================
-    // SHEET 1: Ringkasan & Matriks Kalendar
-    // ==========================================
-    const wsMatrix = workbook.addWorksheet("Ringkasan & Matriks")
-    wsMatrix.views = [{ showGridLines: true }]
+    const headerBorder: Partial<ExcelJS.Borders> = {
+      top: { style: "medium", color: { argb: "FF0F172A" } },
+      left: { style: "thin", color: { argb: "FF0F172A" } },
+      bottom: { style: "medium", color: { argb: "FF0F172A" } },
+      right: { style: "thin", color: { argb: "FF0F172A" } },
+    }
 
-    // Title & Header Block
-    wsMatrix.mergeCells("A1:Q1")
-    const titleCell = wsMatrix.getCell("A1")
-    titleCell.value = "BUBBLES O2 SDN. BHD. · LAPORAN AUDIT PENYELENGGARAAN PENCEGAHAN (SGMP-03)"
-    titleCell.font = { name: "Calibri", size: 14, bold: true, color: { argb: "FFFFFFFF" } }
-    titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } } // slate-800
+    // =========================================================================
+    // SHEET 1: PREV. MAINTENANCE SCHEDULE 26 (Exact Original SGMP-03 Template)
+    // =========================================================================
+    const ws1 = workbook.addWorksheet("PREV. MAINTENANCE SCHEDULE 26")
+    ws1.views = [{ showGridLines: true }]
+
+    // Set column widths matching original template
+    ws1.getColumn(1).width = 16 // DATE
+    ws1.getColumn(2).width = 38 // EQUIPMENT NAME
+    ws1.getColumn(3).width = 22 // SRS NUMBER
+    ws1.getColumn(4).width = 18 // FREQUENCY
+    ws1.getColumn(5).width = 38 // MAINTENANCE PERSONNAL RESPONSIBLE
+    ws1.getColumn(6).width = 22 // STATUS
+
+    // Header Block Rows 2 to 6
+    ws1.mergeCells("A2:D2")
+    const compCell = ws1.getCell("A2")
+    compCell.value = "BUBBLESO2 SDN BHD"
+    compCell.font = { name: "Calibri", size: 14, bold: true, color: { argb: "FF0F172A" } }
+    compCell.alignment = { vertical: "middle", horizontal: "left" }
+    ws1.getRow(2).height = 24
+
+    ws1.mergeCells("A3:C3")
+    ws1.getCell("A3").value = "KOMPLEKS AL-AMMAR,"
+    ws1.getCell("A3").font = { name: "Calibri", size: 9, bold: true }
+
+    ws1.mergeCells("D3:F3")
+    ws1.getCell("D3").value = "Rec. No            : SGMP/03/PMS"
+    ws1.getCell("D3").font = { name: "Calibri", size: 9, bold: true }
+
+    ws1.mergeCells("A4:C4")
+    ws1.getCell("A4").value = "KG KANCHONG,"
+    ws1.getCell("A4").font = { name: "Calibri", size: 9, bold: true }
+
+    ws1.mergeCells("D4:F4")
+    ws1.getCell("D4").value = "Issue No           : 1/10/2022"
+    ws1.getCell("D4").font = { name: "Calibri", size: 9, bold: true }
+
+    ws1.mergeCells("A5:C5")
+    ws1.getCell("A5").value = "71200, RANTAU"
+    ws1.getCell("A5").font = { name: "Calibri", size: 9, bold: true }
+
+    ws1.mergeCells("D5:F5")
+    ws1.getCell("D5").value = "Rev No             : 1"
+    ws1.getCell("D5").font = { name: "Calibri", size: 9, bold: true }
+
+    ws1.mergeCells("A6:C6")
+    ws1.getCell("A6").value = "NEGERI SEMBILAN"
+    ws1.getCell("A6").font = { name: "Calibri", size: 9, bold: true }
+
+    ws1.mergeCells("D6:F6")
+    ws1.getCell("D6").value = "Effective date : 15/2/2023"
+    ws1.getCell("D6").font = { name: "Calibri", size: 9, bold: true }
+
+    // Row 8: Title
+    ws1.mergeCells("A8:F8")
+    const titleCell = ws1.getCell("A8")
+    titleCell.value = "PREVENTIVE MAINTENANCE SCHEDULE"
+    titleCell.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FF0F172A" } }
     titleCell.alignment = { vertical: "middle", horizontal: "center" }
-    wsMatrix.getRow(1).height = 32
+    titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } }
+    ws1.getRow(8).height = 24
 
-    wsMatrix.mergeCells("A2:Q2")
-    const subCell = wsMatrix.getCell("A2")
-    subCell.value = `Tempoh Audit: ${data.from} hingga ${data.to}  |  Dijana Pada: ${new Date().toLocaleString("en-GB", { timeZone: "Asia/Kuala_Lumpur" })}  |  Disediakan Oleh: ${data.preparedBy}`
-    subCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: "FF475569" } }
-    subCell.alignment = { vertical: "middle", horizontal: "center" }
-    wsMatrix.getRow(2).height = 20
+    // Row 10: Original 6 Column Headers
+    const headersSheet1 = [
+      "DATE",
+      "EQUIPMENT NAME",
+      "SRS NUMBER",
+      "FREQUENCY",
+      "MAINTENANCE PERSONNAL RESPONSIBLE",
+      "STATUS",
+    ]
 
-    // KPI Metrics Section
-    wsMatrix.getCell("A4").value = "RINGKASAN EKSEKUTIF & KPI PEMATUHAN"
-    wsMatrix.getCell("A4").font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF1E293B" } }
+    const headerRow1 = ws1.getRow(10)
+    headerRow1.height = 26
+    headersSheet1.forEach((h, idx) => {
+      const cell = headerRow1.getCell(idx + 1)
+      cell.value = h
+      cell.font = { name: "Calibri", size: 9.5, bold: true, color: { argb: "FFFFFFFF" } }
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } } // slate-800
+      cell.alignment = { vertical: "middle", horizontal: idx === 0 || idx === 3 || idx === 5 ? "center" : "left" }
+      cell.border = headerBorder
+    })
 
+    // Populate Sheet 1 data rows
+    let currentR1 = 11
+    data.records.forEach((rec) => {
+      const row = ws1.getRow(currentR1)
+      row.height = 20
+
+      // 1. DATE (dd/mm/yyyy format matching original)
+      const dParts = rec.dueDate.split("-")
+      const formattedDate = dParts.length === 3 ? `${dParts[2]}/${dParts[1]}/${dParts[0]}` : rec.dueDate
+      row.getCell(1).value = formattedDate
+      row.getCell(1).alignment = { vertical: "middle", horizontal: "center" }
+
+      // 2. EQUIPMENT NAME
+      row.getCell(2).value = rec.equipment
+      row.getCell(2).alignment = { vertical: "middle", horizontal: "left" }
+
+      // 3. SRS NUMBER
+      row.getCell(3).value = rec.srs || "-"
+      row.getCell(3).alignment = { vertical: "middle", horizontal: "left" }
+
+      // 4. FREQUENCY
+      row.getCell(4).value = rec.frequency
+      row.getCell(4).alignment = { vertical: "middle", horizontal: "center" }
+
+      // 5. PIC
+      row.getCell(5).value = rec.pics.join(", ") || "-"
+      row.getCell(5).alignment = { vertical: "middle", horizontal: "left" }
+
+      // 6. STATUS
+      let statusLabel = "PENDING"
+      let statusColor = "FF475569"
+      if (rec.status === "DONE") {
+        statusLabel = "OK / COMPLETED"
+        statusColor = "FF15803D"
+      } else if (rec.status === "ISSUE") {
+        statusLabel = "ISSUE / CATATAN"
+        statusColor = "FFB45309"
+      } else if (rec.status === "OVERDUE") {
+        statusLabel = "OVERDUE"
+        statusColor = "FFB91C1C"
+      }
+
+      row.getCell(6).value = statusLabel
+      row.getCell(6).font = { name: "Calibri", size: 9, bold: true, color: { argb: statusColor } }
+      row.getCell(6).alignment = { vertical: "middle", horizontal: "center" }
+
+      for (let c = 1; c <= 6; c++) {
+        row.getCell(c).border = thinBorder
+      }
+      currentR1++
+    })
+
+    // =========================================================================
+    // SHEET 2: Log Terperinci & Checklist
+    // =========================================================================
+    const ws2 = workbook.addWorksheet("Log Terperinci & Checklist")
+    ws2.views = [{ showGridLines: true }]
+
+    ws2.columns = [
+      { header: "No", key: "no", width: 6 },
+      { header: "Tarikh Jadual", key: "dueDate", width: 14 },
+      { header: "Tarikh Periksa", key: "inspectedDate", width: 14 },
+      { header: "Mesin / Alatan", key: "equipment", width: 34 },
+      { header: "SRS", key: "srs", width: 16 },
+      { header: "Kekerapan", key: "freq", width: 16 },
+      { header: "Senarai Semak (Checklist)", key: "checklist", width: 44 },
+      { header: "Item Selesai", key: "checklistCount", width: 14 },
+      { header: "Keputusan", key: "result", width: 14 },
+      { header: "Catatan Pemeriksaan", key: "notes", width: 36 },
+      { header: "Pegawai Bertugas (PIC)", key: "pics", width: 28 },
+    ]
+
+    const hRow2 = ws2.getRow(1)
+    hRow2.height = 26
+    for (let c = 1; c <= 11; c++) {
+      const cell = hRow2.getCell(c)
+      cell.font = { name: "Calibri", size: 9.5, bold: true, color: { argb: "FFFFFFFF" } }
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4338CA" } } // indigo-700
+      cell.alignment = { vertical: "middle", horizontal: "center" }
+      cell.border = headerBorder
+    }
+
+    let currentR2 = 2
+    data.records.forEach((rec, idx) => {
+      const row = ws2.getRow(currentR2)
+      row.height = 22
+      const completedCount = rec.completedChecklist?.length || 0
+
+      row.getCell(1).value = idx + 1
+      row.getCell(2).value = rec.dueDate
+      row.getCell(3).value = rec.inspectedDate || "-"
+      row.getCell(4).value = rec.equipment
+      row.getCell(5).value = rec.srs || "-"
+      row.getCell(6).value = rec.frequency
+      row.getCell(7).value = rec.checklist.join("\n• ") ? `• ${rec.checklist.join("\n• ")}` : "-"
+      row.getCell(8).value = `${completedCount} / ${rec.checklist.length}`
+      row.getCell(9).value = rec.result === "OK" ? "OK" : rec.result === "ISSUE" ? "ADA MASALAH" : "-"
+      row.getCell(10).value = rec.notes || "-"
+      row.getCell(11).value = rec.pics.join(", ") || "-"
+
+      row.getCell(1).alignment = { vertical: "middle", horizontal: "center" }
+      row.getCell(2).alignment = { vertical: "middle", horizontal: "center" }
+      row.getCell(3).alignment = { vertical: "middle", horizontal: "center" }
+      row.getCell(5).alignment = { vertical: "middle", horizontal: "center" }
+      row.getCell(6).alignment = { vertical: "middle", horizontal: "center" }
+      row.getCell(7).alignment = { vertical: "top", wrapText: true }
+      row.getCell(8).alignment = { vertical: "middle", horizontal: "center" }
+      row.getCell(9).alignment = { vertical: "middle", horizontal: "center" }
+      row.getCell(9).font = {
+        name: "Calibri",
+        size: 9,
+        bold: true,
+        color: { argb: rec.result === "OK" ? "FF15803D" : rec.result === "ISSUE" ? "FFB45309" : "FF64748B" },
+      }
+      row.getCell(10).alignment = { vertical: "middle", wrapText: true }
+
+      for (let c = 1; c <= 11; c++) {
+        row.getCell(c).border = thinBorder
+      }
+      currentR2++
+    })
+
+    // =========================================================================
+    // SHEET 3: Pengesahan & Verifikasi Penyelia
+    // =========================================================================
+    const ws3 = workbook.addWorksheet("Pengesahan & Verifikasi")
+    ws3.views = [{ showGridLines: true }]
+
+    ws3.columns = [
+      { header: "No", key: "no", width: 6 },
+      { header: "Tarikh Jadual", key: "dueDate", width: 14 },
+      { header: "Tarikh Pemeriksaan", key: "inspectedDate", width: 16 },
+      { header: "Nama Alatan", key: "equipment", width: 34 },
+      { header: "Pemeriksa (Checked By)", key: "completedBy", width: 28 },
+      { header: "Status Tandatangan Pemeriksa", key: "performedSig", width: 26 },
+      { header: "Penyelia (Verified By)", key: "verifiedBy", width: 28 },
+      { header: "Status Tandatangan Penyelia", key: "verifiedSig", width: 26 },
+      { header: "Tarikh & Masa Verifikasi", key: "verifiedAt", width: 24 },
+      { header: "Status Audit", key: "status", width: 18 },
+    ]
+
+    const hRow3 = ws3.getRow(1)
+    hRow3.height = 26
+    for (let c = 1; c <= 10; c++) {
+      const cell = hRow3.getCell(c)
+      cell.font = { name: "Calibri", size: 9.5, bold: true, color: { argb: "FFFFFFFF" } }
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF047857" } } // emerald-700
+      cell.alignment = { vertical: "middle", horizontal: "center" }
+      cell.border = headerBorder
+    }
+
+    let currentR3 = 2
+    data.records.forEach((rec, idx) => {
+      const row = ws3.getRow(currentR3)
+      row.height = 20
+
+      const isVerified = Boolean(rec.verifiedAt)
+
+      row.getCell(1).value = idx + 1
+      row.getCell(2).value = rec.dueDate
+      row.getCell(3).value = rec.inspectedDate || "-"
+      row.getCell(4).value = rec.equipment
+      row.getCell(5).value = rec.completedBy || "Juruteknik Penyelenggaraan"
+      row.getCell(6).value = rec.performedSignature ? "Tandatangan Digital Sah" : "-"
+      row.getCell(7).value = rec.verifiedByName || (isVerified ? "Penyelia Operasi" : "Belum Disahkan")
+      row.getCell(8).value = rec.verifiedSignature ? "Tandatangan Penyelia Sah" : isVerified ? "Disahkan Digital" : "-"
+      row.getCell(9).value = rec.verifiedAt ? new Date(rec.verifiedAt).toLocaleString("ms-MY") : "-"
+      row.getCell(10).value = isVerified ? "LENGKAP & DISAHKAN" : rec.status === "DONE" ? "MENUNGGU SAH" : rec.status
+
+      row.getCell(1).alignment = { vertical: "middle", horizontal: "center" }
+      row.getCell(2).alignment = { vertical: "middle", horizontal: "center" }
+      row.getCell(3).alignment = { vertical: "middle", horizontal: "center" }
+      row.getCell(6).alignment = { vertical: "middle", horizontal: "center" }
+      row.getCell(8).alignment = { vertical: "middle", horizontal: "center" }
+      row.getCell(9).alignment = { vertical: "middle", horizontal: "center" }
+      row.getCell(10).alignment = { vertical: "middle", horizontal: "center" }
+      row.getCell(10).font = {
+        name: "Calibri",
+        size: 9,
+        bold: true,
+        color: { argb: isVerified ? "FF15803D" : "FFB45309" },
+      }
+
+      for (let c = 1; c <= 10; c++) {
+        row.getCell(c).border = thinBorder
+      }
+      currentR3++
+    })
+
+    // =========================================================================
+    // SHEET 4: Matriks Kalendar & KPI (Monthly matrix & AI Summary)
+    // =========================================================================
+    const ws4 = workbook.addWorksheet("Matriks Kalendar & KPI")
+    ws4.views = [{ showGridLines: true }]
+
+    // Title banner
+    ws4.mergeCells("A1:Q1")
+    ws4.getCell("A1").value = "BUBBLES O2 SDN. BHD. · MATRIKS PENYELENGGARAAN & KPI PEMATUHAN (SGMP-03)"
+    ws4.getCell("A1").font = { name: "Calibri", size: 13, bold: true, color: { argb: "FFFFFFFF" } }
+    ws4.getCell("A1").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } }
+    ws4.getCell("A1").alignment = { vertical: "middle", horizontal: "center" }
+    ws4.getRow(1).height = 30
+
+    // Executive Summary Block
+    ws4.mergeCells("A3:Q3")
+    ws4.getCell("A3").value = "RUMUSAN EKSEKUTIF (EXECUTIVE SUMMARY)"
+    ws4.getCell("A3").font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF4338CA" } }
+
+    ws4.mergeCells("A4:Q5")
+    const execCell = ws4.getCell("A4")
+    execCell.value = data.executiveSummary || "Laporan pematuhan penyelenggaraan pencegahan alatan SGMP-03."
+    execCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: "FF334155" } }
+    execCell.alignment = { vertical: "top", wrapText: true }
+
+    // KPI Summary Strip
     const kpiData = [
-      { label: "Jumlah Tugasan Berjadual", val: data.summary.totalTasks, color: "FF0F172A" },
-      { label: "Tugasan Selesai (OK)", val: data.summary.completedTasks, color: "FF15803D" },
-      { label: "Tugasan Ada Isu / Catatan", val: data.summary.issueTasks, color: "FFB45309" },
-      { label: "Tugasan Tertunggak", val: data.summary.overdueTasks, color: "FFB91C1C" },
-      { label: "Tugasan Akan Datang", val: data.summary.pendingTasks, color: "FF4338CA" },
-      { label: "Kadar Pematuhan Audit (%)", val: `${data.summary.complianceRate.toFixed(1)}%`, color: "FF15803D" },
+      { label: "Jumlah Tugasan", val: data.summary.totalTasks, color: "FF0F172A" },
+      { label: "Selesai (OK)", val: data.summary.completedTasks, color: "FF15803D" },
+      { label: "Ada Isu / Catatan", val: data.summary.issueTasks, color: "FFB45309" },
+      { label: "Tertunggak", val: data.summary.overdueTasks, color: "FFB91C1C" },
+      { label: "Akan Datang", val: data.summary.pendingTasks, color: "FF4338CA" },
+      { label: "Kadar Pematuhan (%)", val: `${data.summary.complianceRate.toFixed(1)}%`, color: "FF15803D" },
     ]
 
     let kpiCol = 1
     kpiData.forEach((kpi) => {
       const colLetter = String.fromCharCode(64 + kpiCol)
-      const valCell = wsMatrix.getCell(`${colLetter}5`)
+      const valCell = ws4.getCell(`${colLetter}7`)
       valCell.value = kpi.val
       valCell.font = { name: "Calibri", size: 14, bold: true, color: { argb: kpi.color } }
       valCell.alignment = { vertical: "middle", horizontal: "center" }
       valCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } }
-      valCell.border = {
-        top: { style: "thin", color: { argb: "FFE2E8F0" } },
-        left: { style: "thin", color: { argb: "FFE2E8F0" } },
-        right: { style: "thin", color: { argb: "FFE2E8F0" } },
-      }
+      valCell.border = thinBorder
 
-      const lblCell = wsMatrix.getCell(`${colLetter}6`)
+      const lblCell = ws4.getCell(`${colLetter}8`)
       lblCell.value = kpi.label
       lblCell.font = { name: "Calibri", size: 8, bold: true, color: { argb: "FF64748B" } }
       lblCell.alignment = { vertical: "middle", horizontal: "center", wrapText: true }
       lblCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } }
-      lblCell.border = {
-        bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
-        left: { style: "thin", color: { argb: "FFE2E8F0" } },
-        right: { style: "thin", color: { argb: "FFE2E8F0" } },
-      }
+      lblCell.border = thinBorder
 
-      wsMatrix.getColumn(kpiCol).width = 18
+      ws4.getColumn(kpiCol).width = 18
       kpiCol++
     })
-    wsMatrix.getRow(5).height = 24
-    wsMatrix.getRow(6).height = 24
+    ws4.getRow(7).height = 24
+    ws4.getRow(8).height = 20
 
-    // 12-Month Matrix Section
-    const matrixStartRow = 8
-    wsMatrix.getCell(`A${matrixStartRow}`).value = "MATRIKS JADUAL & PEMATUHAN TAHUNAN (12 BULAN)"
-    wsMatrix.getCell(`A${matrixStartRow}`).font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF1E293B" } }
+    // Calendar Matrix Grid Table Header (Row 11)
+    const monthNamesShort = ["Jan", "Feb", "Mac", "Apr", "Mei", "Jun", "Jul", "Ogo", "Sep", "Okt", "Nov", "Dis"]
+    ws4.getCell("A10").value = "MATRIKS JADUAL BULANAN (JANUARI - DISEMBER)"
+    ws4.getCell("A10").font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF1E293B" } }
 
-    const matrixHeaderRow = matrixStartRow + 1
-    const matrixCols = [
-      { header: "Peralatan", key: "equipment", width: 28 },
-      { header: "No. SRS", key: "srs", width: 18 },
-      { header: "Kekerapan", key: "frequency", width: 14 },
-      ...monthNamesShort.map((m, idx) => ({ header: m, key: `m_${idx + 1}`, width: 7 })),
-      { header: "Siap", key: "done", width: 8 },
-      { header: "Jumlah", key: "total", width: 8 },
-      { header: "% Pematuhan", key: "rate", width: 14 },
-    ]
+    const mHeaderRow = ws4.getRow(11)
+    mHeaderRow.height = 24
+    mHeaderRow.getCell(1).value = "NAMA ALATAN / MESIN"
+    mHeaderRow.getCell(2).value = "SRS"
+    mHeaderRow.getCell(3).value = "KEKERAPAN"
+    ws4.getColumn(1).width = 32
+    ws4.getColumn(2).width = 14
+    ws4.getColumn(3).width = 14
 
-    matrixCols.forEach((col, idx) => {
-      const cell = wsMatrix.getCell(matrixHeaderRow, idx + 1)
-      cell.value = col.header
+    for (let c = 1; c <= 3; c++) {
+      const cell = mHeaderRow.getCell(c)
       cell.font = { name: "Calibri", size: 9, bold: true, color: { argb: "FFFFFFFF" } }
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF334155" } }
-      cell.alignment = { vertical: "middle", horizontal: idx < 3 ? "left" : "center" }
-      cell.border = {
-        top: { style: "thin", color: { argb: "FF64748B" } },
-        bottom: { style: "thin", color: { argb: "FF64748B" } },
-        left: { style: "thin", color: { argb: "FF64748B" } },
-        right: { style: "thin", color: { argb: "FF64748B" } },
-      }
-      wsMatrix.getColumn(idx + 1).width = col.width
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } }
+      cell.alignment = { vertical: "middle", horizontal: "center" }
+      cell.border = headerBorder
+    }
+
+    monthNamesShort.forEach((mName, idx) => {
+      const colIdx = idx + 4
+      const cell = mHeaderRow.getCell(colIdx)
+      cell.value = mName
+      cell.font = { name: "Calibri", size: 9, bold: true, color: { argb: "FFFFFFFF" } }
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } }
+      cell.alignment = { vertical: "middle", horizontal: "center" }
+      cell.border = headerBorder
+      ws4.getColumn(colIdx).width = 9
     })
-    wsMatrix.getRow(matrixHeaderRow).height = 22
 
-    let currRow = matrixHeaderRow + 1
-    data.calendarMatrix.forEach((row, rIdx) => {
-      const isEven = rIdx % 2 === 0
-      const rowBg = isEven ? "FFFFFFFF" : "FFF8FAFC"
+    mHeaderRow.getCell(16).value = "SELESAI"
+    mHeaderRow.getCell(17).value = "JUMLAH"
+    for (let c = 16; c <= 17; c++) {
+      const cell = mHeaderRow.getCell(c)
+      cell.font = { name: "Calibri", size: 9, bold: true, color: { argb: "FFFFFFFF" } }
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } }
+      cell.alignment = { vertical: "middle", horizontal: "center" }
+      cell.border = headerBorder
+      ws4.getColumn(c).width = 12
+    }
 
-      const r = wsMatrix.getRow(currRow)
+    // Populate Matrix Rows
+    let currentR4 = 12
+    data.calendarMatrix.forEach((row) => {
+      const r = ws4.getRow(currentR4)
       r.height = 20
 
-      // Equipment
-      const cEquip = r.getCell(1)
-      cEquip.value = row.equipment
-      cEquip.font = { name: "Calibri", size: 9, bold: true }
-      cEquip.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } }
+      r.getCell(1).value = row.equipment
+      r.getCell(2).value = row.srs || "-"
+      r.getCell(3).value = row.frequency
+      r.getCell(2).alignment = { vertical: "middle", horizontal: "center" }
+      r.getCell(3).alignment = { vertical: "middle", horizontal: "center" }
 
-      // SRS
-      const cSrs = r.getCell(2)
-      cSrs.value = row.srs || "-"
-      cSrs.font = { name: "Calibri", size: 9 }
-      cSrs.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } }
-
-      // Frequency
-      const cFreq = r.getCell(3)
-      cFreq.value = row.frequency
-      cFreq.font = { name: "Calibri", size: 9 }
-      cFreq.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } }
-
-      // Months 1-12
       for (let m = 1; m <= 12; m++) {
-        const cell = r.getCell(3 + m)
-        const cellData = row.months[m] || { status: "NONE", count: 0 }
-        let symbol = "-"
-        let fgColor = "FF94A3B8"
+        const cell = row.months[m]
+        const colIdx = m + 3
+        const mCell = r.getCell(colIdx)
 
-        if (cellData.status === "DONE") {
-          symbol = cellData.count > 1 ? `✓ ${cellData.count}` : "✓"
-          fgColor = "FF15803D"
-        } else if (cellData.status === "ISSUE") {
-          symbol = cellData.count > 1 ? `! ${cellData.count}` : "!"
-          fgColor = "FFB45309"
-        } else if (cellData.status === "OVERDUE") {
-          symbol = cellData.count > 1 ? `× ${cellData.count}` : "×"
-          fgColor = "FFB91C1C"
-        } else if (cellData.status === "PENDING") {
-          symbol = cellData.count > 1 ? `• ${cellData.count}` : "•"
-          fgColor = "FF4338CA"
+        if (cell && cell.status !== "NONE") {
+          let label = cell.status === "DONE" ? "OK" : cell.status === "ISSUE" ? "ISU" : cell.status === "OVERDUE" ? "LATE" : "PLAN"
+          if (cell.count > 1) label += `(${cell.count})`
+          mCell.value = label
+          mCell.font = {
+            name: "Calibri",
+            size: 8,
+            bold: true,
+            color: {
+              argb:
+                cell.status === "DONE"
+                  ? "FF15803D"
+                  : cell.status === "ISSUE"
+                  ? "FFB45309"
+                  : cell.status === "OVERDUE"
+                  ? "FFB91C1C"
+                  : "FF4338CA",
+            },
+          }
+        } else {
+          mCell.value = "-"
+          mCell.font = { name: "Calibri", size: 8, color: { argb: "FFCBD5E1" } }
         }
-
-        cell.value = symbol
-        cell.font = { name: "Calibri", size: 9, bold: symbol !== "-", color: { argb: fgColor } }
-        cell.alignment = { vertical: "middle", horizontal: "center" }
-        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } }
+        mCell.alignment = { vertical: "middle", horizontal: "center" }
       }
 
-      // Siap
-      const cDone = r.getCell(16)
-      cDone.value = row.totalCompleted
-      cDone.font = { name: "Calibri", size: 9, bold: true, color: { argb: "FF15803D" } }
-      cDone.alignment = { vertical: "middle", horizontal: "center" }
-      cDone.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } }
+      r.getCell(16).value = row.totalCompleted
+      r.getCell(16).alignment = { vertical: "middle", horizontal: "center" }
+      r.getCell(16).font = { name: "Calibri", size: 9, bold: true, color: { argb: "FF15803D" } }
 
-      // Jumlah
-      const cTotal = r.getCell(17)
-      cTotal.value = row.totalScheduled
-      cTotal.font = { name: "Calibri", size: 9, bold: true }
-      cTotal.alignment = { vertical: "middle", horizontal: "center" }
-      cTotal.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } }
+      r.getCell(17).value = row.totalScheduled
+      r.getCell(17).alignment = { vertical: "middle", horizontal: "center" }
+      r.getCell(17).font = { name: "Calibri", size: 9, bold: true }
 
-      // % Pematuhan
-      const cRate = r.getCell(18)
-      const rateVal = row.totalScheduled > 0 ? (row.totalCompleted / row.totalScheduled) * 100 : 100
-      cRate.value = `${rateVal.toFixed(1)}%`
-      cRate.font = { name: "Calibri", size: 9, bold: true, color: { argb: rateVal >= 90 ? "FF15803D" : "FFB45309" } }
-      cRate.alignment = { vertical: "middle", horizontal: "center" }
-      cRate.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } }
-
-      // Thin borders
-      for (let c = 1; c <= 18; c++) {
-        r.getCell(c).border = {
-          bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
-          right: { style: "thin", color: { argb: "FFE2E8F0" } },
-          left: { style: "thin", color: { argb: "FFE2E8F0" } },
-        }
+      for (let c = 1; c <= 17; c++) {
+        r.getCell(c).border = thinBorder
       }
-
-      currRow++
+      currentR4++
     })
 
-    // ==========================================
-    // SHEET 2: Log Rekod Pemeriksaan (100% Clean)
-    // ==========================================
-    const wsLog = workbook.addWorksheet("Log Rekod Pemeriksaan")
-    wsLog.views = [{ state: "frozen", ySplit: 1, showGridLines: true }]
-
-    wsLog.columns = [
-      { header: "No", key: "index", width: 6 },
-      { header: "Tarikh Patut", key: "dueDate", width: 14 },
-      { header: "Tarikh Diperiksa", key: "inspectedDate", width: 16 },
-      { header: "Peralatan", key: "equipment", width: 28 },
-      { header: "No. SRS", key: "srs", width: 18 },
-      { header: "Kekerapan", key: "frequency", width: 14 },
-      { header: "Senarai Semak / Tugasan", key: "checklist", width: 45 },
-      { header: "PIC Bertanggungjawab", key: "pics", width: 26 },
-      { header: "Status Semasa", key: "status", width: 16 },
-      { header: "Keputusan", key: "result", width: 14 },
-      { header: "Catatan / Penemuan", key: "notes", width: 38 },
-      { header: "Disahkan Oleh", key: "completedBy", width: 24 },
-      { header: "Tarikh & Masa Siap", key: "completedAt", width: 22 },
-    ]
-
-    // Style Header Row
-    const logHeader = wsLog.getRow(1)
-    logHeader.height = 26
-    logHeader.font = { name: "Calibri", size: 9, bold: true, color: { argb: "FFFFFFFF" } }
-    logHeader.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } }
-    logHeader.alignment = { vertical: "middle", horizontal: "center" }
-
-    data.records.forEach((r) => {
-      let statusLabel = "Akan Datang"
-      let statusBg = "FFF1F5F9"
-      let statusFg = "FF475569"
-
-      if (r.status === "DONE") {
-        statusLabel = "Selesai"
-        statusBg = "FFDCFCE7"
-        statusFg = "FF15803D"
-      } else if (r.status === "ISSUE") {
-        statusLabel = "Ada Isu"
-        statusBg = "FFFEF3C7"
-        statusFg = "FFB45309"
-      } else if (r.status === "OVERDUE") {
-        statusLabel = "Tertunggak"
-        statusBg = "FFFEE2E2"
-        statusFg = "FFB91C1C"
-      }
-
-      const row = wsLog.addRow({
-        index: r.index,
-        dueDate: r.dueDate,
-        inspectedDate: r.inspectedDate || "-",
-        equipment: r.equipment,
-        srs: r.srs || "-",
-        frequency: r.frequency,
-        checklist: r.checklist.join("\n• "),
-        pics: r.pics.join(", ") || "Belum ditugaskan",
-        status: statusLabel,
-        result: r.result || "-",
-        notes: r.notes || "-",
-        completedBy: r.completedBy || "-",
-        completedAt: r.completedAt ? r.completedAt.replace("T", " ").slice(0, 19) : "-",
-      })
-
-      row.height = r.checklist.length > 1 ? 16 + r.checklist.length * 10 : 22
-      row.font = { name: "Calibri", size: 9 }
-      row.alignment = { vertical: "middle", wrapText: true }
-
-      // Center specific columns
-      row.getCell("index").alignment = { vertical: "middle", horizontal: "center" }
-      row.getCell("dueDate").alignment = { vertical: "middle", horizontal: "center" }
-      row.getCell("inspectedDate").alignment = { vertical: "middle", horizontal: "center" }
-      row.getCell("srs").alignment = { vertical: "middle", horizontal: "center" }
-      row.getCell("frequency").alignment = { vertical: "middle", horizontal: "center" }
-      row.getCell("result").alignment = { vertical: "middle", horizontal: "center" }
-      row.getCell("completedAt").alignment = { vertical: "middle", horizontal: "center" }
-
-      // Color status badge cell
-      const statusCell = row.getCell("status")
-      statusCell.font = { name: "Calibri", size: 9, bold: true, color: { argb: statusFg } }
-      statusCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: statusBg } }
-      statusCell.alignment = { vertical: "middle", horizontal: "center" }
-
-      // Subtle row border
-      row.eachCell({ includeEmpty: true }, (cell) => {
-        cell.border = {
-          bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
-          right: { style: "thin", color: { argb: "FFE2E8F0" } },
-        }
-      })
-    })
-
-    // Enable auto-filter for entire log sheet
-    wsLog.autoFilter = {
-      from: { row: 1, column: 1 },
-      to: { row: data.records.length + 1, column: 13 },
-    }
-
-    // ==========================================
-    // SHEET 3: Jadual Induk Peralatan (17 Schedules)
-    // ==========================================
-    const wsSched = workbook.addWorksheet("Jadual Induk Peralatan")
-    wsSched.views = [{ state: "frozen", ySplit: 1, showGridLines: true }]
-
-    wsSched.columns = [
-      { header: "No", key: "no", width: 6 },
-      { header: "Nama Peralatan", key: "equipment", width: 28 },
-      { header: "No. SRS", key: "srs", width: 20 },
-      { header: "Kekerapan", key: "frequency", width: 16 },
-      { header: "Tarikh Mula", key: "startDate", width: 14 },
-      { header: "Senarai Semak SOP (Checklist)", key: "checklist", width: 55 },
-      { header: "Bil. PIC Ditugaskan", key: "picCount", width: 18 },
-    ]
-
-    const schedHeader = wsSched.getRow(1)
-    schedHeader.height = 26
-    schedHeader.font = { name: "Calibri", size: 9, bold: true, color: { argb: "FFFFFFFF" } }
-    schedHeader.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF334155" } }
-    schedHeader.alignment = { vertical: "middle", horizontal: "center" }
-
-    data.schedules.forEach((s, idx) => {
-      const row = wsSched.addRow({
-        no: idx + 1,
-        equipment: s.equipment,
-        srs: s.srs || "-",
-        frequency: s.frequency,
-        startDate: s.startDate,
-        checklist: s.checklist.join("\n• "),
-        picCount: s.picCount,
-      })
-
-      row.height = s.checklist.length > 1 ? 16 + s.checklist.length * 10 : 22
-      row.font = { name: "Calibri", size: 9 }
-      row.alignment = { vertical: "middle", wrapText: true }
-      row.getCell("no").alignment = { vertical: "middle", horizontal: "center" }
-      row.getCell("srs").alignment = { vertical: "middle", horizontal: "center" }
-      row.getCell("frequency").alignment = { vertical: "middle", horizontal: "center" }
-      row.getCell("startDate").alignment = { vertical: "middle", horizontal: "center" }
-      row.getCell("picCount").alignment = { vertical: "middle", horizontal: "center" }
-
-      row.eachCell({ includeEmpty: true }, (cell) => {
-        cell.border = {
-          bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
-          right: { style: "thin", color: { argb: "FFE2E8F0" } },
-        }
-      })
-    })
-
-    wsSched.autoFilter = {
-      from: { row: 1, column: 1 },
-      to: { row: data.schedules.length + 1, column: 7 },
-    }
-
-    // Generate binary buffer
+    // Generate output buffer
     const buffer = await workbook.xlsx.writeBuffer()
-    const safeFilename = `Laporan_Audit_PM_SGMP03_${data.from}_ke_${data.to}.xlsx`
+    const safeFilename = `Jadual_PM_SGMP03_${data.mode}_${data.from}_ke_${data.to}.xlsx`
 
     return new NextResponse(buffer, {
       status: 200,
@@ -384,6 +505,6 @@ export async function GET(request: Request) {
     })
   } catch (err: any) {
     console.error("Excel Export Error:", err)
-    return NextResponse.json({ error: err?.message || "Gagal menjana Excel." }, { status: 500 })
+    return NextResponse.json({ error: err?.message || "Gagal menjana fail Excel." }, { status: 500 })
   }
 }

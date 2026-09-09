@@ -207,18 +207,24 @@ export function MaintenanceFUVReportClient() {
                 padding: 1.5pt 1pt !important;
                 text-align: center !important;
                 line-height: 1.1 !important;
-                word-wrap: break-word !important;
               }
-              .fuv-signature-img {
-                height: 24px !important;
-                width: auto !important;
+              table.fuv-table th {
+                word-break: keep-all !important;
+                overflow-wrap: normal !important;
+                hyphens: none !important;
+                white-space: normal !important;
+                font-size: 6.5pt !important;
+                line-height: 1.05 !important;
+              }
+              table.fuv-table td {
+                word-wrap: break-word !important;
+                font-size: 7pt !important;
               }
             }
           `}</style>
 
           {records.map((dailyRec) => {
             const dateDisplay = formatDisplayDate(dailyRec.date)
-            const hasRemarks = Boolean(dailyRec.remarksDay || dailyRec.remarksNight)
 
             return (
               <div
@@ -250,31 +256,31 @@ export function MaintenanceFUVReportClient() {
                 {/* 25-Column Full Matriks Table */}
                 <table className="fuv-table w-full text-center text-[10px] border-collapse border border-black min-w-[1200px] print:min-w-full">
                   <colgroup>
-                    <col style={{ width: "5.2%" }} /> {/* Date */}
-                    <col style={{ width: "4.8%" }} /> {/* Time */}
-                    <col style={{ width: "3.6%" }} /> {/* VFD01 */}
-                    <col style={{ width: "3.6%" }} /> {/* VFD02 */}
-                    <col style={{ width: "5.6%" }} /> {/* SP01 */}
-                    <col style={{ width: "3.9%" }} /> {/* CS02 */}
-                    <col style={{ width: "3.6%" }} /> {/* PG01 */}
-                    <col style={{ width: "3.6%" }} /> {/* PT01 */}
-                    <col style={{ width: "5.6%" }} /> {/* SP02 */}
-                    <col style={{ width: "5.6%" }} /> {/* SP03 */}
-                    <col style={{ width: "4.0%" }} /> {/* PG02 (CCP1) */}
-                    <col style={{ width: "3.6%" }} /> {/* PG03 */}
-                    <col style={{ width: "3.6%" }} /> {/* PT02 */}
-                    <col style={{ width: "3.6%" }} /> {/* PT03 */}
-                    <col style={{ width: "3.6%" }} /> {/* PG04 */}
-                    <col style={{ width: "4.0%" }} /> {/* PG05 (CCP1) */}
-                    <col style={{ width: "4.0%" }} /> {/* CS01 */}
-                    <col style={{ width: "3.6%" }} /> {/* FM01 */}
-                    <col style={{ width: "3.6%" }} /> {/* PG06 */}
-                    <col style={{ width: "3.9%" }} /> {/* FM02 */}
-                    <col style={{ width: "4.0%" }} /> {/* UV INTENSITY (CCP2) */}
-                    <col style={{ width: "3.8%" }} /> {/* OPERATING HOUR */}
-                    <col style={{ width: "3.6%" }} /> {/* TOTAL RUNNING DAYS */}
-                    <col style={{ width: "5.2%" }} /> {/* Checked By */}
-                    <col style={{ width: "5.4%" }} /> {/* Verified By */}
+                    <col style={{ width: "4.6%" }} /> {/* Date */}
+                    <col style={{ width: "4.5%" }} /> {/* Time */}
+                    <col style={{ width: "3.3%" }} /> {/* VFD01 */}
+                    <col style={{ width: "3.3%" }} /> {/* VFD02 */}
+                    <col style={{ width: "4.5%" }} /> {/* SP01 */}
+                    <col style={{ width: "3.5%" }} /> {/* CS02 */}
+                    <col style={{ width: "3.2%" }} /> {/* PG01 */}
+                    <col style={{ width: "3.2%" }} /> {/* PT01 */}
+                    <col style={{ width: "4.5%" }} /> {/* SP02 */}
+                    <col style={{ width: "4.5%" }} /> {/* SP03 */}
+                    <col style={{ width: "3.6%" }} /> {/* PG02 (CCP1) */}
+                    <col style={{ width: "3.2%" }} /> {/* PG03 */}
+                    <col style={{ width: "3.2%" }} /> {/* PT02 */}
+                    <col style={{ width: "3.2%" }} /> {/* PT03 */}
+                    <col style={{ width: "3.2%" }} /> {/* PG04 */}
+                    <col style={{ width: "3.6%" }} /> {/* PG05 (CCP1) */}
+                    <col style={{ width: "3.6%" }} /> {/* CS01 */}
+                    <col style={{ width: "3.2%" }} /> {/* FM01 */}
+                    <col style={{ width: "3.2%" }} /> {/* PG06 */}
+                    <col style={{ width: "3.5%" }} /> {/* FM02 */}
+                    <col style={{ width: "5.2%" }} /> {/* UV INTENSITY (CCP2) */}
+                    <col style={{ width: "4.8%" }} /> {/* OPERATING HOUR */}
+                    <col style={{ width: "4.6%" }} /> {/* TOTAL RUNNING DAYS */}
+                    <col style={{ width: "6.4%" }} /> {/* Checked By */}
+                    <col style={{ width: "6.4%" }} /> {/* Verified By */}
                   </colgroup>
                   <thead>
                     {/* TIER 1: Bahagian / Peralatan */}
@@ -317,9 +323,15 @@ export function MaintenanceFUVReportClient() {
                       <th className="border border-black p-0.5">Flow Range</th>
                       <th className="border border-black p-0.5">Nil</th>
                       <th className="border border-black p-0.5">1.2-1.8 m3/Hr</th>
-                      <th className="border border-black p-0.5 font-bold bg-rose-100">80 - 99% (CCP2)</th>
-                      <th className="border border-black p-0.5">9000 Hr</th>
-                      <th className="border border-black p-0.5">Running Days</th>
+                      <th className="border border-black p-0.5 font-bold bg-rose-100 text-[8.5px] print:text-[6.5pt] leading-tight">
+                        <span>80 - 99%</span>
+                        <span className="block text-[7.5px] print:text-[5.5pt]">(CCP2)</span>
+                      </th>
+                      <th className="border border-black p-0.5 text-[8.5px] print:text-[6.5pt] leading-tight">9000 Hr</th>
+                      <th className="border border-black p-0.5 text-[8.5px] print:text-[6.5pt] leading-tight">
+                        <span>Running</span>
+                        <span className="block">Days</span>
+                      </th>
                     </tr>
 
                     {/* TIER 3: Unit */}
@@ -367,9 +379,18 @@ export function MaintenanceFUVReportClient() {
                       <th className="border border-black p-0.5">FM01</th>
                       <th className="border border-black p-0.5">PG06</th>
                       <th className="border border-black p-0.5">FM02</th>
-                      <th className="border border-black p-0.5 bg-rose-200">UV INTENSITY</th>
-                      <th className="border border-black p-0.5">OPERATING HR</th>
-                      <th className="border border-black p-0.5">RUNNING DAYS</th>
+                      <th className="border border-black p-0.5 bg-rose-200 text-[9px] print:text-[6.5pt] leading-tight">
+                        <span>UV</span>
+                        <span className="block">INTENSITY</span>
+                      </th>
+                      <th className="border border-black p-0.5 text-[9px] print:text-[6.5pt] leading-tight">
+                        <span>OPERATING</span>
+                        <span className="block">HR</span>
+                      </th>
+                      <th className="border border-black p-0.5 text-[9px] print:text-[6.5pt] leading-tight">
+                        <span>RUNNING</span>
+                        <span className="block">DAYS</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -564,92 +585,6 @@ export function MaintenanceFUVReportClient() {
                     })}
                   </tbody>
                 </table>
-
-                {/* Remarks & Corrective Actions (if any) */}
-                {hasRemarks && (
-                  <div className="mt-3 p-2 border border-black bg-gray-50 text-[10px]">
-                    <span className="font-bold uppercase">Catatan / Tindakan Pembetulan:</span>
-                    {dailyRec.remarksDay && (
-                      <p className="mt-0.5">
-                        <strong>Syif Pagi:</strong> {dailyRec.remarksDay}
-                      </p>
-                    )}
-                    {dailyRec.remarksNight && (
-                      <p className="mt-0.5">
-                        <strong>Syif Malam:</strong> {dailyRec.remarksNight}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Sign-off Footers */}
-                <div className="mt-4 grid grid-cols-3 gap-4 border border-black p-2 text-[10px] font-sans">
-                  {/* Day Operator */}
-                  <div className="border-r border-black pr-2">
-                    <p className="font-bold uppercase text-[9px] text-gray-700">
-                      Disemak (Syif Pagi):
-                    </p>
-                    <div className="h-10 my-1 flex items-center justify-center">
-                      {dailyRec.performedSignatureDay ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
-                          src={dailyRec.performedSignatureDay}
-                          alt="Day Signature"
-                          className="fuv-signature-img max-h-10 object-contain"
-                        />
-                      ) : (
-                        <span className="text-gray-400 italic text-[9px]">Belum Ditandatangani</span>
-                      )}
-                    </div>
-                    <p className="font-bold text-[10px] truncate">
-                      Nama: {dailyRec.checkedByDay || "-"}
-                    </p>
-                  </div>
-
-                  {/* Night Operator */}
-                  <div className="border-r border-black pr-2">
-                    <p className="font-bold uppercase text-[9px] text-gray-700">
-                      Disemak (Syif Malam):
-                    </p>
-                    <div className="h-10 my-1 flex items-center justify-center">
-                      {dailyRec.performedSignatureNight ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
-                          src={dailyRec.performedSignatureNight}
-                          alt="Night Signature"
-                          className="fuv-signature-img max-h-10 object-contain"
-                        />
-                      ) : (
-                        <span className="text-gray-400 italic text-[9px]">Belum Ditandatangani</span>
-                      )}
-                    </div>
-                    <p className="font-bold text-[10px] truncate">
-                      Nama: {dailyRec.checkedByNight || "-"}
-                    </p>
-                  </div>
-
-                  {/* Supervisor / QC Verification */}
-                  <div>
-                    <p className="font-bold uppercase text-[9px] text-gray-700">
-                      Disahkan (Penyelia / QC):
-                    </p>
-                    <div className="h-10 my-1 flex items-center justify-center">
-                      {dailyRec.verifiedSignature ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
-                          src={dailyRec.verifiedSignature}
-                          alt="Supervisor Signature"
-                          className="fuv-signature-img max-h-10 object-contain"
-                        />
-                      ) : (
-                        <span className="text-gray-400 italic text-[9px]">Belum Disahkan</span>
-                      )}
-                    </div>
-                    <p className="font-bold text-[10px] truncate">
-                      Nama: {dailyRec.verifiedBy || "-"}
-                    </p>
-                  </div>
-                </div>
               </div>
             )
           })}

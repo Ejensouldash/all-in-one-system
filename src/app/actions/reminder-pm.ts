@@ -161,18 +161,180 @@ export async function archivePMSchedule(id: string) {
   revalidatePath("/reminders")
 }
 
-export async function completePMOccurrence(id: string, result: string, notes: string, inspectedDate: string) {
+function canVerifyPM(access: { isSuperAdmin: boolean; role: string; unitName: string | null }) {
+  return (
+    access.isSuperAdmin ||
+    ["SUPERADMIN", "ADMIN", "SUPERVISOR", "MANAGER", "LEADER"].includes(access.role?.toUpperCase() || "") ||
+    access.unitName === "Information Technology" ||
+    access.unitName === "Maintenance"
+  )
+}
+
+export async function completePMOccurrence(
+  id: string,
+  result: string,
+  notes: string,
+  inspectedDate: string,
+  performedSignature: string,
+  completedChecklist: string[]
+) {
   const access = await accessPM()
+  if (!performedSignature || !performedSignature.trim()) {
+    throw new Error("Tandatangan pemeriksa (Checked By) diperlukan.")
+  }
+
   await prisma.$transaction(async tx => {
     await lockPM(tx)
     const task = await tx.reminderPMOccurrence.findUniqueOrThrow({ where: { id }, include: { schedule: true } })
     if (!canCompletePM(access, task.picIds)) throw new Error("Hanya PIC/Superadmin boleh merekod pemeriksaan ini.")
     if (task.completedAt) throw new Error("Pemeriksaan ini sudah selesai.")
-    validateCompletion(result, notes, inspectedDate, mytDate(), task.schedule.activationDate)
-    await tx.reminderPMOccurrence.update({ where: { id }, data: { result, notes: notes.trim() || null, inspectedDate, completedById: access.userId, completedAt: new Date() } })
+    validateCompletion(
+      result,
+      notes,
+      inspectedDate,
+      mytDate(),
+      task.schedule.activationDate,
+      task.checklist,
+      completedChecklist,
+      performedSignature
+    )
+    await tx.reminderPMOccurrence.update({
+      where: { id },
+      data: {
+        result,
+        notes: notes.trim() || null,
+        inspectedDate,
+        performedSignature,
+        completedChecklist: completedChecklist || [],
+        completedById: access.userId,
+        completedAt: new Date(),
+      },
+    })
   })
   revalidatePath("/reminders")
+  revalidatePath("/reminders/summary")
 }
+
+export async function verifyPMOccurrence(id: string, signature: string) {
+  const access = await accessPM()
+  if (!canVerifyPM(access)) {
+    throw new Error("Hanya Penyelia/Pengurus/Superadmin yang dibenarkan membuat pengesahan.")
+  }
+  if (!signature || !signature.trim()) {
+    throw new Error("Tandatangan pengesahan (Verified By) diperlukan.")
+  }
+
+  await prisma.$transaction(async tx => {
+    await lockPM(tx)
+    const task = await tx.reminderPMOccurrence.findUniqueOrThrow({ where: { id } })
+    if (!task.completedAt) {
+      throw new Error("Tugasan ini belum diselesaikan oleh pemeriksa.")
+    }
+    if (task.verifiedAt) {
+      throw new Error("Tugasan ini sudah disahkan sebelum ini.")
+    }
+
+    await tx.reminderPMOccurrence.update({
+      where: { id },
+      data: {
+        verifiedById: access.userId,
+        verifiedSignature: signature,
+        verifiedAt: new Date(),
+      },
+    })
+  })
+  revalidatePath("/reminders")
+  revalidatePath("/reminders/summary")
+}
+
+export async function getPMSummaryData(from?: string, to?: string, verificationFilter?: "ALL" | "PENDING" | "VERIFIED") {
+  const access = await accessPM()
+  const today = mytDate()
+  const currentYear = today.slice(0, 4)
+  const queryFrom = from && validDate(from) ? from : `${currentYear}-01-01`
+  const queryTo = to && validDate(to) ? to : `${currentYear}-12-31`
+
+  const whereCondition: Prisma.ReminderPMOccurrenceWhereInput = {
+    completedAt: { not: null },
+    inspectedDate: { gte: queryFrom, lte: queryTo },
+  }
+
+  if (verificationFilter === "PENDING") {
+    whereCondition.verifiedAt = null
+  } else if (verificationFilter === "VERIFIED") {
+    whereCondition.verifiedAt = { not: null }
+  }
+
+  const occurrences = await prisma.reminderPMOccurrence.findMany({
+    where: whereCondition,
+    include: {
+      schedule: {
+        select: {
+          id: true,
+          intervalUnit: true,
+          intervalCount: true,
+          activationDate: true,
+        },
+      },
+    },
+    orderBy: [
+      { inspectedDate: "desc" },
+      { completedAt: "desc" },
+    ],
+  })
+
+  // Get user details for completedById, verifiedById, and picIds
+  const userIds = new Set<string>()
+  occurrences.forEach((o) => {
+    if (o.completedById) userIds.add(o.completedById)
+    if (o.verifiedById) userIds.add(o.verifiedById)
+    o.picIds.forEach((id) => userIds.add(id))
+  })
+
+  const users = await prisma.user.findMany({
+    where: { id: { in: Array.from(userIds) } },
+    select: { id: true, name: true, email: true, role: true },
+  })
+
+  const userMap = new Map(users.map((u) => [u.id, u]))
+
+  // Calculate KPIs across all completed inspections in range
+  const allCompletedInRange = await prisma.reminderPMOccurrence.findMany({
+    where: {
+      completedAt: { not: null },
+      inspectedDate: { gte: queryFrom, lte: queryTo },
+    },
+    select: {
+      id: true,
+      result: true,
+      verifiedAt: true,
+    },
+  })
+
+  const kpis = {
+    totalCompleted: allCompletedInRange.length,
+    totalVerified: allCompletedInRange.filter((o) => o.verifiedAt !== null).length,
+    totalPending: allCompletedInRange.filter((o) => o.verifiedAt === null).length,
+    totalIssues: allCompletedInRange.filter((o) => o.result === "ISSUE").length,
+  }
+
+  return {
+    today,
+    userId: access.userId,
+    userName: access.name || "Pengguna",
+    isSuperAdmin: access.isSuperAdmin,
+    canVerify: canVerifyPM(access),
+    occurrences: occurrences.map((o) => ({
+      ...o,
+      completedByName: o.completedById ? userMap.get(o.completedById)?.name || o.completedById : "-",
+      verifiedByName: o.verifiedById ? userMap.get(o.verifiedById)?.name || o.verifiedById : "-",
+    })),
+    kpis,
+    queryFrom,
+    queryTo,
+  }
+}
+
 
 export async function assignPMOccurrence(id: string, picIds: string[]) {
   const access = await accessPM()

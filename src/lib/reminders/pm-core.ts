@@ -54,9 +54,28 @@ export function pmStatus(task: { completedAt: unknown; dueDate: string }, today:
 export function canCompletePM(access: { userId: string; isSuperAdmin: boolean }, picIds: string[]) {
   return access.isSuperAdmin || picIds.includes(access.userId)
 }
-export function validateCompletion(result: string, notes: string, inspectedDate: string, today: string, activationDate: string) {
+export function validateCompletion(
+  result: string,
+  notes: string,
+  inspectedDate: string,
+  today: string,
+  activationDate: string,
+  checklist: string[] = [],
+  completedChecklist: string[] = [],
+  signature?: string | null
+) {
   if (!["OK", "ISSUE"].includes(result)) throw new Error("Pilih keputusan pemeriksaan.")
   if (result === "ISSUE" && !notes.trim()) throw new Error("Catatan diperlukan untuk masalah.")
   if (notes.length > 5000) throw new Error("Catatan terlalu panjang.")
   if (!validDate(inspectedDate) || inspectedDate > today || inspectedDate < activationDate) throw new Error("Tarikh pemeriksaan mesti antara pengaktifan dan hari ini.")
+  if (signature !== undefined && (!signature || !signature.trim())) {
+    throw new Error("Tandatangan pemeriksa (Checked By) diperlukan.")
+  }
+  if (result === "OK" && checklist.length > 0) {
+    const completedSet = new Set(completedChecklist)
+    const missing = checklist.filter(item => !completedSet.has(item))
+    if (missing.length > 0) {
+      throw new Error("Semua item arahan kerja mesti ditandakan selesai untuk keputusan OK. Sila semak semula atau pilih 'Ada Masalah'.")
+    }
+  }
 }

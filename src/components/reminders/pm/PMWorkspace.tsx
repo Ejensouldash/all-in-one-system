@@ -27,10 +27,11 @@ import {
   Send,
   Zap,
 } from "lucide-react"
+import Link from "next/link"
+import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
 import "../RemindersCSS.css"
 import { ModalShell } from "../ModalShell"
 import { PMFields, PICPicker, buttonClass, fieldClass } from "./PMFields"
-import { PMImport } from "./PMImport"
 import {
   getPMData,
   completePMOccurrence,
@@ -109,7 +110,6 @@ export function PMWorkspace() {
 
   // Modals
   const [selectedOccurrence, setSelectedOccurrence] = useState<PMOccurrence | null>(null)
-  const [showImportModal, setShowImportModal] = useState(false)
   const [scheduleModal, setScheduleModal] = useState<{
     open: boolean
     schedule: PMSchedule | null
@@ -119,6 +119,8 @@ export function PMWorkspace() {
   const [completionResult, setCompletionResult] = useState<"OK" | "ISSUE">("OK")
   const [completionNotes, setCompletionNotes] = useState("")
   const [completionDate, setCompletionDate] = useState("")
+  const [completedChecklist, setCompletedChecklist] = useState<string[]>([])
+  const [performedSignature, setPerformedSignature] = useState<string | null>(null)
   const [completionError, setCompletionError] = useState("")
   const [submitting, startSubmitting] = useTransition()
 
@@ -256,6 +258,8 @@ export function PMWorkspace() {
     setCompletionResult(occ.result === "ISSUE" ? "ISSUE" : "OK")
     setCompletionNotes(occ.notes || "")
     setCompletionDate(occ.inspectedDate || (data ? data.today : new Date().toISOString().slice(0, 10)))
+    setCompletedChecklist(occ.completedChecklist && occ.completedChecklist.length > 0 ? occ.completedChecklist : [])
+    setPerformedSignature(occ.performedSignature || null)
     setCompletionError("")
     setSimulationResult(null)
 
@@ -270,6 +274,8 @@ export function PMWorkspace() {
   // Close occurrence modal and clean URL
   const closeOccurrence = () => {
     setSelectedOccurrence(null)
+    setCompletedChecklist([])
+    setPerformedSignature(null)
     setCompletionError("")
     setSimulationResult(null)
     if (typeof window !== "undefined") {
@@ -322,13 +328,32 @@ export function PMWorkspace() {
       return
     }
 
+    if (completionResult === "OK") {
+      const allChecked = selectedOccurrence.checklist.every((item) =>
+        completedChecklist.includes(item)
+      )
+      if (!allChecked) {
+        setCompletionError(
+          "Semua item arahan kerja mesti ditandakan selesai untuk keputusan OK. Jika terdapat item yang belum/tidak boleh diselesaikan, sila pilih 'Ada Masalah' dan nyatakan ulasan."
+        )
+        return
+      }
+    }
+
+    if (!performedSignature || !performedSignature.trim()) {
+      setCompletionError("Sila tandatangan (Checked By) sebelum mengesahkan pemeriksaan.")
+      return
+    }
+
     startSubmitting(async () => {
       try {
         await completePMOccurrence(
           selectedOccurrence.id,
           completionResult,
           completionNotes,
-          completionDate
+          completionDate,
+          performedSignature,
+          completedChecklist
         )
         flash({ kind: "ok", text: "Pemeriksaan berjaya direkodkan." })
         closeOccurrence()
@@ -701,18 +726,40 @@ export function PMWorkspace() {
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
-                <h2 className="ml-1 text-lg font-black tracking-tight text-gray-900">
-                  {rangeMode === "year" ? (
-                    <>
-                      Tahun <span className="text-indigo-600">{cursor.getFullYear()}</span>
-                    </>
-                  ) : (
-                    <>
-                      {MONTH_BM[cursor.getMonth()]}{" "}
-                      <span className="text-gray-400">{cursor.getFullYear()}</span>
-                    </>
+                <div className="flex items-center gap-1.5 ml-1">
+                  {rangeMode === "month" && (
+                    <select
+                      value={cursor.getMonth()}
+                      onChange={(e) => {
+                        const m = parseInt(e.target.value, 10)
+                        setCursor((d) => new Date(Date.UTC(d.getFullYear(), m, 1)))
+                      }}
+                      aria-label="Pilih Bulan"
+                      className="cursor-pointer rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 text-sm font-black text-gray-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 hover:border-gray-300"
+                    >
+                      {MONTH_BM.map((bmName, idx) => (
+                        <option key={idx} value={idx}>
+                          {bmName}
+                        </option>
+                      ))}
+                    </select>
                   )}
-                </h2>
+                  <select
+                    value={cursor.getFullYear()}
+                    onChange={(e) => {
+                      const y = parseInt(e.target.value, 10)
+                      setCursor((d) => new Date(Date.UTC(y, rangeMode === "year" ? 0 : d.getMonth(), 1)))
+                    }}
+                    aria-label="Pilih Tahun"
+                    className="cursor-pointer rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 text-sm font-black text-indigo-600 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 hover:border-gray-300"
+                  >
+                    {[2025, 2026, 2027, 2028, 2029, 2030].map((y) => (
+                      <option key={y} value={y}>
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -788,16 +835,15 @@ export function PMWorkspace() {
                 </button>
               </div>
 
-              {/* Superadmin Import Action */}
-              {data?.isSuperAdmin && (
-                <button
-                  type="button"
-                  onClick={() => setShowImportModal(true)}
-                  className="flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 transition hover:bg-amber-100"
-                >
-                  <FileSpreadsheet className="h-3.5 w-3.5" /> Import Excel
-                </button>
-              )}
+              {/* Summary / Verification Link */}
+              <Link
+                href="/reminders/summary"
+                className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100 shadow-sm"
+                title="Lihat Rekod Pemeriksaan & Pengesahan Penyelia"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5 text-indigo-600" />
+                Ringkasan & Pengesahan
+              </Link>
 
               {/* Create Schedule Action */}
               <button
@@ -1224,60 +1270,159 @@ export function PMWorkspace() {
               </div>
             </div>
 
-            {/* Checklist items */}
-            <div>
-              <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">
-                Arahan Kerja / Checklist Pemeriksaan
-              </h4>
-              <ul className="space-y-1.5 rounded-2xl border border-gray-200 bg-white p-3.5 text-xs text-gray-700">
-                {selectedOccurrence.checklist.map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-2">
-                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-600" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {/* Checklist items (if completed) */}
+            {selectedOccurrence.completedAt && (
+              <div>
+                <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                  Arahan Kerja / Checklist Pemeriksaan
+                </h4>
+                <ul className="space-y-1.5 rounded-2xl border border-gray-200 bg-white p-3.5 text-xs text-gray-700">
+                  {selectedOccurrence.checklist.map((item, idx) => {
+                    const isDone =
+                      !selectedOccurrence.completedChecklist ||
+                      selectedOccurrence.completedChecklist.length === 0 ||
+                      selectedOccurrence.completedChecklist.includes(item)
+                    return (
+                      <li key={idx} className="flex items-start gap-2">
+                        {isDone ? (
+                          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        ) : (
+                          <X className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-500" />
+                        )}
+                        <span className={isDone ? "" : "text-gray-400 line-through"}>{item}</span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )}
 
             {/* If task is already completed */}
             {selectedOccurrence.completedAt ? (
-              <div className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2
-                    className={`h-5 w-5 ${
+              <div className="space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2
+                      className={`h-5 w-5 ${
+                        selectedOccurrence.result === "ISSUE"
+                          ? "text-amber-600"
+                          : "text-emerald-600"
+                      }`}
+                    />
+                    <h4 className="text-sm font-bold text-gray-900">
+                      Pemeriksaan Selesai Direkodkan
+                    </h4>
+                  </div>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-black ${
                       selectedOccurrence.result === "ISSUE"
-                        ? "text-amber-600"
-                        : "text-emerald-600"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-emerald-100 text-emerald-800"
                     }`}
-                  />
-                  <h4 className="text-sm font-bold text-gray-900">
-                    Pemeriksaan Selesai Direkodkan
-                  </h4>
+                  >
+                    {selectedOccurrence.result === "ISSUE" ? "Ada Masalah" : "OK (Memuaskan)"}
+                  </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs text-gray-700">
+
+                <div className="grid grid-cols-2 gap-3 text-xs text-gray-700">
                   <div>
-                    <span className="text-gray-500">Keputusan:</span>{" "}
-                    <strong>
-                      {selectedOccurrence.result === "ISSUE" ? "Ada Masalah" : "OK (Memuaskan)"}
-                    </strong>
+                    <span className="text-gray-500 font-medium">Tarikh Pemeriksaan:</span>
+                    <p className="font-bold text-gray-900">{selectedOccurrence.inspectedDate || "-"}</p>
                   </div>
                   <div>
-                    <span className="text-gray-500">Tarikh Pemeriksaan:</span>{" "}
-                    <strong>{selectedOccurrence.inspectedDate || "-"}</strong>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-gray-500">Direkodkan Oleh:</span>{" "}
-                    <strong>
+                    <span className="text-gray-500 font-medium">Direkodkan Oleh:</span>
+                    <p className="font-bold text-gray-900">
                       {selectedOccurrence.completedById
                         ? userMap.get(selectedOccurrence.completedById)?.name ||
                           selectedOccurrence.completedById
                         : "-"}
-                    </strong>
+                    </p>
                   </div>
                   {selectedOccurrence.notes && (
-                    <div className="col-span-2 pt-1 border-t border-emerald-100">
-                      <span className="text-gray-500">Catatan:</span>
-                      <p className="mt-0.5 text-gray-800">{selectedOccurrence.notes}</p>
+                    <div className="col-span-2 pt-2 border-t border-emerald-100">
+                      <span className="text-gray-500 font-medium">Catatan:</span>
+                      <p className="mt-0.5 text-gray-800 font-medium bg-white/70 p-2 rounded-lg border border-emerald-100">
+                        {selectedOccurrence.notes}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Checked By Signature Display */}
+                <div className="pt-3 border-t border-emerald-100">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 block mb-1.5">
+                    Tandatangan Pemeriksa (Checked By):
+                  </span>
+                  {selectedOccurrence.performedSignature ? (
+                    <div className="inline-block rounded-xl border border-gray-200 bg-white p-2 shadow-xs">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={selectedOccurrence.performedSignature}
+                        alt="Tandatangan Pemeriksa"
+                        className="h-16 max-w-full object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-400 italic">Tiada tandatangan direkodkan</span>
+                  )}
+                </div>
+
+                {/* Supervisor Verification Status & Signature Display */}
+                <div className="pt-3 border-t border-emerald-100">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                      Pengesahan Penyelia (Verified By):
+                    </span>
+                    {selectedOccurrence.verifiedAt ? (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 flex items-center gap-1">
+                        <Check className="h-3 w-3" /> Disahkan
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                        Menunggu Pengesahan
+                      </span>
+                    )}
+                  </div>
+
+                  {selectedOccurrence.verifiedAt ? (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-700">
+                        <div>
+                          <span className="text-gray-500">Disahkan Oleh:</span>{" "}
+                          <strong>
+                            {selectedOccurrence.verifiedById
+                              ? userMap.get(selectedOccurrence.verifiedById)?.name ||
+                                selectedOccurrence.verifiedById
+                              : "-"}
+                          </strong>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Tarikh Pengesahan:</span>{" "}
+                          <strong>
+                            {new Date(selectedOccurrence.verifiedAt).toLocaleDateString("ms-MY")}
+                          </strong>
+                        </div>
+                      </div>
+                      {selectedOccurrence.verifiedSignature && (
+                        <div className="inline-block rounded-xl border border-gray-200 bg-white p-2 shadow-xs">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={selectedOccurrence.verifiedSignature}
+                            alt="Tandatangan Penyelia"
+                            className="h-16 max-w-full object-contain"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between rounded-xl bg-amber-50/70 border border-amber-200 p-2.5 text-xs text-amber-800">
+                      <span>Pemeriksaan ini belum disahkan oleh Penyelia.</span>
+                      <Link
+                        href="/reminders/summary"
+                        className="font-bold text-indigo-600 hover:text-indigo-800 underline ml-2 shrink-0"
+                      >
+                        Buka Halaman Summary &rarr;
+                      </Link>
                     </div>
                   )}
                 </div>
@@ -1305,6 +1450,67 @@ export function PMWorkspace() {
                         {completionError}
                       </p>
                     )}
+
+                    {/* Interactive Checklist Section */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-bold text-gray-700">
+                          Arahan Kerja / Checklist Pemeriksaan *
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setCompletedChecklist([...selectedOccurrence.checklist])}
+                          className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 hover:underline"
+                        >
+                          Tandakan Semua Selesai
+                        </button>
+                      </div>
+                      <div className="space-y-1.5 rounded-2xl border border-gray-200 bg-white p-3 text-xs text-gray-700 max-h-56 overflow-y-auto">
+                        {selectedOccurrence.checklist.map((item, idx) => {
+                          const isChecked = completedChecklist.includes(item)
+                          return (
+                            <label
+                              key={idx}
+                              className={`flex items-start gap-2.5 p-2 rounded-xl border transition cursor-pointer ${
+                                isChecked
+                                  ? "border-indigo-200 bg-indigo-50/40 text-gray-900 font-medium"
+                                  : "border-gray-100 bg-gray-50/40 text-gray-600 hover:bg-gray-100"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setCompletedChecklist([...completedChecklist, item])
+                                  } else {
+                                    setCompletedChecklist(
+                                      completedChecklist.filter((c) => c !== item)
+                                    )
+                                  }
+                                }}
+                                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0"
+                              />
+                              <span className="text-xs leading-relaxed">{item}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                      <div className="mt-1 flex items-center justify-between text-[11px] text-gray-500">
+                        <span>
+                          {completedChecklist.length} daripada {selectedOccurrence.checklist.length} item ditandakan
+                        </span>
+                        {completedChecklist.length === selectedOccurrence.checklist.length ? (
+                          <span className="text-emerald-600 font-semibold flex items-center gap-1">
+                            <Check className="h-3 w-3" /> Semua selesai
+                          </span>
+                        ) : (
+                          <span className="text-amber-600 font-medium">
+                            {selectedOccurrence.checklist.length - completedChecklist.length} item belum selesai
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
                     {/* Result buttons: OK vs Ada Masalah */}
                     <div>
@@ -1376,6 +1582,16 @@ export function PMWorkspace() {
                       />
                     </div>
 
+                    {/* Checked By Signature Pad */}
+                    <div className="pt-2 border-t border-indigo-100">
+                      <SignaturePadClient
+                        label="Tandatangan Pemeriksa (Checked By) *"
+                        autoLoadSaved={true}
+                        savedSignatureUrl={performedSignature}
+                        onSave={(sig) => setPerformedSignature(sig)}
+                      />
+                    </div>
+
                     <button
                       type="button"
                       disabled={submitting}
@@ -1401,6 +1617,7 @@ export function PMWorkspace() {
                 )}
               </div>
             )}
+
 
             {/* SuperAdmin Special Test Simulation Action */}
             {data?.isSuperAdmin && (
@@ -1522,46 +1739,6 @@ export function PMWorkspace() {
                 {savingSchedule ? "Menyimpan…" : "Simpan Jadual"}
               </button>
             </div>
-          </div>
-        </ModalShell>
-      )}
-
-      {/* Superadmin PM Import Modal */}
-      {showImportModal && data?.isSuperAdmin && (
-        <ModalShell
-          open={showImportModal}
-          onClose={() => setShowImportModal(false)}
-          maxWidth="max-w-4xl"
-        >
-          <div className="p-6 space-y-4">
-            <div className="flex items-start justify-between gap-3 border-b pb-3">
-              <div>
-                <h3 className="text-xl font-black text-gray-900">
-                  Import Jadual SGMP-03 (Excel)
-                </h3>
-                <p className="text-xs text-gray-500">
-                  Muat naik fail Excel jadual maintenance untuk mempratonton kumpulan, padankan PIC, dan aktifkan jadual.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowImportModal(false)}
-                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <PMImport
-              users={data.users}
-              today={data.today}
-              schedules={data.schedules}
-              onDone={() => {
-                setShowImportModal(false)
-                flash({ kind: "ok", text: "Import SGMP-03 berjaya diaktifkan." })
-                loadData()
-              }}
-            />
           </div>
         </ModalShell>
       )}

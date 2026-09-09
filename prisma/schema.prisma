@@ -1485,19 +1485,24 @@ model ReminderPMSchedule {
 }
 
 model ReminderPMOccurrence {
-  id            String   @id @default(uuid())
-  scheduleId    String
-  dueDate       String
-  equipment     String
-  srs           String?
-  checklist     String[]
-  picIds        String[]
-  result        String?
-  notes         String?  @db.Text
-  inspectedDate String?
-  completedById String?
-  completedAt   DateTime?
-  schedule      ReminderPMSchedule @relation(fields: [scheduleId], references: [id], onDelete: Restrict)
+  id                 String   @id @default(uuid())
+  scheduleId         String
+  dueDate            String
+  equipment          String
+  srs                String?
+  checklist          String[]
+  picIds             String[]
+  completedChecklist String[] @default([])
+  result             String?
+  notes              String?  @db.Text
+  inspectedDate      String?
+  performedSignature String?  @db.Text
+  completedById      String?
+  completedAt        DateTime?
+  verifiedById       String?
+  verifiedSignature  String?  @db.Text
+  verifiedAt         DateTime?
+  schedule           ReminderPMSchedule @relation(fields: [scheduleId], references: [id], onDelete: Restrict)
 
   @@unique([scheduleId, dueDate])
   @@index([dueDate, completedAt])

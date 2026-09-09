@@ -155,6 +155,47 @@ test("Inspected date must be between activation date and today", () => {
   )
 })
 
+// 9b. Checklist and Signature validation
+test("Checklist and digital signature validation", () => {
+  const fullChecklist = ["Periksa minyak", "Bersihkan filter", "Uji motor"]
+  const validSig = "data:image/png;base64,sampleSignatureData"
+
+  // Empty signature throws error when signature is checked
+  assert.throws(
+    () => {
+      validateCompletion("OK", "", "2026-09-08", "2026-09-08", "2026-01-01", fullChecklist, fullChecklist, "")
+    },
+    /Tandatangan pemeriksa \(Checked By\) diperlukan/
+  )
+
+  // Incomplete checklist throws error for OK result
+  assert.throws(
+    () => {
+      validateCompletion("OK", "", "2026-09-08", "2026-09-08", "2026-01-01", fullChecklist, ["Periksa minyak"], validSig)
+    },
+    /Semua item arahan kerja mesti ditandakan selesai untuk keputusan OK/
+  )
+
+  // Full checklist succeeds for OK result with signature
+  assert.doesNotThrow(() => {
+    validateCompletion("OK", "", "2026-09-08", "2026-09-08", "2026-01-01", fullChecklist, fullChecklist, validSig)
+  })
+
+  // Partial checklist allowed for ISSUE result if notes are provided
+  assert.doesNotThrow(() => {
+    validateCompletion(
+      "ISSUE",
+      "Filter tersumbat dan motor panas",
+      "2026-09-08",
+      "2026-09-08",
+      "2026-01-01",
+      fullChecklist,
+      ["Periksa minyak"],
+      validSig
+    )
+  })
+})
+
 // 10. PIC authorization
 test("canCompletePM allows Superadmin or assigned PIC only", () => {
   const superAdmin = { userId: "user-admin", isSuperAdmin: true }

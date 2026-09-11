@@ -106,6 +106,7 @@ const s = StyleSheet.create({
     borderColor: "#000000",
     flexDirection: "row",
     marginBottom: 8,
+    alignItems: "stretch",
   },
   headerColLogo: {
     width: "20%",
@@ -114,6 +115,7 @@ const s = StyleSheet.create({
     padding: 5,
     alignItems: "center",
     justifyContent: "center",
+    alignSelf: "stretch",
   },
   logo: {
     width: 110,
@@ -126,6 +128,7 @@ const s = StyleSheet.create({
     borderColor: "#000000",
     padding: 5,
     justifyContent: "center",
+    alignSelf: "stretch",
   },
   companyName: {
     fontSize: 10,
@@ -142,6 +145,7 @@ const s = StyleSheet.create({
   headerColMeta: {
     width: "30%",
     flexDirection: "column",
+    alignSelf: "stretch",
   },
   metaRow: {
     flexDirection: "row",
@@ -211,7 +215,7 @@ const s = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
   },
 
-  // 4. Data Grid Table with 100% Solid Black Borders
+  // 4. Data Grid Table with 100% Solid Continuous Black Borders
   table: {
     borderWidth: 1.5,
     borderColor: "#000000",
@@ -221,91 +225,114 @@ const s = StyleSheet.create({
     backgroundColor: "#e5e7eb",
     borderBottomWidth: 1.5,
     borderColor: "#000000",
-    alignItems: "center",
+    alignItems: "stretch",
+    minHeight: 22,
   },
   tableRow: {
     flexDirection: "row",
     borderBottomWidth: 1,
     borderColor: "#000000",
     minHeight: 24,
-    alignItems: "center",
+    alignItems: "stretch",
   },
 
   // Column Cell Styles (Exact % allocations totaling 100%)
+  // alignSelf: "stretch" and justifyContent: "center" ensure that the cell expands
+  // the entire vertical height of the row so borderRight connects completely without gaps.
   colNo: {
     width: "3%",
     borderRightWidth: 1,
     borderColor: "#000000",
-    padding: 2,
+    paddingHorizontal: 2,
+    paddingVertical: 3,
     alignItems: "center",
     justifyContent: "center",
+    alignSelf: "stretch",
   },
   colDate: {
     width: "8%",
     borderRightWidth: 1,
     borderColor: "#000000",
-    padding: 2,
+    paddingHorizontal: 2,
+    paddingVertical: 3,
     alignItems: "center",
     justifyContent: "center",
+    alignSelf: "stretch",
   },
   colEquip: {
     width: "15%",
     borderRightWidth: 1,
     borderColor: "#000000",
-    padding: 2.5,
+    paddingHorizontal: 3,
+    paddingVertical: 3,
     justifyContent: "center",
+    alignSelf: "stretch",
   },
   colSrs: {
     width: "10%",
     borderRightWidth: 1,
     borderColor: "#000000",
-    padding: 2,
+    paddingHorizontal: 2,
+    paddingVertical: 3,
     alignItems: "center",
     justifyContent: "center",
+    alignSelf: "stretch",
   },
   colFreq: {
     width: "7%",
     borderRightWidth: 1,
     borderColor: "#000000",
-    padding: 2,
+    paddingHorizontal: 2,
+    paddingVertical: 3,
     alignItems: "center",
     justifyContent: "center",
+    alignSelf: "stretch",
   },
   colAction: {
     width: "18%",
     borderRightWidth: 1,
     borderColor: "#000000",
-    padding: 2.5,
+    paddingHorizontal: 3,
+    paddingVertical: 3,
     justifyContent: "center",
+    alignSelf: "stretch",
   },
   colResult: {
     width: "6%",
     borderRightWidth: 1,
     borderColor: "#000000",
-    padding: 2,
+    paddingHorizontal: 2,
+    paddingVertical: 3,
     alignItems: "center",
     justifyContent: "center",
+    alignSelf: "stretch",
   },
   colPerformed: {
     width: "12%",
     borderRightWidth: 1,
     borderColor: "#000000",
-    padding: 1.5,
+    paddingHorizontal: 2,
+    paddingVertical: 2,
     alignItems: "center",
     justifyContent: "center",
+    alignSelf: "stretch",
   },
   colVerified: {
     width: "12%",
     borderRightWidth: 1,
     borderColor: "#000000",
-    padding: 1.5,
+    paddingHorizontal: 2,
+    paddingVertical: 2,
     alignItems: "center",
     justifyContent: "center",
+    alignSelf: "stretch",
   },
   colRemarks: {
     width: "9%",
-    padding: 2.5,
+    paddingHorizontal: 3,
+    paddingVertical: 3,
     justifyContent: "center",
+    alignSelf: "stretch",
   },
 
   thText: {
@@ -546,34 +573,34 @@ export function PMVerificationReportDocument(props: PMVerificationReportPayload)
           {Array.from({ length: emptyRowCount }).map((_, idx) => (
             <View key={`pad-${idx}`} style={s.tableRow} wrap={false}>
               <View style={s.colNo}>
-                <Text style={{ fontSize: 6 }}>&nbsp;</Text>
+                <Text style={{ fontSize: 6, opacity: 0 }}>{" "}</Text>
               </View>
               <View style={s.colDate}>
-                <Text style={{ fontSize: 6 }}>&nbsp;</Text>
+                <Text style={{ fontSize: 6, opacity: 0 }}>{" "}</Text>
               </View>
               <View style={s.colEquip}>
-                <Text style={{ fontSize: 6 }}>&nbsp;</Text>
+                <Text style={{ fontSize: 6, opacity: 0 }}>{" "}</Text>
               </View>
               <View style={s.colSrs}>
-                <Text style={{ fontSize: 6 }}>&nbsp;</Text>
+                <Text style={{ fontSize: 6, opacity: 0 }}>{" "}</Text>
               </View>
               <View style={s.colFreq}>
-                <Text style={{ fontSize: 6 }}>&nbsp;</Text>
+                <Text style={{ fontSize: 6, opacity: 0 }}>{" "}</Text>
               </View>
               <View style={s.colAction}>
-                <Text style={{ fontSize: 6 }}>&nbsp;</Text>
+                <Text style={{ fontSize: 6, opacity: 0 }}>{" "}</Text>
               </View>
               <View style={s.colResult}>
-                <Text style={{ fontSize: 6 }}>&nbsp;</Text>
+                <Text style={{ fontSize: 6, opacity: 0 }}>{" "}</Text>
               </View>
               <View style={s.colPerformed}>
-                <Text style={{ fontSize: 6 }}>&nbsp;</Text>
+                <Text style={{ fontSize: 6, opacity: 0 }}>{" "}</Text>
               </View>
               <View style={s.colVerified}>
-                <Text style={{ fontSize: 6 }}>&nbsp;</Text>
+                <Text style={{ fontSize: 6, opacity: 0 }}>{" "}</Text>
               </View>
               <View style={s.colRemarks}>
-                <Text style={{ fontSize: 6 }}>&nbsp;</Text>
+                <Text style={{ fontSize: 6, opacity: 0 }}>{" "}</Text>
               </View>
             </View>
           ))}

@@ -32,6 +32,7 @@ export interface PMVerificationReportPayload {
   generatedAt: string
   preparedBy: string
   today?: string
+  reportType?: "VERIFICATION" | "SUMMARY"
   kpis: {
     totalScheduled?: number
     totalCompleted: number
@@ -383,9 +384,22 @@ const s = StyleSheet.create({
 })
 
 export function PMVerificationReportDocument(props: PMVerificationReportPayload) {
-  const { logo, from, to, generatedAt, occurrences, today } = props
+  const { logo, from, to, generatedAt, occurrences, today, reportType = "SUMMARY" } = props
   const todayStr = today || new Date().toISOString().slice(0, 10)
   const { month, year } = getMonthYearLabels(from, to)
+
+  const docTitle =
+    reportType === "VERIFICATION"
+      ? `PM Verification Report SGMP-03 (${from} to ${to})`
+      : `PM Summary Report SGMP-03 (${from} to ${to})`
+  const mainTitle =
+    reportType === "VERIFICATION"
+      ? "PREVENTIVE MAINTENANCE INSPECTION RECORD"
+      : "PREVENTIVE MAINTENANCE SUMMARY & VERIFICATION RECORD"
+  const footerTitle =
+    reportType === "VERIFICATION"
+      ? "Bubbles O2 Sdn. Bhd. · SGMP-03 Preventive Maintenance Inspection Records"
+      : "Bubbles O2 Sdn. Bhd. · SGMP-03 Preventive Maintenance Summary & Verification Records"
 
   // Determine minimum rows to fill page neatly like an authentic paper GMP record sheet
   const minRows = 14
@@ -393,7 +407,7 @@ export function PMVerificationReportDocument(props: PMVerificationReportPayload)
 
   return (
     <Document
-      title={`PM Summary & Verification Report SGMP-03 (${from} to ${to})`}
+      title={docTitle}
       author="Bubbles O2 Sdn Bhd"
     >
       <Page size="A4" orientation="landscape" style={s.page}>
@@ -440,7 +454,7 @@ export function PMVerificationReportDocument(props: PMVerificationReportPayload)
 
         {/* 2. Document Title */}
         <View style={s.titleContainer}>
-          <Text style={s.title}>PREVENTIVE MAINTENANCE SUMMARY & VERIFICATION RECORD</Text>
+          <Text style={s.title}>{mainTitle}</Text>
         </View>
 
         {/* 3. Month & Year Subheader Row */}
@@ -654,7 +668,7 @@ export function PMVerificationReportDocument(props: PMVerificationReportPayload)
         {/* Footer */}
         <View style={s.footer} fixed>
           <Text>
-            Bubbles O2 Sdn. Bhd. · SGMP-03 Preventive Maintenance Summary & Verification Records · Generated on {generatedAt}
+            {footerTitle} · Generated on {generatedAt}
           </Text>
           <Text
             render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}

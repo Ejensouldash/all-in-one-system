@@ -31,10 +31,18 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const from = searchParams.get("from") || undefined
   const to = searchParams.get("to") || undefined
-  const rawStatus = (searchParams.get("status") || "ALL") as PMSummaryFilter
+  const rawStatus = searchParams.get("status") || "COMPLETED"
+
+  // Verification report only exports completed inspection records
+  const verificationFilter: PMSummaryFilter =
+    rawStatus === "VERIFIED"
+      ? "VERIFIED"
+      : rawStatus === "PENDING" || rawStatus === "PENDING_VERIFICATION"
+      ? "PENDING_VERIFICATION"
+      : "COMPLETED"
 
   try {
-    const data = await getPMSummaryData(from, to, rawStatus)
+    const data = await getPMSummaryData(from, to, verificationFilter)
     const logo = await loadLogo()
 
     const generatedAt = new Intl.DateTimeFormat("en-GB", {
@@ -49,6 +57,7 @@ export async function GET(request: Request) {
         from: data.queryFrom,
         to: data.queryTo,
         today: data.today,
+        reportType: "VERIFICATION",
         generatedAt,
         preparedBy: data.userName || "Quality Operations",
         kpis: data.kpis,
@@ -56,7 +65,7 @@ export async function GET(request: Request) {
       })
     )
 
-    const safeFilename = `SGMP03_PM_Summary_Report_${data.queryFrom}_to_${data.queryTo}.pdf`
+    const safeFilename = `SGMP03_Verification_Report_${data.queryFrom}_to_${data.queryTo}.pdf`
 
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,
@@ -68,7 +77,7 @@ export async function GET(request: Request) {
       },
     })
   } catch (err: any) {
-    console.error("PM Summary PDF Export Error:", err)
-    return NextResponse.json({ error: err?.message || "Failed to generate PM summary PDF." }, { status: 500 })
+    console.error("Verification PDF Export Error:", err)
+    return NextResponse.json({ error: err?.message || "Failed to generate verification PDF." }, { status: 500 })
   }
 }

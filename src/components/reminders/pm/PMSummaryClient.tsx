@@ -34,7 +34,8 @@ export function PMSummaryClient() {
   const [data, setData] = useState<SummaryData | null>(null)
   const [loading, setLoading] = useState(true)
   const [banner, setBanner] = useState<Banner>(null)
-  const [exportingPdf, setExportingPdf] = useState(false)
+  const [exportingSummaryPdf, setExportingSummaryPdf] = useState(false)
+  const [exportingVerificationPdf, setExportingVerificationPdf] = useState(false)
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<PMSummaryFilter>("ALL")
@@ -118,16 +119,16 @@ export function PMSummaryClient() {
     })
   }
 
-  // Handle Export PM Summary PDF
+  // Handle Export PM Summary PDF (All tasks along date range: completed & uncompleted)
   const handleExportSummaryPdf = async () => {
     try {
-      setExportingPdf(true)
+      setExportingSummaryPdf(true)
       const params = new URLSearchParams()
       if (dateFrom) params.set("from", dateFrom)
       if (dateTo) params.set("to", dateTo)
       if (statusFilter !== "ALL") params.set("status", statusFilter)
 
-      const res = await fetch(`/api/reminders/pm/export/verification-pdf?${params.toString()}`)
+      const res = await fetch(`/api/reminders/pm/export/summary-pdf?${params.toString()}`)
       if (!res.ok) {
         const json = await res.json().catch(() => ({}))
         throw new Error(json.error || "Failed to export PM Summary PDF.")
@@ -156,7 +157,49 @@ export function PMSummaryClient() {
         text: err instanceof Error ? err.message : "Failed to export PM Summary PDF.",
       })
     } finally {
-      setExportingPdf(false)
+      setExportingSummaryPdf(false)
+    }
+  }
+
+  // Handle Export Verification PDF (Strictly completed/inspected records)
+  const handleExportVerificationPdf = async () => {
+    try {
+      setExportingVerificationPdf(true)
+      const params = new URLSearchParams()
+      if (dateFrom) params.set("from", dateFrom)
+      if (dateTo) params.set("to", dateTo)
+      if (statusFilter !== "ALL") params.set("status", statusFilter)
+
+      const res = await fetch(`/api/reminders/pm/export/verification-pdf?${params.toString()}`)
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        throw new Error(json.error || "Failed to export Verification PDF.")
+      }
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      const disposition = res.headers.get("Content-Disposition")
+      let filename = `SGMP03_Verification_Report_${dateFrom}_to_${dateTo}.pdf`
+      if (disposition && disposition.includes("filename=")) {
+        const match = /filename="?([^"]+)"?/.exec(disposition)
+        if (match?.[1]) filename = match[1]
+      }
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+
+      flash({ kind: "ok", text: "Verification PDF downloaded successfully." })
+    } catch (err: unknown) {
+      flash({
+        kind: "err",
+        text: err instanceof Error ? err.message : "Failed to export Verification PDF.",
+      })
+    } finally {
+      setExportingVerificationPdf(false)
     }
   }
 
@@ -207,22 +250,40 @@ export function PMSummaryClient() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Button 1: Export Summary PDF (All tasks along date range) */}
           <button
             type="button"
             onClick={handleExportSummaryPdf}
-            disabled={exportingPdf}
-            className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:opacity-50"
-            title="Export official PM Summary & Verification Report (SGMP-03) to PDF"
+            disabled={exportingSummaryPdf}
+            className="flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-bold text-blue-700 shadow-sm transition hover:bg-blue-100 disabled:opacity-50"
+            title="Export full PM Summary Report (All scheduled, completed, and pending tasks) to PDF"
           >
-            {exportingPdf ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-rose-600" />
+            {exportingSummaryPdf ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
             ) : (
-              <FileText className="h-3.5 w-3.5 text-rose-600" />
+              <FileText className="h-3.5 w-3.5 text-blue-600" />
             )}
             Export Summary PDF
           </button>
 
+          {/* Button 2: Export Verification PDF (Completed & verified inspection records) */}
+          <button
+            type="button"
+            onClick={handleExportVerificationPdf}
+            disabled={exportingVerificationPdf}
+            className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:opacity-50"
+            title="Export official GMP Verification Report (Completed inspections with signatures) to PDF"
+          >
+            {exportingVerificationPdf ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-rose-600" />
+            ) : (
+              <FileCheck2 className="h-3.5 w-3.5 text-rose-600" />
+            )}
+            Export Verification PDF
+          </button>
+
+          {/* Refresh Button */}
           <button
             type="button"
             onClick={() => loadData()}

@@ -3,7 +3,7 @@ import { promises as fs } from "fs"
 import path from "path"
 import { renderToBuffer } from "@react-pdf/renderer"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
-import { getPMSummaryData } from "@/app/actions/reminder-pm"
+import { getPMSummaryData, type PMSummaryFilter } from "@/app/actions/reminder-pm"
 import { PMVerificationReportDocument } from "@/lib/pdf/PMVerificationReportDocument"
 
 export const runtime = "nodejs"
@@ -31,12 +31,10 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const from = searchParams.get("from") || undefined
   const to = searchParams.get("to") || undefined
-  const rawStatus = searchParams.get("status") || "ALL"
-  const verificationFilter =
-    rawStatus === "PENDING" || rawStatus === "VERIFIED" ? rawStatus : "ALL"
+  const rawStatus = (searchParams.get("status") || "ALL") as PMSummaryFilter
 
   try {
-    const data = await getPMSummaryData(from, to, verificationFilter)
+    const data = await getPMSummaryData(from, to, rawStatus)
     const logo = await loadLogo()
 
     const generatedAt = new Intl.DateTimeFormat("en-GB", {
@@ -50,6 +48,7 @@ export async function GET(request: Request) {
         logo: logo || undefined,
         from: data.queryFrom,
         to: data.queryTo,
+        today: data.today,
         generatedAt,
         preparedBy: data.userName || "Quality Operations",
         kpis: data.kpis,
@@ -57,7 +56,7 @@ export async function GET(request: Request) {
       })
     )
 
-    const safeFilename = `SGMP03_Verification_Report_${data.queryFrom}_to_${data.queryTo}.pdf`
+    const safeFilename = `SGMP03_PM_Summary_Report_${data.queryFrom}_to_${data.queryTo}.pdf`
 
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,
@@ -69,7 +68,7 @@ export async function GET(request: Request) {
       },
     })
   } catch (err: any) {
-    console.error("Verification PDF Export Error:", err)
-    return NextResponse.json({ error: err?.message || "Failed to generate verification PDF." }, { status: 500 })
+    console.error("PM Summary PDF Export Error:", err)
+    return NextResponse.json({ error: err?.message || "Failed to generate PM summary PDF." }, { status: 500 })
   }
 }

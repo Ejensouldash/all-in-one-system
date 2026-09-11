@@ -312,22 +312,44 @@ export async function verifyPMOccurrence(id: string, signature: string) {
   revalidatePath("/reminders/summary")
 }
 
-export async function getPMSummaryData(from?: string, to?: string, verificationFilter?: "ALL" | "PENDING" | "VERIFIED") {
+export type PMSummaryFilter = "ALL" | "COMPLETED" | "PENDING_VERIFICATION" | "VERIFIED" | "NOT_COMPLETED"
+
+export async function getPMSummaryData(
+  from?: string,
+  to?: string,
+  statusFilter?: PMSummaryFilter | "PENDING"
+) {
   const access = await accessPM()
   const today = mytDate()
   const currentYear = today.slice(0, 4)
   const queryFrom = from && validDate(from) ? from : `${currentYear}-01-01`
   const queryTo = to && validDate(to) ? to : `${currentYear}-12-31`
 
-  const whereCondition: Prisma.ReminderPMOccurrenceWhereInput = {
-    completedAt: { not: null },
-    inspectedDate: { gte: queryFrom, lte: queryTo },
+  // Base range: all occurrences where dueDate or inspectedDate falls in range
+  const baseRangeCondition: Prisma.ReminderPMOccurrenceWhereInput = {
+    OR: [
+      { dueDate: { gte: queryFrom, lte: queryTo } },
+      { inspectedDate: { gte: queryFrom, lte: queryTo } },
+    ],
   }
 
-  if (verificationFilter === "PENDING") {
+  const whereCondition: Prisma.ReminderPMOccurrenceWhereInput = {
+    ...baseRangeCondition,
+  }
+
+  // Handle legacy "PENDING" parameter as PENDING_VERIFICATION
+  const activeFilter = statusFilter === "PENDING" ? "PENDING_VERIFICATION" : statusFilter
+
+  if (activeFilter === "COMPLETED") {
+    whereCondition.completedAt = { not: null }
+  } else if (activeFilter === "PENDING_VERIFICATION") {
+    whereCondition.completedAt = { not: null }
     whereCondition.verifiedAt = null
-  } else if (verificationFilter === "VERIFIED") {
+  } else if (activeFilter === "VERIFIED") {
+    whereCondition.completedAt = { not: null }
     whereCondition.verifiedAt = { not: null }
+  } else if (activeFilter === "NOT_COMPLETED") {
+    whereCondition.completedAt = null
   }
 
   const occurrences = await prisma.reminderPMOccurrence.findMany({
@@ -343,8 +365,8 @@ export async function getPMSummaryData(from?: string, to?: string, verificationF
       },
     },
     orderBy: [
+      { dueDate: "asc" },
       { inspectedDate: "desc" },
-      { completedAt: "desc" },
     ],
   })
 
@@ -363,24 +385,24 @@ export async function getPMSummaryData(from?: string, to?: string, verificationF
 
   const userMap = new Map(users.map((u) => [u.id, u]))
 
-  // Calculate KPIs across all completed inspections in range
-  const allCompletedInRange = await prisma.reminderPMOccurrence.findMany({
-    where: {
-      completedAt: { not: null },
-      inspectedDate: { gte: queryFrom, lte: queryTo },
-    },
+  // Calculate KPIs across all tasks in date range
+  const allInRange = await prisma.reminderPMOccurrence.findMany({
+    where: baseRangeCondition,
     select: {
       id: true,
       result: true,
+      completedAt: true,
       verifiedAt: true,
     },
   })
 
   const kpis = {
-    totalCompleted: allCompletedInRange.length,
-    totalVerified: allCompletedInRange.filter((o) => o.verifiedAt !== null).length,
-    totalPending: allCompletedInRange.filter((o) => o.verifiedAt === null).length,
-    totalIssues: allCompletedInRange.filter((o) => o.result === "ISSUE").length,
+    totalScheduled: allInRange.length,
+    totalCompleted: allInRange.filter((o) => o.completedAt !== null).length,
+    totalVerified: allInRange.filter((o) => o.verifiedAt !== null).length,
+    totalPending: allInRange.filter((o) => o.completedAt !== null && o.verifiedAt === null).length,
+    totalNotCompleted: allInRange.filter((o) => o.completedAt === null).length,
+    totalIssues: allInRange.filter((o) => o.result === "ISSUE").length,
   }
 
   return {
@@ -393,6 +415,7 @@ export async function getPMSummaryData(from?: string, to?: string, verificationF
       ...o,
       completedByName: o.completedById ? userMap.get(o.completedById)?.name || o.completedById : "-",
       verifiedByName: o.verifiedById ? userMap.get(o.verifiedById)?.name || o.verifiedById : "-",
+      picNames: o.picIds.map((id) => userMap.get(id)?.name || id).filter(Boolean),
     })),
     kpis,
     queryFrom,

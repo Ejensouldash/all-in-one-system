@@ -18,6 +18,7 @@ export interface PMVerificationOccurrence {
   verifiedByName: string
   verifiedSignature: string | null
   verifiedAt: string | Date | null
+  picNames?: string[]
   schedule?: {
     intervalUnit: string
     intervalCount: number
@@ -30,11 +31,14 @@ export interface PMVerificationReportPayload {
   to: string
   generatedAt: string
   preparedBy: string
+  today?: string
   kpis: {
+    totalScheduled?: number
     totalCompleted: number
     totalVerified: number
     totalPending: number
     totalIssues: number
+    totalNotCompleted?: number
   }
   occurrences: PMVerificationOccurrence[]
 }
@@ -379,7 +383,8 @@ const s = StyleSheet.create({
 })
 
 export function PMVerificationReportDocument(props: PMVerificationReportPayload) {
-  const { logo, from, to, generatedAt, occurrences } = props
+  const { logo, from, to, generatedAt, occurrences, today } = props
+  const todayStr = today || new Date().toISOString().slice(0, 10)
   const { month, year } = getMonthYearLabels(from, to)
 
   // Determine minimum rows to fill page neatly like an authentic paper GMP record sheet
@@ -388,7 +393,7 @@ export function PMVerificationReportDocument(props: PMVerificationReportPayload)
 
   return (
     <Document
-      title={`PM Verification Report SGMP-03 (${from} to ${to})`}
+      title={`PM Summary & Verification Report SGMP-03 (${from} to ${to})`}
       author="Bubbles O2 Sdn Bhd"
     >
       <Page size="A4" orientation="landscape" style={s.page}>
@@ -435,7 +440,7 @@ export function PMVerificationReportDocument(props: PMVerificationReportPayload)
 
         {/* 2. Document Title */}
         <View style={s.titleContainer}>
-          <Text style={s.title}>PREVENTIVE MAINTENANCE INSPECTION RECORD</Text>
+          <Text style={s.title}>PREVENTIVE MAINTENANCE SUMMARY & VERIFICATION RECORD</Text>
         </View>
 
         {/* 3. Month & Year Subheader Row */}
@@ -488,18 +493,58 @@ export function PMVerificationReportDocument(props: PMVerificationReportPayload)
 
           {/* Occurrence Data Rows */}
           {occurrences.map((occ, idx) => {
+            const isCompleted = Boolean(occ.completedAt)
             const freq = occ.schedule ? ruleLabel(occ.schedule) : "-"
-            const isOk = occ.result === "OK"
-            const displayDate = occ.inspectedDate || occ.dueDate
+            const displayDate = isCompleted ? (occ.inspectedDate || occ.dueDate) : occ.dueDate
+            const isOverdue = !isCompleted && occ.dueDate < todayStr
+            const isToday = !isCompleted && occ.dueDate === todayStr
+
+            // Result / Status text and styling
+            let resultText = "-"
+            let resultColor = "#000000"
+            if (isCompleted) {
+              resultText = occ.result || "OK"
+              resultColor = occ.result === "ISSUE" ? "#b91c1c" : "#000000"
+            } else if (isOverdue) {
+              resultText = "OVERDUE"
+              resultColor = "#b91c1c"
+            } else if (isToday) {
+              resultText = "DUE TODAY"
+              resultColor = "#b45309"
+            } else {
+              resultText = "PENDING"
+              resultColor = "#4b5563"
+            }
 
             // Action / checklist summary
             let actionSummary = ""
-            if (occ.checklist && occ.checklist.length > 0) {
-              const doneCount = occ.completedChecklist ? occ.completedChecklist.length : 0
-              actionSummary = `Checklist: ${doneCount}/${occ.checklist.length} items verified.`
+            if (isCompleted) {
+              if (occ.checklist && occ.checklist.length > 0) {
+                const doneCount = occ.completedChecklist ? occ.completedChecklist.length : 0
+                actionSummary = `Checklist: ${doneCount}/${occ.checklist.length} verified.`
+              } else {
+                actionSummary = "Inspection completed."
+              }
             } else {
-              actionSummary = "Preventive inspection performed."
+              if (occ.checklist && occ.checklist.length > 0) {
+                actionSummary = `Scheduled (${occ.checklist.length} checklist items).`
+              } else {
+                actionSummary = "Scheduled maintenance."
+              }
             }
+
+            // Performed by
+            const performedText = isCompleted
+              ? (occ.completedByName || "-")
+              : (occ.picNames && occ.picNames.length > 0 ? `PIC: ${occ.picNames.join(", ")}` : "Unassigned")
+
+            // Verified by
+            const verifiedText = isCompleted
+              ? (occ.verifiedByName || "Unverified")
+              : "-"
+
+            // Remarks
+            const remarksText = occ.notes || (!isCompleted ? (isOverdue ? "Task overdue" : "Pending execution") : "-")
 
             return (
               <View key={occ.id || idx} style={s.tableRow} wrap={false}>
@@ -535,35 +580,35 @@ export function PMVerificationReportDocument(props: PMVerificationReportPayload)
                       s.cellTextBold,
                       {
                         textAlign: "center",
-                        color: isOk ? "#000000" : "#b91c1c",
+                        color: resultColor,
                       },
                     ]}
                   >
-                    {occ.result || "-"}
+                    {resultText}
                   </Text>
                 </View>
 
-                {/* Performed By (Checked By) with Digital Signature Image */}
+                {/* Performed By (Checked By / PIC) */}
                 <View style={s.colPerformed}>
-                  {occ.performedSignature ? (
+                  {isCompleted && occ.performedSignature ? (
                     // eslint-disable-next-line jsx-a11y/alt-text
                     <Image src={occ.performedSignature} style={s.sigImage} />
                   ) : null}
-                  <Text style={s.sigName}>{occ.completedByName || "-"}</Text>
+                  <Text style={s.sigName}>{performedText}</Text>
                 </View>
 
-                {/* Verified By with Digital Signature Image */}
+                {/* Verified By */}
                 <View style={s.colVerified}>
-                  {occ.verifiedSignature ? (
+                  {isCompleted && occ.verifiedSignature ? (
                     // eslint-disable-next-line jsx-a11y/alt-text
                     <Image src={occ.verifiedSignature} style={s.sigImage} />
                   ) : null}
-                  <Text style={s.sigName}>{occ.verifiedByName || "-"}</Text>
+                  <Text style={s.sigName}>{verifiedText}</Text>
                 </View>
 
                 {/* Remarks */}
                 <View style={s.colRemarks}>
-                  <Text style={s.cellTextRegular}>{occ.notes || "-"}</Text>
+                  <Text style={s.cellTextRegular}>{remarksText}</Text>
                 </View>
               </View>
             )
@@ -609,7 +654,7 @@ export function PMVerificationReportDocument(props: PMVerificationReportPayload)
         {/* Footer */}
         <View style={s.footer} fixed>
           <Text>
-            Bubbles O2 Sdn. Bhd. · SGMP-03 Preventive Maintenance Inspection Records · Generated on {generatedAt}
+            Bubbles O2 Sdn. Bhd. · SGMP-03 Preventive Maintenance Summary & Verification Records · Generated on {generatedAt}
           </Text>
           <Text
             render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}

@@ -18,6 +18,7 @@ import {
   User,
   Wrench,
   FileCheck2,
+  FileText,
 } from "lucide-react"
 import { getPMSummaryData, verifyPMOccurrence } from "@/app/actions/reminder-pm"
 import { ModalShell } from "../ModalShell"
@@ -33,6 +34,7 @@ export function PMSummaryClient() {
   const [data, setData] = useState<SummaryData | null>(null)
   const [loading, setLoading] = useState(true)
   const [banner, setBanner] = useState<Banner>(null)
+  const [exportingPdf, setExportingPdf] = useState(false)
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING" | "VERIFIED">("ALL")
@@ -66,7 +68,7 @@ export function PMSummaryClient() {
     } catch (err: unknown) {
       flash({
         kind: "err",
-        text: err instanceof Error ? err.message : "Gagal memuat turun ringkasan pemeriksaan.",
+        text: err instanceof Error ? err.message : "Failed to load inspection summary.",
       })
     } finally {
       setLoading(false)
@@ -98,21 +100,63 @@ export function PMSummaryClient() {
     setVerifyError("")
 
     if (!verifySignature || !verifySignature.trim()) {
-      setVerifyError("Sila turunkan tandatangan pengesahan (Verified By) sebelum meneruskan.")
+      setVerifyError("Please provide supervisor verification signature (Verified By) before proceeding.")
       return
     }
 
     startVerifying(async () => {
       try {
         await verifyPMOccurrence(verifyingOccurrence.id, verifySignature)
-        flash({ kind: "ok", text: "Pemeriksaan berjaya disahkan dan ditandatangani oleh penyelia!" })
+        flash({ kind: "ok", text: "Inspection verified and signed by supervisor successfully!" })
         setVerifyingOccurrence(null)
         setVerifySignature(null)
         await loadData()
       } catch (err: unknown) {
-        setVerifyError(err instanceof Error ? err.message : "Gagal mengesahkan rekod pemeriksaan.")
+        setVerifyError(err instanceof Error ? err.message : "Failed to verify inspection record.")
       }
     })
+  }
+
+  // Handle Export Verification PDF
+  const handleExportVerificationPdf = async () => {
+    try {
+      setExportingPdf(true)
+      const params = new URLSearchParams()
+      if (dateFrom) params.set("from", dateFrom)
+      if (dateTo) params.set("to", dateTo)
+      if (statusFilter !== "ALL") params.set("status", statusFilter)
+
+      const res = await fetch(`/api/reminders/pm/export/verification-pdf?${params.toString()}`)
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        throw new Error(json.error || "Failed to export Verification PDF.")
+      }
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      const disposition = res.headers.get("Content-Disposition")
+      let filename = `SGMP03_Verification_Report_${dateFrom}_to_${dateTo}.pdf`
+      if (disposition && disposition.includes("filename=")) {
+        const match = /filename="?([^"]+)"?/.exec(disposition)
+        if (match?.[1]) filename = match[1]
+      }
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+
+      flash({ kind: "ok", text: "Verification PDF downloaded successfully." })
+    } catch (err: unknown) {
+      flash({
+        kind: "err",
+        text: err instanceof Error ? err.message : "Failed to export Verification PDF.",
+      })
+    } finally {
+      setExportingPdf(false)
+    }
   }
 
   return (
@@ -145,7 +189,7 @@ export function PMSummaryClient() {
             href="/reminders"
             className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition mb-2"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> Kembali ke Kalendar / Jadual PM
+            <ArrowLeft className="h-3.5 w-3.5" /> Back to Calendar / PM Schedules
           </Link>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/20">
@@ -153,10 +197,10 @@ export function PMSummaryClient() {
             </div>
             <div>
               <h1 className="text-xl font-black tracking-tight text-gray-900 sm:text-2xl">
-                Ringkasan & Pengesahan Pemeriksaan (Verified By)
+                Inspection Summary & Verification (Verified By)
               </h1>
               <p className="text-xs text-gray-500">
-                Semak status pemeriksaan alatan SGMP-03, semakan checklist, tandatangan juruteknik dan sahkan laporan.
+                Review SGMP-03 equipment inspection status, checklist compliance, technician signatures, and verify records.
               </p>
             </div>
           </div>
@@ -165,12 +209,27 @@ export function PMSummaryClient() {
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={handleExportVerificationPdf}
+            disabled={exportingPdf}
+            className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:opacity-50"
+            title="Export official GMP Verification Report (SGMP-03) to PDF"
+          >
+            {exportingPdf ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-rose-600" />
+            ) : (
+              <FileText className="h-3.5 w-3.5 text-rose-600" />
+            )}
+            Export Verification PDF
+          </button>
+
+          <button
+            type="button"
             onClick={() => loadData()}
             disabled={loading}
             className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50"
           >
             <Loader2 className={`h-3.5 w-3.5 ${loading ? "animate-spin text-indigo-600" : ""}`} />
-            Muat Semula
+            Refresh
           </button>
         </div>
       </div>
@@ -179,38 +238,38 @@ export function PMSummaryClient() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Jumlah Selesai</span>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Completed</span>
             <FileCheck2 className="h-4 w-4 text-indigo-500" />
           </div>
           <p className="mt-2 text-2xl font-black text-gray-900">{data?.kpis.totalCompleted ?? 0}</p>
-          <p className="mt-0.5 text-[11px] text-gray-400">Pemeriksaan telah dibuat</p>
+          <p className="mt-0.5 text-[11px] text-gray-400">Inspections performed</p>
         </div>
 
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Telah Disahkan</span>
+            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Verified</span>
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
           </div>
           <p className="mt-2 text-2xl font-black text-emerald-700">{data?.kpis.totalVerified ?? 0}</p>
-          <p className="mt-0.5 text-[11px] text-emerald-600">Disahkan oleh penyelia</p>
+          <p className="mt-0.5 text-[11px] text-emerald-600">Signed by supervisor</p>
         </div>
 
         <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-amber-800 uppercase tracking-wider">Menunggu Sah</span>
+            <span className="text-xs font-bold text-amber-800 uppercase tracking-wider">Pending Verification</span>
             <Clock className="h-4 w-4 text-amber-600" />
           </div>
           <p className="mt-2 text-2xl font-black text-amber-800">{data?.kpis.totalPending ?? 0}</p>
-          <p className="mt-0.5 text-[11px] text-amber-700">Perlukan tindakan penyelia</p>
+          <p className="mt-0.5 text-[11px] text-amber-700">Requires supervisor action</p>
         </div>
 
         <div className="rounded-2xl border border-rose-200 bg-rose-50/40 p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-rose-700 uppercase tracking-wider">Ada Masalah</span>
+            <span className="text-xs font-bold text-rose-700 uppercase tracking-wider">Issues Reported</span>
             <AlertTriangle className="h-4 w-4 text-rose-600" />
           </div>
           <p className="mt-2 text-2xl font-black text-rose-700">{data?.kpis.totalIssues ?? 0}</p>
-          <p className="mt-0.5 text-[11px] text-rose-600">Alatan rosak / isu dikesan</p>
+          <p className="mt-0.5 text-[11px] text-rose-600">Faulty equipment / issues flagged</p>
         </div>
       </div>
 
@@ -228,7 +287,7 @@ export function PMSummaryClient() {
                   : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              Semua ({data?.kpis.totalCompleted ?? 0})
+              All ({data?.kpis.totalCompleted ?? 0})
             </button>
             <button
               type="button"
@@ -239,7 +298,7 @@ export function PMSummaryClient() {
                   : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              Belum Disahkan ({data?.kpis.totalPending ?? 0})
+              Pending Verification ({data?.kpis.totalPending ?? 0})
             </button>
             <button
               type="button"
@@ -250,20 +309,20 @@ export function PMSummaryClient() {
                   : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              Telah Disahkan ({data?.kpis.totalVerified ?? 0})
+              Verified ({data?.kpis.totalVerified ?? 0})
             </button>
           </div>
 
           {/* Date range pickers */}
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-gray-400 font-medium">Dari:</span>
+            <span className="text-gray-400 font-medium">From:</span>
             <input
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
               className="rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-bold text-gray-700 shadow-xs outline-none transition focus:border-indigo-500"
             />
-            <span className="text-gray-400 font-medium">Hingga:</span>
+            <span className="text-gray-400 font-medium">To:</span>
             <input
               type="date"
               value={dateTo}
@@ -280,7 +339,7 @@ export function PMSummaryClient() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari alatan, SRS, nama juruteknik, penyelia atau catatan kerosakan..."
+            placeholder="Search equipment, SRS, technician name, supervisor, or issue remarks..."
             className="w-full rounded-xl border border-gray-200 bg-gray-50/50 py-2 pl-9 pr-3 text-xs text-gray-900 outline-none transition focus:border-indigo-500 focus:bg-white"
           />
           {searchQuery && (
@@ -300,14 +359,14 @@ export function PMSummaryClient() {
         {loading && !data ? (
           <div className="flex flex-col items-center justify-center p-12 text-center">
             <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mb-2" />
-            <p className="text-xs font-bold text-gray-500">Memuat turun rekod ringkasan PM…</p>
+            <p className="text-xs font-bold text-gray-500">Loading PM summary records…</p>
           </div>
         ) : filteredOccurrences.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-center">
             <FileCheck2 className="h-10 w-10 text-gray-300 mb-2" />
-            <p className="text-sm font-bold text-gray-700">Tiada rekod pemeriksaan dijumpai</p>
+            <p className="text-sm font-bold text-gray-700">No inspection records found</p>
             <p className="mt-1 text-xs text-gray-400">
-              Cuba tukar julat tarikh atau filter carian di atas.
+              Try adjusting the date range or search filters above.
             </p>
           </div>
         ) : (
@@ -315,12 +374,12 @@ export function PMSummaryClient() {
             <table className="w-full text-left text-xs">
               <thead className="border-b border-gray-200 bg-gray-50/75 text-[11px] font-black uppercase tracking-wider text-gray-500">
                 <tr>
-                  <th className="px-4 py-3">Tarikh & Alatan</th>
-                  <th className="px-4 py-3">Keputusan</th>
-                  <th className="px-4 py-3">Checklist Selesai</th>
-                  <th className="px-4 py-3">Pemeriksa (Checked By)</th>
-                  <th className="px-4 py-3">Pengesahan Penyelia (Verified By)</th>
-                  <th className="px-4 py-3 text-right">Tindakan</th>
+                  <th className="px-4 py-3">Date & Equipment</th>
+                  <th className="px-4 py-3">Result</th>
+                  <th className="px-4 py-3">Checklist Completed</th>
+                  <th className="px-4 py-3">Inspector (Checked By)</th>
+                  <th className="px-4 py-3">Supervisor Verification (Verified By)</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 font-medium">
@@ -336,8 +395,8 @@ export function PMSummaryClient() {
                         <div className="font-bold text-gray-900">{occ.equipment}</div>
                         <div className="flex items-center gap-2 text-[11px] text-gray-500">
                           {occ.srs && <span className="font-semibold text-indigo-600">SRS: {occ.srs}</span>}
-                          <span>Tarikh Periksa: <strong>{occ.inspectedDate || "-"}</strong></span>
-                          <span className="text-gray-400">(Jadual: {occ.dueDate})</span>
+                          <span>Inspected Date: <strong>{occ.inspectedDate || "-"}</strong></span>
+                          <span className="text-gray-400">(Scheduled: {occ.dueDate})</span>
                         </div>
                       </td>
 
@@ -352,7 +411,7 @@ export function PMSummaryClient() {
                         >
                           {occ.result === "ISSUE" ? (
                             <>
-                              <AlertTriangle className="h-3 w-3" /> Ada Masalah
+                              <AlertTriangle className="h-3 w-3" /> Issue Reported
                             </>
                           ) : (
                             <>
@@ -376,7 +435,7 @@ export function PMSummaryClient() {
                               : "bg-amber-50 text-amber-700 border border-amber-200"
                           }`}
                         >
-                          {completedChecklistCount} / {totalChecklist} item
+                          {completedChecklistCount} / {totalChecklist} items
                         </span>
                       </td>
 
@@ -384,14 +443,14 @@ export function PMSummaryClient() {
                       <td className="px-4 py-3">
                         <div className="font-bold text-gray-800">{occ.completedByName}</div>
                         <div className="text-[10px] text-gray-400">
-                          {occ.completedAt ? new Date(occ.completedAt).toLocaleString("ms-MY") : "-"}
+                          {occ.completedAt ? new Date(occ.completedAt).toLocaleString("en-MY") : "-"}
                         </div>
                         {occ.performedSignature && (
                           <div className="mt-1">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={occ.performedSignature}
-                              alt="Tandatangan Pemeriksa"
+                              alt="Inspector Signature"
                               className="h-7 max-w-[90px] object-contain border border-gray-200 rounded bg-white p-0.5"
                             />
                           </div>
@@ -406,14 +465,14 @@ export function PMSummaryClient() {
                               <Check className="h-3 w-3" /> {occ.verifiedByName}
                             </div>
                             <div className="text-[10px] text-gray-400">
-                              {occ.verifiedAt ? new Date(occ.verifiedAt).toLocaleString("ms-MY") : "-"}
+                              {occ.verifiedAt ? new Date(occ.verifiedAt).toLocaleString("en-MY") : "-"}
                             </div>
                             {occ.verifiedSignature && (
                               <div className="mt-1">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={occ.verifiedSignature}
-                                  alt="Tandatangan Penyelia"
+                                  alt="Supervisor Signature"
                                   className="h-7 max-w-[90px] object-contain border border-emerald-200 rounded bg-white p-0.5"
                                 />
                               </div>
@@ -422,7 +481,7 @@ export function PMSummaryClient() {
                         ) : (
                           <div className="flex flex-col gap-1.5">
                             <span className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                              <Clock className="h-3 w-3" /> Belum Disahkan
+                              <Clock className="h-3 w-3" /> Pending Verification
                             </span>
                             {data?.canVerify && (
                               <button
@@ -434,7 +493,7 @@ export function PMSummaryClient() {
                                 }}
                                 className="w-fit rounded-lg bg-indigo-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs transition hover:bg-indigo-700 flex items-center gap-1"
                               >
-                                <ShieldCheck className="h-3 w-3" /> Sahkan Sekarang
+                                <ShieldCheck className="h-3 w-3" /> Verify Now
                               </button>
                             )}
                           </div>
@@ -448,7 +507,7 @@ export function PMSummaryClient() {
                           onClick={() => setDetailOccurrence(occ)}
                           className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-bold text-gray-700 shadow-xs transition hover:bg-gray-50"
                         >
-                          <Eye className="h-3.5 w-3.5 text-gray-500" /> Lihat
+                          <Eye className="h-3.5 w-3.5 text-gray-500" /> View
                         </button>
                       </td>
                     </tr>
@@ -476,10 +535,10 @@ export function PMSummaryClient() {
               <div>
                 <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
                   <ShieldCheck className="h-5 w-5 text-indigo-600" />
-                  Pengesahan Pemeriksaan Penyelia (Verified By)
+                  Supervisor Inspection Verification (Verified By)
                 </h3>
                 <p className="text-xs text-gray-500">
-                  Sahkan tugasan penyelenggaraan berikut telah dilaksanakan dengan betul dan mengikut prosedur SOP.
+                  Verify that the following maintenance task was performed properly and in compliance with SOP procedures.
                 </p>
               </div>
               <button
@@ -511,16 +570,16 @@ export function PMSummaryClient() {
                       : "bg-emerald-100 text-emerald-800"
                   }`}
                 >
-                  {verifyingOccurrence.result === "ISSUE" ? "Ada Masalah" : "OK"}
+                  {verifyingOccurrence.result === "ISSUE" ? "Issue Reported" : "OK"}
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-gray-600">
-                <div>Tarikh Pemeriksaan: <strong>{verifyingOccurrence.inspectedDate || "-"}</strong></div>
-                <div>Pemeriksa: <strong>{verifyingOccurrence.completedByName}</strong></div>
+                <div>Inspection Date: <strong>{verifyingOccurrence.inspectedDate || "-"}</strong></div>
+                <div>Inspector: <strong>{verifyingOccurrence.completedByName}</strong></div>
               </div>
               {verifyingOccurrence.notes && (
                 <div className="pt-2 border-t border-gray-200 text-gray-700">
-                  <span className="font-semibold text-gray-500">Catatan Pemeriksa:</span>
+                  <span className="font-semibold text-gray-500">Inspector Remarks:</span>
                   <p className="mt-0.5 font-medium">{verifyingOccurrence.notes}</p>
                 </div>
               )}
@@ -529,7 +588,7 @@ export function PMSummaryClient() {
             {/* Signature Pad */}
             <div className="pt-2">
               <SignaturePadClient
-                label="Tandatangan Pengesahan Penyelia (Verified By) *"
+                label="Supervisor Signature (Verified By) *"
                 autoLoadSaved={true}
                 onSave={(sig) => setVerifySignature(sig)}
               />
@@ -542,7 +601,7 @@ export function PMSummaryClient() {
                 onClick={() => setVerifyingOccurrence(null)}
                 className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
               >
-                Batal
+                Cancel
               </button>
               <button
                 type="button"
@@ -552,10 +611,10 @@ export function PMSummaryClient() {
               >
                 {isVerifying ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Mengesahkan…
+                    <Loader2 className="h-4 w-4 animate-spin" /> Verifying…
                   </>
                 ) : (
-                  "Sahkan & Tandatangan Laporan"
+                  "Verify & Sign Report"
                 )}
               </button>
             </div>
@@ -577,7 +636,7 @@ export function PMSummaryClient() {
                   {detailOccurrence.equipment}
                 </h3>
                 <p className="text-xs text-gray-500">
-                  Jadual Tarikh: {detailOccurrence.dueDate} &bull; Tarikh Pemeriksaan: {detailOccurrence.inspectedDate || "-"}
+                  Scheduled Date: {detailOccurrence.dueDate} &bull; Inspection Date: {detailOccurrence.inspectedDate || "-"}
                 </p>
               </div>
               <button
@@ -592,7 +651,7 @@ export function PMSummaryClient() {
             {/* Checklist breakdown */}
             <div>
               <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">
-                Semakan Senarai Arahan Kerja (Checklist)
+                Work Checklist Verification
               </h4>
               <ul className="space-y-1.5 rounded-2xl border border-gray-200 bg-white p-3 text-xs text-gray-700 max-h-60 overflow-y-auto">
                 {detailOccurrence.checklist.map((item, idx) => {
@@ -624,22 +683,22 @@ export function PMSummaryClient() {
             {/* Technician info & Signature */}
             <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3.5 space-y-2 text-xs">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-gray-700">Pemeriksa (Checked By):</span>
+                <span className="font-bold text-gray-700">Inspector (Checked By):</span>
                 <span className="font-bold text-gray-900">{detailOccurrence.completedByName}</span>
               </div>
               {detailOccurrence.notes && (
                 <div className="pt-2 border-t border-gray-200">
-                  <span className="text-gray-500 font-medium">Catatan:</span>
+                  <span className="text-gray-500 font-medium">Remarks:</span>
                   <p className="mt-0.5 text-gray-800 font-medium">{detailOccurrence.notes}</p>
                 </div>
               )}
               {detailOccurrence.performedSignature && (
                 <div className="pt-2 border-t border-gray-200">
-                  <span className="text-[11px] font-bold text-gray-500 block mb-1">Tandatangan:</span>
+                  <span className="text-[11px] font-bold text-gray-500 block mb-1">Inspector Signature:</span>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={detailOccurrence.performedSignature}
-                    alt="Tandatangan Pemeriksa"
+                    alt="Inspector Signature"
                     className="h-16 max-w-full object-contain rounded border border-gray-200 bg-white p-1"
                   />
                 </div>
@@ -649,26 +708,26 @@ export function PMSummaryClient() {
             {/* Supervisor info & Signature */}
             <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3.5 space-y-2 text-xs">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-gray-700">Pengesahan (Verified By):</span>
+                <span className="font-bold text-gray-700">Verification (Verified By):</span>
                 {detailOccurrence.verifiedAt ? (
                   <span className="font-bold text-emerald-700">{detailOccurrence.verifiedByName}</span>
                 ) : (
-                  <span className="text-amber-700 font-bold">Belum Disahkan</span>
+                  <span className="text-amber-700 font-bold">Pending Verification</span>
                 )}
               </div>
               {detailOccurrence.verifiedAt && (
                 <div>
-                  <span className="text-gray-500">Tarikh Pengesahan:</span>{" "}
-                  <strong>{new Date(detailOccurrence.verifiedAt).toLocaleString("ms-MY")}</strong>
+                  <span className="text-gray-500">Verification Date:</span>{" "}
+                  <strong>{new Date(detailOccurrence.verifiedAt).toLocaleString("en-MY")}</strong>
                 </div>
               )}
               {detailOccurrence.verifiedSignature && (
                 <div className="pt-2 border-t border-gray-200">
-                  <span className="text-[11px] font-bold text-gray-500 block mb-1">Tandatangan Penyelia:</span>
+                  <span className="text-[11px] font-bold text-gray-500 block mb-1">Supervisor Signature:</span>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={detailOccurrence.verifiedSignature}
-                    alt="Tandatangan Penyelia"
+                    alt="Supervisor Signature"
                     className="h-16 max-w-full object-contain rounded border border-gray-200 bg-white p-1"
                   />
                 </div>
@@ -681,7 +740,7 @@ export function PMSummaryClient() {
                 onClick={() => setDetailOccurrence(null)}
                 className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
               >
-                Tutup
+                Close
               </button>
             </div>
           </div>

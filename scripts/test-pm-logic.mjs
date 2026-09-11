@@ -125,16 +125,16 @@ test("Completion validation throws when result is ISSUE without notes", () => {
     () => {
       validateCompletion("ISSUE", "", "2026-09-08", "2026-09-08", "2026-01-01")
     },
-    /Catatan diperlukan untuk masalah/
+    /Notes are required when an issue is reported/
   )
   assert.throws(
     () => {
       validateCompletion("ISSUE", "   ", "2026-09-08", "2026-09-08", "2026-01-01")
     },
-    /Catatan diperlukan untuk masalah/
+    /Notes are required when an issue is reported/
   )
   assert.doesNotThrow(() => {
-    validateCompletion("ISSUE", "Bearing berbunyi bising", "2026-09-08", "2026-09-08", "2026-01-01")
+    validateCompletion("ISSUE", "Bearing noisy during operation", "2026-09-08", "2026-09-08", "2026-01-01")
   })
 })
 
@@ -145,20 +145,20 @@ test("Inspected date must be between activation date and today", () => {
     () => {
       validateCompletion("OK", "", "2026-09-09", "2026-09-08", "2026-01-01")
     },
-    /Tarikh pemeriksaan mesti antara pengaktifan dan hari ini/
+    /Inspection date must be between activation date and today/
   )
   // Date before activation should throw
   assert.throws(
     () => {
       validateCompletion("OK", "", "2025-12-31", "2026-09-08", "2026-01-01")
     },
-    /Tarikh pemeriksaan mesti antara pengaktifan dan hari ini/
+    /Inspection date must be between activation date and today/
   )
 })
 
 // 9b. Checklist and Signature validation
 test("Checklist and digital signature validation", () => {
-  const fullChecklist = ["Periksa minyak", "Bersihkan filter", "Uji motor"]
+  const fullChecklist = ["Check oil level", "Clean air filter", "Test motor rotation"]
   const validSig = "data:image/png;base64,sampleSignatureData"
 
   // Empty signature throws error when signature is checked
@@ -166,15 +166,15 @@ test("Checklist and digital signature validation", () => {
     () => {
       validateCompletion("OK", "", "2026-09-08", "2026-09-08", "2026-01-01", fullChecklist, fullChecklist, "")
     },
-    /Tandatangan pemeriksa \(Checked By\) diperlukan/
+    /Inspector signature \(Checked By\) is required/
   )
 
   // Incomplete checklist throws error for OK result
   assert.throws(
     () => {
-      validateCompletion("OK", "", "2026-09-08", "2026-09-08", "2026-01-01", fullChecklist, ["Periksa minyak"], validSig)
+      validateCompletion("OK", "", "2026-09-08", "2026-09-08", "2026-01-01", fullChecklist, ["Check oil level"], validSig)
     },
-    /Semua item arahan kerja mesti ditandakan selesai untuk keputusan OK/
+    /All checklist items must be marked done for OK result/
   )
 
   // Full checklist succeeds for OK result with signature
@@ -186,12 +186,12 @@ test("Checklist and digital signature validation", () => {
   assert.doesNotThrow(() => {
     validateCompletion(
       "ISSUE",
-      "Filter tersumbat dan motor panas",
+      "Filter clogged and motor overheated",
       "2026-09-08",
       "2026-09-08",
       "2026-01-01",
       fullChecklist,
-      ["Periksa minyak"],
+      ["Check oil level"],
       validSig
     )
   })
@@ -343,20 +343,20 @@ test("buildRuleBasedPMSummary produces compliant executive narratives", () => {
   // Internal mode
   const internalSummary = buildRuleBasedPMSummary({ ...baseInput, isAuditorMode: false })
   assert.ok(internalSummary.includes("SGMP-03"))
-  assert.ok(internalSummary.includes("161 aktiviti penyelenggaraan"))
-  assert.ok(internalSummary.includes("155 tugasan selesai OK"))
-  assert.ok(internalSummary.includes("3 tugasan memerlukan tindakan susulan kerosakan/alat ganti"))
-  assert.ok(internalSummary.includes("Cemerlang"))
+  assert.ok(internalSummary.includes("161 maintenance activities"))
+  assert.ok(internalSummary.includes("155 tasks completed OK"))
+  assert.ok(internalSummary.includes("3 tasks requiring technical followup or spare parts replacement"))
+  assert.ok(internalSummary.includes("Excellent"))
 
   // Auditor mode
   const auditorSummary = buildRuleBasedPMSummary({ ...baseInput, isAuditorMode: true })
-  assert.ok(auditorSummary.includes("Laporan Penyelenggaraan Pencegahan (SGMP-03)"))
-  assert.ok(auditorSummary.includes("161 tugasan berjadual"))
-  assert.ok(auditorSummary.includes("155 pemeriksaan telah disempurnakan dan diverifikasi"))
-  assert.ok(auditorSummary.includes("kadar pematuhan keseluruhan 96.3%"))
-  assert.ok(auditorSummary.includes("piawaian GMP"))
+  assert.ok(auditorSummary.includes("Preventive Maintenance (SGMP-03) Report"))
+  assert.ok(auditorSummary.includes("161 scheduled maintenance tasks"))
+  assert.ok(auditorSummary.includes("155 inspections were executed and verified"))
+  assert.ok(auditorSummary.includes("overall compliance rate of 96.3%"))
+  assert.ok(auditorSummary.includes("Good Manufacturing Practice (GMP)"))
   // Auditor mode does NOT highlight internal failure breakdown
-  assert.ok(!auditorSummary.includes("tindakan susulan kerosakan/alat ganti"))
+  assert.ok(!auditorSummary.includes("requiring technical followup or spare parts replacement"))
 })
 
 // 17. Auditor sanitization rules test

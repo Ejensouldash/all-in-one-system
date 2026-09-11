@@ -21,7 +21,7 @@ export function validRule(rule: PMRule) {
   return validDate(rule.startDate) && ((rule.intervalUnit === "DAY" && rule.intervalCount === 14) || (rule.intervalUnit === "MONTH" && [1, 2, 3, 6, 12].includes(rule.intervalCount)))
 }
 export function ruleLabel(rule: Pick<PMRule, "intervalUnit" | "intervalCount">) {
-  return rule.intervalUnit === "DAY" ? "2 minggu" : rule.intervalCount === 12 ? "Tahunan" : rule.intervalCount === 1 ? "Bulanan" : `${rule.intervalCount} bulan`
+  return rule.intervalUnit === "DAY" ? "2 weeks" : rule.intervalCount === 12 ? "Yearly" : rule.intervalCount === 1 ? "Monthly" : `${rule.intervalCount} months`
 }
 export function occurrenceDate(rule: PMRule, index: number): string {
   if (rule.intervalUnit === "DAY") return addDays(rule.startDate, index * rule.intervalCount)
@@ -68,18 +68,18 @@ export function validateCompletion(
   completedChecklist: string[] = [],
   signature?: string | null
 ) {
-  if (!["OK", "ISSUE"].includes(result)) throw new Error("Pilih keputusan pemeriksaan.")
-  if (result === "ISSUE" && !notes.trim()) throw new Error("Catatan diperlukan untuk masalah.")
-  if (notes.length > 5000) throw new Error("Catatan terlalu panjang.")
-  if (!validDate(inspectedDate) || inspectedDate > today || inspectedDate < activationDate) throw new Error("Tarikh pemeriksaan mesti antara pengaktifan dan hari ini.")
+  if (!["OK", "ISSUE"].includes(result)) throw new Error("Please select inspection result.")
+  if (result === "ISSUE" && !notes.trim()) throw new Error("Notes are required when an issue is reported.")
+  if (notes.length > 5000) throw new Error("Notes are too long.")
+  if (!validDate(inspectedDate) || inspectedDate > today || inspectedDate < activationDate) throw new Error("Inspection date must be between activation date and today.")
   if (signature !== undefined && (!signature || !signature.trim())) {
-    throw new Error("Tandatangan pemeriksa (Checked By) diperlukan.")
+    throw new Error("Inspector signature (Checked By) is required.")
   }
   if (result === "OK" && checklist.length > 0) {
     const completedSet = new Set(completedChecklist)
     const missing = checklist.filter(item => !completedSet.has(item))
     if (missing.length > 0) {
-      throw new Error("Semua item arahan kerja mesti ditandakan selesai untuk keputusan OK. Sila semak semula atau pilih 'Ada Masalah'.")
+      throw new Error("All checklist items must be marked done for OK result. Please review or select 'Issue Reported'.")
     }
   }
 }

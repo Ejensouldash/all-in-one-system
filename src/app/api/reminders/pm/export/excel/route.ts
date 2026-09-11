@@ -178,7 +178,7 @@ export async function GET(request: Request) {
         statusLabel = "OK / COMPLETED"
         statusColor = "FF15803D"
       } else if (rec.status === "ISSUE") {
-        statusLabel = "ISSUE / CATATAN"
+        statusLabel = "ISSUE / REMARKS"
         statusColor = "FFB45309"
       } else if (rec.status === "OVERDUE") {
         statusLabel = "OVERDUE"
@@ -196,23 +196,23 @@ export async function GET(request: Request) {
     })
 
     // =========================================================================
-    // SHEET 2: Log Terperinci & Checklist
+    // SHEET 2: Detailed Log & Checklist
     // =========================================================================
-    const ws2 = workbook.addWorksheet("Log Terperinci & Checklist")
+    const ws2 = workbook.addWorksheet("Detailed Log & Checklist")
     ws2.views = [{ showGridLines: true }]
 
     ws2.columns = [
       { header: "No", key: "no", width: 6 },
-      { header: "Tarikh Jadual", key: "dueDate", width: 14 },
-      { header: "Tarikh Periksa", key: "inspectedDate", width: 14 },
-      { header: "Mesin / Alatan", key: "equipment", width: 34 },
+      { header: "Scheduled Date", key: "dueDate", width: 14 },
+      { header: "Inspected Date", key: "inspectedDate", width: 14 },
+      { header: "Equipment / Machine", key: "equipment", width: 34 },
       { header: "SRS", key: "srs", width: 16 },
-      { header: "Kekerapan", key: "freq", width: 16 },
-      { header: "Senarai Semak (Checklist)", key: "checklist", width: 44 },
-      { header: "Item Selesai", key: "checklistCount", width: 14 },
-      { header: "Keputusan", key: "result", width: 14 },
-      { header: "Catatan Pemeriksaan", key: "notes", width: 36 },
-      { header: "Pegawai Bertugas (PIC)", key: "pics", width: 28 },
+      { header: "Frequency", key: "freq", width: 16 },
+      { header: "SOP Checklist", key: "checklist", width: 44 },
+      { header: "Items Done", key: "checklistCount", width: 14 },
+      { header: "Result", key: "result", width: 14 },
+      { header: "Inspection Remarks", key: "notes", width: 36 },
+      { header: "Assigned PIC", key: "pics", width: 28 },
     ]
 
     const hRow2 = ws2.getRow(1)
@@ -239,7 +239,7 @@ export async function GET(request: Request) {
       row.getCell(6).value = rec.frequency
       row.getCell(7).value = rec.checklist.join("\n• ") ? `• ${rec.checklist.join("\n• ")}` : "-"
       row.getCell(8).value = `${completedCount} / ${rec.checklist.length}`
-      row.getCell(9).value = rec.result === "OK" ? "OK" : rec.result === "ISSUE" ? "ADA MASALAH" : "-"
+      row.getCell(9).value = rec.result === "OK" ? "OK" : rec.result === "ISSUE" ? "ISSUE REPORTED" : "-"
       row.getCell(10).value = rec.notes || "-"
       row.getCell(11).value = rec.pics.join(", ") || "-"
 
@@ -266,22 +266,22 @@ export async function GET(request: Request) {
     })
 
     // =========================================================================
-    // SHEET 3: Pengesahan & Verifikasi Penyelia
+    // SHEET 3: Verification & Sign-off
     // =========================================================================
-    const ws3 = workbook.addWorksheet("Pengesahan & Verifikasi")
+    const ws3 = workbook.addWorksheet("Verification & Sign-off")
     ws3.views = [{ showGridLines: true }]
 
     ws3.columns = [
       { header: "No", key: "no", width: 6 },
-      { header: "Tarikh Jadual", key: "dueDate", width: 14 },
-      { header: "Tarikh Pemeriksaan", key: "inspectedDate", width: 16 },
-      { header: "Nama Alatan", key: "equipment", width: 34 },
-      { header: "Pemeriksa (Checked By)", key: "completedBy", width: 28 },
-      { header: "Status Tandatangan Pemeriksa", key: "performedSig", width: 26 },
-      { header: "Penyelia (Verified By)", key: "verifiedBy", width: 28 },
-      { header: "Status Tandatangan Penyelia", key: "verifiedSig", width: 26 },
-      { header: "Tarikh & Masa Verifikasi", key: "verifiedAt", width: 24 },
-      { header: "Status Audit", key: "status", width: 18 },
+      { header: "Scheduled Date", key: "dueDate", width: 14 },
+      { header: "Inspected Date", key: "inspectedDate", width: 16 },
+      { header: "Equipment Name", key: "equipment", width: 34 },
+      { header: "Inspector (Checked By)", key: "completedBy", width: 28 },
+      { header: "Inspector Signature Status", key: "performedSig", width: 26 },
+      { header: "Supervisor (Verified By)", key: "verifiedBy", width: 28 },
+      { header: "Supervisor Signature Status", key: "verifiedSig", width: 26 },
+      { header: "Verification Timestamp", key: "verifiedAt", width: 24 },
+      { header: "Audit Status", key: "status", width: 18 },
     ]
 
     const hRow3 = ws3.getRow(1)
@@ -305,12 +305,12 @@ export async function GET(request: Request) {
       row.getCell(2).value = rec.dueDate
       row.getCell(3).value = rec.inspectedDate || "-"
       row.getCell(4).value = rec.equipment
-      row.getCell(5).value = rec.completedBy || "Juruteknik Penyelenggaraan"
-      row.getCell(6).value = rec.performedSignature ? "Tandatangan Digital Sah" : "-"
-      row.getCell(7).value = rec.verifiedByName || (isVerified ? "Penyelia Operasi" : "Belum Disahkan")
-      row.getCell(8).value = rec.verifiedSignature ? "Tandatangan Penyelia Sah" : isVerified ? "Disahkan Digital" : "-"
-      row.getCell(9).value = rec.verifiedAt ? new Date(rec.verifiedAt).toLocaleString("ms-MY") : "-"
-      row.getCell(10).value = isVerified ? "LENGKAP & DISAHKAN" : rec.status === "DONE" ? "MENUNGGU SAH" : rec.status
+      row.getCell(5).value = rec.completedBy || "Maintenance Technician"
+      row.getCell(6).value = rec.performedSignature ? "Valid Digital Signature" : "-"
+      row.getCell(7).value = rec.verifiedByName || (isVerified ? "Operations Supervisor" : "Pending Verification")
+      row.getCell(8).value = rec.verifiedSignature ? "Supervisor Signature Valid" : isVerified ? "Digital Verified" : "-"
+      row.getCell(9).value = rec.verifiedAt ? new Date(rec.verifiedAt).toLocaleString("en-GB") : "-"
+      row.getCell(10).value = isVerified ? "COMPLETE & VERIFIED" : rec.status === "DONE" ? "PENDING VERIFICATION" : rec.status
 
       row.getCell(1).alignment = { vertical: "middle", horizontal: "center" }
       row.getCell(2).alignment = { vertical: "middle", horizontal: "center" }
@@ -333,14 +333,14 @@ export async function GET(request: Request) {
     })
 
     // =========================================================================
-    // SHEET 4: Matriks Kalendar & KPI (Monthly matrix & AI Summary)
+    // SHEET 4: Calendar Matrix & KPI (Monthly matrix & AI Summary)
     // =========================================================================
-    const ws4 = workbook.addWorksheet("Matriks Kalendar & KPI")
+    const ws4 = workbook.addWorksheet("Calendar Matrix & KPI")
     ws4.views = [{ showGridLines: true }]
 
     // Title banner
     ws4.mergeCells("A1:Q1")
-    ws4.getCell("A1").value = "BUBBLES O2 SDN. BHD. · MATRIKS PENYELENGGARAAN & KPI PEMATUHAN (SGMP-03)"
+    ws4.getCell("A1").value = "BUBBLES O2 SDN. BHD. · PREVENTIVE MAINTENANCE MATRIX & KPI COMPLIANCE (SGMP-03)"
     ws4.getCell("A1").font = { name: "Calibri", size: 13, bold: true, color: { argb: "FFFFFFFF" } }
     ws4.getCell("A1").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } }
     ws4.getCell("A1").alignment = { vertical: "middle", horizontal: "center" }
@@ -348,23 +348,23 @@ export async function GET(request: Request) {
 
     // Executive Summary Block
     ws4.mergeCells("A3:Q3")
-    ws4.getCell("A3").value = "RUMUSAN EKSEKUTIF (EXECUTIVE SUMMARY)"
+    ws4.getCell("A3").value = "EXECUTIVE SUMMARY"
     ws4.getCell("A3").font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF4338CA" } }
 
     ws4.mergeCells("A4:Q5")
     const execCell = ws4.getCell("A4")
-    execCell.value = data.executiveSummary || "Laporan pematuhan penyelenggaraan pencegahan alatan SGMP-03."
+    execCell.value = data.executiveSummary || "Preventive maintenance compliance report for SGMP-03 equipment."
     execCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: "FF334155" } }
     execCell.alignment = { vertical: "top", wrapText: true }
 
     // KPI Summary Strip
     const kpiData = [
-      { label: "Jumlah Tugasan", val: data.summary.totalTasks, color: "FF0F172A" },
-      { label: "Selesai (OK)", val: data.summary.completedTasks, color: "FF15803D" },
-      { label: "Ada Isu / Catatan", val: data.summary.issueTasks, color: "FFB45309" },
-      { label: "Tertunggak", val: data.summary.overdueTasks, color: "FFB91C1C" },
-      { label: "Akan Datang", val: data.summary.pendingTasks, color: "FF4338CA" },
-      { label: "Kadar Pematuhan (%)", val: `${data.summary.complianceRate.toFixed(1)}%`, color: "FF15803D" },
+      { label: "Total Tasks", val: data.summary.totalTasks, color: "FF0F172A" },
+      { label: "Completed (OK)", val: data.summary.completedTasks, color: "FF15803D" },
+      { label: "Issues / Remarks", val: data.summary.issueTasks, color: "FFB45309" },
+      { label: "Overdue", val: data.summary.overdueTasks, color: "FFB91C1C" },
+      { label: "Upcoming", val: data.summary.pendingTasks, color: "FF4338CA" },
+      { label: "Compliance Rate (%)", val: `${data.summary.complianceRate.toFixed(1)}%`, color: "FF15803D" },
     ]
 
     let kpiCol = 1
@@ -391,15 +391,15 @@ export async function GET(request: Request) {
     ws4.getRow(8).height = 20
 
     // Calendar Matrix Grid Table Header (Row 11)
-    const monthNamesShort = ["Jan", "Feb", "Mac", "Apr", "Mei", "Jun", "Jul", "Ogo", "Sep", "Okt", "Nov", "Dis"]
-    ws4.getCell("A10").value = "MATRIKS JADUAL BULANAN (JANUARI - DISEMBER)"
+    const monthNamesShort = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    ws4.getCell("A10").value = "MONTHLY SCHEDULE MATRIX (JANUARY - DECEMBER)"
     ws4.getCell("A10").font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF1E293B" } }
 
     const mHeaderRow = ws4.getRow(11)
     mHeaderRow.height = 24
-    mHeaderRow.getCell(1).value = "NAMA ALATAN / MESIN"
+    mHeaderRow.getCell(1).value = "EQUIPMENT / MACHINE NAME"
     mHeaderRow.getCell(2).value = "SRS"
-    mHeaderRow.getCell(3).value = "KEKERAPAN"
+    mHeaderRow.getCell(3).value = "FREQUENCY"
     ws4.getColumn(1).width = 32
     ws4.getColumn(2).width = 14
     ws4.getColumn(3).width = 14
@@ -423,8 +423,8 @@ export async function GET(request: Request) {
       ws4.getColumn(colIdx).width = 9
     })
 
-    mHeaderRow.getCell(16).value = "SELESAI"
-    mHeaderRow.getCell(17).value = "JUMLAH"
+    mHeaderRow.getCell(16).value = "COMPLETED"
+    mHeaderRow.getCell(17).value = "TOTAL"
     for (let c = 16; c <= 17; c++) {
       const cell = mHeaderRow.getCell(c)
       cell.font = { name: "Calibri", size: 9, bold: true, color: { argb: "FFFFFFFF" } }
@@ -452,7 +452,7 @@ export async function GET(request: Request) {
         const mCell = r.getCell(colIdx)
 
         if (cell && cell.status !== "NONE") {
-          let label = cell.status === "DONE" ? "OK" : cell.status === "ISSUE" ? "ISU" : cell.status === "OVERDUE" ? "LATE" : "PLAN"
+          let label = cell.status === "DONE" ? "OK" : cell.status === "ISSUE" ? "ISSUE" : cell.status === "OVERDUE" ? "LATE" : "PLAN"
           if (cell.count > 1) label += `(${cell.count})`
           mCell.value = label
           mCell.font = {
@@ -493,7 +493,7 @@ export async function GET(request: Request) {
 
     // Generate output buffer
     const buffer = await workbook.xlsx.writeBuffer()
-    const safeFilename = `Jadual_PM_SGMP03_${data.mode}_${data.from}_ke_${data.to}.xlsx`
+    const safeFilename = `PM_Schedule_SGMP03_${data.mode}_${data.from}_to_${data.to}.xlsx`
 
     return new NextResponse(buffer, {
       status: 200,
@@ -505,6 +505,6 @@ export async function GET(request: Request) {
     })
   } catch (err: any) {
     console.error("Excel Export Error:", err)
-    return NextResponse.json({ error: err?.message || "Gagal menjana fail Excel." }, { status: 500 })
+    return NextResponse.json({ error: err?.message || "Failed to generate Excel file." }, { status: 500 })
   }
 }

@@ -15,7 +15,7 @@ import type { Prisma } from "@prisma/client"
 
 async function accessPM(admin = false) {
   const access = await getAccessInfo()
-  if (!access || !hasAnyModule(access, ["REMINDERS"]) || (admin && !access.isSuperAdmin)) throw new Error("Tiada akses Reminders.")
+  if (!access || !hasAnyModule(access, ["REMINDERS"]) || (admin && !access.isSuperAdmin)) throw new Error("Access denied: Reminders module required.")
   return access
 }
 const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue
@@ -24,16 +24,16 @@ async function usersPM() {
   return users.map(u => ({ id: u.id, name: u.name, email: u.email, eligible: u.role === "SUPERADMIN" || u.unit?.name === "Information Technology" || u.modules.includes("REMINDERS") }))
 }
 function cleanPM(input: PMInput): PMInput {
-  if (!input || !validRule(input) || typeof input.equipment !== "string" || !input.equipment.trim() || input.equipment.length > 200) throw new Error("Equipment/tarikh/kekerapan tidak sah.")
-  if (input.srs !== null && (typeof input.srs !== "string" || input.srs.length > 120)) throw new Error("SRS tidak sah.")
-  if (!Array.isArray(input.checklist) || !input.checklist.length || input.checklist.length > 30 || input.checklist.some(t => typeof t !== "string" || !t.trim() || t.length > 1000)) throw new Error("Masukkan 1–30 arahan kerja yang sah.")
-  if (!Array.isArray(input.picIds) || input.picIds.length > 30 || input.picIds.some(id => typeof id !== "string")) throw new Error("Senarai PIC tidak sah.")
+  if (!input || !validRule(input) || typeof input.equipment !== "string" || !input.equipment.trim() || input.equipment.length > 200) throw new Error("Invalid equipment/date/frequency.")
+  if (input.srs !== null && (typeof input.srs !== "string" || input.srs.length > 120)) throw new Error("Invalid SRS.")
+  if (!Array.isArray(input.checklist) || !input.checklist.length || input.checklist.length > 30 || input.checklist.some(t => typeof t !== "string" || !t.trim() || t.length > 1000)) throw new Error("Enter 1–30 valid work instructions.")
+  if (!Array.isArray(input.picIds) || input.picIds.length > 30 || input.picIds.some(id => typeof id !== "string")) throw new Error("Invalid PIC list.")
   return { equipment: input.equipment.trim(), srs: input.srs?.trim() || null, checklist: [...new Set(input.checklist.map(t => t.trim()))], picIds: [...new Set(input.picIds)], startDate: input.startDate, intervalUnit: input.intervalUnit, intervalCount: input.intervalCount }
 }
 async function validatePics(inputs: PMInput[]) {
   const users = await usersPM()
   const eligible = new Set(users.filter(u => u.eligible && u.email).map(u => u.id))
-  if (inputs.some(i => i.picIds.some(id => !eligible.has(id)))) throw new Error("Semua PIC mesti mempunyai akaun, e-mel dan akses Reminders. Semak padanan PIC.")
+  if (inputs.some(i => i.picIds.some(id => !eligible.has(id)))) throw new Error("All PICs must have an active account, email, and Reminders access. Check PIC assignments.")
 }
 
 function canAssignPMPic(access: { isSuperAdmin: boolean; role?: string; unitName?: string | null; modules: string[] }) {
@@ -48,7 +48,7 @@ function canAssignPMPic(access: { isSuperAdmin: boolean; role?: string; unitName
 export async function getPMData(from: string, to: string, occurrenceId?: string) {
   const access = await accessPM()
   const today = mytDate()
-  if (!validDate(from) || !validDate(to) || from > to || to > addDays(today, 730) || (Date.parse(to) - Date.parse(from)) / 86400000 > 366) throw new Error("Pilih julat maksimum setahun, sehingga dua tahun ke hadapan.")
+  if (!validDate(from) || !validDate(to) || from > to || to > addDays(today, 730) || (Date.parse(to) - Date.parse(from)) / 86400000 > 366) throw new Error("Select a range of maximum one year, up to two years ahead.")
   const schedules = await prisma.reminderPMSchedule.findMany({ where: pmVisibleWhere(access), orderBy: { equipment: "asc" } })
   if (schedules.length > 0) {
     await prisma.$transaction(async tx => { await lockPM(tx); await materializePM(tx, to > today ? to : today, schedules.map(s => s.id)) }, { timeout: 30000 })
@@ -81,7 +81,7 @@ export async function getPMData(from: string, to: string, occurrenceId?: string)
 export async function assignPMPic(occurrenceId: string, picIds: string[], applyToFutureSchedules = false) {
   const access = await accessPM()
   if (!canAssignPMPic(access)) {
-    throw new Error("Anda tidak mempunyai kebenaran untuk menetapkan atau menukar PIC.")
+    throw new Error("You do not have permission to assign or change PIC.")
   }
 
   const today = mytDate()
@@ -122,11 +122,11 @@ export async function assignPMPic(occurrenceId: string, picIds: string[], applyT
 export async function previewPMImport(data: FormData) {
   const access = await accessPM(true)
   const file = data.get("file")
-  if (!(file instanceof File) || !file.name.toLowerCase().endsWith(".xlsx") || file.size > 5 * 1024 * 1024) throw new Error("Pilih fail .xlsx sehingga 5 MB.")
+  if (!(file instanceof File) || !file.name.toLowerCase().endsWith(".xlsx") || file.size > 5 * 1024 * 1024) throw new Error("Select a .xlsx file up to 5 MB.")
   const buffer = Buffer.from(await file.arrayBuffer())
   const fileHash = createHash("sha256").update(buffer).digest("hex")
   const existing = await prisma.reminderPMImport.findUnique({ where: { fileHash } })
-  if (existing?.confirmedAt) throw new Error("Fail ini sudah diimport. Gunakan Jadual PM untuk mengubah jadual sedia ada.")
+  if (existing?.confirmedAt) throw new Error("This file has already been imported. Use PM Schedules to modify existing schedules.")
   const rows = await parsePMWorkbook(buffer)
   const record = await prisma.reminderPMImport.upsert({ where: { fileHash }, update: {}, create: { fileHash, fileName: file.name, rows: json(rows), createdById: access.userId } })
   const schedules = await prisma.reminderPMSchedule.findMany({ where: { sourceKey: { not: null } } })
@@ -136,7 +136,7 @@ export async function previewPMImport(data: FormData) {
 
 async function replaceFuture(tx: PMTransaction, id: string, input: PMInput, today: string) {
   const current = await tx.reminderPMSchedule.findUniqueOrThrow({ where: { id } })
-  if (current.archivedAt) throw new Error("Jadual ini telah diarkibkan.")
+  if (current.archivedAt) throw new Error("This schedule has been archived.")
   // Capture today's and overdue work before changing the rule/PIC snapshots.
   await materializePM(tx, today, [id])
   await tx.reminderPMOccurrence.deleteMany({ where: { scheduleId: id, dueDate: { gt: today }, completedAt: null } })
@@ -146,14 +146,14 @@ async function replaceFuture(tx: PMTransaction, id: string, input: PMInput, toda
 export async function confirmPMImport(importId: string, rawGroups: PMGroup[], activationDate: string) {
   const access = await accessPM(true)
   const today = mytDate()
-  if (!validDate(activationDate) || activationDate < today || activationDate > addDays(today, 730)) throw new Error("Tarikh pengaktifan mesti hari ini atau masa hadapan (maksimum dua tahun).")
-  if (!Array.isArray(rawGroups) || !rawGroups.length || rawGroups.length > 250 || rawGroups.some(g => g.reviewed !== true)) throw new Error("Sahkan setiap kumpulan kerja sebelum aktif.")
+  if (!validDate(activationDate) || activationDate < today || activationDate > addDays(today, 730)) throw new Error("Activation date must be today or in the future (maximum two years).")
+  if (!Array.isArray(rawGroups) || !rawGroups.length || rawGroups.length > 250 || rawGroups.some(g => g.reviewed !== true)) throw new Error("Confirm each work group before activating.")
   const inputs = rawGroups.map(cleanPM)
   await validatePics(inputs)
   await prisma.$transaction(async tx => {
     await lockPM(tx)
     const record = await tx.reminderPMImport.findUniqueOrThrow({ where: { id: importId } })
-    if (record.confirmedAt) throw new Error("Import ini sudah diaktifkan.")
+    if (record.confirmedAt) throw new Error("This import has already been activated.")
     const rows = record.rows as unknown as PMSourceRow[]
     const baseGroups = suggestGroups(rows)
     const sourceByKey = new Map(baseGroups.map(g => [g.sourceKey, g]))
@@ -164,18 +164,18 @@ export async function confirmPMImport(importId: string, rawGroups: PMGroup[], ac
       const group = rawGroups[index]
       const baseKey = group.sourceKey.split(":")[0]
       const base = sourceByKey.get(baseKey)
-      if (!base || usedKeys.has(group.sourceKey) || group.sourceKey.length > 160 || !Array.isArray(group.sourceRows) || !group.sourceRows.length) throw new Error("Kumpulan import tidak sah/bertindih.")
+      if (!base || usedKeys.has(group.sourceKey) || group.sourceKey.length > 160 || !Array.isArray(group.sourceRows) || !group.sourceRows.length) throw new Error("Invalid or overlapping import group.")
       usedKeys.add(group.sourceKey)
       const actualRows: PMSourceRow[] = []
       for (const row of group.sourceRows) {
         const key = `${row.sheet}:${row.row}`
         const original = base.sourceRows.find(r => r.sheet === row.sheet && r.row === row.row)
-        if (!original || usedRows.has(key)) throw new Error("Baris sumber tidak sah/bertindih.")
+        if (!original || usedRows.has(key)) throw new Error("Invalid or duplicate source row.")
         usedRows.add(key); actualRows.push(original)
       }
       const matched = group.targetId ? await tx.reminderPMSchedule.findUniqueOrThrow({ where: { id: group.targetId } }) : await tx.reminderPMSchedule.findUnique({ where: { sourceKey: group.sourceKey } })
       if (matched) {
-        if (usedTargets.has(matched.id)) throw new Error("Dua kumpulan tidak boleh menimpa jadual yang sama.")
+        if (usedTargets.has(matched.id)) throw new Error("Two groups cannot overwrite the same schedule.")
         usedTargets.add(matched.id)
         await replaceFuture(tx, matched.id, inputs[index], today)
         await tx.reminderPMSchedule.update({ where: { id: matched.id }, data: { importId, sourceRows: json(actualRows) } })
@@ -183,7 +183,7 @@ export async function confirmPMImport(importId: string, rawGroups: PMGroup[], ac
         await tx.reminderPMSchedule.create({ data: { ...inputs[index], sourceKey: group.sourceKey, importId, sourceRows: json(actualRows), activationDate, generationFrom: activationDate, createdById: access.userId } })
       }
     }
-    if (usedRows.size !== rows.length) throw new Error("Semua baris sumber mesti termasuk dalam semakan.")
+    if (usedRows.size !== rows.length) throw new Error("All source rows must be included in review.")
     await tx.reminderPMImport.update({ where: { id: importId }, data: { confirmedAt: new Date(), review: json(rawGroups) } })
   }, { timeout: 30000 })
   revalidatePath("/reminders")
@@ -195,13 +195,13 @@ export async function savePMSchedule(id: string | null, raw: PMInput, activation
   const input = cleanPM(raw)
   await validatePics([input])
   const today = mytDate()
-  if (!id && (!validDate(activationDate) || activationDate < today || activationDate > addDays(today, 730))) throw new Error("Tarikh pengaktifan tidak sah.")
+  if (!id && (!validDate(activationDate) || activationDate < today || activationDate > addDays(today, 730))) throw new Error("Invalid activation date.")
   await prisma.$transaction(async tx => {
     await lockPM(tx)
     if (id) {
       const schedule = await tx.reminderPMSchedule.findUniqueOrThrow({ where: { id } })
       if (!access.isSuperAdmin && schedule.createdById !== access.userId && !canAssignPMPic(access)) {
-        throw new Error("Hanya pencipta, Superadmin, atau pegawai yang mempunyai kebenaran boleh mengubah jadual.")
+        throw new Error("Only the creator, Superadmin, or authorized officers can modify schedules.")
       }
       await replaceFuture(tx, id, input, today)
     } else await tx.reminderPMSchedule.create({ data: { ...input, activationDate, generationFrom: activationDate, createdById: access.userId } })
@@ -215,7 +215,7 @@ export async function archivePMSchedule(id: string) {
     await lockPM(tx)
     const schedule = await tx.reminderPMSchedule.findUniqueOrThrow({ where: { id } })
     if (!access.isSuperAdmin && schedule.createdById !== access.userId && !canAssignPMPic(access)) {
-      throw new Error("Tiada kebenaran mengarkib.")
+      throw new Error("Permission denied to archive schedule.")
     }
     await materializePM(tx, mytDate(), [id])
     await tx.reminderPMOccurrence.deleteMany({ where: { scheduleId: id, dueDate: { gt: mytDate() }, completedAt: null } })
@@ -243,16 +243,16 @@ export async function completePMOccurrence(
 ) {
   const access = await accessPM()
   if (!performedSignature || !performedSignature.trim()) {
-    throw new Error("Tandatangan pemeriksa (Checked By) diperlukan.")
+    throw new Error("Inspector signature (Checked By) is required.")
   }
 
   await prisma.$transaction(async tx => {
     await lockPM(tx)
     const task = await tx.reminderPMOccurrence.findUniqueOrThrow({ where: { id }, include: { schedule: true } })
     if (!canCompletePM(access, task.picIds, canAssignPMPic(access))) {
-      throw new Error("Hanya PIC yang ditugaskan, Superadmin, atau pegawai bertugas dibenarkan merekod pemeriksaan ini.")
+      throw new Error("Only assigned PICs, Superadmin, or authorized personnel can record this inspection.")
     }
-    if (task.completedAt) throw new Error("Pemeriksaan ini sudah selesai.")
+    if (task.completedAt) throw new Error("This inspection has already been completed.")
     validateCompletion(
       result,
       notes,
@@ -283,20 +283,20 @@ export async function completePMOccurrence(
 export async function verifyPMOccurrence(id: string, signature: string) {
   const access = await accessPM()
   if (!canVerifyPM(access)) {
-    throw new Error("Hanya Penyelia/Pengurus/Superadmin yang dibenarkan membuat pengesahan.")
+    throw new Error("Only Supervisor/Manager/Superadmin are authorized to verify.")
   }
   if (!signature || !signature.trim()) {
-    throw new Error("Tandatangan pengesahan (Verified By) diperlukan.")
+    throw new Error("Supervisor signature (Verified By) is required.")
   }
 
   await prisma.$transaction(async tx => {
     await lockPM(tx)
     const task = await tx.reminderPMOccurrence.findUniqueOrThrow({ where: { id } })
     if (!task.completedAt) {
-      throw new Error("Tugasan ini belum diselesaikan oleh pemeriksa.")
+      throw new Error("This task has not yet been completed by an inspector.")
     }
     if (task.verifiedAt) {
-      throw new Error("Tugasan ini sudah disahkan sebelum ini.")
+      throw new Error("This task has already been verified.")
     }
 
     await tx.reminderPMOccurrence.update({
@@ -386,7 +386,7 @@ export async function getPMSummaryData(from?: string, to?: string, verificationF
   return {
     today,
     userId: access.userId,
-    userName: access.name || "Pengguna",
+    userName: access.name || "User",
     isSuperAdmin: access.isSuperAdmin,
     canVerify: canVerifyPM(access),
     occurrences: occurrences.map((o) => ({
@@ -403,13 +403,13 @@ export async function getPMSummaryData(from?: string, to?: string, verificationF
 
 export async function assignPMOccurrence(id: string, picIds: string[]) {
   const access = await accessPM()
-  if (!Array.isArray(picIds) || picIds.length > 30 || picIds.some(id => typeof id !== "string")) throw new Error("Pilih PIC yang sah.")
+  if (!Array.isArray(picIds) || picIds.length > 30 || picIds.some(id => typeof id !== "string")) throw new Error("Select valid PICs.")
   await validatePics([{ picIds } as PMInput])
   await prisma.$transaction(async tx => {
     await lockPM(tx)
     const task = await tx.reminderPMOccurrence.findUniqueOrThrow({ where: { id }, include: { schedule: true } })
-    if (!access.isSuperAdmin && task.schedule.createdById !== access.userId) throw new Error("Tiada kebenaran mengubah PIC.")
-    if (task.completedAt || task.dueDate < mytDate()) throw new Error("PIC sejarah tidak boleh diubah.")
+    if (!access.isSuperAdmin && task.schedule.createdById !== access.userId) throw new Error("Permission denied to change PIC.")
+    if (task.completedAt || task.dueDate < mytDate()) throw new Error("Historical PIC cannot be changed.")
     await tx.reminderPMOccurrence.update({ where: { id }, data: { picIds: [...new Set(picIds)] } })
   })
   revalidatePath("/reminders")

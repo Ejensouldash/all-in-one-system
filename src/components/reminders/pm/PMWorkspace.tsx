@@ -51,22 +51,22 @@ import {
   type PMUser,
 } from "@/lib/reminders/pm-core"
 
-const MONTH_BM = [
-  "Januari",
-  "Februari",
-  "Mac",
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
   "April",
-  "Mei",
-  "Jun",
-  "Julai",
-  "Ogos",
+  "May",
+  "June",
+  "July",
+  "August",
   "September",
-  "Oktober",
+  "October",
   "November",
-  "Disember",
+  "December",
 ]
 
-const DAY_NAMES = ["AHD", "ISN", "SEL", "RAB", "KHA", "JUM", "SAB"]
+const DAY_NAMES = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
 
 type PMData = Awaited<ReturnType<typeof getPMData>>
 type PMOccurrence = PMData["occurrences"][number]
@@ -89,11 +89,11 @@ function sanitizeError(err: unknown): string {
       msg.includes("SELECT") ||
       msg.includes("syntax error")
     ) {
-      return "Ralat pangkalan data: Jadual Preventive Maintenance belum dicipta atau migrasi belum dijalankan di pangkalan data."
+      return "Database error: Preventive Maintenance tables have not been created or migrations have not run."
     }
     return msg
   }
-  return "Ralat tidak dijangka berlaku. Sila cuba lagi."
+  return "An unexpected error occurred. Please try again."
 }
 
 export function PMWorkspace() {
@@ -200,7 +200,7 @@ export function PMWorkspace() {
       const res = await fetch(`/api/reminders/pm/export/${type}?${params.toString()}`)
       if (!res.ok) {
         const json = await res.json().catch(() => ({}))
-        throw new Error(json.error || `Gagal mengeksport ${type.toUpperCase()}.`)
+        throw new Error(json.error || `Failed to export ${type.toUpperCase()}.`)
       }
 
       const blob = await res.blob()
@@ -208,7 +208,7 @@ export function PMWorkspace() {
       const a = document.createElement("a")
       a.href = url
       const disposition = res.headers.get("Content-Disposition")
-      let filename = `Laporan_Audit_PM_SGMP03_${fromDate}_ke_${toDate}.${type === "pdf" ? "pdf" : "xlsx"}`
+      let filename = `PM_Audit_Report_SGMP03_${fromDate}_to_${toDate}.${type === "pdf" ? "pdf" : "xlsx"}`
       if (disposition && disposition.includes("filename=")) {
         const match = /filename="?([^"]+)"?/.exec(disposition)
         if (match?.[1]) filename = match[1]
@@ -219,7 +219,7 @@ export function PMWorkspace() {
       a.remove()
       window.URL.revokeObjectURL(url)
 
-      flash({ kind: "ok", text: `Fail ${type.toUpperCase()} berjaya dimuat turun.` })
+      flash({ kind: "ok", text: `${type.toUpperCase()} file successfully downloaded.` })
     } catch (err) {
       flash({ kind: "err", text: sanitizeError(err) })
     } finally {
@@ -308,7 +308,7 @@ export function PMWorkspace() {
     setIsSavingPic(true)
     try {
       await assignPMPic(selectedOccurrence.id, taskPicIds, applyToFutureSchedules)
-      flash({ kind: "ok", text: "PIC berjaya dikemas kini untuk tugasan ini." })
+      flash({ kind: "ok", text: "PIC successfully updated for this task." })
       setIsEditingTaskPic(false)
       setSelectedOccurrence((prev) => (prev ? { ...prev, picIds: taskPicIds } : null))
       await loadData()
@@ -326,9 +326,9 @@ export function PMWorkspace() {
     try {
       const res = await simulatePMTaskReminderAction(occurrenceId)
       if (res.success) {
-        let msg = `🎉 Simulasi Berjaya!\n✉️ Emel & jemputan Google Calendar dihantar ke: ${(res.recipients || []).join(", ")}.`
+        let msg = `🎉 Simulation Successful!\n✉️ Email & Google Calendar invite sent to: ${(res.recipients || []).join(", ")}.`
         if (res.telegramSent) {
-          msg += `\n🤖 Notifikasi Telegram Bot juga berjaya disiarkan ke kumpulan operasi loji!`
+          msg += `\n🤖 Telegram Bot notification also successfully broadcasted to plant operations group!`
         } else if (res.telegramError) {
           msg += `\n⚠️ Telegram: ${res.telegramError}`
         }
@@ -339,13 +339,13 @@ export function PMWorkspace() {
       } else {
         setSimulationResult({
           success: false,
-          message: `❌ Simulasi Gagal: ${res.error || "Ralat tidak diketahui"}`,
+          message: `❌ Simulation Failed: ${res.error || "Unknown error"}`,
         })
       }
     } catch (err: any) {
       setSimulationResult({
         success: false,
-        message: `❌ Ralat: ${err.message || String(err)}`,
+        message: `❌ Error: ${err.message || String(err)}`,
       })
     } finally {
       setIsSimulating(false)
@@ -358,7 +358,7 @@ export function PMWorkspace() {
     setCompletionError("")
 
     if (completionResult === "ISSUE" && !completionNotes.trim()) {
-      setCompletionError("Catatan diperlukan untuk rekod ada masalah.")
+      setCompletionError("Remarks are required when an issue is reported.")
       return
     }
 
@@ -368,14 +368,14 @@ export function PMWorkspace() {
       )
       if (!allChecked) {
         setCompletionError(
-          "Semua item arahan kerja mesti ditandakan selesai untuk keputusan OK. Jika terdapat item yang belum/tidak boleh diselesaikan, sila pilih 'Ada Masalah' dan nyatakan ulasan."
+          "All checklist items must be completed for an OK result. If any item cannot be completed, select 'Issue Reported' and provide remarks."
         )
         return
       }
     }
 
     if (!performedSignature || !performedSignature.trim()) {
-      setCompletionError("Sila tandatangan (Checked By) sebelum mengesahkan pemeriksaan.")
+      setCompletionError("Please sign (Checked By) before confirming the inspection.")
       return
     }
 
@@ -389,7 +389,7 @@ export function PMWorkspace() {
           performedSignature,
           completedChecklist
         )
-        flash({ kind: "ok", text: "Pemeriksaan berjaya direkodkan." })
+        flash({ kind: "ok", text: "Inspection successfully recorded." })
         closeOccurrence()
         await loadData()
       } catch (err) {
@@ -436,11 +436,11 @@ export function PMWorkspace() {
       .filter(Boolean)
 
     if (!scheduleForm.equipment.trim()) {
-      setScheduleError("Nama equipment diperlukan.")
+      setScheduleError("Equipment name is required.")
       return
     }
     if (!filteredChecklist.length) {
-      setScheduleError("Sila masukkan sekurang-kurangnya satu arahan kerja / checklist.")
+      setScheduleError("Please provide at least one work instruction / checklist item.")
       return
     }
 
@@ -454,8 +454,8 @@ export function PMWorkspace() {
         flash({
           kind: "ok",
           text: scheduleModal.schedule
-            ? "Jadual berjaya dikemas kini."
-            : "Jadual baharu berjaya dicipta.",
+            ? "Schedule successfully updated."
+            : "New schedule successfully created.",
         })
         setScheduleModal({ open: false, schedule: null })
         await loadData()
@@ -469,7 +469,7 @@ export function PMWorkspace() {
   const handleArchiveSchedule = (sched: PMSchedule) => {
     if (
       !window.confirm(
-        `Adakah anda pasti untuk mengarkibkan jadual "${sched.equipment}"? Ulangan masa hadapan yang belum selesai akan dihentikan tetapi sejarah pemeriksaan kekal.`
+        `Are you sure you want to archive schedule "${sched.equipment}"? Uncompleted future occurrences will be discontinued, but historical records will be preserved.`
       )
     ) {
       return
@@ -478,7 +478,7 @@ export function PMWorkspace() {
     startSavingSchedule(async () => {
       try {
         await archivePMSchedule(sched.id)
-        flash({ kind: "ok", text: `Jadual "${sched.equipment}" telah diarkibkan.` })
+        flash({ kind: "ok", text: `Schedule "${sched.equipment}" has been archived.` })
         await loadData()
       } catch (err) {
         flash({ kind: "err", text: sanitizeError(err) })
@@ -536,6 +536,33 @@ export function PMWorkspace() {
       return true
     })
   }, [data, statusFilter, equipmentFilter, picFilter, searchQuery, userMap])
+
+  // Filtered recurring schedules (for Schedules view)
+  const filteredSchedules = useMemo(() => {
+    if (!data?.schedules) return []
+    return data.schedules.filter((sched) => {
+      // Equipment filter
+      if (equipmentFilter !== "ALL" && sched.equipment !== equipmentFilter) return false
+
+      // PIC filter
+      if (picFilter !== "ALL" && !sched.picIds.includes(picFilter)) return false
+
+      // Search query
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase()
+        const matchEquip = sched.equipment.toLowerCase().includes(query)
+        const matchSrs = sched.srs ? sched.srs.toLowerCase().includes(query) : false
+        const matchChecklist = sched.checklist.some((c) => c.toLowerCase().includes(query))
+        const matchPic = sched.picIds.some((id) => {
+          const u = userMap.get(id)
+          return u ? u.name.toLowerCase().includes(query) : false
+        })
+        if (!matchEquip && !matchSrs && !matchChecklist && !matchPic) return false
+      }
+
+      return true
+    })
+  }, [data?.schedules, equipmentFilter, picFilter, searchQuery, userMap])
 
   // Summary counts
   const stats = useMemo(() => {
@@ -638,7 +665,7 @@ export function PMWorkspace() {
         {[
           {
             key: "TODAY",
-            label: "Hari Ini",
+            label: "Today",
             value: stats.today,
             icon: Clock,
             gradient: "from-amber-500 to-amber-600",
@@ -646,7 +673,7 @@ export function PMWorkspace() {
           },
           {
             key: "UPCOMING",
-            label: "Akan Datang",
+            label: "Upcoming",
             value: stats.upcoming,
             icon: CalendarIcon,
             gradient: "from-blue-500 to-indigo-600",
@@ -654,7 +681,7 @@ export function PMWorkspace() {
           },
           {
             key: "OVERDUE",
-            label: "Tertunggak",
+            label: "Overdue",
             value: stats.overdue,
             icon: AlertTriangle,
             gradient: "from-rose-500 to-red-600",
@@ -662,7 +689,7 @@ export function PMWorkspace() {
           },
           {
             key: "DONE",
-            label: "Selesai",
+            label: "Completed",
             value: stats.done,
             icon: CheckCircle2,
             gradient: "from-emerald-500 to-teal-600",
@@ -709,7 +736,7 @@ export function PMWorkspace() {
                       : "text-gray-500 hover:text-gray-700"
                   }`}
                 >
-                  Bulan
+                  Month
                 </button>
                 <button
                   type="button"
@@ -720,7 +747,7 @@ export function PMWorkspace() {
                       : "text-gray-500 hover:text-gray-700"
                   }`}
                 >
-                  Tahun
+                  Year
                 </button>
               </div>
 
@@ -735,7 +762,7 @@ export function PMWorkspace() {
                     )
                   }
                   className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50"
-                  title={rangeMode === "year" ? "Tahun Sebelumnya" : "Bulan Sebelumnya"}
+                  title={rangeMode === "year" ? "Previous Year" : "Previous Month"}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
@@ -744,7 +771,7 @@ export function PMWorkspace() {
                   onClick={() => setCursor(new Date())}
                   className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-600 transition hover:bg-gray-50"
                 >
-                  Semasa
+                  Current
                 </button>
                 <button
                   type="button"
@@ -756,7 +783,7 @@ export function PMWorkspace() {
                     )
                   }
                   className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50"
-                  title={rangeMode === "year" ? "Tahun Seterusnya" : "Bulan Seterusnya"}
+                  title={rangeMode === "year" ? "Next Year" : "Next Month"}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
@@ -768,12 +795,12 @@ export function PMWorkspace() {
                         const m = parseInt(e.target.value, 10)
                         setCursor((d) => new Date(Date.UTC(d.getFullYear(), m, 1)))
                       }}
-                      aria-label="Pilih Bulan"
+                      aria-label="Select Month"
                       className="cursor-pointer rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 text-sm font-black text-gray-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 hover:border-gray-300"
                     >
-                      {MONTH_BM.map((bmName, idx) => (
+                      {MONTH_NAMES.map((name, idx) => (
                         <option key={idx} value={idx}>
-                          {bmName}
+                          {name}
                         </option>
                       ))}
                     </select>
@@ -784,7 +811,7 @@ export function PMWorkspace() {
                       const y = parseInt(e.target.value, 10)
                       setCursor((d) => new Date(Date.UTC(y, rangeMode === "year" ? 0 : d.getMonth(), 1)))
                     }}
-                    aria-label="Pilih Tahun"
+                    aria-label="Select Year"
                     className="cursor-pointer rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 text-sm font-black text-indigo-600 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 hover:border-gray-300"
                   >
                     {[2025, 2026, 2027, 2028, 2029, 2030].map((y) => (
@@ -810,7 +837,7 @@ export function PMWorkspace() {
                       : "text-gray-500 hover:text-gray-700"
                   }`}
                 >
-                  <List className="h-3.5 w-3.5" /> Senarai
+                  <List className="h-3.5 w-3.5" /> List
                 </button>
                 <button
                   type="button"
@@ -821,7 +848,7 @@ export function PMWorkspace() {
                       : "text-gray-500 hover:text-gray-700"
                   }`}
                 >
-                  <CalendarDays className="h-3.5 w-3.5" /> Kalendar
+                  <CalendarDays className="h-3.5 w-3.5" /> Calendar
                 </button>
                 <button
                   type="button"
@@ -832,39 +859,39 @@ export function PMWorkspace() {
                       : "text-gray-500 hover:text-gray-700"
                   }`}
                 >
-                  <Wrench className="h-3.5 w-3.5" /> Jadual PM
+                  <Wrench className="h-3.5 w-3.5" /> PM Schedules
                 </button>
               </div>
 
               {/* Export Actions */}
-                <button
-                  type="button"
-                  onClick={() => setExportModal({ open: true, format: "pdf" })}
-                  className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 transition hover:bg-rose-100"
-                  title="Eksport Laporan Audit PDF (A4 Portrait, Cover Page, TOC, Rumusan AI & Tandatangan)"
-                >
-                  <FileText className="h-3.5 w-3.5" />
-                  Export PDF
-                </button>
+              <button
+                type="button"
+                onClick={() => setExportModal({ open: true, format: "pdf" })}
+                className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 transition hover:bg-rose-100"
+                title="Export Audit Report PDF (A4 Portrait, Cover Page, TOC, AI Summary & Sign-offs)"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                Export PDF
+              </button>
 
-                <button
-                  type="button"
-                  onClick={() => setExportModal({ open: true, format: "excel" })}
-                  className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100"
-                  title="Eksport Fail Excel (Multi-tab: SGMP-03 Asal, Log Terperinci, Pengesahan & Matriks)"
-                >
-                  <FileSpreadsheet className="h-3.5 w-3.5" />
-                  Export Excel
-                </button>
+              <button
+                type="button"
+                onClick={() => setExportModal({ open: true, format: "excel" })}
+                className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100"
+                title="Export Excel File (Multi-tab: SGMP-03 Original, Detailed Log, Sign-offs & Calendar Matrix)"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                Export Excel
+              </button>
 
               {/* Summary / Verification Link */}
               <Link
                 href="/reminders/summary"
                 className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100 shadow-sm"
-                title="Lihat Rekod Pemeriksaan & Pengesahan Penyelia"
+                title="View Inspection Summary & Supervisor Verification"
               >
                 <CheckCircle2 className="h-3.5 w-3.5 text-indigo-600" />
-                Ringkasan & Pengesahan
+                Summary &amp; Verification
               </Link>
 
               {/* Create Schedule Action */}
@@ -873,7 +900,7 @@ export function PMWorkspace() {
                 onClick={() => openScheduleModal(null)}
                 className="reminder-btn-glow flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:from-indigo-700 hover:to-violet-700"
               >
-                <Plus className="h-4 w-4" /> Jadual Baharu
+                <Plus className="h-4 w-4" /> New Schedule
               </button>
             </div>
           </div>
@@ -887,7 +914,7 @@ export function PMWorkspace() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari alat / PIC / arahan…"
+                placeholder="Search equipment, SRS, PIC, checklist..."
                 className="w-full rounded-xl border border-gray-200 bg-gray-50/50 py-2 pl-9 pr-3 text-xs text-gray-900 outline-none transition focus:border-indigo-500 focus:bg-white"
               />
               {searchQuery && (
@@ -908,7 +935,7 @@ export function PMWorkspace() {
                 onChange={(e) => setEquipmentFilter(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-3 py-2 text-xs font-medium text-gray-700 outline-none transition focus:border-indigo-500 focus:bg-white"
               >
-                <option value="ALL">Semua Equipment ({equipmentOptions.length})</option>
+                <option value="ALL">All Equipment ({equipmentOptions.length})</option>
                 {equipmentOptions.map((eq) => (
                   <option key={eq} value={eq}>
                     {eq}
@@ -924,7 +951,7 @@ export function PMWorkspace() {
                 onChange={(e) => setPicFilter(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-3 py-2 text-xs font-medium text-gray-700 outline-none transition focus:border-indigo-500 focus:bg-white"
               >
-                <option value="ALL">Semua PIC</option>
+                <option value="ALL">All PICs</option>
                 {data?.users.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.name}
@@ -940,11 +967,11 @@ export function PMWorkspace() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-3 py-2 text-xs font-medium text-gray-700 outline-none transition focus:border-indigo-500 focus:bg-white"
               >
-                <option value="ALL">Semua Status</option>
-                <option value="TODAY">Hari Ini</option>
-                <option value="UPCOMING">Akan Datang</option>
-                <option value="OVERDUE">Tertunggak</option>
-                <option value="DONE">Selesai</option>
+                <option value="ALL">All Statuses</option>
+                <option value="TODAY">Today</option>
+                <option value="UPCOMING">Upcoming</option>
+                <option value="OVERDUE">Overdue</option>
+                <option value="DONE">Completed</option>
               </select>
             </div>
           </div>
@@ -956,7 +983,7 @@ export function PMWorkspace() {
         <div className="flex h-64 items-center justify-center rounded-3xl border border-gray-100 bg-white shadow-sm">
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
-            <span>Memuatkan jadual SGMP-03…</span>
+            <span>Loading SGMP-03 PM schedules…</span>
           </div>
         </div>
       ) : view === "list" ? (
@@ -965,9 +992,9 @@ export function PMWorkspace() {
           {filteredOccurrences.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-3xl border border-gray-100 bg-white p-12 text-center shadow-sm">
               <CalendarDays className="h-10 w-10 text-gray-300" />
-              <p className="mt-3 text-sm font-bold text-gray-700">Tiada rekod pemeriksaan dijumpai</p>
+              <p className="mt-3 text-sm font-bold text-gray-700">No inspection records found</p>
               <p className="mt-1 text-xs text-gray-400">
-                Cuba tukar tapisan atau pilih bulan lain pada navigasi di atas.
+                Try adjusting filters or selecting another month in the navigation above.
               </p>
             </div>
           ) : (
@@ -1011,13 +1038,13 @@ export function PMWorkspace() {
                         >
                           {status === "DONE"
                             ? occ.result === "ISSUE"
-                              ? "Ada Masalah"
-                              : "Selesai (OK)"
+                              ? "Issue Reported"
+                              : "Completed (OK)"
                             : status === "OVERDUE"
-                            ? "Tertunggak"
+                            ? "Overdue"
                             : status === "TODAY"
-                            ? "Hari Ini"
-                            : "Akan Datang"}
+                            ? "Today"
+                            : "Upcoming"}
                         </span>
                       </div>
 
@@ -1030,7 +1057,7 @@ export function PMWorkspace() {
                         ))}
                         {occ.checklist.length > 3 && (
                           <li className="text-gray-400 font-medium">
-                            +{occ.checklist.length - 3} lagi arahan kerja
+                            +{occ.checklist.length - 3} more work instructions
                           </li>
                         )}
                       </ul>
@@ -1039,17 +1066,17 @@ export function PMWorkspace() {
                       <div className="flex flex-wrap items-center gap-3 pt-1 text-xs text-gray-500">
                         <span className="flex items-center gap-1 font-medium">
                           <UserIcon className="h-3.5 w-3.5 text-gray-400" />
-                          {assignedPics.join(", ") || "Tiada PIC"}
+                          {assignedPics.join(", ") || "No PIC"}
                         </span>
                         <span className="flex items-center gap-1 text-gray-400">
                           <Clock className="h-3.5 w-3.5" />
-                          Tarikh: <strong>{occ.dueDate}</strong>
+                          Date: <strong>{occ.dueDate}</strong>
                         </span>
                         {isCompleted && occ.inspectedDate && (
                           <span className="text-emerald-700">
-                            Diperiksa: {occ.inspectedDate}
+                            Inspected: {occ.inspectedDate}
                             {occ.completedById && (
-                              <> oleh {userMap.get(occ.completedById)?.name || occ.completedById}</>
+                              <> by {userMap.get(occ.completedById)?.name || occ.completedById}</>
                             )}
                           </span>
                         )}
@@ -1070,7 +1097,7 @@ export function PMWorkspace() {
                             : "bg-indigo-600 text-white hover:bg-indigo-700"
                         }`}
                       >
-                        {isCompleted ? "Lihat Rekod" : "Rekod Pemeriksaan"}
+                        {isCompleted ? "View Record" : "Record Inspection"}
                       </button>
                     </div>
                   </div>
@@ -1082,6 +1109,23 @@ export function PMWorkspace() {
       ) : view === "calendar" ? (
         /* Calendar Grid View */
         <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+          {/* Calendar top bar with Print Wall Calendar button */}
+          <div className="flex items-center justify-between border-b border-gray-100 bg-white px-4 py-2.5">
+            <span className="text-xs font-bold text-gray-700">
+              Monthly Schedule &bull; {MONTH_NAMES[cursor.getMonth()]} {cursor.getFullYear()}
+            </span>
+            <a
+              href={`/api/reminders/pm/export/calendar-pdf?year=${cursor.getFullYear()}&month=${cursor.getMonth() + 1}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100 shadow-xs"
+              title="Export A4 Landscape Calendar for Noticeboard"
+            >
+              <FileText className="h-3.5 w-3.5 text-indigo-600" />
+              Print Wall Calendar (PDF)
+            </a>
+          </div>
+
           {/* Day header */}
           <div className="grid grid-cols-7 border-b border-gray-100 bg-gray-50/50 text-center text-xs font-bold text-gray-500">
             {DAY_NAMES.map((name) => (
@@ -1162,84 +1206,94 @@ export function PMWorkspace() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-gray-900">
-              Jadual Berulang Aktif & Diarkibkan ({data?.schedules.length || 0})
+              Active &amp; Archived Recurring Schedules ({filteredSchedules.length})
             </h3>
             <button
               type="button"
               onClick={() => openScheduleModal(null)}
               className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-indigo-700"
             >
-              <Plus className="h-3.5 w-3.5" /> Jadual Baharu
+              <Plus className="h-3.5 w-3.5" /> New Schedule
             </button>
           </div>
 
-          <div className="grid gap-3">
-            {data?.schedules.map((sched) => {
-              const isArchived = Boolean(sched.archivedAt)
-              const assignedPics = sched.picIds
-                .map((id) => userMap.get(id)?.name || id)
-                .filter(Boolean)
+          {filteredSchedules.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-3xl border border-gray-100 bg-white p-12 text-center shadow-sm">
+              <Wrench className="h-10 w-10 text-gray-300" />
+              <p className="mt-3 text-sm font-bold text-gray-700">No recurring schedules match your search filters</p>
+              <p className="mt-1 text-xs text-gray-400">
+                Try clearing your search query or setting equipment and PIC filters to &quot;All&quot;.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              {filteredSchedules.map((sched) => {
+                const isArchived = Boolean(sched.archivedAt)
+                const assignedPics = sched.picIds
+                  .map((id) => userMap.get(id)?.name || id)
+                  .filter(Boolean)
 
-              return (
-                <div
-                  key={sched.id}
-                  className={`flex flex-col justify-between gap-3 rounded-2xl border p-4 shadow-sm sm:flex-row sm:items-center ${
-                    isArchived
-                      ? "border-gray-200 bg-gray-50 opacity-75"
-                      : "border-gray-100 bg-white"
-                  }`}
-                >
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-base font-bold text-gray-900">{sched.equipment}</span>
-                      {sched.srs && (
-                        <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                          SRS: {sched.srs}
+                return (
+                  <div
+                    key={sched.id}
+                    className={`flex flex-col justify-between gap-3 rounded-2xl border p-4 shadow-sm sm:flex-row sm:items-center ${
+                      isArchived
+                        ? "border-gray-200 bg-gray-50 opacity-75"
+                        : "border-gray-100 bg-white"
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-base font-bold text-gray-900">{sched.equipment}</span>
+                        {sched.srs && (
+                          <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                            SRS: {sched.srs}
+                          </span>
+                        )}
+                        <span className="rounded-lg bg-indigo-50 px-2 py-0.5 text-xs font-bold text-indigo-700">
+                          {ruleLabel(sched)}
                         </span>
-                      )}
-                      <span className="rounded-lg bg-indigo-50 px-2 py-0.5 text-xs font-bold text-indigo-700">
-                        {ruleLabel(sched)}
-                      </span>
-                      {isArchived && (
-                        <span className="rounded-lg bg-gray-200 px-2 py-0.5 text-xs font-bold text-gray-700">
-                          Diarkibkan
-                        </span>
+                        {isArchived && (
+                          <span className="rounded-lg bg-gray-200 px-2 py-0.5 text-xs font-bold text-gray-700">
+                            Archived
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600">
+                        <strong>Checklist:</strong> {sched.checklist.join(" · ")}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        <strong>PIC:</strong> {assignedPics.join(", ") || "None"} |{" "}
+                        <strong>Start:</strong> {sched.startDate} | <strong>Activated:</strong>{" "}
+                        {sched.activationDate}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {!isArchived && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => openScheduleModal(sched)}
+                            className="flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                          >
+                            <Edit2 className="h-3 w-3" /> Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleArchiveSchedule(sched)}
+                            className="flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100"
+                          >
+                            <Archive className="h-3 w-3" /> Archive
+                          </button>
+                        </>
                       )}
                     </div>
-                    <p className="text-xs text-gray-600">
-                      <strong>Checklist:</strong> {sched.checklist.join(" · ")}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      <strong>PIC:</strong> {assignedPics.join(", ") || "Tiada"} |{" "}
-                      <strong>Mula:</strong> {sched.startDate} | <strong>Aktif:</strong>{" "}
-                      {sched.activationDate}
-                    </p>
                   </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    {!isArchived && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => openScheduleModal(sched)}
-                          className="flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50"
-                        >
-                          <Edit2 className="h-3 w-3" /> Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleArchiveSchedule(sched)}
-                          className="flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100"
-                        >
-                          <Archive className="h-3 w-3" /> Arkib
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -1273,18 +1327,18 @@ export function PMWorkspace() {
             {/* Task Info Summary */}
             <div className="grid grid-cols-2 gap-3 rounded-2xl bg-gray-50 p-4 text-xs">
               <div>
-                <span className="text-gray-400 font-medium">Tarikh Jadual:</span>
+                <span className="text-gray-400 font-medium">Scheduled Date:</span>
                 <p className="font-bold text-gray-800">{selectedOccurrence.dueDate}</p>
               </div>
               <div>
-                <span className="text-gray-400 font-medium">Status Semasa:</span>
+                <span className="text-gray-400 font-medium">Current Status:</span>
                 <p className="font-bold text-gray-800">
                   {pmStatus(selectedOccurrence, data?.today || "")}
                 </p>
               </div>
               <div className="col-span-2 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-400 font-medium">PIC Ditugaskan:</span>
+                  <span className="text-gray-400 font-medium">Assigned PIC:</span>
                   {data?.canAssignPic && !selectedOccurrence.completedAt && (
                     <button
                       type="button"
@@ -1292,7 +1346,7 @@ export function PMWorkspace() {
                       className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
                     >
                       <UserCheck className="h-3.5 w-3.5" />
-                      {isEditingTaskPic ? "Tutup Pilihan" : "Tukar / Tetapkan PIC"}
+                      {isEditingTaskPic ? "Close Picker" : "Change / Assign PIC"}
                     </button>
                   )}
                 </div>
@@ -1303,14 +1357,14 @@ export function PMWorkspace() {
                       .map((id) => userMap.get(id)?.name || id)
                       .join(", ") || (
                         <span className="text-amber-700 font-semibold">
-                          Tiada PIC (Semua staf Reminders boleh rekod pemeriksaan)
+                          No PIC Assigned (All Reminders staff can inspect)
                         </span>
                       )}
                   </p>
                 ) : (
                   <div className="space-y-3 rounded-2xl border border-indigo-200 bg-white p-3.5 shadow-sm">
                     <p className="text-[11px] font-semibold text-gray-700">
-                      Pilih staf yang ditugaskan untuk melaksanakan pemeriksaan alatan ini:
+                      Select staff assigned to inspect this equipment:
                     </p>
                     <PICPicker
                       ids={taskPicIds}
@@ -1324,7 +1378,7 @@ export function PMWorkspace() {
                         onChange={(e) => setApplyToFutureSchedules(e.target.checked)}
                         className="mt-0.5 rounded border-gray-300 text-indigo-600"
                       />
-                      <span>Gunakan senarai PIC ini untuk jadual ulangan mesin ini pada masa akan datang</span>
+                      <span>Apply this PIC assignment to future recurring schedules of this equipment</span>
                     </label>
                     <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
                       <button
@@ -1334,7 +1388,7 @@ export function PMWorkspace() {
                         className="rounded-xl bg-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
                       >
                         {isSavingPic && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                        Simpan PIC
+                        Save PIC
                       </button>
                       <button
                         type="button"
@@ -1345,7 +1399,7 @@ export function PMWorkspace() {
                         }}
                         className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
                       >
-                        Batal
+                        Cancel
                       </button>
                     </div>
                   </div>
@@ -1357,7 +1411,7 @@ export function PMWorkspace() {
             {selectedOccurrence.completedAt && (
               <div>
                 <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">
-                  Arahan Kerja / Checklist Pemeriksaan
+                  Work Instructions / Inspection Checklist
                 </h4>
                 <ul className="space-y-1.5 rounded-2xl border border-gray-200 bg-white p-3.5 text-xs text-gray-700">
                   {selectedOccurrence.checklist.map((item, idx) => {
@@ -1393,7 +1447,7 @@ export function PMWorkspace() {
                       }`}
                     />
                     <h4 className="text-sm font-bold text-gray-900">
-                      Pemeriksaan Selesai Direkodkan
+                      Inspection Completed &amp; Recorded
                     </h4>
                   </div>
                   <span
@@ -1403,17 +1457,17 @@ export function PMWorkspace() {
                         : "bg-emerald-100 text-emerald-800"
                     }`}
                   >
-                    {selectedOccurrence.result === "ISSUE" ? "Ada Masalah" : "OK (Memuaskan)"}
+                    {selectedOccurrence.result === "ISSUE" ? "Issue Reported" : "Satisfactory (OK)"}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-xs text-gray-700">
                   <div>
-                    <span className="text-gray-500 font-medium">Tarikh Pemeriksaan:</span>
+                    <span className="text-gray-500 font-medium">Inspection Date:</span>
                     <p className="font-bold text-gray-900">{selectedOccurrence.inspectedDate || "-"}</p>
                   </div>
                   <div>
-                    <span className="text-gray-500 font-medium">Direkodkan Oleh:</span>
+                    <span className="text-gray-500 font-medium">Recorded By:</span>
                     <p className="font-bold text-gray-900">
                       {selectedOccurrence.completedById
                         ? userMap.get(selectedOccurrence.completedById)?.name ||
@@ -1423,7 +1477,7 @@ export function PMWorkspace() {
                   </div>
                   {selectedOccurrence.notes && (
                     <div className="col-span-2 pt-2 border-t border-emerald-100">
-                      <span className="text-gray-500 font-medium">Catatan:</span>
+                      <span className="text-gray-500 font-medium">Remarks:</span>
                       <p className="mt-0.5 text-gray-800 font-medium bg-white/70 p-2 rounded-lg border border-emerald-100">
                         {selectedOccurrence.notes}
                       </p>
@@ -1434,19 +1488,19 @@ export function PMWorkspace() {
                 {/* Checked By Signature Display */}
                 <div className="pt-3 border-t border-emerald-100">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 block mb-1.5">
-                    Tandatangan Pemeriksa (Checked By):
+                    Inspector Signature (Checked By):
                   </span>
                   {selectedOccurrence.performedSignature ? (
                     <div className="inline-block rounded-xl border border-gray-200 bg-white p-2 shadow-xs">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={selectedOccurrence.performedSignature}
-                        alt="Tandatangan Pemeriksa"
+                        alt="Inspector Signature"
                         className="h-16 max-w-full object-contain"
                       />
                     </div>
                   ) : (
-                    <span className="text-xs text-gray-400 italic">Tiada tandatangan direkodkan</span>
+                    <span className="text-xs text-gray-400 italic">No signature recorded</span>
                   )}
                 </div>
 
@@ -1454,15 +1508,15 @@ export function PMWorkspace() {
                 <div className="pt-3 border-t border-emerald-100">
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                      Pengesahan Penyelia (Verified By):
+                      Supervisor Verification (Verified By):
                     </span>
                     {selectedOccurrence.verifiedAt ? (
                       <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 flex items-center gap-1">
-                        <Check className="h-3 w-3" /> Disahkan
+                        <Check className="h-3 w-3" /> Verified
                       </span>
                     ) : (
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                        Menunggu Pengesahan
+                        Pending Verification
                       </span>
                     )}
                   </div>
@@ -1471,7 +1525,7 @@ export function PMWorkspace() {
                     <div className="space-y-2">
                       <div className="grid grid-cols-2 gap-2 text-xs text-gray-700">
                         <div>
-                          <span className="text-gray-500">Disahkan Oleh:</span>{" "}
+                          <span className="text-gray-500">Verified By:</span>{" "}
                           <strong>
                             {selectedOccurrence.verifiedById
                               ? userMap.get(selectedOccurrence.verifiedById)?.name ||
@@ -1480,9 +1534,9 @@ export function PMWorkspace() {
                           </strong>
                         </div>
                         <div>
-                          <span className="text-gray-500">Tarikh Pengesahan:</span>{" "}
+                          <span className="text-gray-500">Verification Date:</span>{" "}
                           <strong>
-                            {new Date(selectedOccurrence.verifiedAt).toLocaleDateString("ms-MY")}
+                            {new Date(selectedOccurrence.verifiedAt).toLocaleDateString("en-MY")}
                           </strong>
                         </div>
                       </div>
@@ -1491,7 +1545,7 @@ export function PMWorkspace() {
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={selectedOccurrence.verifiedSignature}
-                            alt="Tandatangan Penyelia"
+                            alt="Supervisor Signature"
                             className="h-16 max-w-full object-contain"
                           />
                         </div>
@@ -1499,12 +1553,12 @@ export function PMWorkspace() {
                     </div>
                   ) : (
                     <div className="flex items-center justify-between rounded-xl bg-amber-50/70 border border-amber-200 p-2.5 text-xs text-amber-800">
-                      <span>Pemeriksaan ini belum disahkan oleh Penyelia.</span>
+                      <span>This inspection has not yet been verified by a supervisor.</span>
                       <Link
                         href="/reminders/summary"
                         className="font-bold text-indigo-600 hover:text-indigo-800 underline ml-2 shrink-0"
                       >
-                        Buka Halaman Summary &rarr;
+                        Open Summary Page &rarr;
                       </Link>
                     </div>
                   )}
@@ -1523,7 +1577,7 @@ export function PMWorkspace() {
                 ) ? (
                   <div className="space-y-4 rounded-2xl border border-indigo-100 bg-indigo-50/30 p-4">
                     <h4 className="text-sm font-bold text-gray-900">
-                      Borang Rekod Pemeriksaan
+                      Inspection Record Form
                     </h4>
 
                     {completionError && (
@@ -1539,14 +1593,14 @@ export function PMWorkspace() {
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
                         <label className="text-xs font-bold text-gray-700">
-                          Arahan Kerja / Checklist Pemeriksaan *
+                          Work Instructions / Inspection Checklist *
                         </label>
                         <button
                           type="button"
                           onClick={() => setCompletedChecklist([...selectedOccurrence.checklist])}
                           className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 hover:underline"
                         >
-                          Tandakan Semua Selesai
+                          Mark All Completed
                         </button>
                       </div>
                       <div className="space-y-1.5 rounded-2xl border border-gray-200 bg-white p-3 text-xs text-gray-700 max-h-56 overflow-y-auto">
@@ -1582,15 +1636,15 @@ export function PMWorkspace() {
                       </div>
                       <div className="mt-1 flex items-center justify-between text-[11px] text-gray-500">
                         <span>
-                          {completedChecklist.length} daripada {selectedOccurrence.checklist.length} item ditandakan
+                          {completedChecklist.length} of {selectedOccurrence.checklist.length} items checked
                         </span>
                         {completedChecklist.length === selectedOccurrence.checklist.length ? (
                           <span className="text-emerald-600 font-semibold flex items-center gap-1">
-                            <Check className="h-3 w-3" /> Semua selesai
+                            <Check className="h-3 w-3" /> All completed
                           </span>
                         ) : (
                           <span className="text-amber-600 font-medium">
-                            {selectedOccurrence.checklist.length - completedChecklist.length} item belum selesai
+                            {selectedOccurrence.checklist.length - completedChecklist.length} items remaining
                           </span>
                         )}
                       </div>
@@ -1599,7 +1653,7 @@ export function PMWorkspace() {
                     {/* Result buttons: OK vs Ada Masalah */}
                     <div>
                       <label className="block mb-1.5 text-xs font-bold text-gray-700">
-                        Keputusan Pemeriksaan *
+                        Inspection Result *
                       </label>
                       <div className="grid grid-cols-2 gap-2">
                         <button
@@ -1611,7 +1665,7 @@ export function PMWorkspace() {
                               : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
                           }`}
                         >
-                          <CheckCircle2 className="h-4 w-4" /> OK (Tiada Masalah)
+                          <CheckCircle2 className="h-4 w-4" /> Satisfactory (OK)
                         </button>
                         <button
                           type="button"
@@ -1622,7 +1676,7 @@ export function PMWorkspace() {
                               : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
                           }`}
                         >
-                          <AlertTriangle className="h-4 w-4" /> Ada Masalah
+                          <AlertTriangle className="h-4 w-4" /> Issue Reported
                         </button>
                       </div>
                     </div>
@@ -1630,7 +1684,7 @@ export function PMWorkspace() {
                     {/* Inspected Date */}
                     <div>
                       <label className="block mb-1 text-xs font-bold text-gray-700">
-                        Tarikh Pemeriksaan *
+                        Inspection Date *
                       </label>
                       <input
                         type="date"
@@ -1645,11 +1699,11 @@ export function PMWorkspace() {
                     {/* Notes textarea */}
                     <div>
                       <label className="block mb-1 text-xs font-bold text-gray-700">
-                        Catatan Pemeriksaan{" "}
+                        Inspection Remarks{" "}
                         {completionResult === "ISSUE" ? (
-                          <span className="text-red-600 font-bold">* (Wajib diisi)</span>
+                          <span className="text-red-600 font-bold">* (Required)</span>
                         ) : (
-                          <span className="text-gray-400">(Pilihan)</span>
+                          <span className="text-gray-400">(Optional)</span>
                         )}
                       </label>
                       <textarea
@@ -1659,8 +1713,8 @@ export function PMWorkspace() {
                         onChange={(e) => setCompletionNotes(e.target.value)}
                         placeholder={
                           completionResult === "ISSUE"
-                            ? "Sila nyatakan kerosakan atau masalah yang dijumpai..."
-                            : "Catatan tambahan jika ada..."
+                            ? "Please describe the defect or issue observed..."
+                            : "Additional remarks if any..."
                         }
                         className={fieldClass}
                       />
@@ -1669,7 +1723,7 @@ export function PMWorkspace() {
                     {/* Checked By Signature Pad */}
                     <div className="pt-2 border-t border-indigo-100">
                       <SignaturePadClient
-                        label="Tandatangan Pemeriksa (Checked By) *"
+                        label="Inspector Signature (Checked By) *"
                         autoLoadSaved={true}
                         savedSignatureUrl={performedSignature}
                         onSave={(sig) => setPerformedSignature(sig)}
@@ -1684,18 +1738,18 @@ export function PMWorkspace() {
                     >
                       {submitting ? (
                         <>
-                          <Loader2 className="h-4 w-4 animate-spin" /> Menyimpan…
+                          <Loader2 className="h-4 w-4 animate-spin" /> Saving…
                         </>
                       ) : (
-                        "Sahkan & Rekod Pemeriksaan"
+                        "Confirm & Record Inspection"
                       )}
                     </button>
                   </div>
                 ) : (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
-                    <p className="font-bold">Akses Terhad</p>
+                    <p className="font-bold">Restricted Access</p>
                     <p className="mt-0.5">
-                      Hanya PIC yang ditugaskan atau Superadmin dibenarkan merekod pemeriksaan untuk tugasan ini.
+                      Only assigned PICs or administrators are authorized to record inspections for this task.
                     </p>
                   </div>
                 )}
@@ -1708,14 +1762,14 @@ export function PMWorkspace() {
               <div className="pt-3 border-t border-gray-200/80 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-black uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
-                    <Zap className="h-3.5 w-3.5 text-amber-500" /> Kawalan Khas SuperAdmin
+                    <Zap className="h-3.5 w-3.5 text-amber-500" /> SuperAdmin Controls
                   </span>
                   <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md text-[10px] font-bold">
-                    Simulasi Task Sebenar
+                    Live Task Simulation
                   </span>
                 </div>
                 <p className="text-[11px] text-gray-500">
-                  Hantar emel notifikasi, jemputan Google Calendar (.ics), dan siarkan mesej interaktif ke Telegram Bot bagi tugasan pemeriksaan <strong>{selectedOccurrence.equipment}</strong> ini.
+                  Send email notification, Google Calendar invite (.ics), and broadcast interactive message to Telegram Bot for this <strong>{selectedOccurrence.equipment}</strong> inspection task.
                 </p>
                 <button
                   type="button"
@@ -1725,11 +1779,11 @@ export function PMWorkspace() {
                 >
                   {isSimulating ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" /> Menghantar Simulasi (Emel, Kalendar &amp; Telegram)…
+                      <Loader2 className="h-4 w-4 animate-spin" /> Sending Simulation (Email, Calendar &amp; Telegram)…
                     </>
                   ) : (
                     <>
-                      <Send className="h-4 w-4" /> 🧪 Uji Simulasi Peringatan (Emel + Kalendar + Telegram Bot)
+                      <Send className="h-4 w-4" /> 🧪 Test Reminder Simulation (Email + Calendar + Telegram Bot)
                     </>
                   )}
                 </button>
@@ -1761,10 +1815,10 @@ export function PMWorkspace() {
             <div className="flex items-start justify-between gap-3 border-b pb-4">
               <div>
                 <h3 className="text-xl font-black text-gray-900">
-                  {scheduleModal.schedule ? "Edit Jadual PM" : "Cipta Jadual PM Baharu"}
+                  {scheduleModal.schedule ? "Edit PM Schedule" : "Create New PM Schedule"}
                 </h3>
                 <p className="text-xs text-gray-500">
-                  Pengubahsuaian jadual hanya akan mempengaruhi ulangan masa hadapan yang belum selesai.
+                  Modifications will only affect future pending occurrences. Historical records remain preserved.
                 </p>
               </div>
               <button
@@ -1794,7 +1848,7 @@ export function PMWorkspace() {
             {!scheduleModal.schedule && (
               <div>
                 <label className="block mb-1 text-sm font-medium">
-                  Tarikh Pengaktifan Jadual
+                  Schedule Activation Date
                 </label>
                 <input
                   type="date"
@@ -1812,7 +1866,7 @@ export function PMWorkspace() {
                 onClick={() => setScheduleModal({ open: false, schedule: null })}
                 className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50"
               >
-                Batal
+                Cancel
               </button>
               <button
                 type="button"
@@ -1820,7 +1874,7 @@ export function PMWorkspace() {
                 onClick={handleSaveSchedule}
                 className={buttonClass}
               >
-                {savingSchedule ? "Menyimpan…" : "Simpan Jadual"}
+                {savingSchedule ? "Saving…" : "Save Schedule"}
               </button>
             </div>
           </div>

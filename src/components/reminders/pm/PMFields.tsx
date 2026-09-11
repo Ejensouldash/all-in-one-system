@@ -25,7 +25,7 @@ export function PICPicker({ ids, users, onChange }: { ids: string[]; users: PMUs
           />
           <span>
             {user.name} <span className="text-xs text-slate-500">{user.email}</span>
-            {!user.eligible && " — Tiada akses Reminders"}
+            {!user.eligible && " — No Reminders access"}
           </span>
         </label>
       ))}
@@ -66,7 +66,7 @@ export function PMFields({
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <label className="text-sm font-medium">
-        Equipment
+        Equipment Name
         <input
           required
           maxLength={200}
@@ -77,7 +77,7 @@ export function PMFields({
       </label>
 
       <label className="text-sm font-medium">
-        SRS (pilihan)
+        SRS Number (Optional)
         <input
           maxLength={120}
           className={fieldClass}
@@ -87,7 +87,7 @@ export function PMFields({
       </label>
 
       <label className="text-sm font-medium">
-        Tarikh mula ulangan
+        Recurrence Start Date
         <input
           required
           type="date"
@@ -98,7 +98,7 @@ export function PMFields({
       </label>
 
       <label className="text-sm font-medium">
-        Kekerapan
+        Frequency
         <select
           className={fieldClass}
           value={`${value.intervalUnit}:${value.intervalCount}`}
@@ -107,12 +107,12 @@ export function PMFields({
             onChange({ ...value, intervalUnit, intervalCount: Number(count) })
           }}
         >
-          <option value="DAY:14">2 minggu</option>
-          <option value="MONTH:1">Bulanan</option>
-          <option value="MONTH:2">2 bulan</option>
-          <option value="MONTH:3">3 bulan</option>
-          <option value="MONTH:6">6 bulan</option>
-          <option value="MONTH:12">Tahunan</option>
+          <option value="DAY:14">2 weeks</option>
+          <option value="MONTH:1">Monthly</option>
+          <option value="MONTH:2">2 months</option>
+          <option value="MONTH:3">3 months</option>
+          <option value="MONTH:6">6 months</option>
+          <option value="MONTH:12">Yearly</option>
         </select>
       </label>
 
@@ -120,14 +120,14 @@ export function PMFields({
       <div className="sm:col-span-2 space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-sm font-medium text-slate-900">
-            Senarai Arahan Kerja / Checklist SOP
+            SOP Checklist / Task Items
           </label>
           <button
             type="button"
             onClick={addItem}
             className="flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800"
           >
-            <Plus className="h-3.5 w-3.5" /> Tambah Arahan Kerja
+            <Plus className="h-3.5 w-3.5" /> Add Task Item
           </button>
         </div>
 
@@ -141,7 +141,7 @@ export function PMFields({
                 type="text"
                 required
                 maxLength={500}
-                placeholder={`Arahan kerja ${index + 1} (cth: Check Engine Oil & Filter)`}
+                placeholder={`Task item ${index + 1} (e.g. Check Engine Oil & Filter)`}
                 className={fieldClass}
                 value={item}
                 onChange={(e) => updateItem(index, e.target.value)}
@@ -149,7 +149,7 @@ export function PMFields({
               <button
                 type="button"
                 onClick={() => removeItem(index)}
-                title="Padam arahan ini"
+                title="Delete this task item"
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:border-red-200 hover:bg-red-50 hover:text-red-600 transition"
               >
                 <Trash2 className="h-4 w-4" />
@@ -160,7 +160,7 @@ export function PMFields({
       </div>
 
       <div className="sm:col-span-2">
-        <p className="mb-1 text-sm font-medium">PIC tetap — pilih akaun AIO secara jelas (pilihan)</p>
+        <p className="mb-1 text-sm font-medium">Assigned PIC (Notification Recipients) — Optional</p>
         <PICPicker ids={value.picIds} users={users} onChange={(picIds) => onChange({ ...value, picIds })} />
       </div>
     </div>

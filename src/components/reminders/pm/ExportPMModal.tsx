@@ -94,12 +94,12 @@ export function ExportPMModal({
       const res = await fetch(url)
       if (!res.ok) {
         const json = await res.json().catch(() => null)
-        throw new Error(json?.error || `Gagal menjana fail ${format.toUpperCase()}.`)
+        throw new Error(json?.error || `Failed to generate ${format.toUpperCase()} file.`)
       }
 
       const blob = await res.blob()
       const disposition = res.headers.get("Content-Disposition")
-      let filename = `SGMP03_${mode}_${fromDate}_ke_${toDate}.${format === "pdf" ? "pdf" : "xlsx"}`
+      let filename = `SGMP03_${mode}_${fromDate}_to_${toDate}.${format === "pdf" ? "pdf" : "xlsx"}`
       if (disposition && disposition.includes("filename=")) {
         const match = disposition.match(/filename="?([^"]+)"?/)
         if (match && match[1]) filename = match[1]
@@ -114,11 +114,11 @@ export function ExportPMModal({
       window.URL.revokeObjectURL(blobUrl)
       document.body.removeChild(a)
 
-      onSuccess?.(`Fail ${format.toUpperCase()} (${mode === "AUDITOR" ? "Audit Luaran" : "Dalaman"}) berjaya dimuat turun.`)
+      onSuccess?.(`${format.toUpperCase()} file (${mode === "AUDITOR" ? "External Audit" : "Internal"}) successfully downloaded.`)
       onClose()
     } catch (err: unknown) {
       console.error("Export download error:", err)
-      onError?.(err instanceof Error ? err.message : "Ralat tidak dijangka semasa memuat turun fail.")
+      onError?.(err instanceof Error ? err.message : "An unexpected error occurred while downloading file.")
     } finally {
       setDownloading(false)
     }
@@ -139,10 +139,10 @@ export function ExportPMModal({
             </div>
             <div>
               <h3 className="text-lg font-black text-gray-900">
-                Eksport Laporan SGMP-03 ({format.toUpperCase()})
+                Export SGMP-03 Report ({format.toUpperCase()})
               </h3>
               <p className="text-xs text-gray-500">
-                Pilih jenis laporan, tempoh masa, dan penapis kerahsiaan auditor.
+                Select report target, date range, and auditor privacy filters.
               </p>
             </div>
           </div>
@@ -158,7 +158,7 @@ export function ExportPMModal({
         {/* Format Switcher */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">
-            Format Fail
+            File Format
           </label>
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -170,7 +170,7 @@ export function ExportPMModal({
                   : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
               }`}
             >
-              <FileText className="h-4 w-4" /> PDF (Laporan Rasmi & Sijil)
+              <FileText className="h-4 w-4" /> PDF (Official Report & Certification)
             </button>
             <button
               type="button"
@@ -181,7 +181,7 @@ export function ExportPMModal({
                   : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
               }`}
             >
-              <FileSpreadsheet className="h-4 w-4" /> Excel (Jadual & Log 4-Tab)
+              <FileSpreadsheet className="h-4 w-4" /> Excel (4-Tab Schedule & Logs)
             </button>
           </div>
         </div>
@@ -189,7 +189,7 @@ export function ExportPMModal({
         {/* Mode Selector: Internal vs Auditor */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">
-            Sasaran Laporan (Target Audience) *
+            Report Target Audience *
           </label>
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -203,10 +203,10 @@ export function ExportPMModal({
             >
               <div className="flex items-center gap-1.5 font-bold text-xs text-emerald-800 mb-0.5">
                 <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-                Laporan Auditor (Luaran)
+                External Auditor Report
               </div>
               <p className="text-[11px] text-gray-500 leading-tight">
-                Disusun khas untuk semakan audit kualiti GMP dengan penapisan isu sensitif.
+                Structured for GMP quality audits with sensitive internal remarks filtered.
               </p>
             </button>
 
@@ -221,10 +221,10 @@ export function ExportPMModal({
             >
               <div className="flex items-center gap-1.5 font-bold text-xs text-indigo-800 mb-0.5">
                 <Building2 className="h-4 w-4 text-indigo-600 shrink-0" />
-                Laporan Dalaman (Penuh)
+                Internal Management Report (Full)
               </div>
               <p className="text-[11px] text-gray-500 leading-tight">
-                Semua catatan kerosakan dalaman, log tertunggak dan rekod dipaparkan tanpa sekatan.
+                All internal breakdown notes, overdue logs, and technical records displayed without restriction.
               </p>
             </button>
           </div>
@@ -235,9 +235,9 @@ export function ExportPMModal({
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-3.5 space-y-2.5">
             <div className="flex items-center justify-between text-xs font-bold text-emerald-800">
               <span className="flex items-center gap-1.5">
-                <SlidersHorizontal className="h-3.5 w-3.5" /> Pilihan Penapisan Auditor
+                <SlidersHorizontal className="h-3.5 w-3.5" /> Auditor Filter Options
               </span>
-              <span className="text-[10px] font-normal text-emerald-600">Boleh diubahsuai</span>
+              <span className="text-[10px] font-normal text-emerald-600">Customizable</span>
             </div>
 
             <div className="space-y-2 text-xs text-gray-700">
@@ -248,7 +248,7 @@ export function ExportPMModal({
                   onChange={(e) => setHideInternalNotes(e.target.checked)}
                   className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                 />
-                <span>Sembunyikan catatan kerosakan dalaman / ulasan teknikal sensitif</span>
+                <span>Hide internal failure notes / sensitive technical remarks</span>
               </label>
 
               <label className="flex items-center gap-2 cursor-pointer">
@@ -258,7 +258,7 @@ export function ExportPMModal({
                   onChange={(e) => setHideOverduePending(e.target.checked)}
                   className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                 />
-                <span>Sembunyikan tugasan tertunggak (Hanya paparkan rekod patuh / selesai)</span>
+                <span>Hide overdue tasks (Only show compliant / completed records)</span>
               </label>
 
               <label className="flex items-center gap-2 cursor-pointer">
@@ -268,7 +268,7 @@ export function ExportPMModal({
                   onChange={(e) => setHidePersonalContact(e.target.checked)}
                   className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                 />
-                <span>Sembunyikan nama peribadi staf (Gunakan gelaran rasmi jawatan)</span>
+                <span>Hide personal staff names (Use official designations)</span>
               </label>
 
               <label className="flex items-center gap-2 cursor-pointer">
@@ -278,7 +278,7 @@ export function ExportPMModal({
                   onChange={(e) => setHideSignatures(e.target.checked)}
                   className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                 />
-                <span>Sembunyikan imej tandatangan (Gunakan status bertaip sahaja)</span>
+                <span>Hide signature images (Use typed status only)</span>
               </label>
             </div>
           </div>
@@ -287,7 +287,7 @@ export function ExportPMModal({
         {/* Date Range Presets */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">
-            Tempoh Tarikh Laporan
+            Report Date Range
           </label>
           <div className="flex gap-1.5 mb-2">
             <button
@@ -299,7 +299,7 @@ export function ExportPMModal({
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              Bulan Ini
+              This Month
             </button>
             <button
               type="button"
@@ -310,24 +310,24 @@ export function ExportPMModal({
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              Tahun Ini ({currentYear})
+              This Year ({currentYear})
             </button>
             <button
               type="button"
-              onClick={() => setRangePreset("custom")}
+              onClick={() => applyPreset("custom")}
               className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
                 rangePreset === "custom"
                   ? "bg-indigo-600 text-white shadow-xs"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              Pilihan Bebas
+              Custom Range
             </button>
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
-              <span className="text-gray-400 font-medium block mb-1">Dari:</span>
+              <span className="text-gray-400 font-medium block mb-1">From:</span>
               <input
                 type="date"
                 value={fromDate}
@@ -339,7 +339,7 @@ export function ExportPMModal({
               />
             </div>
             <div>
-              <span className="text-gray-400 font-medium block mb-1">Hingga:</span>
+              <span className="text-gray-400 font-medium block mb-1">To:</span>
               <input
                 type="date"
                 value={toDate}
@@ -360,7 +360,7 @@ export function ExportPMModal({
             onClick={onClose}
             className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
           >
-            Batal
+            Cancel
           </button>
           <button
             type="button"
@@ -374,12 +374,12 @@ export function ExportPMModal({
           >
             {downloading ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Menjana & Memuat Turun…
+                <Loader2 className="h-4 w-4 animate-spin" /> Generating & Downloading…
               </>
             ) : (
               <>
                 {format === "pdf" ? <FileText className="h-4 w-4" /> : <FileSpreadsheet className="h-4 w-4" />}
-                Jana {format.toUpperCase()} ({mode === "AUDITOR" ? "Auditor" : "Dalaman"})
+                Generate {format.toUpperCase()} ({mode === "AUDITOR" ? "Auditor" : "Internal"})
               </>
             )}
           </button>

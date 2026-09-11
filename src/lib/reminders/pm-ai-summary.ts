@@ -34,16 +34,16 @@ export function buildRuleBasedPMSummary(input: PMExecutiveSummaryInput): string 
 
   const complianceStatus =
     complianceRate >= 95
-      ? "Cemerlang (Tahap Pematuhan Tinggi)"
+      ? "Excellent (High Compliance)"
       : complianceRate >= 80
-      ? "Memuaskan (Memenuhi Piawaian Asas)"
-      : "Perlu Penambahbaikan Segera"
+      ? "Satisfactory (Meets Baseline Standard)"
+      : "Requires Immediate Corrective Action"
 
   if (isAuditorMode) {
-    return `Laporan Penyelenggaraan Pencegahan (SGMP-03) bagi tempoh ${from} hingga ${to} merekodkan sejumlah ${totalTasks} tugasan berjadual merangkumi ${equipmentCount} unit alatan utama di fasiliti pemprosesan. Sebanyak ${completedTasks} pemeriksaan telah disempurnakan dan diverifikasi mengikut prosedur operasi standard (SOP) dengan kadar pematuhan keseluruhan ${complianceRate.toFixed(1)}% (${complianceStatus}). Semua alatan kritikal telah diselenggara mengikut frekuensi jadual yang ditetapkan bagi memastikan pematuhan berterusan terhadap piawaian GMP dan keselamatan kualiti.`
+    return `The Preventive Maintenance (SGMP-03) Report for the period ${from} to ${to} records a total of ${totalTasks} scheduled maintenance tasks across ${equipmentCount} core processing equipment units. A total of ${completedTasks} inspections were executed and verified in accordance with standard operating procedures (SOP), achieving an overall compliance rate of ${complianceRate.toFixed(1)}% (${complianceStatus}). All critical machinery was serviced according to designated intervals to ensure ongoing adherence to Good Manufacturing Practice (GMP) standards and product safety assurance.`
   }
 
-  return `Laporan Pengurusan Fasiliti & Penyelenggaraan Pencegahan SGMP-03 bagi tempoh ${from} hingga ${to} merekodkan ${totalTasks} aktiviti penyelenggaraan merentasi ${equipmentCount} unit mesin. Status pelaksanaan semasa mencatatkan ${completedTasks} tugasan selesai OK, manakala ${issueTasks} tugasan memerlukan tindakan susulan kerosakan/alat ganti, dan ${overdueTasks} tugasan berada dalam status tertunggak. Kadar pematuhan audit semasa adalah ${complianceRate.toFixed(1)}% (${complianceStatus}). Pengawasan berterusan dan tindakan pembetulan (CAPA) sedang dilaksanakan oleh pasukan teknikal untuk memastikan kesiapsiagaan operasi optimum.`
+  return `The Facility & Preventive Maintenance Management Report (SGMP-03) for the period ${from} to ${to} records ${totalTasks} maintenance activities across ${equipmentCount} processing machines. The current execution status shows ${completedTasks} tasks completed OK, ${issueTasks} tasks requiring technical followup or spare parts replacement, and ${overdueTasks} tasks currently overdue. The current audit compliance rate is ${complianceRate.toFixed(1)}% (${complianceStatus}). Technical personnel are conducting routine surveillance and Corrective and Preventive Actions (CAPA) to sustain optimal operational readiness.`
 }
 
 /**
@@ -57,27 +57,27 @@ export async function generatePMExecutiveSummaryAI(input: PMExecutiveSummaryInpu
   }
 
   const prompt = `
-Anda adalah Juruaudit Kualiti & Pengurus Fasiliti Teknikal Kanan bagi kilang pembotolan air mineral semulajadi BubblesO2 Sdn. Bhd.
-Tuliskan "Executive Summary" (Rumusan Eksekutif) rasmi dan profesional dalam Bahasa Melayu untuk dilampirkan dalam Laporan Penyelenggaraan Pencegahan (SGMP-03).
+You are a Senior Quality Auditor and Technical Facility Manager for the BubblesO2 Sdn. Bhd. natural mineral water bottling facility.
+Write an official, authoritative, and professional "Executive Summary" in English to be included in the Preventive Maintenance Report (SGMP-03).
 
-Data Metrik Penyelenggaraan:
-- Tempoh Audit: ${input.from} hingga ${input.to}
-- Jumlah Alatan Utama: ${input.equipmentCount} unit
-- Jumlah Tugasan Berjadual: ${input.totalTasks}
-- Tugasan Selesai (OK): ${input.completedTasks}
-- Tugasan Ada Isu / Kerosakan: ${input.issueTasks}
-- Tugasan Tertunggak (Overdue): ${input.overdueTasks}
-- Tugasan Belum Matang / Akan Datang: ${input.pendingTasks}
-- Kadar Pematuhan Audit: ${input.complianceRate.toFixed(1)}%
-- Mod Laporan: ${input.isAuditorMode ? "AUDIT LUARAN (Auditor Mode)" : "PENGURUSAN DALAMAN (Internal Mode)"}
-${input.issuesSummary && input.issuesSummary.length > 0 ? `- Ringkasan Isu Teknikal: ${input.issuesSummary.slice(0, 5).join("; ")}` : ""}
+Maintenance Metric Data:
+- Audit Period: ${input.from} to ${input.to}
+- Total Core Equipment: ${input.equipmentCount} units
+- Total Scheduled Tasks: ${input.totalTasks}
+- Completed Tasks (OK): ${input.completedTasks}
+- Tasks with Issues: ${input.issueTasks}
+- Overdue Tasks: ${input.overdueTasks}
+- Upcoming / Planned Tasks: ${input.pendingTasks}
+- Audit Compliance Rate: ${input.complianceRate.toFixed(1)}%
+- Report Mode: ${input.isAuditorMode ? "EXTERNAL AUDITOR (Auditor Mode)" : "INTERNAL MANAGEMENT (Internal Mode)"}
+${input.issuesSummary && input.issuesSummary.length > 0 ? `- Technical Issues Summary: ${input.issuesSummary.slice(0, 5).join("; ")}` : ""}
 
-Panduan Gaya Penulisan:
-1. Tulis dalam 2 atau 3 perenggan yang padat, berwibawa, dan bernada korporat formal (Standard GMP & ISO 9001).
-2. Perenggan 1: Gambaran keseluruhan pelaksanaan jadual SGMP-03 dan pencapaian kadar pematuhan.
-3. Perenggan 2: Analisis kesiapsiagaan alatan dan penekanan kawalan kualiti / pencegahan kerosakan mesin.
-4. ${input.isAuditorMode ? "Dalam Mod Audit Luaran: Tekankan bahawa integriti alatan, sanitasi, dan keselamatan proses sentiasa dikawal selia mengikut spesifikasi kawalan kualiti GMP tanpa menyebut isu dalaman remeh." : "Dalam Mod Pengurusan Dalaman: Nyatakan keperluan tindakan susulan bagi sebarang alatan yang mencatatkan isu teknikal atau kelewatan."}
-5. Jangan gunakan markdown tajuk (#), gunakan teks biasa dengan perenggan yang bersih.
+Style Guidelines:
+1. Write in 2 or 3 concise, authoritative paragraphs adhering to GMP and ISO 9001 quality audit standards.
+2. Paragraph 1: Overview of SGMP-03 schedule execution and compliance rate performance.
+3. Paragraph 2: Equipment readiness analysis, emphasizing quality control and breakdown prevention.
+4. ${input.isAuditorMode ? "In External Auditor Mode: Emphasize that equipment integrity, hygiene, and process safety remain thoroughly controlled per GMP standards without disclosing trivial internal notes." : "In Internal Management Mode: Outline necessary corrective actions (CAPA) for items with technical issues or delays."}
+5. Do not use markdown headers (#), use plain paragraphs with clean text.
 `
 
   try {

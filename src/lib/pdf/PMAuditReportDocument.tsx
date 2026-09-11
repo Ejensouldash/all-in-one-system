@@ -70,7 +70,7 @@ const C = {
   badSoft: "#fee2e2",
 }
 
-const MONTH_NAMES_SHORT = ["Jan", "Feb", "Mac", "Apr", "Mei", "Jun", "Jul", "Ogo", "Sep", "Okt", "Nov", "Dis"]
+const MONTH_NAMES_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 const s = StyleSheet.create({
   page: {
@@ -572,16 +572,16 @@ export function PMAuditReportDocument(props: PMAuditReportPayload) {
   const isAuditor = mode === "AUDITOR"
 
   return (
-    <Document title={`Laporan Audit PM SGMP-03 (${mode})`} author="Bubbles O2 Sdn Bhd">
+    <Document title={`PM SGMP-03 Audit Report (${mode})`} author="Bubbles O2 Sdn Bhd">
       {/* ============================================================ */}
-      {/* PAGE 1: Muka Hadapan & Executive Summary & TOC               */}
+      {/* PAGE 1: Cover Page, Executive Summary & TOC                  */}
       {/* ============================================================ */}
       <Page size="A4" style={s.page}>
         {/* Header Runner */}
         <View style={s.runHeader} fixed>
-          <Text style={s.runHeaderText}>BUBBLES O2 SDN. BHD. · FASILITI PEMPROSESAN SGMP-03</Text>
+          <Text style={s.runHeaderText}>BUBBLES O2 SDN. BHD. · SGMP-03 PROCESSING FACILITY</Text>
           <Text style={s.runHeaderText}>
-            {docRef} · MOD: {isAuditor ? "AUDIT LUARAN" : "DALAMAN"}
+            {docRef} · MODE: {isAuditor ? "EXTERNAL AUDIT" : "INTERNAL"}
           </Text>
         </View>
 
@@ -598,7 +598,7 @@ export function PMAuditReportDocument(props: PMAuditReportPayload) {
             <Text style={s.companyAddress}>
               Kompleks Al-Ammar, Kampung Kanchong, 71200 Rantau, Negeri Sembilan, Malaysia.
             </Text>
-            <Text style={s.companyAddress}>Sistem Pengurusan Keselamatan Kualiti & Penyelenggaraan GMP</Text>
+            <Text style={s.companyAddress}>Quality Safety & GMP Maintenance Management System</Text>
           </View>
 
           <View style={s.docControlBox}>
@@ -624,37 +624,37 @@ export function PMAuditReportDocument(props: PMAuditReportPayload) {
                 isAuditor ? s.modeBadgeAuditor : s.modeBadgeInternal,
               ]}
             >
-              {isAuditor ? "LAPORAN AUDITOR (TERPILIH)" : "LAPORAN DALAMAN PENUH"}
+              {isAuditor ? "AUDITOR REPORT (FILTERED)" : "FULL INTERNAL REPORT"}
             </Text>
           </View>
         </View>
 
         {/* Title Banner */}
         <View style={s.titleBanner}>
-          <Text style={s.docTitle}>LAPORAN AUDIT PENYELENGGARAAN PENCEGAHAN</Text>
+          <Text style={s.docTitle}>PREVENTIVE MAINTENANCE AUDIT REPORT</Text>
           <Text style={s.docSubtitle}>
-            PREVENTIVE MAINTENANCE SCHEDULE (SGMP-03) & VERIFIKASI PEMATUHAN GMP
+            PREVENTIVE MAINTENANCE SCHEDULE (SGMP-03) & GMP COMPLIANCE VERIFICATION
           </Text>
         </View>
 
         {/* Metadata Strip */}
         <View style={s.metaRow}>
           <View style={s.metaItem}>
-            <Text style={s.metaKey}>Tempoh Audit</Text>
+            <Text style={s.metaKey}>Audit Period</Text>
             <Text style={s.metaVal}>
-              {from} hingga {to}
+              {from} to {to}
             </Text>
           </View>
           <View style={s.metaItem}>
-            <Text style={s.metaKey}>Disediakan Oleh</Text>
+            <Text style={s.metaKey}>Prepared By</Text>
             <Text style={s.metaVal}>{preparedBy}</Text>
           </View>
           <View style={s.metaItem}>
-            <Text style={s.metaKey}>Tarikh & Masa Jana</Text>
+            <Text style={s.metaKey}>Generated Timestamp</Text>
             <Text style={s.metaVal}>{generatedAt}</Text>
           </View>
           <View style={s.metaItem}>
-            <Text style={s.metaKey}>Kadar Pematuhan</Text>
+            <Text style={s.metaKey}>Compliance Rate</Text>
             <Text
               style={[
                 s.metaVal,
@@ -668,38 +668,38 @@ export function PMAuditReportDocument(props: PMAuditReportPayload) {
 
         {/* Table of Contents */}
         <View style={s.tocBox}>
-          <Text style={s.tocTitle}>Isi Kandungan Laporan (Table of Contents)</Text>
+          <Text style={s.tocTitle}>Table of Contents</Text>
           <View style={s.tocRow}>
-            <Text style={s.tocItem}>1.0 Rumusan Eksekutif & Metrik KPI Pematuhan</Text>
+            <Text style={s.tocItem}>1.0 Executive Summary & Compliance KPI Metrics</Text>
             <Text style={s.tocDots}>...................................................................................................................</Text>
-            <Text style={s.tocPage}>Muka Surat 1</Text>
+            <Text style={s.tocPage}>Page 1</Text>
           </View>
           <View style={s.tocRow}>
-            <Text style={s.tocItem}>2.0 Matriks Jadual Penyelenggaraan Tahunan (Januari – Disember)</Text>
+            <Text style={s.tocItem}>2.0 Annual Maintenance Schedule Matrix (January – December)</Text>
             <Text style={s.tocDots}>...................................................................................................................</Text>
-            <Text style={s.tocPage}>Muka Surat 2</Text>
+            <Text style={s.tocPage}>Page 2</Text>
           </View>
           <View style={s.tocRow}>
-            <Text style={s.tocItem}>3.0 Log Terperinci Pemeriksaan & Senarai Semak Arahan Kerja</Text>
+            <Text style={s.tocItem}>3.0 Detailed Inspection Log & SOP Task Checklist</Text>
             <Text style={s.tocDots}>...................................................................................................................</Text>
-            <Text style={s.tocPage}>Muka Surat 3</Text>
+            <Text style={s.tocPage}>Page 3</Text>
           </View>
           <View style={s.tocRow}>
-            <Text style={s.tocItem}>4.0 Helaian Pengesahan & Perakuan Audit (Checked By & Verified By)</Text>
+            <Text style={s.tocItem}>4.0 Verification & Audit Sign-off (Checked By & Verified By)</Text>
             <Text style={s.tocDots}>...................................................................................................................</Text>
-            <Text style={s.tocPage}>Muka Surat Akhir</Text>
+            <Text style={s.tocPage}>Final Page</Text>
           </View>
         </View>
 
         {/* Executive Summary Section (AI / Engine Generated) */}
         <View style={s.execBox}>
           <View style={s.execHeader}>
-            <Text style={s.execTitle}>1.0 Rumusan Eksekutif (Executive Summary)</Text>
-            <Text style={s.execBadge}>Dijana Analisis Pintar AI & Audit</Text>
+            <Text style={s.execTitle}>1.0 Executive Summary</Text>
+            <Text style={s.execBadge}>Generated via AI & Audit Intelligence</Text>
           </View>
           <Text style={s.execText}>
             {executiveSummary ||
-              `Laporan penyelenggaraan pencegahan SGMP-03 bagi tempoh ${from} hingga ${to} merangkumi ${calendarMatrix.length} alatan pemprosesan berjadual. Kadar pematuhan semasa dicatatkan pada ${summary.complianceRate.toFixed(1)}% dengan ${summary.completedTasks} tugasan disahkan selesai.`}
+              `SGMP-03 preventive maintenance report for the period ${from} to ${to} encompasses ${calendarMatrix.length} scheduled processing machines. The current compliance rate is recorded at ${summary.complianceRate.toFixed(1)}% with ${summary.completedTasks} tasks verified complete.`}
           </Text>
         </View>
 
@@ -707,69 +707,69 @@ export function PMAuditReportDocument(props: PMAuditReportPayload) {
         <View style={s.kpiStrip}>
           <View style={s.kpiCard}>
             <Text style={s.kpiValue}>{summary.totalTasks}</Text>
-            <Text style={s.kpiLabel}>Jumlah Tugasan</Text>
+            <Text style={s.kpiLabel}>Total Tasks</Text>
           </View>
           <View style={[s.kpiCard, { borderColor: "#bbf7d0", backgroundColor: "#f0fdf4" }]}>
             <Text style={[s.kpiValue, { color: C.good }]}>{summary.completedTasks}</Text>
-            <Text style={s.kpiLabel}>Selesai (OK)</Text>
+            <Text style={s.kpiLabel}>Completed (OK)</Text>
           </View>
           <View style={[s.kpiCard, { borderColor: "#fde68a", backgroundColor: "#fffbeb" }]}>
             <Text style={[s.kpiValue, { color: C.warn }]}>{summary.issueTasks}</Text>
-            <Text style={s.kpiLabel}>Ada Isu / Catatan</Text>
+            <Text style={s.kpiLabel}>Issues / Remarks</Text>
           </View>
           <View style={[s.kpiCard, { borderColor: "#fecaca", backgroundColor: "#fef2f2" }]}>
             <Text style={[s.kpiValue, { color: C.bad }]}>{summary.overdueTasks}</Text>
-            <Text style={s.kpiLabel}>Tertunggak</Text>
+            <Text style={s.kpiLabel}>Overdue</Text>
           </View>
           <View style={[s.kpiCard, { borderColor: "#c7d2fe", backgroundColor: "#eef2ff" }]}>
             <Text style={[s.kpiValue, { color: C.brand }]}>{summary.pendingTasks}</Text>
-            <Text style={s.kpiLabel}>Akan Datang</Text>
+            <Text style={s.kpiLabel}>Upcoming</Text>
           </View>
           <View style={[s.kpiCard, { borderColor: "#bbf7d0", backgroundColor: "#f0fdf4" }]}>
             <Text style={[s.kpiValue, { color: C.good }]}>{summary.complianceRate.toFixed(1)}%</Text>
-            <Text style={s.kpiLabel}>Kadar Pematuhan</Text>
+            <Text style={s.kpiLabel}>Compliance Rate</Text>
           </View>
         </View>
 
         {/* Footer Runner */}
         <View style={s.runFooter} fixed>
-          <Text style={s.runFooterText}>Bubbles O2 Preventive Maintenance Report · Dokumen Kualiti GMP</Text>
+          <Text style={s.runFooterText}>Bubbles O2 Preventive Maintenance Report · GMP Quality Document</Text>
           <Text
             style={s.runFooterText}
-            render={({ pageNumber, totalPages }) => `Halaman ${pageNumber} daripada ${totalPages}`}
+            render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
           />
         </View>
       </Page>
 
       {/* ============================================================ */}
-      {/* PAGE 2: Matriks Kalendar Bulanan Mesin (Annual Matrix)       */}
+      {/* PAGE 2: Monthly Matrix by Machine (Annual Matrix)            */}
       {/* ============================================================ */}
       <Page size="A4" orientation="landscape" style={s.page}>
         <View style={s.runHeader} fixed>
-          <Text style={s.runHeaderText}>BUBBLES O2 SDN. BHD. · SGMP-03 MATRIKS JADUAL BULANAN</Text>
+          <Text style={s.runHeaderText}>BUBBLES O2 SDN. BHD. · SGMP-03 MONTHLY SCHEDULE MATRIX</Text>
           <Text style={s.runHeaderText}>
-            {docRef} · MOD: {isAuditor ? "AUDIT LUARAN" : "DALAMAN"}
+            {docRef} · MODE: {isAuditor ? "EXTERNAL AUDIT" : "INTERNAL"}
           </Text>
         </View>
 
         <Text style={s.sectionTitle}>
-          2.0 Matriks Jadual Penyelenggaraan Tahunan (Januari – Disember)
+          2.0 Annual Maintenance Schedule Matrix (January – December)
         </Text>
         <Text style={s.sectionSubtitle}>
-          Paparan matriks status pelaksanaan aktiviti penyelenggaraan pencegahan mengikut frekuensi dan alatan.
+          Matrix overview of preventive maintenance execution status across intervals and equipment.
         </Text>
 
         <View style={s.matrixTable}>
           <View style={s.matrixHeaderRow}>
             <Text style={[s.matrixColEquip, { fontFamily: "Helvetica-Bold", fontSize: 6.5 }]}>
-              Nama Mesin / Alatan & Kekerapan
+              Machine / Equipment Name & Frequency
             </Text>
             {MONTH_NAMES_SHORT.map((m, idx) => (
               <Text key={idx} style={s.matrixColMonth}>
                 {m}
               </Text>
             ))}
-            <Text style={s.matrixColTotal}>Selesai / Jumlah</Text>
+            <Text style={s.matrixColTotal}>Done / Total</Text>
           </View>
 
           {calendarMatrix.map((row, idx) => (
@@ -796,7 +796,7 @@ export function PMAuditReportDocument(props: PMAuditReportPayload) {
                   label = cell.count > 1 ? `OK(${cell.count})` : "OK"
                 } else if (status === "ISSUE") {
                   style = s.cellIssue
-                  label = cell.count > 1 ? `ISU(${cell.count})` : "ISU"
+                  label = cell.count > 1 ? `ISSUE(${cell.count})` : "ISSUE"
                 } else if (status === "OVERDUE") {
                   style = s.cellOverdue
                   label = "LATE"
@@ -821,49 +821,49 @@ export function PMAuditReportDocument(props: PMAuditReportPayload) {
 
         {/* Legend */}
         <View style={{ flexDirection: "row", gap: 12, marginTop: 4 }}>
-          <Text style={{ fontSize: 6, color: C.muted }}>Petunjuk (Legend):</Text>
-          <Text style={{ fontSize: 6, color: C.good, fontFamily: "Helvetica-Bold" }}>OK = Selesai Memuaskan</Text>
-          <Text style={{ fontSize: 6, color: C.warn, fontFamily: "Helvetica-Bold" }}>ISU = Ada Isu / Kerosakan</Text>
-          <Text style={{ fontSize: 6, color: C.bad, fontFamily: "Helvetica-Bold" }}>LATE = Tertunggak</Text>
-          <Text style={{ fontSize: 6, color: C.brand }}>PLAN = Dijadualkan (Akan Datang)</Text>
-          <Text style={{ fontSize: 6, color: "#cbd5e1" }}>- = Tiada Jadual</Text>
+          <Text style={{ fontSize: 6, color: C.muted }}>Legend:</Text>
+          <Text style={{ fontSize: 6, color: C.good, fontFamily: "Helvetica-Bold" }}>OK = Completed Satisfactory</Text>
+          <Text style={{ fontSize: 6, color: C.warn, fontFamily: "Helvetica-Bold" }}>ISSUE = Fault / Issue Reported</Text>
+          <Text style={{ fontSize: 6, color: C.bad, fontFamily: "Helvetica-Bold" }}>LATE = Overdue</Text>
+          <Text style={{ fontSize: 6, color: C.brand }}>PLAN = Scheduled (Upcoming)</Text>
+          <Text style={{ fontSize: 6, color: "#cbd5e1" }}>- = Not Scheduled</Text>
         </View>
 
         <View style={s.runFooter} fixed>
-          <Text style={s.runFooterText}>Bubbles O2 Preventive Maintenance Report · Dokumen Kualiti GMP</Text>
+          <Text style={s.runFooterText}>Bubbles O2 Preventive Maintenance Report · GMP Quality Document</Text>
           <Text
             style={s.runFooterText}
-            render={({ pageNumber, totalPages }) => `Halaman ${pageNumber} daripada ${totalPages}`}
+            render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
           />
         </View>
       </Page>
 
       {/* ============================================================ */}
-      {/* PAGE 3 onwards: Log Pemeriksaan Terperinci (Detailed Ledger) */}
+      {/* PAGE 3 onwards: Detailed Inspection Log (Detailed Ledger)   */}
       {/* ============================================================ */}
       <Page size="A4" style={s.page}>
         <View style={s.runHeader} fixed>
-          <Text style={s.runHeaderText}>BUBBLES O2 SDN. BHD. · SGMP-03 LOG PEMERIKSAAN</Text>
+          <Text style={s.runHeaderText}>BUBBLES O2 SDN. BHD. · SGMP-03 INSPECTION LOG</Text>
           <Text style={s.runHeaderText}>
-            {docRef} · MOD: {isAuditor ? "AUDIT LUARAN" : "DALAMAN"}
+            {docRef} · MODE: {isAuditor ? "EXTERNAL AUDIT" : "INTERNAL"}
           </Text>
         </View>
 
         <Text style={s.sectionTitle}>
-          3.0 Log Terperinci Pemeriksaan & Arahan Kerja (Checklist)
+          3.0 Detailed Inspection Log & SOP Task Checklist
         </Text>
         <Text style={s.sectionSubtitle}>
-          Rekod pelaksanaan tugasan, status semakan arahan kerja, dan keputusan pemeriksaan teknikal.
+          Detailed records of task execution, checklist verification status, and technical inspection results.
         </Text>
 
         <View style={s.recordTable}>
           <View style={s.recordHeaderRow}>
             <Text style={[s.recColNo, { fontFamily: "Helvetica-Bold" }]}>No</Text>
-            <Text style={[s.recColDate, { fontFamily: "Helvetica-Bold" }]}>Tarikh Jadual / Periksa</Text>
-            <Text style={[s.recColEquip, { fontFamily: "Helvetica-Bold" }]}>Mesin & Kekerapan</Text>
-            <Text style={[s.recColCheck, { fontFamily: "Helvetica-Bold" }]}>Arahan Kerja / Checklist</Text>
-            <Text style={[s.recColRes, { fontFamily: "Helvetica-Bold" }]}>Keputusan</Text>
-            <Text style={[s.recColSign, { fontFamily: "Helvetica-Bold" }]}>Pemeriksa (PIC)</Text>
+            <Text style={[s.recColDate, { fontFamily: "Helvetica-Bold" }]}>Scheduled / Inspected</Text>
+            <Text style={[s.recColEquip, { fontFamily: "Helvetica-Bold" }]}>Machine & Frequency</Text>
+            <Text style={[s.recColCheck, { fontFamily: "Helvetica-Bold" }]}>SOP Checklist</Text>
+            <Text style={[s.recColRes, { fontFamily: "Helvetica-Bold" }]}>Result</Text>
+            <Text style={[s.recColSign, { fontFamily: "Helvetica-Bold" }]}>Inspector (PIC)</Text>
           </View>
 
           {records.slice(0, 15).map((rec) => {
@@ -879,7 +879,7 @@ export function PMAuditReportDocument(props: PMAuditReportPayload) {
                   <Text style={{ fontFamily: "Helvetica-Bold", color: C.ink }}>{rec.dueDate}</Text>
                   {rec.inspectedDate && (
                     <Text style={{ fontSize: 5.5, color: C.good, marginTop: 1 }}>
-                      Periksa: {rec.inspectedDate}
+                      Inspected: {rec.inspectedDate}
                     </Text>
                   )}
                 </View>
@@ -902,7 +902,7 @@ export function PMAuditReportDocument(props: PMAuditReportPayload) {
                   ))}
                   {rec.checklist.length > 3 && (
                     <Text style={{ fontSize: 5, color: C.faint }}>
-                      +{rec.checklist.length - 3} item lagi...
+                      +{rec.checklist.length - 3} more items...
                     </Text>
                   )}
                 </View>
@@ -919,7 +919,7 @@ export function PMAuditReportDocument(props: PMAuditReportPayload) {
                         : s.badgePending
                     }
                   >
-                    {isDone ? "OK (PATUH)" : isIssue ? "ADA ISU" : isOverdue ? "TERTUNGGAK" : "DIJADUALKAN"}
+                    {isDone ? "OK (COMPLIANT)" : isIssue ? "ISSUE REPORTED" : isOverdue ? "OVERDUE" : "SCHEDULED"}
                   </Text>
                   {rec.notes && (
                     <Text style={{ fontSize: 5, color: C.muted, marginTop: 1, textAlign: "center" }}>
@@ -934,7 +934,7 @@ export function PMAuditReportDocument(props: PMAuditReportPayload) {
                   </Text>
                   {rec.verifiedByName && (
                     <Text style={{ fontSize: 5.5, color: C.good, marginTop: 1 }}>
-                      Disahkan: {rec.verifiedByName}
+                      Verified: {rec.verifiedByName}
                     </Text>
                   )}
                 </View>
@@ -945,59 +945,59 @@ export function PMAuditReportDocument(props: PMAuditReportPayload) {
 
         {records.length > 15 && (
           <Text style={{ fontSize: 6, fontStyle: "italic", color: C.muted, textAlign: "center" }}>
-            * Memaparkan 15 rekod pertama dalam pratonton ringkasan. Sila rujuk fail Excel lampiran untuk lejar penuh keseluruhan ({records.length} rekod).
+            * Displaying first 15 records in summary preview. Please refer to attached Excel file for complete ledger ({records.length} records).
           </Text>
         )}
 
         <View style={s.runFooter} fixed>
-          <Text style={s.runFooterText}>Bubbles O2 Preventive Maintenance Report · Dokumen Kualiti GMP</Text>
+          <Text style={s.runFooterText}>Bubbles O2 Preventive Maintenance Report · GMP Quality Document</Text>
           <Text
             style={s.runFooterText}
-            render={({ pageNumber, totalPages }) => `Halaman ${pageNumber} daripada ${totalPages}`}
+            render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
           />
         </View>
       </Page>
 
       {/* ============================================================ */}
-      {/* FINAL PAGE: Helaian Pengesahan & Perakuan Audit              */}
+      {/* FINAL PAGE: Verification & Audit Certification Sheet         */}
       {/* ============================================================ */}
       <Page size="A4" style={s.page}>
         <View style={s.runHeader} fixed>
-          <Text style={s.runHeaderText}>BUBBLES O2 SDN. BHD. · SGMP-03 PENGESAHAN & PERAKUAN AUDIT</Text>
+          <Text style={s.runHeaderText}>BUBBLES O2 SDN. BHD. · SGMP-03 AUDIT VERIFICATION & CERTIFICATION</Text>
           <Text style={s.runHeaderText}>
-            {docRef} · MOD: {isAuditor ? "AUDIT LUARAN" : "DALAMAN"}
+            {docRef} · MODE: {isAuditor ? "EXTERNAL AUDIT" : "INTERNAL"}
           </Text>
         </View>
 
         <Text style={s.sectionTitle}>
-          4.0 Helaian Pengesahan & Perakuan Audit (Checked By & Verified By)
+          4.0 Verification & Audit Certification Sheet (Checked By & Verified By)
         </Text>
         <Text style={s.sectionSubtitle}>
-          Perakuan pematuhan operasi, integriti peralatan pemprosesan, dan tandatangan digital rasmi.
+          Certification of operational compliance, processing equipment integrity, and official digital signatures.
         </Text>
 
         {/* Declaration Statement */}
         <View style={s.declarationBox}>
           <Text style={s.declarationText}>
-            &ldquo;Dengan ini diperakui dan disahkan bahawa aktiviti penyelenggaraan pencegahan bagi alatan dan jentera loji Bubbles O2 Sdn. Bhd. telah dirancang, dilaksanakan mengikut senarai semak (checklist) piawai, dan disahkan oleh pihak penyelia selaras dengan keperluan Prosedur Operasi Standard GMP (SGMP-03) dan Piawaian Kualiti Keselamatan Makanan. Rekod ini adalah dokumen sah dan tepat untuk tujuan verifikasi kualiti dan semakan audit.&rdquo;
+            &ldquo;It is hereby certified and verified that preventive maintenance activities for Bubbles O2 Sdn. Bhd. plant machinery and processing equipment have been planned, executed in accordance with standard checklists, and verified by supervisory personnel pursuant to GMP Standard Operating Procedures (SGMP-03) and Food Safety Quality Standards. This record constitutes an official and authentic document for quality verification and audit review.&rdquo;
           </Text>
         </View>
 
         {/* Verification Summary Ledger (Completed Tasks with actual signatures) */}
         <Text style={{ fontSize: 7.5, fontFamily: "Helvetica-Bold", color: C.ink, marginBottom: 4, marginTop: 4 }}>
-          Senarai Rekod Pemeriksaan yang Telah Ditandatangani:
+          List of Signed Inspection Records:
         </Text>
 
         <View style={s.signatureLedgerTable}>
           <View style={s.sigHeaderRow}>
             <Text style={[s.sigColEquip, { fontFamily: "Helvetica-Bold", fontSize: 6.5 }]}>
-              Alatan / Mesin & Tarikh
+              Equipment / Machine & Date
             </Text>
             <Text style={[s.sigColTech, { fontFamily: "Helvetica-Bold", fontSize: 6.5 }]}>
-              Pemeriksa (Checked By)
+              Inspector (Checked By)
             </Text>
             <Text style={[s.sigColSup, { fontFamily: "Helvetica-Bold", fontSize: 6.5 }]}>
-              Pengesahan Penyelia (Verified By)
+              Supervisor Verification (Verified By)
             </Text>
           </View>
 
@@ -1011,38 +1011,38 @@ export function PMAuditReportDocument(props: PMAuditReportPayload) {
                     {rec.equipment}
                   </Text>
                   <Text style={{ fontSize: 5.5, color: C.muted }}>
-                    Tarikh Periksa: {rec.inspectedDate || rec.dueDate} | Keputusan: {rec.result || "OK"}
+                    Inspected Date: {rec.inspectedDate || rec.dueDate} | Result: {rec.result || "OK"}
                   </Text>
                 </View>
 
                 <View style={s.sigColTech}>
                   <Text style={{ fontSize: 6.5, fontFamily: "Helvetica-Bold" }}>
-                    {rec.completedBy || "Juruteknik Penyelenggaraan"}
+                    {rec.completedBy || "Maintenance Technician"}
                   </Text>
                   {rec.performedSignature ? (
                     // eslint-disable-next-line jsx-a11y/alt-text
                     <Image src={rec.performedSignature} style={s.sigImg} />
                   ) : (
                     <Text style={{ fontSize: 5.5, color: C.faint, fontStyle: "italic" }}>
-                      Tandatangan Digital Direkodkan
+                      Digital Signature Recorded
                     </Text>
                   )}
                 </View>
 
                 <View style={s.sigColSup}>
                   <Text style={{ fontSize: 6.5, fontFamily: "Helvetica-Bold", color: C.good }}>
-                    {rec.verifiedByName || (rec.verifiedAt ? "Penyelia Operasi" : "Menunggu Pengesahan")}
+                    {rec.verifiedByName || (rec.verifiedAt ? "Operations Supervisor" : "Pending Verification")}
                   </Text>
                   {rec.verifiedSignature ? (
                     // eslint-disable-next-line jsx-a11y/alt-text
                     <Image src={rec.verifiedSignature} style={s.sigImg} />
                   ) : rec.verifiedAt ? (
                     <Text style={{ fontSize: 5.5, color: C.good, fontStyle: "italic" }}>
-                      Telah Disahkan Secara Digital
+                      Digitally Verified
                     </Text>
                   ) : (
                     <Text style={{ fontSize: 5.5, color: C.warn, fontStyle: "italic" }}>
-                      Belum Ditandatangani
+                      Pending Signature
                     </Text>
                   )}
                 </View>
@@ -1052,7 +1052,7 @@ export function PMAuditReportDocument(props: PMAuditReportPayload) {
           {records.filter((r) => r.status === "DONE" || r.status === "ISSUE").length === 0 && (
             <View style={{ padding: 8, alignItems: "center" }}>
               <Text style={{ fontSize: 6.5, color: C.muted, fontStyle: "italic" }}>
-                Tiada pemeriksaan selesai direkodkan dalam julat tarikh ini.
+                No completed inspections recorded in this date range.
               </Text>
             </View>
           )}
@@ -1061,39 +1061,39 @@ export function PMAuditReportDocument(props: PMAuditReportPayload) {
         {/* Master Sign-off Block */}
         <View style={s.signoffContainer} wrap={false}>
           <View style={s.signoffBox}>
-            <Text style={s.signoffTitle}>Disediakan Oleh (Pemeriksa / Juruteknik)</Text>
+            <Text style={s.signoffTitle}>Prepared By (Inspector / Technician)</Text>
             <View style={s.signoffSpace}>
               <Text style={{ fontSize: 7, color: C.muted, fontStyle: "italic" }}>
-                (Tandatangan Digital & Rekod Sistem)
+                (Digital Signature & System Record)
               </Text>
             </View>
             <Text style={[s.signoffMeta, { fontFamily: "Helvetica-Bold", color: C.ink }]}>
-              Nama: {preparedBy}
+              Name: {preparedBy}
             </Text>
-            <Text style={s.signoffMeta}>Jawatan: Pegawai Penyelenggaraan / Juruteknik Fasiliti</Text>
-            <Text style={s.signoffMeta}>Tarikh: {generatedAt.slice(0, 10)}</Text>
+            <Text style={s.signoffMeta}>Designation: Maintenance Officer / Facility Technician</Text>
+            <Text style={s.signoffMeta}>Date: {generatedAt.slice(0, 10)}</Text>
           </View>
 
           <View style={s.signoffBox}>
-            <Text style={s.signoffTitle}>Disemak & Disahkan Oleh (Penyelia / Kualiti GMP)</Text>
+            <Text style={s.signoffTitle}>Reviewed & Verified By (Supervisor / GMP Quality)</Text>
             <View style={s.signoffSpace}>
               <Text style={{ fontSize: 7, color: C.good, fontStyle: "italic" }}>
-                (Pengesahan Verifikasi Berkanun GMP)
+                (GMP Statutory Verification Sign-off)
               </Text>
             </View>
             <Text style={[s.signoffMeta, { fontFamily: "Helvetica-Bold", color: C.ink }]}>
-              Nama: Pengurus Fasiliti / Penyelia Kualiti
+              Name: Facility Manager / Quality Supervisor
             </Text>
-            <Text style={s.signoffMeta}>Jawatan: Ketua Operasi / Pengurus Penyelenggaraan</Text>
-            <Text style={s.signoffMeta}>Tarikh: {generatedAt.slice(0, 10)}</Text>
+            <Text style={s.signoffMeta}>Designation: Head of Operations / Maintenance Manager</Text>
+            <Text style={s.signoffMeta}>Date: {generatedAt.slice(0, 10)}</Text>
           </View>
         </View>
 
         <View style={s.runFooter} fixed>
-          <Text style={s.runFooterText}>Bubbles O2 Preventive Maintenance Report · Dokumen Kualiti GMP</Text>
+          <Text style={s.runFooterText}>Bubbles O2 Preventive Maintenance Report · GMP Quality Document</Text>
           <Text
             style={s.runFooterText}
-            render={({ pageNumber, totalPages }) => `Halaman ${pageNumber} daripada ${totalPages}`}
+            render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
           />
         </View>
       </Page>

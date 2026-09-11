@@ -26,6 +26,7 @@ import {
   FileText,
   Send,
   Zap,
+  UserCheck,
 } from "lucide-react"
 import Link from "next/link"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
@@ -35,6 +36,7 @@ import { ModalShell } from "../ModalShell"
 import { PMFields, PICPicker, buttonClass, fieldClass } from "./PMFields"
 import {
   getPMData,
+  assignPMPic,
   completePMOccurrence,
   savePMSchedule,
   archivePMSchedule,
@@ -128,6 +130,12 @@ export function PMWorkspace() {
   // SuperAdmin Simulation state
   const [isSimulating, setIsSimulating] = useState(false)
   const [simulationResult, setSimulationResult] = useState<{ success: boolean; message: string } | null>(null)
+
+  // Task PIC Assignment state
+  const [isEditingTaskPic, setIsEditingTaskPic] = useState(false)
+  const [taskPicIds, setTaskPicIds] = useState<string[]>([])
+  const [applyToFutureSchedules, setApplyToFutureSchedules] = useState(false)
+  const [isSavingPic, setIsSavingPic] = useState(false)
 
   // Schedule Form state
   const [scheduleForm, setScheduleForm] = useState<PMInput>({
@@ -267,6 +275,9 @@ export function PMWorkspace() {
     setPerformedSignature(occ.performedSignature || null)
     setCompletionError("")
     setSimulationResult(null)
+    setTaskPicIds(occ.picIds || [])
+    setIsEditingTaskPic(false)
+    setApplyToFutureSchedules(false)
 
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href)
@@ -283,10 +294,28 @@ export function PMWorkspace() {
     setPerformedSignature(null)
     setCompletionError("")
     setSimulationResult(null)
+    setIsEditingTaskPic(false)
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href)
       url.searchParams.delete("occurrence")
       window.history.replaceState(null, "", url)
+    }
+  }
+
+  // Handle task PIC assignment save
+  const handleSaveTaskPic = async () => {
+    if (!selectedOccurrence) return
+    setIsSavingPic(true)
+    try {
+      await assignPMPic(selectedOccurrence.id, taskPicIds, applyToFutureSchedules)
+      flash({ kind: "ok", text: "PIC berjaya dikemas kini untuk tugasan ini." })
+      setIsEditingTaskPic(false)
+      setSelectedOccurrence((prev) => (prev ? { ...prev, picIds: taskPicIds } : null))
+      await loadData()
+    } catch (err) {
+      flash({ kind: "err", text: sanitizeError(err) })
+    } finally {
+      setIsSavingPic(false)
     }
   }
 
@@ -1253,13 +1282,74 @@ export function PMWorkspace() {
                   {pmStatus(selectedOccurrence, data?.today || "")}
                 </p>
               </div>
-              <div className="col-span-2">
-                <span className="text-gray-400 font-medium">PIC Ditugaskan:</span>
-                <p className="font-bold text-gray-800">
-                  {selectedOccurrence.picIds
-                    .map((id) => userMap.get(id)?.name || id)
-                    .join(", ") || "Tiada"}
-                </p>
+              <div className="col-span-2 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 font-medium">PIC Ditugaskan:</span>
+                  {data?.canAssignPic && !selectedOccurrence.completedAt && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingTaskPic(!isEditingTaskPic)}
+                      className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
+                    >
+                      <UserCheck className="h-3.5 w-3.5" />
+                      {isEditingTaskPic ? "Tutup Pilihan" : "Tukar / Tetapkan PIC"}
+                    </button>
+                  )}
+                </div>
+
+                {!isEditingTaskPic ? (
+                  <p className="font-bold text-gray-800">
+                    {selectedOccurrence.picIds
+                      .map((id) => userMap.get(id)?.name || id)
+                      .join(", ") || (
+                        <span className="text-amber-700 font-semibold">
+                          Tiada PIC (Semua staf Reminders boleh rekod pemeriksaan)
+                        </span>
+                      )}
+                  </p>
+                ) : (
+                  <div className="space-y-3 rounded-2xl border border-indigo-200 bg-white p-3.5 shadow-sm">
+                    <p className="text-[11px] font-semibold text-gray-700">
+                      Pilih staf yang ditugaskan untuk melaksanakan pemeriksaan alatan ini:
+                    </p>
+                    <PICPicker
+                      ids={taskPicIds}
+                      users={data?.users || []}
+                      onChange={setTaskPicIds}
+                    />
+                    <label className="flex items-start gap-2 text-xs text-gray-700 cursor-pointer pt-1">
+                      <input
+                        type="checkbox"
+                        checked={applyToFutureSchedules}
+                        onChange={(e) => setApplyToFutureSchedules(e.target.checked)}
+                        className="mt-0.5 rounded border-gray-300 text-indigo-600"
+                      />
+                      <span>Gunakan senarai PIC ini untuk jadual ulangan mesin ini pada masa akan datang</span>
+                    </label>
+                    <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
+                      <button
+                        type="button"
+                        disabled={isSavingPic}
+                        onClick={handleSaveTaskPic}
+                        className="rounded-xl bg-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                      >
+                        {isSavingPic && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                        Simpan PIC
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isSavingPic}
+                        onClick={() => {
+                          setTaskPicIds(selectedOccurrence.picIds || [])
+                          setIsEditingTaskPic(false)
+                        }}
+                        className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1428,7 +1518,8 @@ export function PMWorkspace() {
                     userId: data?.userId || "",
                     isSuperAdmin: Boolean(data?.isSuperAdmin),
                   },
-                  selectedOccurrence.picIds
+                  selectedOccurrence.picIds,
+                  Boolean(data?.canAssignPic)
                 ) ? (
                   <div className="space-y-4 rounded-2xl border border-indigo-100 bg-indigo-50/30 p-4">
                     <h4 className="text-sm font-bold text-gray-900">

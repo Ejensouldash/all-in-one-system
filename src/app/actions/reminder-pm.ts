@@ -36,6 +36,15 @@ async function validatePics(inputs: PMInput[]) {
   if (inputs.some(i => i.picIds.some(id => !eligible.has(id)))) throw new Error("Semua PIC mesti mempunyai akaun, e-mel dan akses Reminders. Semak padanan PIC.")
 }
 
+function canAssignPMPic(access: { isSuperAdmin: boolean; role?: string; unitName?: string | null; modules: string[] }) {
+  return (
+    access.isSuperAdmin ||
+    access.modules.includes("REMINDERS_ASSIGN_PIC") ||
+    ["SUPERADMIN", "ADMIN", "SUPERVISOR", "MANAGER", "LEADER"].includes(access.role?.toUpperCase() || "") ||
+    access.unitName === "Information Technology"
+  )
+}
+
 export async function getPMData(from: string, to: string, occurrenceId?: string) {
   const access = await accessPM()
   const today = mytDate()
@@ -47,7 +56,6 @@ export async function getPMData(from: string, to: string, occurrenceId?: string)
   const occurrences = await prisma.reminderPMOccurrence.findMany({
     where: {
       scheduleId: { in: schedules.map(s => s.id) },
-      ...(access.isSuperAdmin ? {} : { OR: [{ picIds: { has: access.userId } }, { schedule: { createdById: access.userId } }] }),
       AND: [{ OR: [{ dueDate: { gte: from, lte: to } }, { dueDate: { lt: today }, completedAt: null }, ...(occurrenceId ? [{ id: occurrenceId }] : [])] }],
     },
     include: {
@@ -57,7 +65,58 @@ export async function getPMData(from: string, to: string, occurrenceId?: string)
   })
   const deliveries = await prisma.reminderPMDelivery.findMany({ where: access.isSuperAdmin ? {} : { userId: access.userId }, orderBy: { digestDate: "desc" }, take: 50 })
   const imports = access.isSuperAdmin ? await prisma.reminderPMImport.findMany({ select: { id: true, fileName: true, createdAt: true, confirmedAt: true }, orderBy: { createdAt: "desc" }, take: 20 }) : []
-  return { today, userId: access.userId, isSuperAdmin: access.isSuperAdmin, schedules, occurrences, users: await usersPM(), deliveries, imports }
+  return {
+    today,
+    userId: access.userId,
+    isSuperAdmin: access.isSuperAdmin,
+    canAssignPic: canAssignPMPic(access),
+    schedules,
+    occurrences,
+    users: await usersPM(),
+    deliveries,
+    imports,
+  }
+}
+
+export async function assignPMPic(occurrenceId: string, picIds: string[], applyToFutureSchedules = false) {
+  const access = await accessPM()
+  if (!canAssignPMPic(access)) {
+    throw new Error("Anda tidak mempunyai kebenaran untuk menetapkan atau menukar PIC.")
+  }
+
+  const today = mytDate()
+  const occurrence = await prisma.reminderPMOccurrence.findUniqueOrThrow({
+    where: { id: occurrenceId },
+    select: { id: true, scheduleId: true, dueDate: true },
+  })
+
+  await prisma.$transaction(async (tx) => {
+    await lockPM(tx)
+    // 1. Update this specific occurrence
+    await tx.reminderPMOccurrence.update({
+      where: { id: occurrenceId },
+      data: { picIds },
+    })
+
+    // 2. If user chose to apply to the master schedule and future occurrences
+    if (applyToFutureSchedules) {
+      await tx.reminderPMSchedule.update({
+        where: { id: occurrence.scheduleId },
+        data: { picIds },
+      })
+      await tx.reminderPMOccurrence.updateMany({
+        where: {
+          scheduleId: occurrence.scheduleId,
+          dueDate: { gte: today },
+          completedAt: null,
+        },
+        data: { picIds },
+      })
+    }
+  }, { timeout: 30000 })
+
+  revalidatePath("/reminders")
+  return { success: true }
 }
 
 export async function previewPMImport(data: FormData) {
@@ -141,7 +200,9 @@ export async function savePMSchedule(id: string | null, raw: PMInput, activation
     await lockPM(tx)
     if (id) {
       const schedule = await tx.reminderPMSchedule.findUniqueOrThrow({ where: { id } })
-      if (!access.isSuperAdmin && schedule.createdById !== access.userId) throw new Error("Hanya pencipta/Superadmin boleh mengubah jadual.")
+      if (!access.isSuperAdmin && schedule.createdById !== access.userId && !canAssignPMPic(access)) {
+        throw new Error("Hanya pencipta, Superadmin, atau pegawai yang mempunyai kebenaran boleh mengubah jadual.")
+      }
       await replaceFuture(tx, id, input, today)
     } else await tx.reminderPMSchedule.create({ data: { ...input, activationDate, generationFrom: activationDate, createdById: access.userId } })
   }, { timeout: 30000 })
@@ -153,7 +214,9 @@ export async function archivePMSchedule(id: string) {
   await prisma.$transaction(async tx => {
     await lockPM(tx)
     const schedule = await tx.reminderPMSchedule.findUniqueOrThrow({ where: { id } })
-    if (!access.isSuperAdmin && schedule.createdById !== access.userId) throw new Error("Tiada kebenaran mengarkib.")
+    if (!access.isSuperAdmin && schedule.createdById !== access.userId && !canAssignPMPic(access)) {
+      throw new Error("Tiada kebenaran mengarkib.")
+    }
     await materializePM(tx, mytDate(), [id])
     await tx.reminderPMOccurrence.deleteMany({ where: { scheduleId: id, dueDate: { gt: mytDate() }, completedAt: null } })
     await tx.reminderPMSchedule.update({ where: { id }, data: { archivedAt: new Date() } })
@@ -186,7 +249,9 @@ export async function completePMOccurrence(
   await prisma.$transaction(async tx => {
     await lockPM(tx)
     const task = await tx.reminderPMOccurrence.findUniqueOrThrow({ where: { id }, include: { schedule: true } })
-    if (!canCompletePM(access, task.picIds)) throw new Error("Hanya PIC/Superadmin boleh merekod pemeriksaan ini.")
+    if (!canCompletePM(access, task.picIds, canAssignPMPic(access))) {
+      throw new Error("Hanya PIC yang ditugaskan, Superadmin, atau pegawai bertugas dibenarkan merekod pemeriksaan ini.")
+    }
     if (task.completedAt) throw new Error("Pemeriksaan ini sudah selesai.")
     validateCompletion(
       result,

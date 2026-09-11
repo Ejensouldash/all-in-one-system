@@ -11,7 +11,7 @@ import {
   Users, Activity, Settings,
   Workflow, Factory, Building2, ShieldCheck,
   LayoutDashboard, FileSpreadsheet, BellRing,
-  ShoppingCart, FileSearch, FilePenLine, Trash2,
+  ShoppingCart, FileSearch, FilePenLine, Trash2, UserCheck,
   type LucideIcon,
 } from "lucide-react"
 
@@ -84,6 +84,7 @@ const MODULE_CATEGORIES: CategoryDef[] = [
     modules: [
       { id: "EVENTS", name: "Events & Facilities", description: "Manage company events and calendar.", icon: CalendarDays },
       { id: "REMINDERS", name: "Reminder Calendar", description: "Create scheduled email reminders (one-off or recurring) for yourself, users, or units.", icon: BellRing },
+      { id: "REMINDERS_ASSIGN_PIC", name: "Tugaskan PIC Reminders", description: "Kebenaran untuk menetapkan, memilih, atau menukar PIC bagi jadual dan tugasan Preventive Maintenance (SGMP-03).", icon: UserCheck },
       { id: "NOTICES", name: "Internal Notices", description: "Post and read company-wide announcements.", icon: Megaphone },
       { id: "ASSETS", name: "Company Assets", description: "Manage, track, and print QR for company assets and equipment.", icon: QrCode },
     ],

@@ -23,7 +23,7 @@ export async function materializePM(tx: PMTransaction, through: string, schedule
 export async function ensurePMThrough(through: string) {
   await prisma.$transaction(async tx => { await lockPM(tx); await materializePM(tx, through) }, { timeout: 30000 })
 }
-export function pmVisibleWhere(access: { isSuperAdmin: boolean; userId: string }) {
-  return access.isSuperAdmin ? {} : { OR: [{ createdById: access.userId }, { picIds: { has: access.userId } }, { occurrences: { some: { picIds: { has: access.userId } } } }] }
+export function pmVisibleWhere(_access?: { isSuperAdmin: boolean; userId: string }) {
+  return {}
 }
 export const pmToday = mytDate

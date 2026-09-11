@@ -198,7 +198,7 @@ test("Checklist and digital signature validation", () => {
 })
 
 // 10. PIC authorization
-test("canCompletePM allows Superadmin or assigned PIC only", () => {
+test("canCompletePM allows Superadmin, assigned PIC, authorized PIC assigner, or unassigned task", () => {
   const superAdmin = { userId: "user-admin", isSuperAdmin: true }
   const assignedPic = { userId: "user-pic-1", isSuperAdmin: false }
   const otherUser = { userId: "user-stranger", isSuperAdmin: false }
@@ -208,6 +208,12 @@ test("canCompletePM allows Superadmin or assigned PIC only", () => {
   assert.equal(canCompletePM(superAdmin, taskPics), true)
   assert.equal(canCompletePM(assignedPic, taskPics), true)
   assert.equal(canCompletePM(otherUser, taskPics), false)
+
+  // When task has no PIC assigned yet, any user can record inspection
+  assert.equal(canCompletePM(otherUser, []), true)
+
+  // When user has canAssignPic permission, they can complete even if not in picIds
+  assert.equal(canCompletePM(otherUser, taskPics, true), true)
 })
 
 // 11. Completed occurrence remains unchanged after schedule edit logic

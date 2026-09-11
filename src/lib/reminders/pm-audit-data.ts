@@ -55,13 +55,6 @@ export async function fetchPMAuditData(
     dueDate: { gte: from, lte: to },
   }
 
-  if (!access.isSuperAdmin) {
-    occurrenceWhere.OR = [
-      { picIds: { has: access.userId } },
-      { schedule: { createdById: access.userId } },
-    ]
-  }
-
   if (filter.status && filter.status !== "ALL") {
     if (filter.status === "DONE") {
       occurrenceWhere.completedAt = { not: null }

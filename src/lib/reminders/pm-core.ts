@@ -51,8 +51,12 @@ export function normalizeEquipment(raw: string) {
 export function pmStatus(task: { completedAt: unknown; dueDate: string }, today: string) {
   return task.completedAt ? "DONE" : task.dueDate < today ? "OVERDUE" : task.dueDate === today ? "TODAY" : "UPCOMING"
 }
-export function canCompletePM(access: { userId: string; isSuperAdmin: boolean }, picIds: string[]) {
-  return access.isSuperAdmin || picIds.includes(access.userId)
+export function canCompletePM(
+  access: { userId: string; isSuperAdmin: boolean },
+  picIds: string[],
+  canAssignPic = false
+) {
+  return access.isSuperAdmin || canAssignPic || picIds.includes(access.userId) || picIds.length === 0
 }
 export function validateCompletion(
   result: string,

@@ -9,7 +9,17 @@ export const metadata = {
   title: "Maintenance Summary",
 }
 
-export default async function MaintenanceSummaryPage() {
+interface Props {
+  searchParams: Promise<{
+    formType?: string
+    startDate?: string
+    endDate?: string
+    recordId?: string
+    returnUrl?: string
+  }>
+}
+
+export default async function MaintenanceSummaryPage({ searchParams }: Props) {
   const access = await getAccessInfo()
   if (!access) redirect("/login?callbackUrl=/forms/maintenance/summary")
 
@@ -24,11 +34,18 @@ export default async function MaintenanceSummaryPage() {
     redirect("/dashboard")
   }
 
-  // Load initial data for lighting as default
+  const sp = await searchParams
   const today = new Date()
-  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0]
-  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split("T")[0]
-  const initialResult = await getMaintenanceSummaryRecords("lighting", firstDay, lastDay)
+  const defaultFirstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0]
+  const defaultLastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split("T")[0]
+
+  const formType = sp?.formType || "lighting"
+  const startDate = sp?.startDate || defaultFirstDay
+  const endDate = sp?.endDate || defaultLastDay
+  const recordId = sp?.recordId || undefined
+  const returnUrl = sp?.returnUrl || undefined
+
+  const initialResult = await getMaintenanceSummaryRecords(formType, startDate, endDate)
   const initialRecords = initialResult.success ? initialResult.data || [] : []
 
   return (
@@ -52,10 +69,12 @@ export default async function MaintenanceSummaryPage() {
 
         <MaintenanceSummaryClient
           initialRecords={initialRecords}
-          initialFormType="lighting"
-          initialStartDate={firstDay}
-          initialEndDate={lastDay}
+          initialFormType={formType}
+          initialStartDate={startDate}
+          initialEndDate={endDate}
           userName={userName}
+          targetRecordId={recordId}
+          returnUrl={returnUrl}
         />
       </div>
     </div>

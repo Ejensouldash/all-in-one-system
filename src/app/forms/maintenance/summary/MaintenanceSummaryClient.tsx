@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { RefreshCw, Pencil, Trash2, PenTool, X, Save } from "lucide-react"
+import Link from "next/link"
+import { RefreshCw, Pencil, Trash2, PenTool, X, Save, ArrowLeft } from "lucide-react"
 import {
   getMaintenanceSummaryRecords,
   deleteMaintenanceRecord,
@@ -252,12 +253,16 @@ export function MaintenanceSummaryClient({
   initialStartDate,
   initialEndDate,
   userName,
+  targetRecordId,
+  returnUrl,
 }: {
   initialRecords: any[]
   initialFormType: string
   initialStartDate: string
   initialEndDate: string
   userName: string
+  targetRecordId?: string
+  returnUrl?: string
 }) {
   const [formType, setFormType] = useState(initialFormType)
   const [records, setRecords] = useState<any[]>(initialRecords)
@@ -343,6 +348,23 @@ export function MaintenanceSummaryClient({
 
   return (
     <div className="space-y-6">
+      {returnUrl && (
+        <div className="flex items-center justify-between bg-blue-50/80 border border-blue-200 rounded-2xl p-4">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
+            <span className="text-xs font-bold text-blue-900">
+              Mod Paparan Rekod dari Papan Pemuka Pematuhan GMP
+            </span>
+          </div>
+          <Link
+            href={returnUrl}
+            className="inline-flex items-center text-xs font-black uppercase tracking-wider text-blue-700 hover:text-white bg-white hover:bg-blue-700 border border-blue-300 px-3.5 py-2 rounded-xl transition-all shadow-xs"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1.5" /> Kembali ke Kalendar Pematuhan
+          </Link>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-50 text-red-800 p-4 rounded-xl border border-red-200 font-medium">
           {error}
@@ -421,9 +443,18 @@ export function MaintenanceSummaryClient({
                 </td>
               </tr>
             ) : (
-              records.map((rec) => (
-                <tr key={rec.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="px-4 py-3 font-bold whitespace-nowrap">{formatDate(rec.date)}</td>
+              records.map((rec) => {
+                const isTarget = targetRecordId && targetRecordId === rec.id
+                return (
+                  <tr
+                    key={rec.id}
+                    className={`border-b border-gray-100 transition-colors ${
+                      isTarget
+                        ? "bg-amber-50/90 ring-2 ring-amber-400"
+                        : "hover:bg-gray-50"
+                    }`}
+                  >
+                    <td className="px-4 py-3 font-bold whitespace-nowrap">{formatDate(rec.date)}</td>
                   {fields.map((f) => (
                     <td key={f.key} className="px-4 py-3 text-gray-700">{formatValue(rec[f.key], f.type)}</td>
                   ))}
@@ -463,7 +494,7 @@ export function MaintenanceSummaryClient({
                     </div>
                   </td>
                 </tr>
-              ))
+              )})
             )}
           </tbody>
         </table>

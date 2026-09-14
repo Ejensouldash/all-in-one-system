@@ -157,9 +157,16 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
           const hasForms = userModules.includes("MAINTENANCE_FORMS");
           const hasReports = userModules.includes("MAINTENANCE_REPORTS");
           const hasDashboard = userModules.includes("MAINTENANCE_DASHBOARD");
+          const hasPallet = userModules.includes("PALLET_LEDGER");
           
           if (!hasForms && !hasReports && hasDashboard) {
-            return { ...sub, name: "Maintenance Inventory" };
+            return { ...sub, name: "Maintenance Inventory", href: "/forms/maintenance/dashboard" };
+          }
+          if (!hasForms && hasReports && !hasDashboard) {
+            return { ...sub, name: "Maintenance Reports", href: "/forms/maintenance/reports" };
+          }
+          if (!hasForms && !hasReports && !hasDashboard && hasPallet) {
+            return { ...sub, name: "Pallet Ledger", href: "/forms/maintenance/pallet-transfer" };
           }
         }
         return sub;
@@ -215,7 +222,7 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
           
           if (link.subLinks) {
             const isOpen = openMenus[link.name]
-            const isChildActive = link.subLinks.some(sub => pathname.startsWith(sub.href))
+            const isChildActive = link.subLinks.some(sub => pathname.startsWith(sub.href.split('?')[0]))
             
             return (
               <div key={link.name} className="space-y-1">
@@ -251,7 +258,7 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
                         href={subLink.href}
                         className={cn(
                           "block rounded-md px-2 py-1.5 text-sm font-medium transition-colors",
-                          pathname.startsWith(subLink.href)
+                          pathname.startsWith(subLink.href.split('?')[0])
                             ? "bg-gray-800 text-white"
                             : "text-gray-400 hover:text-white hover:bg-gray-800"
                         )}

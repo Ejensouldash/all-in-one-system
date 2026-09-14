@@ -266,12 +266,15 @@ export default async function MaintenanceDashboard() {
   const canMaintenanceForms = hasAnyModule(access, ["MAINTENANCE_FORMS"])
   const canPalletLedger = hasAnyModule(access, ["PALLET_LEDGER", "WAREHOUSE"])
 
-  if (!canMaintenanceForms && !canPalletLedger) {
+  if (!canMaintenanceForms) {
     if (access.modules.includes("MAINTENANCE_DASHBOARD")) {
       redirect("/forms/maintenance/dashboard")
     }
     if (access.modules.includes("MAINTENANCE_REPORTS")) {
       redirect("/forms/maintenance/reports")
+    }
+    if (canPalletLedger) {
+      redirect("/forms/maintenance/pallet-transfer")
     }
 
     redirect("/forms")

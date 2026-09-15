@@ -40,13 +40,13 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData()
     const file = formData.get("file")
-    if (!(file instanceof File)) return NextResponse.json({ error: "Fail Excel diperlukan." }, { status: 400 })
-    if (!/\.xlsx?$/i.test(file.name)) return NextResponse.json({ error: "Hanya fail .xlsx atau .xls dibenarkan." }, { status: 400 })
-    if (file.size > 25 * 1024 * 1024) return NextResponse.json({ error: "Fail melebihi 25 MB." }, { status: 400 })
+    if (!(file instanceof File)) return NextResponse.json({ error: "Excel file is required." }, { status: 400 })
+    if (!/\.xlsx?$/i.test(file.name)) return NextResponse.json({ error: "Only .xlsx or .xls files are allowed." }, { status: 400 })
+    if (file.size > 25 * 1024 * 1024) return NextResponse.json({ error: "File exceeds 25 MB." }, { status: 400 })
 
     const workbook = xlsx.read(Buffer.from(await file.arrayBuffer()), { type: "buffer", cellDates: true })
     const masterSource = findHeaderSheet(workbook)
-    if (!masterSource) return NextResponse.json({ error: "Lajur Customer ID tidak ditemui dalam workbook." }, { status: 400 })
+    if (!masterSource) return NextResponse.json({ error: "Customer ID column not found in workbook." }, { status: 400 })
 
     const masterRows = xlsx.utils.sheet_to_json<Row>(masterSource.sheet, { range: masterSource.headerRowIndex, defval: "", raw: false })
     const addressRows = workbook.Sheets.Address
@@ -184,6 +184,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, sheetName: masterSource.sheetName, total: rows.length, created, updated, needsReview })
   } catch (error) {
     console.error("Customer master import error", error)
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Import Customer Master gagal." }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Customer Master import failed." }, { status: 500 })
   }
 }

@@ -41,7 +41,7 @@ export default async function CreditCheckPage({ searchParams }: { searchParams: 
         <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-700">Finance & Credit Control</p>
         <h2 className="mt-2 text-3xl font-black text-slate-950">PO-SOA Credit Check & Finance Workflow</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          AI membaca kedua-dua PDF PO dan SOA. Sistem mengira status invoice berbanding tarikh penyata SOA. SOD semak SOA → ON_HOLD (Finance Review) → PROCEED / REJECT (BD Follow-up).
+          AI parses both PO and SOA PDFs. The system computes invoice status against the SOA statement date. SOD reviews SOA → ON_HOLD (Finance Review) → PROCEED / REJECT (BD Follow-up).
         </p>
       </section>
 

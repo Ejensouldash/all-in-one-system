@@ -14,23 +14,23 @@ function optionalDate(value: string) {
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const access = await getSalesOrderingAccess()
-  if (!access || !canAccessSalesOrderingTab(access, "orders")) return NextResponse.json({ error: "Akses Sales Orders diperlukan." }, { status: 403 })
-  if (!canManageSalesOrderingDocuments(access)) return NextResponse.json({ error: "Akses Edit / Delete Documents diperlukan untuk approve dokumen." }, { status: 403 })
+  if (!access || !canAccessSalesOrderingTab(access, "orders")) return NextResponse.json({ error: "Sales Orders access required." }, { status: 403 })
+  if (!canManageSalesOrderingDocuments(access)) return NextResponse.json({ error: "Edit / Delete Documents permission required to approve document." }, { status: 403 })
   const { id } = await context.params
 
   try {
     const body = await request.json() as { customerId?: string; document?: unknown }
     const document = normalizeExtractedDocument(body.document)
     const customerId = body.customerId?.trim()
-    if (!customerId) return NextResponse.json({ error: "Customer mesti dipilih." }, { status: 400 })
+    if (!customerId) return NextResponse.json({ error: "Customer must be selected." }, { status: 400 })
 
     const [intake, customer] = await Promise.all([
       prisma.salesDocumentIntake.findUnique({ where: { id }, include: { salesOrder: true } }),
       prisma.customer.findUnique({ where: { id: customerId }, include: { addresses: true } }),
     ])
-    if (!intake) return NextResponse.json({ error: "Document intake tidak ditemui." }, { status: 404 })
-    if (intake.salesOrder) return NextResponse.json({ error: "Sales Order sudah wujud untuk dokumen ini." }, { status: 409 })
-    if (!customer) return NextResponse.json({ error: "Customer tidak ditemui." }, { status: 400 })
+    if (!intake) return NextResponse.json({ error: "Document intake not found." }, { status: 404 })
+    if (intake.salesOrder) return NextResponse.json({ error: "Sales Order already exists for this document." }, { status: 409 })
+    if (!customer) return NextResponse.json({ error: "Customer not found." }, { status: 400 })
 
     const validation = await validateExtractedSalesDocument({ ...document, customerReference: customer.customerCode })
     const blockingIssues = validation.issues.filter(issue => issue.severity === "ERROR" && issue.code !== "CUSTOMER_NOT_MATCHED")
@@ -111,6 +111,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ success: true, salesOrder })
   } catch (error) {
     console.error("Create Sales Order error", error)
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal mencipta Sales Order." }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to create Sales Order." }, { status: 500 })
   }
 }

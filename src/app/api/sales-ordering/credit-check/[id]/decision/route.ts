@@ -7,13 +7,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   try {
     const access = await getSalesOrderingAccess()
     if (!access || !canManageSalesOrderingDocuments(access)) {
-      return NextResponse.json({ error: "Akses kewangan / reviewer diperlukan." }, { status: 403 })
+      return NextResponse.json({ error: "Finance / Reviewer access required." }, { status: 403 })
     }
 
     const { id } = await context.params
     const current = await prisma.creditCheckCase.findUnique({ where: { id } })
     if (!current) {
-      return NextResponse.json({ error: "Semakan kredit tidak ditemui." }, { status: 404 })
+      return NextResponse.json({ error: "Credit check record not found." }, { status: 404 })
     }
 
     const body = (await request.json().catch(() => ({}))) as {
@@ -28,11 +28,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const remarks = (body.financeRemarks || body.justification || "").trim()
 
     if (!decision || !["PROCEED", "REJECT", "APPROVE_EXCEPTION"].includes(decision)) {
-      return NextResponse.json({ error: "Keputusan tidak sah. Pilihan: PROCEED, REJECT, atau APPROVE_EXCEPTION." }, { status: 400 })
+      return NextResponse.json({ error: "Invalid decision. Options: PROCEED, REJECT, or APPROVE_EXCEPTION." }, { status: 400 })
     }
 
     if (!remarks) {
-      return NextResponse.json({ error: "Ulasan / Justifikasi Kewangan (Finance Remarks) WAJIB diisi." }, { status: 400 })
+      return NextResponse.json({ error: "Finance remarks / justification is REQUIRED." }, { status: 400 })
     }
 
     const newStatus = decision === "PROCEED" ? "PROCEED" : decision === "REJECT" ? "REJECTED" : "DECIDED"
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           )
           await sendEmailNotification({
             to: recipientEmails[0],
-            subject: `[CREDIT REJECTED] PO ${poNumber} - Semakan Kredit Ditolak`,
+            subject: `[CREDIT REJECTED] PO ${poNumber} - Credit Check Rejected`,
             html: emailHtml
           })
         }
@@ -101,11 +101,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     return NextResponse.json({
       success: true,
-      message: `Keputusan Kewangan (${decision}) berjaya disimpan.`,
+      message: `Finance decision (${decision}) successfully saved.`,
       item: updated
     })
   } catch (error) {
     console.error("Credit Check Decision Error:", error)
-    return NextResponse.json({ error: "Gagal menyimpan keputusan kewangan." }, { status: 500 })
+    return NextResponse.json({ error: "Failed to save finance decision." }, { status: 500 })
   }
 }

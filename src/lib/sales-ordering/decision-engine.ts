@@ -116,9 +116,9 @@ export function decideCreditCheck(
     const dueDateTime = new Date(`${dueDate}T00:00:00Z`).getTime()
     const daysOverdue = Math.max(0, Math.floor((evalDateTime - dueDateTime) / (1000 * 60 * 60 * 24)))
     
-    let statusAtPoDate = "Belum matang"
+    let statusAtPoDate = "Current"
     if (isSettled) {
-      statusAtPoDate = "Selesai dibayar"
+      statusAtPoDate = "Paid in full"
     } else if (daysOverdue > 0) {
       if (effectiveTerm === 0) {
         // For cash terms, any overdue days past invoice date is strictly overdue
@@ -137,7 +137,7 @@ export function decideCreditCheck(
     }
   })
 
-  const active = aging.filter(invoice => invoice.statusAtPoDate !== "Selesai dibayar")
+  const active = aging.filter(invoice => invoice.statusAtPoDate !== "Paid in full" && invoice.statusAtPoDate !== "Selesai dibayar")
   const outstandingAtPoDate = isCreditOrZeroBalance
     ? 0
     : (closingBalance > 0 ? closingBalance : active.reduce((total, invoice) => total + (invoice.outstandingAmount ?? invoice.amount), 0))
@@ -192,75 +192,75 @@ export function decideCreditCheck(
 
   // Check 1: Customer Identity Match
   checks.push(identity.status === "CLEAR"
-    ? { code: "CUSTOMER_MATCH", label: "Customer / account match", severity: "PASS", evidence: "Nama customer dan akaun SOA sepadan.", requiredAction: "Tiada tindakan." }
+    ? { code: "CUSTOMER_MATCH", label: "Customer / account match", severity: "PASS", evidence: "Customer name and SOA account match.", requiredAction: "No action required." }
     : identity.status === "AMBIGUOUS"
-      ? { code: "CUSTOMER_MATCH", label: "Customer / account match", severity: "HOLD", evidence: "Nama customer hampir sama tetapi memerlukan pengesahan.", requiredAction: "Semak nama legal/trading pada dokumen asal." }
+      ? { code: "CUSTOMER_MATCH", label: "Customer / account match", severity: "HOLD", evidence: "Customer name is similar but requires manual verification.", requiredAction: "Verify legal/trading name against original documents." }
       : identity.status === "UNKNOWN"
-        ? { code: "CUSTOMER_MATCH", label: "Customer / account match", severity: "HOLD", evidence: "Nama customer atau akaun SOA tidak dapat dibaca.", requiredAction: "Semak semula field identiti." }
-        : { code: "CUSTOMER_MATCH", label: "Customer / account match", severity: "REJECT", evidence: "Nama customer tidak sepadan dengan akaun dalam SOA.", requiredAction: "Gunakan SOA/customer yang betul." })
+        ? { code: "CUSTOMER_MATCH", label: "Customer / account match", severity: "HOLD", evidence: "Customer name or SOA account could not be read.", requiredAction: "Check identity fields." }
+        : { code: "CUSTOMER_MATCH", label: "Customer / account match", severity: "REJECT", evidence: "Customer name does not match the account in the SOA.", requiredAction: "Use the correct SOA / customer." })
 
   // Check 2: PO Amount vs SOA Invoices / Mode Evaluation
   if (checkMode === "INVOICE_SOA_RECONCILIATION") {
     checks.push(amountCandidate
-      ? { code: "PO_AMOUNT_MATCH", label: "Invoice vs SOA Match", severity: "PASS", evidence: `Invois RM ${money(po.totals.grandTotal)} padan tepat dengan rekod ${amountCandidate.invoiceNumber} di SOA.`, requiredAction: "Tiada tindakan." }
-      : { code: "PO_AMOUNT_MATCH", label: "Invoice vs SOA Match", severity: "REJECT", evidence: `Invois RM ${money(po.totals.grandTotal)} tidak ditemui di lejar SOA.`, requiredAction: "Semak semula dokumen invois atau SOA." })
+      ? { code: "PO_AMOUNT_MATCH", label: "Invoice vs SOA Match", severity: "PASS", evidence: `Invoice RM ${money(po.totals.grandTotal)} matches record ${amountCandidate.invoiceNumber} in SOA exactly.`, requiredAction: "No action required." }
+      : { code: "PO_AMOUNT_MATCH", label: "Invoice vs SOA Match", severity: "REJECT", evidence: `Invoice RM ${money(po.totals.grandTotal)} not found in SOA ledger.`, requiredAction: "Re-check invoice document or SOA." })
   } else {
     // Mode: PO_CREDIT_CHECK (New Sales Order Release)
     const isMultiPo = Boolean(po.isMultiPo || (po.subPos && po.subPos.length > 1))
     const multiPoDesc = isMultiPo && po.subPos && po.subPos.length > 1
-      ? `PO Batch bernilai RM ${money(po.totals.grandTotal)} (mengandungi ${po.subPos.length} PO individu)`
-      : `PO Baharu bernilai RM ${money(po.totals.grandTotal)}`
+      ? `PO Batch totaling RM ${money(po.totals.grandTotal)} (contains ${po.subPos.length} individual POs)`
+      : `New PO totaling RM ${money(po.totals.grandTotal)}`
 
     checks.push(po.totals.grandTotal > 0
-      ? { code: "PO_AMOUNT_MATCH", label: "PO Amount & Exposure", severity: "PASS", evidence: `${multiPoDesc} diterima untuk penilaian kredit. Total pajanan: RM ${money(outstandingAtPoDate + po.totals.grandTotal)}.`, requiredAction: "Tiada tindakan." }
-      : { code: "PO_AMOUNT_MATCH", label: "PO Amount & Exposure", severity: "HOLD", evidence: "Jumlah PO tidak dapat dibaca dengan pasti.", requiredAction: "Semak jumlah pada PO asal." })
+      ? { code: "PO_AMOUNT_MATCH", label: "PO Amount & Exposure", severity: "PASS", evidence: `${multiPoDesc} accepted for credit evaluation. Total exposure: RM ${money(outstandingAtPoDate + po.totals.grandTotal)}.`, requiredAction: "No action required." }
+      : { code: "PO_AMOUNT_MATCH", label: "PO Amount & Exposure", severity: "HOLD", evidence: "PO amount could not be read with certainty.", requiredAction: "Check amount on original PO." })
   }
 
   // Check 3: Overdue Balance Assessment
   if (checkMode === "PO_CREDIT_CHECK") {
     if (overdueTotal > 0) {
-      checks.push({ code: "OVERDUE_BALANCE", label: "Overdue pada tarikh PO", severity: "REJECT", evidence: `Terdapat ${overdueInvoices.length} invois yang melebihi had toleransi (Strictly Overdue) bertotal RM ${money(overdueTotal)}.`, requiredAction: "Tolak pelepasan Sales Order sehingga overdue dijelaskan." })
+      checks.push({ code: "OVERDUE_BALANCE", label: "Overdue on PO Date", severity: "REJECT", evidence: `Found ${overdueInvoices.length} invoices exceeding tolerance (Strictly Overdue) totaling RM ${money(overdueTotal)}.`, requiredAction: "Hold Sales Order release until overdue debt is cleared." })
     } else {
       const zeroEvidence = closingBalance < 0
-        ? `Tiada tunggakan. Akaun mempunyai baki advance/kredit RM ${money(Math.abs(closingBalance))}.`
-        : "Tiada tunggakan yang melebihi tempoh toleransi (Grace Period)."
-      checks.push({ code: "OVERDUE_BALANCE", label: "Overdue pada tarikh PO", severity: "PASS", evidence: zeroEvidence, requiredAction: "Tiada tindakan." })
+        ? `No overdue debt. Account has an advance/credit balance of RM ${money(Math.abs(closingBalance))}.`
+        : "No overdue debt exceeding tolerance (Grace Period)."
+      checks.push({ code: "OVERDUE_BALANCE", label: "Overdue on PO Date", severity: "PASS", evidence: zeroEvidence, requiredAction: "No action required." })
     }
   } else {
     // Mode: INVOICE_SOA_RECONCILIATION
     checks.push(overdueTotal > 0
-      ? { code: "OVERDUE_BALANCE", label: "Status Tunggakan Akaun", severity: "HOLD", evidence: `Invois padan, tetapi akaun mempunyai tunggakan strictly overdue RM ${money(overdueTotal)}.`, requiredAction: "Semak status kredit akaun pelanggan." }
-      : { code: "OVERDUE_BALANCE", label: "Status Tunggakan Akaun", severity: "PASS", evidence: "Akaun tiada sebarang tunggakan yang melebihi toleransi.", requiredAction: "Tiada tindakan." })
+      ? { code: "OVERDUE_BALANCE", label: "Account Overdue Status", severity: "HOLD", evidence: `Invoice matches, but account has strictly overdue debt of RM ${money(overdueTotal)}.`, requiredAction: "Check customer account credit status." }
+      : { code: "OVERDUE_BALANCE", label: "Account Overdue Status", severity: "PASS", evidence: "Account has no overdue debt exceeding tolerance.", requiredAction: "No action required." })
   }
 
   // Check 3.5: Credit Limit Assessment
   if (soa.creditLimit !== null && soa.creditLimit > 0) {
     const projectedExposure = outstandingAtPoDate + (checkMode === "PO_CREDIT_CHECK" ? po.totals.grandTotal : 0)
     checks.push(projectedExposure > soa.creditLimit
-      ? { code: "CREDIT_LIMIT_BREACH", label: "Semakan Had Kredit", severity: "REJECT", evidence: `Pajanan (RM ${money(projectedExposure)}) melebihi Had Kredit (RM ${money(soa.creditLimit)}).`, requiredAction: "Tolak transaksi atau minta kelulusan pengurusan." }
-      : { code: "CREDIT_LIMIT_BREACH", label: "Semakan Had Kredit", severity: "PASS", evidence: `Pajanan (RM ${money(projectedExposure)}) berada dalam Had Kredit (RM ${money(soa.creditLimit)}).`, requiredAction: "Tiada tindakan." })
+      ? { code: "CREDIT_LIMIT_BREACH", label: "Credit Limit Check", severity: "REJECT", evidence: `Exposure (RM ${money(projectedExposure)}) exceeds Credit Limit (RM ${money(soa.creditLimit)}).`, requiredAction: "Reject transaction or request management exception." }
+      : { code: "CREDIT_LIMIT_BREACH", label: "Credit Limit Check", severity: "PASS", evidence: `Exposure (RM ${money(projectedExposure)}) is within Credit Limit (RM ${money(soa.creditLimit)}).`, requiredAction: "No action required." })
   }
 
   // Check 4: Retrospective PO Check
   const retrospective = checkMode === "INVOICE_SOA_RECONCILIATION" && amountCandidate && poDate && amountCandidate.invoiceDate < poDate
   checks.push(retrospective
-    ? { code: "RETROSPECTIVE_PO", label: "Invoice date vs PO date", severity: "HOLD", evidence: `Invoice ${amountCandidate.invoiceNumber} bertarikh ${amountCandidate.invoiceDate}, sebelum PO ${poDate}.`, requiredAction: "Dapatkan justification retrospective PO." }
-    : { code: "RETROSPECTIVE_PO", label: "Invoice date vs PO date", severity: "PASS", evidence: "Tiada kekeliruan tarikh invois/PO.", requiredAction: "Tiada tindakan." })
+    ? { code: "RETROSPECTIVE_PO", label: "Invoice date vs PO date", severity: "HOLD", evidence: `Invoice ${amountCandidate.invoiceNumber} is dated ${amountCandidate.invoiceDate}, which predates PO ${poDate}.`, requiredAction: "Obtain retrospective PO justification." }
+    : { code: "RETROSPECTIVE_PO", label: "Invoice date vs PO date", severity: "PASS", evidence: "No invoice/PO date inconsistencies.", requiredAction: "No action required." })
 
   // Check 5: Data Confidence Check
   const missingTerms = !isCashTerms && (soa.creditTermDays === undefined || soa.creditTermDays <= 0) && !soa.paymentTermsRaw
   const uncertain = !poDate || po.confidence < 0.75 || soa.warnings.length > 0 || !soa.statementDate || missingTerms
   checks.push(uncertain
-    ? { code: "DATA_CONFIDENCE", label: "Data confidence", severity: "HOLD", evidence: soa.warnings[0] || "Tarikh, credit term atau confidence dokumen tidak lengkap.", requiredAction: "Semak field yang ditanda pada PDF asal." }
-    : { code: "DATA_CONFIDENCE", label: "Data confidence", severity: "PASS", evidence: "Field penting dibaca dengan confidence yang mencukupi.", requiredAction: "Tiada tindakan." })
+    ? { code: "DATA_CONFIDENCE", label: "Data confidence", severity: "HOLD", evidence: soa.warnings[0] || "Date, credit terms, or document confidence incomplete.", requiredAction: "Check flagged fields on original PDF." }
+    : { code: "DATA_CONFIDENCE", label: "Data confidence", severity: "PASS", evidence: "Key fields extracted with sufficient confidence.", requiredAction: "No action required." })
 
   const rejected = checks.filter(check => check.severity === "REJECT")
   const held = checks.filter(check => check.severity === "HOLD")
   const recommendation: CreditDecision = rejected.length ? "REJECT" : held.length ? "HOLD" : "APPROVE"
   const primary = (rejected[0] || held[0])?.evidence || (
     closingBalance < 0
-      ? `Semua semakan utama lulus. Akaun mempunyai baki advance/kredit RM ${money(Math.abs(closingBalance))} dan sedia untuk diproses.`
-      : "Semua semakan utama lulus. Akaun bebas overdue dan dokumen padan."
+      ? `All primary checks passed. Account has an advance/credit balance of RM ${money(Math.abs(closingBalance))} and is ready for processing.`
+      : "All primary checks passed. Account is overdue-free and documents match."
   )
 
   return {

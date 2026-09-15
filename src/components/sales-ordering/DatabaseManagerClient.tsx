@@ -33,14 +33,14 @@ export function DatabaseManagerClient({
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || "Gagal memadam data.")
+        throw new Error(data.error || "Failed to purge data.")
       }
 
-      setMessage({ text: data.message || "Operasi padam berjaya.", type: "success" })
+      setMessage({ text: data.message || "Purge operation successful.", type: "success" })
       router.refresh()
     } catch (err) {
       setMessage({
-        text: err instanceof Error ? err.message : "Ralat tidak dijangka berlaku.",
+        text: err instanceof Error ? err.message : "An unexpected error occurred.",
         type: "error",
       })
     } finally {
@@ -76,23 +76,23 @@ export function DatabaseManagerClient({
                 <Trash2 className="h-6 w-6" />
               </span>
               <div>
-                <h3 className="font-black text-slate-950 text-lg">Padam Rekod Pending SOA</h3>
+                <h3 className="font-black text-slate-950 text-lg">Purge Pending SOA Records</h3>
                 <p className="text-xs text-slate-500 font-semibold">
-                  Hanya memadam rekod PO-SOA Check yang berada di fasa "PENDING_SOA" (belum di-upload SOA).
+                  Only deletes PO-SOA Check records in the "PENDING_SOA" phase (SOA not yet uploaded).
                 </p>
               </div>
             </div>
             <p className="mt-4 text-xs leading-relaxed text-slate-600 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
-              Gunakan fungsi ini jika anda mahu membersihkan senarai ujian yang belum selesai tanpa menjejaskan dokumen yang sudah diluluskan/ditolak.
+              Use this function to clear incomplete test lists without affecting approved or rejected documents.
             </p>
           </div>
           <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
-            <span className="text-xs font-black text-amber-700">{pendingSoaCount} Rekod Ditemui</span>
+            <span className="text-xs font-black text-amber-700">{pendingSoaCount} Records Found</span>
             <button
               onClick={() =>
                 executePurge(
                   "clear-pending-soa",
-                  `Adakah anda pasti mahu memadam ${pendingSoaCount} rekod Pending SOA?`
+                  `Are you sure you want to delete ${pendingSoaCount} Pending SOA records?`
                 )
               }
               disabled={busyAction !== null || pendingSoaCount === 0}
@@ -103,7 +103,7 @@ export function DatabaseManagerClient({
               ) : (
                 <Trash2 className="h-4 w-4" />
               )}
-              Padam Pending SOA
+              Purge Pending SOA
             </button>
           </div>
         </div>
@@ -118,23 +118,23 @@ export function DatabaseManagerClient({
               <div>
                 <h3 className="font-black text-slate-950 text-lg">Reset All (Zero State)</h3>
                 <p className="text-xs text-slate-500 font-semibold">
-                  Padam semua rekod PO-SOA Check dan Dokumen Intake untuk menguji semula dari kosong.
+                  Delete all PO-SOA Check and Intake Document records to test fresh from scratch.
                 </p>
               </div>
             </div>
             <p className="mt-4 text-xs leading-relaxed text-slate-600 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
-              Tindakan ini akan mengosongkan semua fail intake dan rekod semakan kewangan. Sesuai untuk pengujian aliran end-to-end dari kosong (zero state).
+              This action will clear all intake files and financial evaluation records. Suitable for testing the end-to-end flow from scratch (zero state).
             </p>
           </div>
           <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
             <span className="text-xs font-black text-rose-700">
-              {totalCreditCases + totalIntakes} Rekod Keseluruhan
+              {totalCreditCases + totalIntakes} Total Records
             </span>
             <button
               onClick={() =>
                 executePurge(
                   "reset-all",
-                  "AMARAN: Adakah anda pasti mahu memadam SEMUA rekod Intake dan PO-SOA Check untuk bermula dari kosong (Zero State)?"
+                  "WARNING: Are you sure you want to delete ALL Intake and PO-SOA Check records to start fresh (Zero State)?"
                 )
               }
               disabled={busyAction !== null || (totalCreditCases === 0 && totalIntakes === 0)}
@@ -158,27 +158,27 @@ export function DatabaseManagerClient({
                 <Database className="h-6 w-6" />
               </span>
               <div>
-                <h3 className="font-black text-slate-950 text-base">Padam Semua Rekod PO-SOA Check</h3>
+                <h3 className="font-black text-slate-950 text-base">Purge All PO-SOA Check Records</h3>
                 <p className="text-xs text-slate-500">
-                  Memadam semua rekod kelulusan/semakan kewangan sahaja.
+                  Deletes all financial review and approval records only.
                 </p>
               </div>
             </div>
           </div>
           <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
-            <span className="text-xs font-bold text-slate-500">{totalCreditCases} Rekod</span>
+            <span className="text-xs font-bold text-slate-500">{totalCreditCases} Records</span>
             <button
               onClick={() =>
                 executePurge(
                   "clear-credit-checks",
-                  "Padam semua rekod PO-SOA Check sahaja?"
+                  "Delete all PO-SOA Check records only?"
                 )
               }
               disabled={busyAction !== null || totalCreditCases === 0}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
             >
               {busyAction === "clear-credit-checks" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              Padam PO-SOA Records
+              Purge PO-SOA Records
             </button>
           </div>
         </div>
@@ -191,24 +191,24 @@ export function DatabaseManagerClient({
                 <Database className="h-6 w-6" />
               </span>
               <div>
-                <h3 className="font-black text-slate-950 text-base">Padam Semua Fail Intake</h3>
+                <h3 className="font-black text-slate-950 text-base">Purge All Intake Files</h3>
                 <p className="text-xs text-slate-500">
-                  Memadam rekod muat naik fail dokumen BD Intake sahaja.
+                  Deletes BD Intake uploaded document file records only.
                 </p>
               </div>
             </div>
           </div>
           <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
-            <span className="text-xs font-bold text-slate-500">{totalIntakes} Rekod</span>
+            <span className="text-xs font-bold text-slate-500">{totalIntakes} Records</span>
             <button
               onClick={() =>
-                executePurge("clear-intakes", "Padam semua fail dokumen Intake sahaja?")
+                executePurge("clear-intakes", "Delete all Intake document files only?")
               }
               disabled={busyAction !== null || totalIntakes === 0}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
             >
               {busyAction === "clear-intakes" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              Padam Intake Records
+              Purge Intake Records
             </button>
           </div>
         </div>

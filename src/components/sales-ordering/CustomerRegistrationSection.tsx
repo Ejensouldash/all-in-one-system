@@ -37,10 +37,10 @@ export function CustomerRegistrationSection({
         <div>
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-cyan-600" />
-            <h2 className="text-2xl font-black text-slate-950">Permohonan Pendaftaran Pelanggan</h2>
+            <h2 className="text-2xl font-black text-slate-950">Customer Registration Applications</h2>
           </div>
           <p className="mt-1 text-xs font-semibold text-slate-500">
-            Semak borang pendaftaran pelanggan baharu daripada Google Form dan luluskan untuk masuk ke Customer Master.
+            Review new customer registration forms submitted via Google Form and approve into Customer Master.
           </p>
         </div>
 
@@ -51,7 +51,7 @@ export function CustomerRegistrationSection({
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Cari Syarikat, No. Permohonan..."
+            placeholder="Search Company, Application No..."
             className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-4 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-cyan-500 focus:bg-white focus:ring-2 focus:ring-cyan-100"
           />
         </div>
@@ -69,7 +69,7 @@ export function CustomerRegistrationSection({
             }`}
           >
             <Clock className="h-4 w-4 text-amber-600" />
-            Menunggu Semakan BD ({pendingItems.length})
+            Pending BD Review ({pendingItems.length})
           </button>
           <button
             onClick={() => setActiveTab("PROCESSED")}
@@ -80,7 +80,7 @@ export function CustomerRegistrationSection({
             }`}
           >
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            Selesai Diproses ({processedItems.length})
+            Processed ({processedItems.length})
           </button>
         </div>
       </div>
@@ -109,7 +109,7 @@ export function CustomerRegistrationSection({
                       <span className="font-mono text-xs font-bold text-cyan-700">{item.registrationNo}</span>
                     </div>
                     <p className="mt-0.5 text-xs text-slate-500">
-                      No. Syarikat: {item.companyRegNoNew || item.companyRegNoOld || "N/A"} · Tarikh Hantar: {item.createdAt.slice(0, 10)}
+                      Company No: {item.companyRegNoNew || item.companyRegNoOld || "N/A"} · Submission Date: {item.createdAt.slice(0, 10)}
                     </p>
                   </div>
                 </div>
@@ -120,15 +120,15 @@ export function CustomerRegistrationSection({
                     item.status === "REJECTED" ? "bg-rose-100 text-rose-800" :
                     "bg-amber-100 text-amber-800"
                   }`}>
-                    {item.status === "APPROVED" ? `LULUS (${item.createdCustomer?.customerCode || "CUSTOMER"})` :
-                     item.status === "REJECTED" ? "DITOLAK" : "MENUNGGU SEMAKAN"}
+                    {item.status === "APPROVED" ? `APPROVED (${item.createdCustomer?.customerCode || "CUSTOMER"})` :
+                     item.status === "REJECTED" ? "REJECTED" : "PENDING REVIEW"}
                   </span>
 
                   <button
                     onClick={() => setSelectedItem(item)}
                     className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-cyan-50 px-3.5 py-2 text-xs font-black text-cyan-800 hover:bg-cyan-100 transition shadow-sm"
                   >
-                    <Eye className="h-4 w-4 text-cyan-600" /> Semak & View Dokumen
+                    <Eye className="h-4 w-4 text-cyan-600" /> Review & View Documents
                   </button>
                 </div>
               </div>
@@ -137,7 +137,7 @@ export function CustomerRegistrationSection({
         ) : (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-10 text-center">
             <Building2 className="mx-auto h-8 w-8 text-slate-400" />
-            <p className="mt-2 text-sm font-bold text-slate-600">Tiada borang pendaftaran di dalam senarai ini.</p>
+            <p className="mt-2 text-sm font-bold text-slate-600">No registration forms found in this list.</p>
           </div>
         )}
       </div>

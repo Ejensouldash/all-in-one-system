@@ -66,7 +66,7 @@ export function IntakeReview({
     try {
       const response = await fetch(`/api/sales-ordering/intake/${intakeId}/process`, { method: "POST" })
       const result = await response.json()
-      if (!response.ok) throw new Error(result.error || "Proses semula AI gagal.")
+      if (!response.ok) throw new Error(result.error || "AI reprocessing failed.")
       if (result.intake?.extractedData) {
         const normalized = normalizeExtractedDocument(result.intake.extractedData)
         setDocument(normalized)
@@ -77,7 +77,7 @@ export function IntakeReview({
       }
       router.refresh()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Proses semula AI gagal.")
+      setError(cause instanceof Error ? cause.message : "AI reprocessing failed.")
     } finally {
       setBusy(false)
     }
@@ -158,7 +158,7 @@ export function IntakeReview({
   }
 
   async function createSalesOrder() {
-    if (!customer) { setError("Pilih customer daripada Customer Master dahulu."); return }
+    if (!customer) { setError("Select a customer from Customer Master first."); return }
     setBusy(true)
     setError("")
     try {
@@ -168,11 +168,11 @@ export function IntakeReview({
         body: JSON.stringify({ customerId: customer.id, document }),
       })
       const result = await response.json()
-      if (!response.ok) throw new Error(result.error || "Create SO gagal.")
+      if (!response.ok) throw new Error(result.error || "Create SO failed.")
       router.push(`/forms/sales-ordering/orders/${result.salesOrder.id}`)
       router.refresh()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Create SO gagal.")
+      setError(cause instanceof Error ? cause.message : "Create SO failed.")
     } finally { setBusy(false) }
   }
 
@@ -182,25 +182,25 @@ export function IntakeReview({
     try {
       const response = await fetch(`/api/sales-ordering/intake/${intakeId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerId: customer?.id, document }) })
       const result = await response.json()
-      if (!response.ok) throw new Error(result.error || "Simpan semakan gagal.")
+      if (!response.ok) throw new Error(result.error || "Failed to save review.")
       router.refresh()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Simpan semakan gagal.")
+      setError(cause instanceof Error ? cause.message : "Failed to save review.")
     } finally { setBusy(false) }
   }
 
   async function deleteDocument() {
-    if (!window.confirm("Padam dokumen ini? PDF R2 dan rekod intake akan dipadam. Dokumen yang sudah ada Sales Order tidak boleh dipadam.")) return
+    if (!window.confirm("Delete this document? The R2 PDF and intake record will be deleted. Documents that already have a Sales Order cannot be deleted.")) return
     setBusy(true)
     setError("")
     try {
       const response = await fetch(`/api/sales-ordering/intake/${intakeId}`, { method: "DELETE" })
       const result = await response.json()
-      if (!response.ok) throw new Error(result.error || "Padam dokumen gagal.")
+      if (!response.ok) throw new Error(result.error || "Failed to delete document.")
       router.push("/forms/sales-ordering/intake")
       router.refresh()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Padam dokumen gagal.")
+      setError(cause instanceof Error ? cause.message : "Failed to delete document.")
     } finally { setBusy(false) }
   }
 
@@ -211,22 +211,22 @@ export function IntakeReview({
       const saveRes = await fetch(`/api/sales-ordering/intake/${intakeId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerId: customer?.id, document }) })
       if (!saveRes.ok) {
         const saveErr = await saveRes.json()
-        throw new Error(saveErr.error || "Simpan semakan gagal sebelum hantar.")
+        throw new Error(saveErr.error || "Failed to save review before forwarding.")
       }
       const response = await fetch(`/api/sales-ordering/intake/${intakeId}/forward-credit-check`, { method: "POST" })
       const result = await response.json()
-      if (!response.ok) throw new Error(result.error || "Hantar ke PO-SOA Check gagal.")
+      if (!response.ok) throw new Error(result.error || "Failed to send to PO-SOA Check.")
       router.push(`/forms/sales-ordering/credit-check?highlight=${result.creditCheckId}`)
       router.refresh()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Gagal menghantar ke PO-SOA Check.")
+      setError(cause instanceof Error ? cause.message : "Failed to send to PO-SOA Check.")
     } finally { setBusy(false) }
   }
 
   const inputClass = "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
 
   return <div className="space-y-6">
-    {issues.length > 0 && <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><div className="flex items-center gap-2 font-black text-amber-900"><AlertTriangle className="h-5 w-5" /> Perkara yang perlu disemak (Wajib diisi/dibetulkan)</div><ul className="mt-3 space-y-1 text-sm font-semibold text-amber-800">{issues.map((issue, index) => <li key={`${issue.code}-${index}`}>• {issue.message}</li>)}</ul></section>}
+    {issues.length > 0 && <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><div className="flex items-center gap-2 font-black text-amber-900"><AlertTriangle className="h-5 w-5" /> Items requiring review (Required to complete/correct)</div><ul className="mt-3 space-y-1 text-sm font-semibold text-amber-800">{issues.map((issue, index) => <li key={`${issue.code}-${index}`}>• {issue.message}</li>)}</ul></section>}
 
     {/* Empty State / Old Version Re-run Banner */}
     {document.lines.length === 0 && document.totals.grandTotal === 0 && (
@@ -234,9 +234,9 @@ export function IntakeReview({
         <div className="flex items-center gap-3.5 text-amber-950">
           <Sparkles className="h-8 w-8 text-amber-600 shrink-0" />
           <div>
-            <h4 className="text-sm font-black text-amber-950">Dokumen Belum Diekstrak Sepenuhnya / Menggunakan Versi Lama</h4>
+            <h4 className="text-sm font-black text-amber-950">Document Not Fully Extracted / Using Older Version</h4>
             <p className="text-xs text-amber-800 font-semibold mt-0.5">
-              Dokumen ini mengandungi fail Multi-PO (Giant PO). Klik butang di sebelah untuk memproses semula fail PDF dengan Enjin AI Multi-PO yang baru.
+              This document contains a Multi-PO file. Click the button to reprocess the PDF file with the Multi-PO AI Engine.
             </p>
           </div>
         </div>
@@ -248,16 +248,16 @@ export function IntakeReview({
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-5 py-3 text-xs font-black text-white hover:bg-amber-700 transition shadow-md disabled:opacity-50 shrink-0"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            ⚡ Proses Semula dengan AI
+            ⚡ Reprocess with AI
           </button>
         )}
       </section>
     )}
 
-    {!canManageDocuments && <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-600">Read-only review. Minta admin beri permission <span className="font-black">Edit / Delete Documents</span> untuk betulkan atau approve data dokumen.</section>}
+    {!canManageDocuments && <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-600">Read-only review. Request admin for <span className="font-black">Edit / Delete Documents</span> permission to correct or approve document data.</section>}
     <fieldset disabled={!canManageDocuments} className="contents disabled:opacity-70">
     <section className="grid gap-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:grid-cols-2 lg:p-7">
-      <div className="relative lg:col-span-2"><label className="text-xs font-black uppercase tracking-wider text-slate-500">Customer Master</label><div className="relative"><Search className="absolute left-3 top-4 h-4 w-4 text-slate-400" /><input value={query} onChange={event => { setQuery(event.target.value); setCustomer(null); setResults([]) }} className={`${inputClass} pl-9`} placeholder="Cari Customer ID, Sage ID atau nama..." /></div>{(searching || results.length > 0) && !customer && <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">{searching ? <p className="p-3 text-sm text-slate-500">Searching...</p> : results.map(option => <button key={option.id} type="button" onClick={() => { setCustomer(option); setQuery(`${option.customerCode} - ${option.legalName}`); setResults([]) }} className="block w-full rounded-lg px-3 py-2 text-left hover:bg-cyan-50"><p className="text-sm font-black text-slate-900">{option.customerCode} · {option.legalName}</p><p className="text-xs text-slate-500">{option.sageCustomerId || "No Sage ID"} · {option.creditTermsRaw || "No terms"} · {option.zone || "No zone"}</p></button>)}</div>}</div>
+      <div className="relative lg:col-span-2"><label className="text-xs font-black uppercase tracking-wider text-slate-500">Customer Master</label><div className="relative"><Search className="absolute left-3 top-4 h-4 w-4 text-slate-400" /><input value={query} onChange={event => { setQuery(event.target.value); setCustomer(null); setResults([]) }} className={`${inputClass} pl-9`} placeholder="Search Customer ID, Sage ID, or name..." /></div>{(searching || results.length > 0) && !customer && <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">{searching ? <p className="p-3 text-sm text-slate-500">Searching...</p> : results.map(option => <button key={option.id} type="button" onClick={() => { setCustomer(option); setQuery(`${option.customerCode} - ${option.legalName}`); setResults([]) }} className="block w-full rounded-lg px-3 py-2 text-left hover:bg-cyan-50"><p className="text-sm font-black text-slate-900">{option.customerCode} · {option.legalName}</p><p className="text-xs text-slate-500">{option.sageCustomerId || "No Sage ID"} · {option.creditTermsRaw || "No terms"} · {option.zone || "No zone"}</p></button>)}</div>}</div>
       <label className="text-xs font-black uppercase tracking-wider text-slate-500">Document Type<select value={document.documentType} onChange={event => setField("documentType", event.target.value)} className={inputClass}><option>PURCHASE_ORDER</option><option>PROFORMA_INVOICE</option><option>INVOICE</option><option>OTHER</option></select></label>
       <label className="text-xs font-black uppercase tracking-wider text-slate-500">Document Number<input value={document.documentNumber} onChange={event => setField("documentNumber", event.target.value)} className={inputClass} /></label>
       <label className="text-xs font-black uppercase tracking-wider text-slate-500">PO Number<input value={document.poNumber} onChange={event => setField("poNumber", event.target.value)} className={inputClass} /></label>
@@ -278,14 +278,14 @@ export function IntakeReview({
               <span className="rounded-full bg-cyan-600 px-3 py-1 text-xs font-black text-white">
                 Multi-PO Batch ({document.subPos?.length} POs)
               </span>
-              <h3 className="font-black text-slate-950 text-base">Pecahan Purchase Order dalam Fail PDF</h3>
+              <h3 className="font-black text-slate-950 text-base">Purchase Order Breakdown in PDF File</h3>
             </div>
             <p className="text-xs text-slate-600 mt-1">
-              AI berjaya mengesan {document.subPos?.length} Purchase Order berasingan dalam fail ini. Semua item digabungkan ke dalam jadual di bawah untuk semakan.
+              AI detected {document.subPos?.length} separate Purchase Orders in this file. All items are merged into the table below for review.
             </p>
           </div>
           <div className="text-right">
-            <span className="text-[10px] font-black uppercase text-cyan-800 tracking-wider">Jumlah Keseluruhan Batch</span>
+            <span className="text-[10px] font-black uppercase text-cyan-800 tracking-wider">Total Batch Amount</span>
             <p className="text-xl font-black text-cyan-950">
               {new Intl.NumberFormat("en-MY", { style: "currency", currency: "MYR" }).format(document.totals.grandTotal)}
             </p>
@@ -327,7 +327,7 @@ export function IntakeReview({
       <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
         <div>
           <h3 className="font-black text-slate-950">Order Items</h3>
-          <p className="text-xs text-slate-500">Semak SKU, quantity dan harga daripada dokumen. Jumlah akan dikira secara automatik.</p>
+          <p className="text-xs text-slate-500">Verify SKU, quantity, and price from document. Totals will be calculated automatically.</p>
         </div>
         <button
           type="button"
@@ -379,7 +379,7 @@ export function IntakeReview({
                     value={line.description}
                     onChange={event => updateLine(index, "description", event.target.value)}
                     className={inputClass}
-                    placeholder="Keterangan Produk"
+                    placeholder="Product Description"
                   />
                 </td>
                 <td className="p-2">
@@ -454,7 +454,7 @@ export function IntakeReview({
                   <button
                     type="button"
                     onClick={() => removeLine(index)}
-                    title="Padam Baris Item Ini"
+                    title="Delete this line item"
                     className="rounded-xl p-2.5 text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -491,7 +491,7 @@ export function IntakeReview({
     </fieldset>
     <section className="sticky bottom-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-xl backdrop-blur sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
-        <CheckCircle2 className="h-5 w-5 text-emerald-600" /> SOD Review & pengesahan maklumat.
+        <CheckCircle2 className="h-5 w-5 text-emerald-600" /> SOD Review & information verification.
       </div>
       {canManageDocuments && (
         <div className="flex flex-wrap items-center gap-2">
@@ -507,11 +507,11 @@ export function IntakeReview({
             type="button"
             onClick={reprocessAi}
             disabled={busy}
-            title="Proses semula dokumen PDF ini menggunakan AI"
+            title="Reprocess this PDF document using AI"
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-black text-amber-800 transition hover:bg-amber-100 disabled:opacity-60"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-amber-600" />}
-            Proses Semula AI
+            Reprocess with AI
           </button>
           <button
             type="button"
@@ -519,7 +519,7 @@ export function IntakeReview({
             disabled={busy}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-black text-cyan-700 transition hover:bg-cyan-100 disabled:opacity-60"
           >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Simpan Draft
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Draft
           </button>
           <button
             type="button"
@@ -527,7 +527,7 @@ export function IntakeReview({
             disabled={busy}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-600 px-5 py-3 text-sm font-black text-white transition hover:bg-cyan-500 disabled:bg-slate-300 shadow-md"
           >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Luluskan & Hantar ke PO-SOA Check
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Approve & Send to PO-SOA Check
           </button>
           {canCreateSalesOrder && (
             <button

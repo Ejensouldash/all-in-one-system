@@ -6,7 +6,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const access = await getSalesOrderingAccess()
     if (!access || !canManageSalesOrderingCustomers(access)) {
-      return NextResponse.json({ error: "Akses tidak dibenarkan. Kebenaran pengurusan pelanggan diperlukan." }, { status: 403 })
+      return NextResponse.json({ error: "Unauthorized. Customer management permission required." }, { status: 403 })
     }
 
     const { id } = await params
@@ -15,18 +15,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     })
 
     if (!registration) {
-      return NextResponse.json({ error: "Permohonan pendaftaran tidak ditemui." }, { status: 404 })
+      return NextResponse.json({ error: "Registration application not found." }, { status: 404 })
     }
 
     if (registration.status === "APPROVED") {
-      return NextResponse.json({ error: "Permohonan ini telah diluluskan sebelum ini dan tidak boleh ditolak." }, { status: 400 })
+      return NextResponse.json({ error: "This application has already been approved and cannot be rejected." }, { status: 400 })
     }
 
     const body = await req.json().catch(() => ({}))
     const reason = body.reason ? String(body.reason).trim() : ""
 
     if (!reason) {
-      return NextResponse.json({ error: "Sebab penolakan (Rejection Reason) WAJIB diisi." }, { status: 400 })
+      return NextResponse.json({ error: "Rejection reason is REQUIRED." }, { status: 400 })
     }
 
     const updated = await prisma.customerRegistration.update({
@@ -50,11 +50,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     return NextResponse.json({
       success: true,
-      message: "Permohonan pendaftaran telah ditolak.",
+      message: "Registration application has been rejected.",
       registration: updated,
     })
   } catch (error) {
     console.error("Reject Customer Registration Error:", error)
-    return NextResponse.json({ error: "Gagal menolak permohonan." }, { status: 500 })
+    return NextResponse.json({ error: "Failed to reject application." }, { status: 500 })
   }
 }

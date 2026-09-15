@@ -33,7 +33,7 @@ export default async function SalesOrderingDatabasePage() {
             </div>
             <h2 className="mt-2 text-3xl font-black text-slate-950">Database Manager & Purge Tool</h2>
             <p className="mt-1 text-sm text-slate-600">
-              Alatan khas untuk SuperAdmin menguruskan rekod ujian, memadam data Pending SOA, dan melakukan Reset ke Zero State untuk ujian dari kosong.
+              Dedicated tool for SuperAdmin to manage test records, purge Pending SOA data, and perform Reset to Zero State for end-to-end testing.
             </p>
           </div>
         </div>
@@ -43,25 +43,25 @@ export default async function SalesOrderingDatabasePage() {
           <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
             <p className="text-xs font-black uppercase text-amber-700">Pending SOA Cases</p>
             <p className="mt-2 text-3xl font-black text-amber-950">{pendingSoaCount}</p>
-            <p className="mt-1 text-xs text-amber-800 font-semibold">Dokumen sedia untuk diuji semula</p>
+            <p className="mt-1 text-xs text-amber-800 font-semibold">Documents ready for retesting</p>
           </div>
 
           <div className="rounded-2xl border border-cyan-200 bg-cyan-50/60 p-5">
             <p className="text-xs font-black uppercase text-cyan-700">Total PO-SOA Cases</p>
             <p className="mt-2 text-3xl font-black text-cyan-950">{totalCreditCases}</p>
-            <p className="mt-1 text-xs text-cyan-800 font-semibold">Jumlah audit semakan kredit</p>
+            <p className="mt-1 text-xs text-cyan-800 font-semibold">Total credit evaluation audit records</p>
           </div>
 
           <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-5">
             <p className="text-xs font-black uppercase text-violet-700">Intake Documents</p>
             <p className="mt-2 text-3xl font-black text-violet-950">{totalIntakes}</p>
-            <p className="mt-1 text-xs text-violet-800 font-semibold">Fail PDF yang di-upload oleh BD</p>
+            <p className="mt-1 text-xs text-violet-800 font-semibold">PDF files uploaded by BD</p>
           </div>
 
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5">
             <p className="text-xs font-black uppercase text-emerald-700">Total Sales Orders</p>
             <p className="mt-2 text-3xl font-black text-emerald-950">{totalOrders}</p>
-            <p className="mt-1 text-xs text-emerald-800 font-semibold">Pesanan yang telah dijana</p>
+            <p className="mt-1 text-xs text-emerald-800 font-semibold">Generated sales orders</p>
           </div>
         </div>
       </section>

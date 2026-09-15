@@ -9,7 +9,7 @@ const MAX_PDF_SIZE = 20 * 1024 * 1024
 
 export async function POST(request: Request) {
   const access = await getSalesOrderingAccess()
-  if (!access || !canAccessSalesOrderingTab(access, "intake")) return NextResponse.json({ error: "Akses AI Intake diperlukan." }, { status: 403 })
+  if (!access || !canAccessSalesOrderingTab(access, "intake")) return NextResponse.json({ error: "AI Intake access required." }, { status: 403 })
 
   try {
     const body = await request.json() as { fileName?: string; fileSize?: number; mimeType?: string }
@@ -18,10 +18,10 @@ export async function POST(request: Request) {
     const mimeType = body.mimeType?.toLowerCase() || ""
 
     if (!fileName.toLowerCase().endsWith(".pdf") || mimeType !== "application/pdf") {
-      return NextResponse.json({ error: "Hanya fail PDF dibenarkan." }, { status: 400 })
+      return NextResponse.json({ error: "Only PDF files are allowed." }, { status: 400 })
     }
     if (!fileSize || fileSize > MAX_PDF_SIZE) {
-      return NextResponse.json({ error: "Saiz PDF mesti antara 1 byte dan 20 MB." }, { status: 400 })
+      return NextResponse.json({ error: "PDF size must be between 1 byte and 20 MB." }, { status: 400 })
     }
 
     const intakeId = crypto.randomUUID()
@@ -43,6 +43,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ intakeId, uploadUrl, objectKey, expiresIn: 300 })
   } catch (error) {
     console.error("Sales intake upload URL error", error)
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal menyediakan upload." }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to prepare upload." }, { status: 500 })
   }
 }

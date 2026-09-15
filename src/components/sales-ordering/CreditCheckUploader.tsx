@@ -8,12 +8,12 @@ import type { CheckMode } from "@/lib/sales-ordering/decision-engine"
 type ProgressStage = "IDLE" | "PREPARING" | "UPLOADING" | "READING_FILES" | "READING_PO" | "VERIFYING_PO" | "RETRYING_PO" | "READING_SOA" | "RETRYING_SOA" | "RECONCILING" | "COMPLETING"
 
 const stages = [
-  { key: "UPLOADING", label: "Upload fail ke secure storage", progress: 28 },
-  { key: "READING_FILES", label: "Membuka dan mengesahkan kedua-dua PDF", progress: 36 },
-  { key: "READING_PO", label: "AI membaca PDF PO / Invois", progress: 48 },
-  { key: "VERIFYING_PO", label: "AI verify nombor, item dan jumlah", progress: 62 },
-  { key: "READING_SOA", label: "AI membaca lejar invoice dan payment SOA", progress: 78 },
-  { key: "RECONCILING", label: "Mengira aging dan keputusan mengikut mod kewangan", progress: 94 },
+  { key: "UPLOADING", label: "Uploading files to secure storage", progress: 28 },
+  { key: "READING_FILES", label: "Opening and verifying both PDFs", progress: 36 },
+  { key: "READING_PO", label: "AI reading PO / Invoice PDF", progress: 48 },
+  { key: "VERIFYING_PO", label: "AI verifying numbers, items, and totals", progress: 62 },
+  { key: "READING_SOA", label: "AI parsing invoice and payment SOA ledger", progress: 78 },
+  { key: "RECONCILING", label: "Calculating aging & financial control decisions", progress: 94 },
 ] as const
 
 const stageAlias: Record<ProgressStage, string> = {
@@ -36,8 +36,8 @@ function uploadToR2(url: string, file: File, onProgress: (fraction: number) => v
     request.open("PUT", url)
     request.setRequestHeader("Content-Type", "application/pdf")
     request.upload.onprogress = event => event.lengthComputable && onProgress(event.loaded / event.total)
-    request.onerror = () => reject(new Error("Sambungan upload ke Cloudflare R2 terputus."))
-    request.onload = () => request.status >= 200 && request.status < 300 ? resolve() : reject(new Error(`Upload PDF gagal (${request.status}).`))
+    request.onerror = () => reject(new Error("Upload connection to Cloudflare R2 was interrupted."))
+    request.onload = () => request.status >= 200 && request.status < 300 ? resolve() : reject(new Error(`PDF upload failed (${request.status}).`))
     request.send(file)
   })
 }
@@ -47,7 +47,7 @@ async function readJson(response: Response) {
   try {
     return JSON.parse(text) as Record<string, unknown>
   } catch {
-    throw new Error(`Server memberi respons tidak lengkap (${response.status}). Sila cuba semula.`)
+    throw new Error(`Server returned incomplete response (${response.status}). Please try again.`)
   }
 }
 
@@ -84,7 +84,7 @@ export function CreditCheckUploader({ existingCase }: { existingCase?: { id: str
   const choose = (setter: (file: File | null) => void) => (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null
     if (file && (!file.name.toLowerCase().endsWith(".pdf") || file.size > 20 * 1024 * 1024)) {
-      setError("Setiap fail mesti PDF, maksimum 20 MB.")
+      setError("Each file must be a PDF, maximum 20 MB.")
       return
     }
     setError("")
@@ -109,7 +109,7 @@ export function CreditCheckUploader({ existingCase }: { existingCase?: { id: str
 
       const preparedResponse = await fetch("/api/sales-ordering/credit-check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
       const prepared = await readJson(preparedResponse)
-      if (!preparedResponse.ok) throw new Error(String(prepared.error || "Gagal menyediakan upload."))
+      if (!preparedResponse.ok) throw new Error(String(prepared.error || "Failed to prepare upload."))
 
       setStage("UPLOADING")
       let poProgress = existingCase ? 1 : 0
@@ -143,13 +143,13 @@ export function CreditCheckUploader({ existingCase }: { existingCase?: { id: str
 
       const processedResponse = await processingPromise
       const processed = await readJson(processedResponse)
-      if (!processedResponse.ok) throw new Error(String(processed.error || "Semakan AI gagal."))
+      if (!processedResponse.ok) throw new Error(String(processed.error || "AI evaluation failed."))
       setStage("COMPLETING")
       setProgress(100)
       router.push(`/forms/sales-ordering/credit-check/${caseId}`)
       router.refresh()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Semakan gagal.")
+      setError(cause instanceof Error ? cause.message : "Evaluation failed.")
       setStage("IDLE")
       setProgress(0)
     } finally {
@@ -157,15 +157,15 @@ export function CreditCheckUploader({ existingCase }: { existingCase?: { id: str
     }
   }
 
-  const tile = (label: string, file: File | null, ref: React.RefObject<HTMLInputElement | null>, setter: (file: File | null) => void) => <button type="button" onClick={() => ref.current?.click()} disabled={busy} className="flex min-h-44 flex-1 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-cyan-200 bg-cyan-50/50 p-5 text-center transition hover:border-cyan-500 disabled:cursor-not-allowed disabled:opacity-70"><input ref={ref} type="file" accept="application/pdf" className="hidden" onChange={choose(setter)} />{file ? <FileText className="mb-3 h-9 w-9 text-emerald-600" /> : <UploadCloud className="mb-3 h-9 w-9 text-cyan-700" />}<p className="font-black text-slate-950">{file?.name || label}</p><p className="mt-1 text-xs font-semibold text-slate-500">PDF sahaja - maksimum 20 MB</p></button>
+  const tile = (label: string, file: File | null, ref: React.RefObject<HTMLInputElement | null>, setter: (file: File | null) => void) => <button type="button" onClick={() => ref.current?.click()} disabled={busy} className="flex min-h-44 flex-1 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-cyan-200 bg-cyan-50/50 p-5 text-center transition hover:border-cyan-500 disabled:cursor-not-allowed disabled:opacity-70"><input ref={ref} type="file" accept="application/pdf" className="hidden" onChange={choose(setter)} />{file ? <FileText className="mb-3 h-9 w-9 text-emerald-600" /> : <UploadCloud className="mb-3 h-9 w-9 text-cyan-700" />}<p className="font-black text-slate-950">{file?.name || label}</p><p className="mt-1 text-xs font-semibold text-slate-500">PDF only - maximum 20 MB</p></button>
 
   return <section className="rounded-3xl border border-cyan-200 bg-white p-5 shadow-sm sm:p-7">
     <div className="mb-6">
       <div className="flex items-center gap-3">
         <span className="rounded-xl bg-cyan-50 p-2 text-cyan-700"><ShieldCheck className="h-5 w-5" /></span>
         <div>
-          <h2 className="font-black text-slate-950">Mulakan PO-SOA Smart Checking</h2>
-          <p className="text-sm text-slate-500">Pilih mod kawalan kewangan sebelum memproses dokumen PDF.</p>
+          <h2 className="font-black text-slate-950">Start PO-SOA Smart Checking</h2>
+          <p className="text-sm text-slate-500">Select financial control mode before processing PDF documents.</p>
         </div>
       </div>
 
@@ -181,8 +181,8 @@ export function CreditCheckUploader({ existingCase }: { existingCase?: { id: str
             <FileCheck2 className="h-4 w-4" />
           </span>
           <div>
-            <p className="text-sm font-black text-slate-950">Semakan Kredit PO Baharu</p>
-            <p className="mt-1 text-xs font-semibold text-slate-500">Kelulusan pelepasan Sales Order baharu berdasarkan padanan identiti & tunggakan overdue SOA.</p>
+            <p className="text-sm font-black text-slate-950">New PO Credit Check</p>
+            <p className="mt-1 text-xs font-semibold text-slate-500">Approval of new Sales Orders based on identity matching & overdue SOA debt.</p>
           </div>
         </button>
 
@@ -196,8 +196,8 @@ export function CreditCheckUploader({ existingCase }: { existingCase?: { id: str
             <Scale className="h-4 w-4" />
           </span>
           <div>
-            <p className="text-sm font-black text-slate-950">Padanan Invois vs SOA</p>
-            <p className="mt-1 text-xs font-semibold text-slate-500">Penyelarasan lejar invois spesifik berbanding penyata akaun (SOA) pembekal.</p>
+            <p className="text-sm font-black text-slate-950">Invoice vs SOA Matching</p>
+            <p className="mt-1 text-xs font-semibold text-slate-500">Reconciliation of specific invoice ledger against supplier Statement of Account (SOA).</p>
           </div>
         </button>
       </div>
@@ -208,10 +208,10 @@ export function CreditCheckUploader({ existingCase }: { existingCase?: { id: str
         <div className="flex min-h-44 flex-1 flex-col items-center justify-center rounded-2xl border-2 border-emerald-200 bg-emerald-50/50 p-5 text-center">
           <FileCheck2 className="mb-3 h-9 w-9 text-emerald-600" />
           <p className="font-black text-slate-950">{existingCase.poFileName}</p>
-          <p className="mt-1 text-xs font-semibold text-emerald-700">Dilampirkan dari AI Intake</p>
+          <p className="mt-1 text-xs font-semibold text-emerald-700">Attached from AI Intake</p>
         </div>
       ) : (
-        tile(checkMode === "PO_CREDIT_CHECK" ? "Upload Purchase Order" : "Upload Invois Pembekal / Pelanggan", po, poRef, setPo)
+        tile(checkMode === "PO_CREDIT_CHECK" ? "Upload Purchase Order" : "Upload Supplier / Customer Invoice", po, poRef, setPo)
       )}
       {tile("Upload Statement of Account", soa, soaRef, setSoa)}
     </div>
@@ -223,8 +223,8 @@ export function CreditCheckUploader({ existingCase }: { existingCase?: { id: str
     {busy && <div className="mt-4 rounded-2xl border border-cyan-100 bg-slate-50 p-4" aria-live="polite">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-black text-slate-950">{retrying ? "Gemini sibuk - sistem sedang retry automatik" : stages[Math.max(0, activeIndex)]?.label || "Menyediakan semakan"}</p>
-          <p className="mt-1 text-xs font-semibold text-slate-500">Masa berjalan: {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}{retrying ? " - dokumen tidak perlu di-upload semula" : ""}</p>
+          <p className="text-sm font-black text-slate-950">{retrying ? "Gemini busy - system is retrying automatically" : stages[Math.max(0, activeIndex)]?.label || "Preparing evaluation"}</p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">Elapsed time: {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}{retrying ? " - documents do not need to be re-uploaded" : ""}</p>
         </div>
         {retrying ? <RefreshCw className="h-5 w-5 animate-spin text-amber-600" /> : <Loader2 className="h-5 w-5 animate-spin text-cyan-600" />}
       </div>
@@ -234,7 +234,7 @@ export function CreditCheckUploader({ existingCase }: { existingCase?: { id: str
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         {stages.map((item, index) => <div key={item.key} className={`flex items-center gap-2 text-xs font-bold ${index < activeIndex ? "text-emerald-700" : index === activeIndex ? "text-cyan-800" : "text-slate-400"}`}>{index < activeIndex ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${index === activeIndex ? "animate-pulse bg-cyan-500" : "bg-slate-300"}`} />}{item.label}</div>)}
       </div>
-      <p className="mt-4 text-xs font-semibold text-slate-500">Gemini AI sedang membaca dan menguji kedua-dua PDF. Sila tunggu sehingga selesai.</p>
+      <p className="mt-4 text-xs font-semibold text-slate-500">Gemini AI is reading and evaluating both PDFs. Please wait until completion.</p>
     </div>}
 
     {error && <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}

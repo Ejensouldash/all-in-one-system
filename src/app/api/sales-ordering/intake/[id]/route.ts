@@ -13,18 +13,18 @@ async function requireDocumentManager() {
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const access = await requireDocumentManager()
-  if (!access) return NextResponse.json({ error: "Akses Edit / Delete Documents diperlukan." }, { status: 403 })
+  if (!access) return NextResponse.json({ error: "Edit / Delete Documents permission required." }, { status: 403 })
   const { id } = await context.params
   try {
     const body = await request.json() as { customerId?: string; document?: unknown }
     const document = normalizeExtractedDocument(body.document)
     const customerId = body.customerId?.trim() || null
     const intake = await prisma.salesDocumentIntake.findUnique({ where: { id }, include: { salesOrder: true } })
-    if (!intake) return NextResponse.json({ error: "Document intake tidak ditemui." }, { status: 404 })
-    if (intake.salesOrder) return NextResponse.json({ error: "Dokumen telah dikunci kerana Sales Order sudah dicipta." }, { status: 409 })
+    if (!intake) return NextResponse.json({ error: "Document intake not found." }, { status: 404 })
+    if (intake.salesOrder) return NextResponse.json({ error: "Document is locked because a Sales Order has already been created." }, { status: 409 })
     if (customerId) {
       const customer = await prisma.customer.findUnique({ where: { id: customerId } })
-      if (!customer) return NextResponse.json({ error: "Customer tidak ditemui." }, { status: 400 })
+      if (!customer) return NextResponse.json({ error: "Customer not found." }, { status: 400 })
       document.customerReference = customer.customerCode
     }
     const validation = await validateExtractedSalesDocument(document)
@@ -35,17 +35,17 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     })
     return NextResponse.json({ success: true, intake: updated })
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal menyimpan semakan dokumen." }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to save document review." }, { status: 500 })
   }
 }
 
 export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
   const access = await requireDocumentManager()
-  if (!access) return NextResponse.json({ error: "Akses Edit / Delete Documents diperlukan." }, { status: 403 })
+  if (!access) return NextResponse.json({ error: "Edit / Delete Documents permission required." }, { status: 403 })
   const { id } = await context.params
   const intake = await prisma.salesDocumentIntake.findUnique({ where: { id }, include: { salesOrder: true } })
-  if (!intake) return NextResponse.json({ error: "Document intake tidak ditemui." }, { status: 404 })
-  if (intake.salesOrder) return NextResponse.json({ error: "Dokumen yang sudah mempunyai Sales Order tidak boleh dipadam." }, { status: 409 })
+  if (!intake) return NextResponse.json({ error: "Document intake not found." }, { status: 404 })
+  if (intake.salesOrder) return NextResponse.json({ error: "Documents with an existing Sales Order cannot be deleted." }, { status: 409 })
   try {
     await deleteR2Object(intake.r2ObjectKey)
     await prisma.$transaction([
@@ -54,6 +54,6 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
     ])
     return NextResponse.json({ success: true })
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal memadam dokumen." }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to delete document." }, { status: 500 })
   }
 }

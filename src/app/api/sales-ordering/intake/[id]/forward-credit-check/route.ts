@@ -10,7 +10,7 @@ export async function POST(
 ) {
   const access = await getSalesOrderingAccess()
   if (!access || !canAccessSalesOrderingTab(access, "intake")) {
-    return NextResponse.json({ error: "Akses AI Intake diperlukan." }, { status: 403 })
+    return NextResponse.json({ error: "AI Intake access required." }, { status: 403 })
   }
 
   try {
@@ -21,7 +21,7 @@ export async function POST(
     })
 
     if (!intake) {
-      return NextResponse.json({ error: "Dokumen Intake tidak ditemui." }, { status: 404 })
+      return NextResponse.json({ error: "Intake document not found." }, { status: 404 })
     }
 
     const poData = (intake.extractedData as any) || {}
@@ -67,11 +67,11 @@ export async function POST(
     return NextResponse.json({
       success: true,
       creditCheckId: creditCase.id,
-      message: "PO berjaya dihantar ke PO-SOA Check.",
+      message: "PO successfully forwarded to PO-SOA Check.",
     })
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Gagal memproses hantaran PO-SOA." },
+      { error: error instanceof Error ? error.message : "Failed to process PO-SOA forwarding." },
       { status: 500 },
     )
   }

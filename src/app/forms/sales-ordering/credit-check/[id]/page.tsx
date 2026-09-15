@@ -20,10 +20,10 @@ export default async function CreditCheckDetailPage({ params }: { params: Promis
     return (
       <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6">
         <Link href="/forms/sales-ordering/credit-check" className="text-sm font-black text-cyan-700">
-          ← Kembali ke PO-SOA Check
+          ← Back to PO-SOA Check
         </Link>
-        <p className="mt-3 font-black text-rose-900">Semakan belum siap.</p>
-        <p className="mt-1 text-sm text-rose-700">{item.errorMessage || "Sila proses semula kedua-dua dokumen."}</p>
+        <p className="mt-3 font-black text-rose-900">Evaluation incomplete.</p>
+        <p className="mt-1 text-sm text-rose-700">{item.errorMessage || "Please reprocess both documents."}</p>
       </div>
     )
   }
@@ -33,7 +33,7 @@ export default async function CreditCheckDetailPage({ params }: { params: Promis
   return (
     <div className="space-y-6">
       <Link href="/forms/sales-ordering/credit-check" className="inline-flex items-center gap-1 text-xs font-black text-cyan-700 hover:underline">
-        <ArrowLeft className="h-3.5 w-3.5" /> Kembali ke Senarai PO-SOA Check
+        <ArrowLeft className="h-3.5 w-3.5" /> Back to PO-SOA Check List
       </Link>
       <CreditCheckReview
         id={item.id}

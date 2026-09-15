@@ -34,7 +34,7 @@ export function PdfPreviewModal({ isOpen, onClose, r2ObjectKey, title }: PdfPrev
               <Eye className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-black text-lg text-white">{title || "Pratinjau Dokumen PDF"}</h3>
+              <h3 className="font-black text-lg text-white">{title || "PDF Document Preview"}</h3>
               <p className="text-xs text-slate-400 font-mono truncate max-w-md">{r2ObjectKey.split("/").pop()}</p>
             </div>
           </div>
@@ -60,7 +60,7 @@ export function PdfPreviewModal({ isOpen, onClose, r2ObjectKey, title }: PdfPrev
               <div className="h-4 w-px bg-slate-700 mx-1" />
               <button
                 onClick={handleRotate}
-                title="Putar Dokumen"
+                title="Rotate Document"
                 className="rounded-lg p-2 text-slate-300 hover:bg-slate-700 hover:text-white transition"
               >
                 <RotateCw className="h-4 w-4" />
@@ -73,7 +73,7 @@ export function PdfPreviewModal({ isOpen, onClose, r2ObjectKey, title }: PdfPrev
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-3.5 py-2.5 text-xs font-black text-cyan-400 hover:bg-slate-700 border border-slate-700 transition"
             >
-              <ExternalLink className="h-4 w-4" /> Tab Baharu
+              <ExternalLink className="h-4 w-4" /> New Tab
             </a>
 
             <button
@@ -103,8 +103,8 @@ export function PdfPreviewModal({ isOpen, onClose, r2ObjectKey, title }: PdfPrev
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-slate-800 bg-slate-950 px-6 py-2.5 text-xs text-slate-400">
-          <span>Strim terus dari Cloudflare R2</span>
-          <span>Tekan ESC atau butang X untuk tutup</span>
+          <span>Streamed directly from Cloudflare R2</span>
+          <span>Press ESC or X button to close</span>
         </div>
       </div>
     </div>

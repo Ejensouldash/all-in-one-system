@@ -14,10 +14,10 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   let id = ""
   try {
     const access = await getSalesOrderingAccess()
-    if (!access || !canAccessSalesOrderingTab(access, "intake")) return NextResponse.json({ error: "Akses AI Intake diperlukan." }, { status: 403 })
+    if (!access || !canAccessSalesOrderingTab(access, "intake")) return NextResponse.json({ error: "AI Intake access required." }, { status: 403 })
     id = (await context.params).id
     const item = await prisma.creditCheckCase.findUnique({ where: { id } })
-    if (!item) return NextResponse.json({ error: "Semakan tidak ditemui." }, { status: 404 })
+    if (!item) return NextResponse.json({ error: "Evaluation not found." }, { status: 404 })
     await prisma.creditCheckCase.update({ where: { id }, data: { status: "READING_FILES", errorMessage: null } })
 
     // Read SOA PDF from Cloudflare R2
@@ -51,16 +51,16 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     await prisma.auditLog.create({ data: { userId: access.userId, userName: access.name || "Sales Ordering User", action: "PO_SOA_CREDIT_CHECKED", details: JSON.stringify({ creditCheckId: id, recommendation: result.recommendation }) } })
     return NextResponse.json({ success: true, item: updated })
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Semakan AI gagal"
+    const message = error instanceof Error ? error.message : "AI evaluation failed"
     console.error("PO-SOA credit check processing failed", { id, message })
     if (id) await prisma.creditCheckCase.update({ where: { id }, data: { status: "AI_FAILED", errorMessage: message } }).catch(() => undefined)
     const userMessage = message.includes("GEMINI_API_KEY")
-      ? "Gemini PDF extraction belum dikonfigurasi di server. Sila semak GEMINI_API_KEY di Vercel."
+      ? "Gemini PDF extraction is not configured on the server. Please check GEMINI_API_KEY in Vercel."
       : message.includes("timeout") || message.includes("timed out")
-        ? "Pemprosesan PDF mengambil masa terlalu lama. Sila cuba semula; dokumen tidak perlu di-upload semula."
+        ? "PDF processing took too long. Please try again; documents do not need to be re-uploaded."
         : message.includes("AI") || message.includes("Gemini")
-          ? "AI gagal membaca PDF ini. Sila cuba semula sebentar lagi."
-          : "Server gagal memproses semakan ini. Sila cuba semula; jika masih gagal, rujuk error ID pada rekod semakan."
+          ? "AI failed to read this PDF. Please try again shortly."
+          : "Server failed to process this evaluation. Please try again; if it still fails, refer to the error ID on the evaluation record."
     return NextResponse.json({ error: userMessage }, { status: 500 })
   }
 }

@@ -29,8 +29,8 @@ export function CreditCheckCasesList({ items }: { items: CaseItem[] }) {
     <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
         <div>
-          <h3 className="font-black text-slate-950 text-lg">Senarai Semakan PO-SOA & Status Kelulusan</h3>
-          <p className="text-xs text-slate-500 mt-1">Status kawalan kredit: SOD semak SOA → READY_FOR_SO (Lulus) / ON_HOLD (Finance Review) / REJECTED (BD Follow-up)</p>
+          <h3 className="font-black text-slate-950 text-lg">PO-SOA Evaluation & Approval Status List</h3>
+          <p className="text-xs text-slate-500 mt-1">Credit control status: SOD reviews SOA → READY_FOR_SO (Approved) / ON_HOLD (Finance Review) / REJECTED (BD Follow-up)</p>
         </div>
 
         {/* Filter Tabs */}
@@ -39,13 +39,13 @@ export function CreditCheckCasesList({ items }: { items: CaseItem[] }) {
             onClick={() => setActiveTab("ALL")}
             className={`flex items-center gap-1.5 rounded-xl px-3 py-2 transition ${activeTab === "ALL" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
           >
-            <FileText className="h-3.5 w-3.5" /> Semua ({items.length})
+            <FileText className="h-3.5 w-3.5" /> All ({items.length})
           </button>
           <button
             onClick={() => setActiveTab("READY_FOR_SO")}
             className={`flex items-center gap-1.5 rounded-xl px-3 py-2 transition ${activeTab === "READY_FOR_SO" ? "bg-emerald-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
           >
-            <CheckCircle2 className="h-3.5 w-3.5" /> Lulus / Ready SO ({readyItems.length})
+            <CheckCircle2 className="h-3.5 w-3.5" /> Passed / Ready SO ({readyItems.length})
           </button>
           <button
             onClick={() => setActiveTab("ON_HOLD")}
@@ -67,9 +67,9 @@ export function CreditCheckCasesList({ items }: { items: CaseItem[] }) {
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-900 flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
           <div>
-            <p className="font-black text-sm">Senarai Pesanan Ditolak (Need BD Follow-up)</p>
+            <p className="font-black text-sm">Rejected Orders List (Need BD Follow-up)</p>
             <p className="mt-1 font-semibold text-rose-800">
-              Pesanan dalam senarai ini telah ditolak oleh Finance due to overdue invoices or credit limit breaches. Team BD dikehendaki membuat susulan (follow-up) bersama pelanggan untuk penyelesaian bayaran sebelum PO baharu boleh diproses.
+              Orders in this list have been rejected by Finance due to overdue invoices or credit limit breaches. The BD team is required to follow up with the customer for payment settlement before new POs can be processed.
             </p>
           </div>
         </div>
@@ -81,12 +81,12 @@ export function CreditCheckCasesList({ items }: { items: CaseItem[] }) {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-900 text-white">
               <tr>
-                <th className="px-4 py-3">Fail PO</th>
-                <th className="px-4 py-3">Fail SOA</th>
-                <th className="px-4 py-3">Tarikh</th>
-                <th className="px-4 py-3">Status System</th>
-                <th className="px-4 py-3">Keputusan Finance</th>
-                <th className="px-4 py-3 text-right">Tindakan</th>
+                <th className="px-4 py-3">PO File</th>
+                <th className="px-4 py-3">SOA File</th>
+                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-3">System Status</th>
+                <th className="px-4 py-3">Finance Decision</th>
+                <th className="px-4 py-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -116,7 +116,7 @@ export function CreditCheckCasesList({ items }: { items: CaseItem[] }) {
                       {item.finalDecision ? (
                         <span className="font-bold text-slate-900">{item.finalDecision}</span>
                       ) : (
-                        <span className="text-slate-400 italic">Menunggu</span>
+                        <span className="text-slate-400 italic">Pending</span>
                       )}
                       {item.financeRemarks && (
                         <p className="text-[10px] text-slate-500 truncate max-w-[200px]" title={item.financeRemarks}>
@@ -129,7 +129,7 @@ export function CreditCheckCasesList({ items }: { items: CaseItem[] }) {
                         href={`/forms/sales-ordering/credit-check/${item.id}`}
                         className="inline-flex items-center gap-1 rounded-xl bg-slate-900 px-3 py-1.5 font-bold text-white hover:bg-cyan-700 transition"
                       >
-                        Semak Case <ArrowRight className="h-3 w-3" />
+                        Review Case <ArrowRight className="h-3 w-3" />
                       </Link>
                     </td>
                   </tr>
@@ -140,7 +140,7 @@ export function CreditCheckCasesList({ items }: { items: CaseItem[] }) {
         </div>
       ) : (
         <div className="py-8 text-center text-xs text-slate-400 font-semibold border border-dashed border-slate-200 rounded-2xl">
-          Tiada rekod semakan kredit di bawah tab ini.
+          No credit evaluation records found under this tab.
         </div>
       )}
     </div>

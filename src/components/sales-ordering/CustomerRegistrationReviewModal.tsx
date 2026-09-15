@@ -88,7 +88,7 @@ export function CustomerRegistrationReviewModal({
   }
 
   const handleApprove = async () => {
-    if (!confirm(`Luluskan pendaftaran untuk "${item.companyName}" dan cipta rekod di Customer Master?`)) return
+    if (!confirm(`Approve registration for "${item.companyName}" and create record in Customer Master?`)) return
     setBusy(true)
     setError("")
     try {
@@ -96,22 +96,22 @@ export function CustomerRegistrationReviewModal({
         method: "POST"
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Gagal meluluskan permohonan.")
+      if (!res.ok) throw new Error(data.error || "Failed to approve application.")
       alert(data.message)
       onRefresh()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal meluluskan.")
+      setError(err instanceof Error ? err.message : "Failed to approve.")
     } finally {
       setBusy(false)
     }
   }
 
   const handleReject = async () => {
-    const reason = prompt("Sebab Penolakan (Rejection Reason) WAJIB diisi:")
+    const reason = prompt("Rejection Reason is REQUIRED:")
     if (reason === null) return
     if (!reason.trim()) {
-      alert("⚠️ Sebab penolakan tidak boleh dibiarkan kosong.")
+      alert("⚠️ Rejection reason cannot be left blank.")
       return
     }
 
@@ -124,11 +124,11 @@ export function CustomerRegistrationReviewModal({
         body: JSON.stringify({ reason: reason.trim() })
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Gagal menolak permohonan.")
+      if (!res.ok) throw new Error(data.error || "Failed to reject application.")
       onRefresh()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal menolak.")
+      setError(err instanceof Error ? err.message : "Failed to reject.")
     } finally {
       setBusy(false)
     }
@@ -146,7 +146,7 @@ export function CustomerRegistrationReviewModal({
             </div>
             <div>
               <h3 className="font-black text-lg text-white">{item.companyName}</h3>
-              <p className="text-xs text-slate-400 font-mono">No. Permohonan: {item.registrationNo} · Tarikh: {item.createdAt.slice(0, 10)}</p>
+              <p className="text-xs text-slate-400 font-mono">Application No: {item.registrationNo} · Date: {item.createdAt.slice(0, 10)}</p>
             </div>
           </div>
 
@@ -171,54 +171,54 @@ export function CustomerRegistrationReviewModal({
 
           {item.status === "REJECTED" && item.rejectionReason && (
             <div className="rounded-2xl bg-rose-50/80 p-4 border border-rose-200 text-rose-900 text-xs font-semibold">
-              <span className="font-black text-rose-700 uppercase">Sebab Penolakan (Rejection Reason):</span> {item.rejectionReason}
+              <span className="font-black text-rose-700 uppercase">Rejection Reason:</span> {item.rejectionReason}
             </div>
           )}
 
           {/* Section A: Company Details */}
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
             <h4 className="flex items-center gap-2 font-black text-slate-900 border-b border-slate-100 pb-3 text-sm">
-              <Building2 className="h-4 w-4 text-cyan-600" /> A. Butiran Syarikat (Company Details)
+              <Building2 className="h-4 w-4 text-cyan-600" /> A. Company Details
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
               <div>
-                <p className="font-bold text-slate-500 uppercase">Nama Syarikat</p>
+                <p className="font-bold text-slate-500 uppercase">Company Name</p>
                 <p className="font-black text-slate-900 text-sm mt-0.5">{item.companyName}</p>
               </div>
               <div>
-                <p className="font-bold text-slate-500 uppercase">No. Pendaftaran Syarikat</p>
+                <p className="font-bold text-slate-500 uppercase">Company Registration No.</p>
                 <p className="font-bold text-slate-900 mt-0.5">{item.companyRegNoNew || item.companyRegNoOld || "-"}</p>
               </div>
               <div>
-                <p className="font-bold text-slate-500 uppercase">Jenis Perniagaan</p>
+                <p className="font-bold text-slate-500 uppercase">Business Type</p>
                 <p className="font-bold text-slate-900 mt-0.5">{item.businessType || "-"}</p>
               </div>
               <div>
-                <p className="font-bold text-slate-500 uppercase">No. TIN / SST</p>
+                <p className="font-bold text-slate-500 uppercase">TIN / SST No.</p>
                 <p className="font-bold text-slate-900 mt-0.5">TIN: {item.tinNo || "-"} · SST: {item.sstNo || "-"}</p>
               </div>
               <div>
-                <p className="font-bold text-slate-500 uppercase">Sektor / Nature of Business</p>
+                <p className="font-bold text-slate-500 uppercase">Sector / Nature of Business</p>
                 <p className="font-bold text-slate-900 mt-0.5">{item.natureOfBusiness || "-"}</p>
               </div>
               <div>
-                <p className="font-bold text-slate-500 uppercase">No. Pejabat / Email Invoice</p>
+                <p className="font-bold text-slate-500 uppercase">Office Phone / Invoice Email</p>
                 <p className="font-bold text-slate-900 mt-0.5">{item.contactOffice || "-"} · {item.emailInvoice || "-"}</p>
               </div>
               <div className="sm:col-span-2">
-                <p className="font-bold text-slate-500 uppercase">Alamat Perniagaan (Business Address)</p>
+                <p className="font-bold text-slate-500 uppercase">Business Address</p>
                 <p className="font-bold text-slate-800 mt-0.5">{item.businessAddress || "-"}</p>
               </div>
               <div>
-                <p className="font-bold text-slate-500 uppercase">Waktu Operasi Pejabat</p>
+                <p className="font-bold text-slate-500 uppercase">Office Operating Hours</p>
                 <p className="font-black text-cyan-800 mt-0.5">{financial.officeOperatingHours || "-"}</p>
               </div>
               <div>
-                <p className="font-bold text-slate-500 uppercase">Waktu Penghantaran Pilihan</p>
+                <p className="font-bold text-slate-500 uppercase">Preferred Delivery Time</p>
                 <p className="font-black text-emerald-800 mt-0.5">{financial.preferredDeliveryTime || "-"}</p>
               </div>
               <div>
-                <p className="font-bold text-slate-500 uppercase">Turnover & Modal Berbayar</p>
+                <p className="font-bold text-slate-500 uppercase">Turnover & Paid-Up Capital</p>
                 <p className="font-bold text-slate-900 mt-0.5">Turnover: {item.annualTurnover || "-"} · Capital: {item.paidUpCapital || "-"}</p>
               </div>
             </div>
@@ -228,13 +228,13 @@ export function CustomerRegistrationReviewModal({
           {contacts.length > 0 && (
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
               <h4 className="flex items-center gap-2 font-black text-slate-900 border-b border-slate-100 pb-3 text-sm">
-                <User className="h-4 w-4 text-cyan-600" /> B. Pegawai Hubungan (Contact Persons)
+                <User className="h-4 w-4 text-cyan-600" /> B. Contact Persons
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 {contacts.map((c: any, i: number) => (
                   <div key={i} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
                     <p className="font-black text-cyan-900 uppercase text-[10px]">{c.department}</p>
-                    <p className="font-bold text-slate-900 text-sm mt-0.5">{c.name || "Nama N/A"}</p>
+                    <p className="font-bold text-slate-900 text-sm mt-0.5">{c.name || "Name N/A"}</p>
                     <p className="text-slate-600 mt-1">Tel: {c.phone || "-"} · Email: {c.email || "-"}</p>
                   </div>
                 ))}
@@ -245,23 +245,23 @@ export function CustomerRegistrationReviewModal({
           {/* Section C: Financial Information & Payment Terms */}
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
             <h4 className="flex items-center gap-2 font-black text-slate-900 border-b border-slate-100 pb-3 text-sm">
-              <Landmark className="h-4 w-4 text-cyan-600" /> C. Maklumat Perbankan & Terma Pembayaran
+              <Landmark className="h-4 w-4 text-cyan-600" /> C. Banking Information & Payment Terms
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
               <div>
-                <p className="font-bold text-slate-500 uppercase">Terma Pembayaran</p>
+                <p className="font-bold text-slate-500 uppercase">Payment Terms</p>
                 <p className="font-black text-cyan-800 text-sm mt-0.5">{financial.paymentTermsRequested || "COD / Standard"}</p>
               </div>
               <div>
-                <p className="font-bold text-slate-500 uppercase">Nama Bank</p>
+                <p className="font-bold text-slate-500 uppercase">Bank Name</p>
                 <p className="font-black text-slate-900 text-sm mt-0.5">{financial.bankName || "-"}</p>
               </div>
               <div>
-                <p className="font-bold text-slate-500 uppercase">No. Akaun Bank</p>
+                <p className="font-bold text-slate-500 uppercase">Bank Account No.</p>
                 <p className="font-black text-slate-900 text-sm mt-0.5">{financial.accountNo || "-"}</p>
               </div>
               <div>
-                <p className="font-bold text-slate-500 uppercase">Jenis Akaun / SWIFT</p>
+                <p className="font-bold text-slate-500 uppercase">Account Type / SWIFT</p>
                 <p className="font-bold text-slate-900 mt-0.5">{financial.bankType || "-"} ({financial.swiftCode || "-"})</p>
               </div>
             </div>
@@ -270,7 +270,7 @@ export function CustomerRegistrationReviewModal({
           {/* Section D: Supporting Documents (Google Drive PDFs) */}
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
             <h4 className="flex items-center gap-2 font-black text-slate-900 border-b border-slate-100 pb-3 text-sm">
-              <FileText className="h-4 w-4 text-cyan-600" /> D. Dokumen Sokongan (Supporting Documents)
+              <FileText className="h-4 w-4 text-cyan-600" /> D. Supporting Documents
             </h4>
             {supportingDocs.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -284,8 +284,8 @@ export function CustomerRegistrationReviewModal({
                           <FileText className="h-5 w-5" />
                         </div>
                         <div className="truncate">
-                          <p className="font-bold text-xs text-slate-900 truncate">{doc.docType || doc.fileName || `Dokumen ${idx + 1}`}</p>
-                          <p className="text-[10px] text-slate-500 truncate">{doc.fileName || "Fail Google Drive"}</p>
+                          <p className="font-bold text-xs text-slate-900 truncate">{doc.docType || doc.fileName || `Document ${idx + 1}`}</p>
+                          <p className="text-[10px] text-slate-500 truncate">{doc.fileName || "Google Drive File"}</p>
                         </div>
                       </div>
 
@@ -295,7 +295,7 @@ export function CustomerRegistrationReviewModal({
                             onClick={() => {
                               setActiveDocUrl(embedUrl)
                               setActiveDriveDirectUrl(directUrl)
-                              setDocTitle(doc.docType || doc.fileName || "Pratinjau Dokumen")
+                              setDocTitle(doc.docType || doc.fileName || "Document Preview")
                               setIframeError(false)
                             }}
                             className="inline-flex items-center gap-1 rounded-lg border border-cyan-300 bg-cyan-50 px-2.5 py-1.5 text-xs font-black text-cyan-800 hover:bg-cyan-100 transition shadow-sm"
@@ -309,7 +309,7 @@ export function CustomerRegistrationReviewModal({
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
-                          title="Buka terus di Google Drive"
+                          title="Open directly in Google Drive"
                         >
                           <ExternalLink className="h-3.5 w-3.5" /> Drive
                         </a>
@@ -319,7 +319,7 @@ export function CustomerRegistrationReviewModal({
                 })}
               </div>
             ) : (
-              <p className="text-xs text-slate-400 italic">Tiada dokumen sokongan dilampirkan semasa pendaftaran.</p>
+              <p className="text-xs text-slate-400 italic">No supporting documents attached during registration.</p>
             )}
           </section>
 
@@ -328,7 +328,7 @@ export function CustomerRegistrationReviewModal({
         {/* Modal Footer */}
         <div className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-4">
           <button onClick={onClose} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-black text-slate-700 hover:bg-slate-50 transition">
-            Tutup Modal
+            Close Modal
           </button>
 
           {item.status === "PENDING" && (
@@ -338,7 +338,7 @@ export function CustomerRegistrationReviewModal({
                 disabled={busy}
                 className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-black text-rose-700 hover:bg-rose-100 transition disabled:opacity-50"
               >
-                <XCircle className="h-4 w-4" /> Tolak Permohonan
+                <XCircle className="h-4 w-4" /> Reject Application
               </button>
 
               <button
@@ -346,7 +346,7 @@ export function CustomerRegistrationReviewModal({
                 disabled={busy}
                 className="inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-5 py-2.5 text-xs font-black text-white hover:bg-cyan-500 transition shadow-md disabled:bg-slate-300"
               >
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Luluskan & Daftar Pelanggan
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Approve & Register Customer
               </button>
             </div>
           )}
@@ -370,7 +370,7 @@ export function CustomerRegistrationReviewModal({
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-slate-700 transition"
                   >
-                    <ExternalLink className="h-3.5 w-3.5" /> Buka di Google Drive
+                    <ExternalLink className="h-3.5 w-3.5" /> Open in Google Drive
                   </a>
                 )}
                 <button onClick={() => setActiveDocUrl(null)} className="rounded-xl bg-slate-800 p-2 text-slate-400 hover:text-white transition">
@@ -382,7 +382,7 @@ export function CustomerRegistrationReviewModal({
             <div className="relative flex-1 bg-slate-950 p-2">
               <div className="absolute top-4 left-4 right-4 z-10 rounded-xl bg-slate-900/90 p-2.5 text-xs text-slate-300 border border-slate-800 flex items-center justify-between backdrop-blur">
                 <span className="flex items-center gap-2 text-[11px]">
-                  <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" /> Jika paparan pratinjau disekat oleh kebenaran Google Drive, sila tekan butang **"Buka di Google Drive"**.
+                  <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" /> If the preview is blocked by Google Drive permissions, please click **"Open in Google Drive"**.
                 </span>
               </div>
 

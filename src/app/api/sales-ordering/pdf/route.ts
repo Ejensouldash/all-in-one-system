@@ -6,14 +6,14 @@ export const runtime = "nodejs"
 
 export async function GET(request: Request) {
   const access = await getSalesOrderingAccess()
-  if (!access) return NextResponse.json({ error: "Akses tidak dibenarkan." }, { status: 403 })
+  if (!access) return NextResponse.json({ error: "Unauthorized access." }, { status: 403 })
 
   const { searchParams } = new URL(request.url)
   const key = searchParams.get("key")
   const direct = searchParams.get("direct") === "true"
 
   if (!key) {
-    return NextResponse.json({ error: "Kunci objek (key) diperlukan." }, { status: 400 })
+    return NextResponse.json({ error: "Object key is required." }, { status: 400 })
   }
 
   try {
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ viewUrl })
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Gagal mengambil PDF." },
+      { error: error instanceof Error ? error.message : "Failed to retrieve PDF." },
       { status: 500 },
     )
   }

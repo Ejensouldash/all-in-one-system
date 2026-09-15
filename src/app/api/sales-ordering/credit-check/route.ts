@@ -9,17 +9,17 @@ const MAX_SIZE = 20 * 1024 * 1024
 
 export async function POST(request: Request) {
   const access = await getSalesOrderingAccess()
-  if (!access || !canAccessSalesOrderingTab(access, "intake")) return NextResponse.json({ error: "Akses AI Intake diperlukan." }, { status: 403 })
+  if (!access || !canAccessSalesOrderingTab(access, "intake")) return NextResponse.json({ error: "AI Intake access required." }, { status: 403 })
   try {
     const body = await request.json() as { poName?: string; poSize?: number; soaName?: string; soaSize?: number; checkMode?: CheckMode; existingCaseId?: string }
     const valid = (name?: string, size?: number) => Boolean(name?.toLowerCase().endsWith(".pdf") && size && size <= MAX_SIZE)
     const checkMode: CheckMode = body.checkMode === "INVOICE_SOA_RECONCILIATION" ? "INVOICE_SOA_RECONCILIATION" : "PO_CREDIT_CHECK"
 
     if (body.existingCaseId) {
-      if (!valid(body.soaName, body.soaSize)) return NextResponse.json({ error: "Muat naik satu SOA PDF, maksimum 20 MB." }, { status: 400 })
+      if (!valid(body.soaName, body.soaSize)) return NextResponse.json({ error: "Upload one SOA PDF, maximum 20 MB." }, { status: 400 })
       
       const existing = await prisma.creditCheckCase.findUnique({ where: { id: body.existingCaseId } })
-      if (!existing) return NextResponse.json({ error: "Rekod PO-SOA Check tidak ditemui." }, { status: 404 })
+      if (!existing) return NextResponse.json({ error: "PO-SOA Check record not found." }, { status: 404 })
 
       const prefix = `sales-order-credit-check/${new Date().getUTCFullYear()}/${existing.id}`
       const soaR2ObjectKey = `${prefix}/soa-${safePdfName(body.soaName!)}`
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ id: existing.id, soaUploadUrl })
     }
 
-    if (!valid(body.poName, body.poSize) || !valid(body.soaName, body.soaSize)) return NextResponse.json({ error: "Muat naik satu PO/Invois PDF dan satu SOA PDF, maksimum 20 MB setiap satu." }, { status: 400 })
+    if (!valid(body.poName, body.poSize) || !valid(body.soaName, body.soaSize)) return NextResponse.json({ error: "Upload one PO/Invoice PDF and one SOA PDF, maximum 20 MB each." }, { status: 400 })
     const id = crypto.randomUUID()
     const prefix = `sales-order-credit-check/${new Date().getUTCFullYear()}/${id}`
     const poR2ObjectKey = `${prefix}/po-${safePdfName(body.poName!)}`
@@ -54,6 +54,6 @@ export async function POST(request: Request) {
     })
     const [poUploadUrl, soaUploadUrl] = await Promise.all([createPdfUploadUrl(poR2ObjectKey, "application/pdf"), createPdfUploadUrl(soaR2ObjectKey, "application/pdf")])
     return NextResponse.json({ id, poUploadUrl, soaUploadUrl })
-  } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal menyediakan upload." }, { status: 500 }) }
+  } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to prepare upload." }, { status: 500 }) }
 }
 

@@ -105,6 +105,6 @@ export async function extractSalesDocument(pdf: Buffer, onStage?: (stage: PoExtr
     }, () => onStage?.("RETRYING_PO"))
     return normalizeExtractedDocument(verifiedRaw)
   } catch {
-    return { ...primary, warnings: [...primary.warnings, "AI verification pass gagal; semak semua field sebelum approve."] }
+    return { ...primary, warnings: [...primary.warnings, "AI verification pass failed; review all fields carefully before approving."] }
   }
 }

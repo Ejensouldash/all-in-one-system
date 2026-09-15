@@ -6,7 +6,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const access = await getSalesOrderingAccess()
     if (!access || !canManageSalesOrderingCustomers(access)) {
-      return NextResponse.json({ error: "Akses tidak dibenarkan. Kebenaran pengurusan pelanggan diperlukan." }, { status: 403 })
+      return NextResponse.json({ error: "Unauthorized. Customer management permission required." }, { status: 403 })
     }
 
     const { id } = await params
@@ -15,15 +15,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     })
 
     if (!registration) {
-      return NextResponse.json({ error: "Permohonan pendaftaran tidak ditemui." }, { status: 404 })
+      return NextResponse.json({ error: "Registration application not found." }, { status: 404 })
     }
 
     if (registration.status === "APPROVED" || registration.createdCustomerId) {
-      return NextResponse.json({ error: "Permohonan ini telah diluluskan sebelumnya. Rekod Customer Master sudah ada." }, { status: 400 })
+      return NextResponse.json({ error: "This application has already been approved. Customer Master record already exists." }, { status: 400 })
     }
 
     if (registration.status === "REJECTED") {
-      return NextResponse.json({ error: "Permohonan ini telah ditolak dan tidak boleh diluluskan semula." }, { status: 400 })
+      return NextResponse.json({ error: "This application has been rejected and cannot be re-approved." }, { status: 400 })
     }
 
     // Generate Customer Code: CUST-YYYY-XXX
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         addresses: registration.businessAddress ? {
           create: {
             addressType: "BILLING",
-            label: "Alamat Premis / Syarikat",
+            label: "Premises / Company Address",
             fullAddress: registration.businessAddress,
             isDefaultBilling: true,
             isDefaultDelivery: true,
@@ -86,14 +86,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     return NextResponse.json({
       success: true,
-      message: `Permohonan diluluskan. Customer baharu ${customer.customerCode} (${customer.legalName}) telah dicipta di Customer Master.`,
+      message: `Application approved. New customer ${customer.customerCode} (${customer.legalName}) created in Customer Master.`,
       customer,
       registration: updated,
     })
   } catch (error) {
     console.error("Approve Customer Registration Error:", error)
     return NextResponse.json(
-      { error: "Gagal meluluskan permohonan: " + (error instanceof Error ? error.message : String(error)) },
+      { error: "Failed to approve application: " + (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
     )
   }

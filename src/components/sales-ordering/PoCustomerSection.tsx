@@ -78,7 +78,7 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
             <h2 className="text-2xl font-black text-slate-950">PO Customer</h2>
           </div>
           <p className="mt-1 text-xs font-semibold text-slate-500">
-            Pengurusan pesanan pelanggan mengikut status kelulusan SOA & pemeriksaan kredit.
+            Customer order management by SOA approval status & credit evaluation.
           </p>
         </div>
 
@@ -89,7 +89,7 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Cari PO, Customer..."
+            placeholder="Search PO, Customer..."
             className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-4 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-cyan-500 focus:bg-white focus:ring-2 focus:ring-cyan-100"
           />
         </div>
@@ -123,7 +123,7 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
         </div>
 
         <div className="hidden sm:block text-right">
-          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Jumlah Nilai Sub-Seksyen</p>
+          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Subsection Total Value</p>
           <p className="text-base font-black text-slate-900">
             {formatCurrency(filteredList.reduce((acc, i) => acc + i.amount, 0))}
           </p>
@@ -167,7 +167,7 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
                         <p className="font-black text-slate-700 text-sm">{item.customerName}</p>
                       </div>
                       <p className="mt-0.5 text-xs text-slate-500">
-                        Tarikh: {item.documentDate || "N/A"} · Uploaded oleh {item.uploadedBy}
+                        Date: {item.documentDate || "N/A"} · Uploaded by {item.uploadedBy}
                       </p>
                     </div>
                   </div>
@@ -182,7 +182,7 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
                             : "bg-amber-100 text-amber-800"
                         }`}
                       >
-                        {item.status === "APPROVED" ? "Lulus SOA" : "Pending SOA"}
+                        {item.status === "APPROVED" ? "SOA Approved" : "Pending SOA"}
                       </span>
                     </div>
 
@@ -199,7 +199,7 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
                             }}
                             aria-haspopup="menu"
                             aria-expanded={openMenuId === item.id}
-                            title="Pilihan Varian PDF Manual PO"
+                            title="Manual PO PDF Variant Options"
                             className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-black text-cyan-800 transition hover:bg-cyan-100 shadow-sm"
                           >
                             <FileText className="h-4 w-4 text-cyan-600" />
@@ -235,7 +235,7 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
                                 </div>
                                 <div>
                                   <p className="font-black text-slate-900 text-xs">Internal Copy</p>
-                                  <p className="text-[10px] text-slate-500 font-normal">Semakan SOA & Audit Trail</p>
+                                  <p className="text-[10px] text-slate-500 font-normal">SOA Review & Audit Trail</p>
                                 </div>
                               </button>
 
@@ -254,7 +254,7 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
                                 </div>
                                 <div>
                                   <p className="font-black text-slate-900 text-xs">External Copy</p>
-                                  <p className="text-[10px] text-slate-500 font-normal">Salinan Rasmi Pelanggan</p>
+                                  <p className="text-[10px] text-slate-500 font-normal">Official Customer Copy</p>
                                 </div>
                               </button>
                             </div>
@@ -265,9 +265,9 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
                           type="button"
                           onClick={() => {
                             setPreviewKey(item.poR2ObjectKey || null)
-                            setPreviewTitle(`Pratinjau PO Asal - ${item.customerName} (${item.poNumber})`)
+                            setPreviewTitle(`Original PO Preview - ${item.customerName} (${item.poNumber})`)
                           }}
-                          title="Pratinjau PDF Asal"
+                          title="Original PDF Preview"
                           className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-100 shadow-sm"
                         >
                           <Eye className="h-4 w-4 text-slate-500" />
@@ -317,9 +317,9 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-10 text-center">
             <FileText className="mx-auto h-8 w-8 text-slate-400" />
             <p className="mt-2 text-sm font-bold text-slate-600">
-              Tiada rekod PO Customer di dalam kategori ini.
+              No customer PO records found in this category.
             </p>
-            <p className="text-xs text-slate-400">Muat naik PO baharu di bahagian AI Intake untuk bermula.</p>
+            <p className="text-xs text-slate-400">Upload a new PO in AI Intake to get started.</p>
           </div>
         )}
       </div>

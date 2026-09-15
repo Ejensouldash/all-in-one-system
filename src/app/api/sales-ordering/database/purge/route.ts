@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   const access = await getSalesOrderingAccess()
   if (!access || !access.isSuperAdmin) {
     return NextResponse.json(
-      { error: "Akses SuperAdmin sahaja dibenarkan untuk pengurusan pangkalan data." },
+      { error: "SuperAdmin access only is permitted for database management." },
       { status: 403 }
     )
   }
@@ -31,30 +31,30 @@ export async function POST(request: Request) {
         },
       })
       deletedCount = result.count
-      message = `Berjaya memadam ${deletedCount} rekod Pending SOA.`
+      message = `Successfully deleted ${deletedCount} Pending SOA records.`
     } else if (action === "clear-credit-checks") {
       const result = await prisma.creditCheckCase.deleteMany({})
       deletedCount = result.count
-      message = `Berjaya memadam semua ${deletedCount} rekod PO-SOA Check.`
+      message = `Successfully deleted all ${deletedCount} PO-SOA Check records.`
     } else if (action === "clear-intakes") {
       const result = await prisma.salesDocumentIntake.deleteMany({})
       deletedCount = result.count
-      message = `Berjaya memadam semua ${deletedCount} rekod Dokumen Intake.`
+      message = `Successfully deleted all ${deletedCount} Document Intake records.`
     } else if (action === "reset-all") {
       const [casesResult, intakesResult] = await Promise.all([
         prisma.creditCheckCase.deleteMany({}),
         prisma.salesDocumentIntake.deleteMany({}),
       ])
       deletedCount = casesResult.count + intakesResult.count
-      message = `Berjaya melakukan Reset Zero State! Memadam ${casesResult.count} rekod PO-SOA Check dan ${intakesResult.count} rekod Intake.`
+      message = `Successfully performed Reset Zero State! Deleted ${casesResult.count} PO-SOA Check records and ${intakesResult.count} Intake records.`
     } else {
-      return NextResponse.json({ error: "Tindakan padam tidak sah." }, { status: 400 })
+      return NextResponse.json({ error: "Invalid purge action." }, { status: 400 })
     }
 
     return NextResponse.json({ success: true, message, deletedCount })
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Gagal memadam data dari database." },
+      { error: error instanceof Error ? error.message : "Failed to delete data from database." },
       { status: 500 }
     )
   }

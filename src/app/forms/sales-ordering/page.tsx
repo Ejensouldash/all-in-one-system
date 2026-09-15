@@ -61,7 +61,7 @@ export default async function SalesOrderingDashboard() {
               <Sparkles className="h-3.5 w-3.5" /> Order Intake & Fulfilment Hub
             </div>
             <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
-              Kawalan Dokumen Customer & Credit Check
+              Customer Document Control & Credit Check
             </h2>
           </div>
           {canUseIntake && (
@@ -69,7 +69,7 @@ export default async function SalesOrderingDashboard() {
               href="/forms/sales-ordering/intake"
               className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-cyan-400 px-5 py-3 text-sm font-black text-slate-950 hover:bg-cyan-300 transition shadow-lg"
             >
-              Buka AI Intake Queue <ArrowRight className="h-4 w-4" />
+              Open AI Intake Queue <ArrowRight className="h-4 w-4" />
             </Link>
           )}
         </div>
@@ -84,13 +84,13 @@ export default async function SalesOrderingDashboard() {
             </div>
             <div className="flex-1">
               <h3 className="text-sm font-black text-rose-950 sm:text-base">
-                Amaran: Terdapat {rejectedCases.length} rekod PO yang telah di-REJECT
+                Warning: There are {rejectedCases.length} PO records that were REJECTED
               </h3>
               <p className="mt-0.5 text-xs font-bold text-rose-800 hidden sm:block">
-                Sila klik untuk lihat senarai penuh dan maklumkan kepada pelanggan.
+                Click to view full list and notify customer.
               </p>
             </div>
-            <div className="text-rose-600 text-sm font-bold opacity-70 group-open:hidden shrink-0">Lihat Senarai &darr;</div>
+            <div className="text-rose-600 text-sm font-bold opacity-70 group-open:hidden shrink-0">View List &darr;</div>
           </summary>
           <div className="px-5 md:px-6 pt-2">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -105,7 +105,7 @@ export default async function SalesOrderingDashboard() {
                     </div>
                     <p className="mt-1 text-xs font-bold text-slate-800">{poData.customerName || "Customer Unknown"}</p>
                     <p className="mt-2 text-xs font-semibold text-rose-700 line-clamp-2">
-                      Sebab: {resultData.primaryReason || item.justification || "Tunggakan hutang melepasi terma."}
+                      Reason: {resultData.primaryReason || item.justification || "Outstanding balance exceeds credit terms."}
                     </p>
                   </div>
                 )

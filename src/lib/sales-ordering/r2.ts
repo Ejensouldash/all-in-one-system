@@ -80,6 +80,18 @@ export async function readR2Object(objectKey: string) {
   return Buffer.from(await response.Body.transformToByteArray())
 }
 
+export async function putR2Object(objectKey: string, body: Buffer | Uint8Array, contentType: string = "application/pdf") {
+  const { bucket } = getR2Config()
+  await getR2Client().send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: objectKey,
+      Body: body,
+      ContentType: contentType,
+    })
+  )
+}
+
 export async function deleteR2Object(objectKey: string) {
   const { bucket } = getR2Config()
   await getR2Client().send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }))

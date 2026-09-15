@@ -16,9 +16,9 @@ export async function resolve(specifier, context, nextResolve) {
   try {
     return await nextResolve(target, context)
   } catch (err) {
-    if (!target.endsWith(".ts")) {
+    for (const ext of [".ts", ".tsx", "/index.ts", "/index.tsx"]) {
       try {
-        return await nextResolve(target + ".ts", context)
+        return await nextResolve(target + ext, context)
       } catch {}
     }
     throw err

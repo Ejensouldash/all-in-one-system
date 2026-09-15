@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { generateAndSaveEInvoicePdfToR2 } from "@/lib/sales-ordering/einvoice-pdf"
 
 export const runtime = "nodejs"
 
@@ -289,14 +290,25 @@ export async function POST(request: Request) {
       },
     })
 
+    // 10. Generate Vector PDF & Save to Cloudflare R2
+    let pdfR2Key: string | null = null
+    try {
+      const { r2ObjectKey } = await generateAndSaveEInvoicePdfToR2(intake.id)
+      pdfR2Key = r2ObjectKey
+      console.log(`[Webhook E-Invoice Form] Successfully generated and uploaded PDF to R2: ${r2ObjectKey}`)
+    } catch (pdfErr) {
+      console.error("[Webhook E-Invoice Form] PDF generation/R2 upload error (will fallback to on-demand):", pdfErr)
+    }
+
     return NextResponse.json({
       success: true,
-      message: "E-Invoice Corporate form successfully submitted into Documents intake queue.",
+      message: "E-Invoice Corporate form successfully submitted into Documents intake queue and PDF compiled.",
       intakeId: intake.id,
       documentNumber: autoDocNumber,
       customerName: fullName,
       matchedCustomerId: matchedCustomer?.id || null,
       totalAmount: grandTotal,
+      pdfKey: pdfR2Key,
     })
   } catch (error) {
     console.error("[Webhook E-Invoice Form] Error:", error)

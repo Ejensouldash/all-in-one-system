@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { AlertTriangle, CheckCircle2, Loader2, Plus, RefreshCw, Save, Search, Sparkles, Trash2 } from "lucide-react"
+import { AlertTriangle, CheckCircle2, FileText, Loader2, Plus, RefreshCw, Save, Search, Sparkles, Trash2 } from "lucide-react"
 import type { ExtractedSalesDocument, ExtractedSalesLine, SalesValidationIssue } from "@/lib/sales-ordering/types"
 import { normalizeExtractedDocument } from "@/lib/sales-ordering/types"
 
@@ -267,9 +267,20 @@ export function IntakeReview({
             </span>
             <h3 className="font-black text-slate-950 text-base">E-Invoice Customer Identification</h3>
           </div>
-          <span className="rounded-full bg-blue-100 text-blue-800 border border-blue-200 px-3 py-1 text-xs font-black">
-            {(document as any).deliveryMode || "Direct Delivery"}
-          </span>
+          <div className="flex items-center gap-2">
+            <a
+              href={`/api/sales-ordering/pdf/e-invoice/${intakeId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-purple-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-purple-700 transition shadow-sm"
+            >
+              <FileText className="h-4 w-4" />
+              <span>View E-Invoice PDF</span>
+            </a>
+            <span className="rounded-full bg-blue-100 text-blue-800 border border-blue-200 px-3 py-1 text-xs font-black">
+              {(document as any).deliveryMode || "Direct Delivery"}
+            </span>
+          </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
           <div className="rounded-xl bg-white p-3 border border-purple-100">

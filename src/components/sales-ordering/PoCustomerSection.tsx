@@ -200,7 +200,8 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
         {filteredList.length ? (
           <div className="divide-y divide-slate-100 border-t border-slate-100">
             {filteredList.map(item => {
-              const isManualPo = Boolean(
+              const isEInvoice = item.documentType === "E_INVOICE_CORPORATE" || item.sourceType === "E_INVOICE"
+              const isManualPo = !isEInvoice && Boolean(
                 (item.poR2ObjectKey && item.poR2ObjectKey.startsWith("google-form-submissions/")) ||
                 item.uploadedBy === "Google Form Webhook"
               )
@@ -279,7 +280,20 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
                     {/* Actions Container */}
                     <div className="flex items-center gap-2">
                       {/* PDF Interactive Preview Menu / Button */}
-                      {isManualPo ? (
+                      {isEInvoice ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPreviewKey(`/api/sales-ordering/pdf/e-invoice/${item.id}`)
+                            setPreviewTitle(`E-Invoice Corporate - ${item.customerName} (${item.poNumber || item.icNumber || "Form"})`)
+                          }}
+                          title="View E-Invoice PDF"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-black text-purple-800 transition hover:bg-purple-100 shadow-sm"
+                        >
+                          <FileText className="h-4 w-4 text-purple-600" />
+                          <span>PDF</span>
+                        </button>
+                      ) : isManualPo ? (
                         <div className="relative" data-pdf-menu>
                           <button
                             type="button"

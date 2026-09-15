@@ -17,6 +17,8 @@ import { PdfPreviewModal } from "./PdfPreviewModal"
 export type CustomerPoItem = {
   id: string
   type: "SALES_ORDER" | "CREDIT_CASE" | "INTAKE"
+  documentType?: "PURCHASE_ORDER" | "E_INVOICE_CORPORATE" | string
+  sourceType?: "PO" | "E_INVOICE" | "SALES_ORDER"
   poNumber: string
   customerName: string
   documentDate: string
@@ -29,10 +31,13 @@ export type CustomerPoItem = {
   rejectionReason?: string | null
   createdAt: string
   uploadedBy: string
+  icNumber?: string | null
+  deliveryMode?: string | null
 }
 
 export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
   const [activeTab, setActiveTab] = useState<"APPROVED" | "PENDING">("APPROVED")
+  const [sourceFilter, setSourceFilter] = useState<"ALL" | "PO" | "E_INVOICE" | "SALES_ORDER">("ALL")
   const [searchQuery, setSearchQuery] = useState("")
   const [previewKey, setPreviewKey] = useState<string | null>(null)
   const [previewTitle, setPreviewTitle] = useState("")
@@ -56,12 +61,21 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
   const currentList = activeTab === "APPROVED" ? approvedItems : pendingItems
 
   const filteredList = currentList.filter(item => {
+    const itemSource = item.documentType === "E_INVOICE_CORPORATE" || item.sourceType === "E_INVOICE"
+      ? "E_INVOICE"
+      : item.type === "SALES_ORDER"
+        ? "SALES_ORDER"
+        : "PO"
+
+    if (sourceFilter !== "ALL" && itemSource !== sourceFilter) return false
+
     const q = searchQuery.toLowerCase().trim()
     if (!q) return true
     return (
       item.customerName.toLowerCase().includes(q) ||
       item.poNumber.toLowerCase().includes(q) ||
-      item.uploadedBy.toLowerCase().includes(q)
+      item.uploadedBy.toLowerCase().includes(q) ||
+      (item.icNumber && item.icNumber.toLowerCase().includes(q))
     )
   })
 
@@ -75,10 +89,10 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
         <div>
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-cyan-600" />
-            <h2 className="text-2xl font-black text-slate-950">PO Customer</h2>
+            <h2 className="text-2xl font-black text-slate-950">Documents</h2>
           </div>
           <p className="mt-1 text-xs font-semibold text-slate-500">
-            Customer order management by SOA approval status & credit evaluation.
+            Document and order tracking by approval status and source.
           </p>
         </div>
 
@@ -89,40 +103,91 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search PO, Customer..."
+            placeholder="Search PO, Customer, IC..."
             className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-4 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-cyan-500 focus:bg-white focus:ring-2 focus:ring-cyan-100"
           />
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="mt-5 flex items-center justify-between">
-        <div className="inline-flex rounded-2xl bg-slate-100 p-1.5 border border-slate-200">
-          <button
-            onClick={() => setActiveTab("APPROVED")}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black transition ${
-              activeTab === "APPROVED"
-                ? "bg-white text-emerald-700 shadow-sm"
-                : "text-slate-600 hover:text-slate-950"
-            }`}
-          >
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            Approved SOA ({approvedItems.length})
-          </button>
-          <button
-            onClick={() => setActiveTab("PENDING")}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black transition ${
-              activeTab === "PENDING"
-                ? "bg-white text-amber-700 shadow-sm"
-                : "text-slate-600 hover:text-slate-950"
-            }`}
-          >
-            <Clock className="h-4 w-4 text-amber-600" />
-            Pending SOA ({pendingItems.length})
-          </button>
+      {/* Tabs & Source Filters */}
+      <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Status Tabs */}
+          <div className="inline-flex rounded-2xl bg-slate-100 p-1.5 border border-slate-200">
+            <button
+              onClick={() => setActiveTab("APPROVED")}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
+                activeTab === "APPROVED"
+                  ? "bg-white text-emerald-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-950"
+              }`}
+            >
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              Approved SOA ({approvedItems.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("PENDING")}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
+                activeTab === "PENDING"
+                  ? "bg-white text-amber-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-950"
+              }`}
+            >
+              <Clock className="h-4 w-4 text-amber-600" />
+              Pending SOA ({pendingItems.length})
+            </button>
+          </div>
+
+          {/* Document Source Filter Pills */}
+          <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+            <button
+              type="button"
+              onClick={() => setSourceFilter("ALL")}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-black transition ${
+                sourceFilter === "ALL"
+                  ? "bg-slate-950 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-950"
+              }`}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              onClick={() => setSourceFilter("PO")}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-black transition ${
+                sourceFilter === "PO"
+                  ? "bg-cyan-600 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-950"
+              }`}
+            >
+              Purchase Orders
+            </button>
+            <button
+              type="button"
+              onClick={() => setSourceFilter("E_INVOICE")}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-black transition ${
+                sourceFilter === "E_INVOICE"
+                  ? "bg-purple-600 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-950"
+              }`}
+            >
+              E-Invoice Forms
+            </button>
+            <button
+              type="button"
+              onClick={() => setSourceFilter("SALES_ORDER")}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-black transition ${
+                sourceFilter === "SALES_ORDER"
+                  ? "bg-emerald-600 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-950"
+              }`}
+            >
+              Sales Orders
+            </button>
+          </div>
         </div>
 
-        <div className="hidden sm:block text-right">
+        <div className="text-right">
           <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Subsection Total Value</p>
           <p className="text-base font-black text-slate-900">
             {formatCurrency(filteredList.reduce((acc, i) => acc + i.amount, 0))}
@@ -158,9 +223,34 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-black text-slate-950 text-sm">{item.poNumber || "PO No. N/A"}</p>
-                        {item.isMultiPo && (
+                        {/* Source Badge */}
+                        {item.documentType === "E_INVOICE_CORPORATE" || item.sourceType === "E_INVOICE" ? (
+                          <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-black text-purple-800">
+                            E-Invoice Form
+                          </span>
+                        ) : item.type === "SALES_ORDER" ? (
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">
+                            Sales Order
+                          </span>
+                        ) : (
                           <span className="rounded-full bg-cyan-100 px-2 py-0.5 text-[10px] font-black text-cyan-800">
+                            PO Document
+                          </span>
+                        )}
+
+                        {item.isMultiPo && (
+                          <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-black text-sky-800">
                             {item.subPoCount ? `${item.subPoCount} POs Batch` : "Multi-PO Batch"}
+                          </span>
+                        )}
+                        {item.deliveryMode && (
+                          <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                            {item.deliveryMode}
+                          </span>
+                        )}
+                        {item.icNumber && (
+                          <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-slate-600">
+                            IC: {item.icNumber}
                           </span>
                         )}
                         <span className="text-xs font-bold text-slate-400">·</span>
@@ -317,9 +407,9 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-10 text-center">
             <FileText className="mx-auto h-8 w-8 text-slate-400" />
             <p className="mt-2 text-sm font-bold text-slate-600">
-              No customer PO records found in this category.
+              No documents found in this category.
             </p>
-            <p className="text-xs text-slate-400">Upload a new PO in AI Intake to get started.</p>
+            <p className="text-xs text-slate-400">Upload a new PO in AI Intake or submit an E-Invoice form to get started.</p>
           </div>
         )}
       </div>

@@ -256,9 +256,41 @@ export function IntakeReview({
 
     {!canManageDocuments && <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-600">Read-only review. Request admin for <span className="font-black">Edit / Delete Documents</span> permission to correct or approve document data.</section>}
     <fieldset disabled={!canManageDocuments} className="contents disabled:opacity-70">
+
+    {/* E-Invoice Corporate / Direct Delivery Banner */}
+    {Boolean(document.documentType === "E_INVOICE_CORPORATE" || (document as any).icNumber) && (
+      <section className="rounded-3xl border-2 border-purple-300 bg-gradient-to-br from-purple-50/90 to-indigo-50/90 p-5 shadow-sm space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-purple-200/80 pb-3">
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-purple-600 px-3 py-1 text-xs font-black text-white">
+              E-Invoice Corporate / Direct Delivery
+            </span>
+            <h3 className="font-black text-slate-950 text-base">E-Invoice Customer Identification</h3>
+          </div>
+          <span className="rounded-full bg-blue-100 text-blue-800 border border-blue-200 px-3 py-1 text-xs font-black">
+            {(document as any).deliveryMode || "Direct Delivery"}
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+          <div className="rounded-xl bg-white p-3 border border-purple-100">
+            <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Full Name (as per IC)</p>
+            <p className="font-black text-slate-900 text-sm mt-0.5">{(document as any).fullName || document.customerName || "-"}</p>
+          </div>
+          <div className="rounded-xl bg-white p-3 border border-purple-100">
+            <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">NRIC / IC Number</p>
+            <p className="font-black text-purple-900 font-mono text-sm mt-0.5">{(document as any).icNumber || "-"}</p>
+          </div>
+          <div className="rounded-xl bg-white p-3 border border-purple-100">
+            <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Active Contact</p>
+            <p className="font-bold text-slate-800 mt-0.5">{document.deliveryPhone || "-"} · {document.deliveryContact || "-"}</p>
+          </div>
+        </div>
+      </section>
+    )}
+
     <section className="grid gap-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:grid-cols-2 lg:p-7">
       <div className="relative lg:col-span-2"><label className="text-xs font-black uppercase tracking-wider text-slate-500">Customer Master</label><div className="relative"><Search className="absolute left-3 top-4 h-4 w-4 text-slate-400" /><input value={query} onChange={event => { setQuery(event.target.value); setCustomer(null); setResults([]) }} className={`${inputClass} pl-9`} placeholder="Search Customer ID, Sage ID, or name..." /></div>{(searching || results.length > 0) && !customer && <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">{searching ? <p className="p-3 text-sm text-slate-500">Searching...</p> : results.map(option => <button key={option.id} type="button" onClick={() => { setCustomer(option); setQuery(`${option.customerCode} - ${option.legalName}`); setResults([]) }} className="block w-full rounded-lg px-3 py-2 text-left hover:bg-cyan-50"><p className="text-sm font-black text-slate-900">{option.customerCode} · {option.legalName}</p><p className="text-xs text-slate-500">{option.sageCustomerId || "No Sage ID"} · {option.creditTermsRaw || "No terms"} · {option.zone || "No zone"}</p></button>)}</div>}</div>
-      <label className="text-xs font-black uppercase tracking-wider text-slate-500">Document Type<select value={document.documentType} onChange={event => setField("documentType", event.target.value)} className={inputClass}><option>PURCHASE_ORDER</option><option>PROFORMA_INVOICE</option><option>INVOICE</option><option>OTHER</option></select></label>
+      <label className="text-xs font-black uppercase tracking-wider text-slate-500">Document Type<select value={document.documentType} onChange={event => setField("documentType", event.target.value)} className={inputClass}><option>PURCHASE_ORDER</option><option>E_INVOICE_CORPORATE</option><option>PROFORMA_INVOICE</option><option>INVOICE</option><option>OTHER</option></select></label>
       <label className="text-xs font-black uppercase tracking-wider text-slate-500">Document Number<input value={document.documentNumber} onChange={event => setField("documentNumber", event.target.value)} className={inputClass} /></label>
       <label className="text-xs font-black uppercase tracking-wider text-slate-500">PO Number<input value={document.poNumber} onChange={event => setField("poNumber", event.target.value)} className={inputClass} /></label>
       <label className="text-xs font-black uppercase tracking-wider text-slate-500">Document Date<input type="date" value={document.documentDate} onChange={event => setField("documentDate", event.target.value)} className={inputClass} /></label>

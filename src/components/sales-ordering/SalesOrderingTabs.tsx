@@ -10,7 +10,7 @@ export function SalesOrderingTabs({ permissions }: { permissions: TabPermissions
   const pathname = usePathname()
   const visibleTabs = [
     ...(permissions.dashboard ? [{ label: "Dashboard", href: "/forms/sales-ordering", icon: LayoutDashboard }] : []),
-    ...(permissions.dashboard || permissions.intake ? [{ label: "PO Customer", href: "/forms/sales-ordering/po-customer", icon: FileCheck }] : []),
+    ...(permissions.dashboard || permissions.intake ? [{ label: "Documents", href: "/forms/sales-ordering/documents", icon: FileCheck }] : []),
     ...(permissions.intake ? [{ label: "AI Intake", href: "/forms/sales-ordering/intake", icon: FileSearch }] : []),
     ...(permissions.intake ? [{ label: "PO-SOA Check", href: "/forms/sales-ordering/credit-check", icon: ShieldCheck }] : []),
     ...(permissions.orders ? [{ label: "Sales Orders", href: "/forms/sales-ordering/orders", icon: ShoppingCart }] : []),
@@ -22,7 +22,9 @@ export function SalesOrderingTabs({ permissions }: { permissions: TabPermissions
       {visibleTabs.map(tab => {
         const active = tab.href === "/forms/sales-ordering"
           ? pathname === tab.href
-          : pathname.startsWith(tab.href)
+          : tab.href === "/forms/sales-ordering/documents"
+            ? pathname.startsWith("/forms/sales-ordering/documents") || pathname.startsWith("/forms/sales-ordering/po-customer")
+            : pathname.startsWith(tab.href)
         return (
           <Link
             key={tab.href}

@@ -109,7 +109,7 @@ export default async function PoCustomerPage() {
           customerName: i.matchedCustomer?.legalName || poData.customerName || rawData.fullName || "Pending Matching",
           documentDate: poData.documentDate || i.createdAt.toISOString().slice(0, 10),
           amount: Number(poData.totals.grandTotal || 0),
-          status: "PENDING_SOA" as const,
+          status: (i.status === "APPROVED" || i.status === "SO_CREATED" ? "APPROVED" : "PENDING_SOA") as CustomerPoItem["status"],
           isMultiPo: poData.isMultiPo || subPoCount > 1,
           subPoCount: subPoCount > 1 ? subPoCount : undefined,
           poR2ObjectKey: i.r2ObjectKey,

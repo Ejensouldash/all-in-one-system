@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   CheckCircle2,
   ChevronDown,
   Clock,
   Eye,
   FileText,
+  Loader2,
   PenSquare,
   Search,
   Sparkles,
@@ -36,12 +38,29 @@ export type CustomerPoItem = {
 }
 
 export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<"APPROVED" | "PENDING">("APPROVED")
   const [sourceFilter, setSourceFilter] = useState<"ALL" | "PO" | "E_INVOICE" | "SALES_ORDER">("ALL")
   const [searchQuery, setSearchQuery] = useState("")
   const [previewKey, setPreviewKey] = useState<string | null>(null)
   const [previewTitle, setPreviewTitle] = useState("")
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [approvingId, setApprovingId] = useState<string | null>(null)
+
+  async function handleApproveEInvoice(id: string) {
+    if (!confirm("Confirm approve this E-Invoice? An Approved Sales Order will be created.")) return
+    setApprovingId(id)
+    try {
+      const res = await fetch(`/api/sales-ordering/e-invoice/${id}/approve`, { method: "POST" })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to approve E-Invoice.")
+      router.refresh()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error approving E-Invoice.")
+    } finally {
+      setApprovingId(null)
+    }
+  }
 
   useEffect(() => {
     if (!openMenuId) return
@@ -123,7 +142,7 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
               }`}
             >
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              Approved SOA ({approvedItems.length})
+              Approved ({approvedItems.length})
             </button>
             <button
               onClick={() => setActiveTab("PENDING")}
@@ -134,7 +153,7 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
               }`}
             >
               <Clock className="h-4 w-4 text-amber-600" />
-              Pending SOA ({pendingItems.length})
+              Pending ({pendingItems.length})
             </button>
           </div>
 
@@ -270,10 +289,18 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
                         className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${
                           item.status === "APPROVED"
                             ? "bg-emerald-100 text-emerald-800"
-                            : "bg-amber-100 text-amber-800"
+                            : isEInvoice
+                              ? "bg-purple-100 text-purple-800"
+                              : "bg-amber-100 text-amber-800"
                         }`}
                       >
-                        {item.status === "APPROVED" ? "SOA Approved" : "Pending SOA"}
+                        {isEInvoice
+                          ? item.status === "APPROVED"
+                            ? "Approved"
+                            : "Pending Approval"
+                          : item.status === "APPROVED"
+                            ? "SOA Approved"
+                            : "Pending SOA"}
                       </span>
                     </div>
 
@@ -281,18 +308,36 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
                     <div className="flex items-center gap-2">
                       {/* PDF Interactive Preview Menu / Button */}
                       {isEInvoice ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPreviewKey(`/api/sales-ordering/pdf/e-invoice/${item.id}`)
-                            setPreviewTitle(`E-Invoice Corporate - ${item.customerName} (${item.poNumber || item.icNumber || "Form"})`)
-                          }}
-                          title="View E-Invoice PDF"
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-black text-purple-800 transition hover:bg-purple-100 shadow-sm"
-                        >
-                          <FileText className="h-4 w-4 text-purple-600" />
-                          <span>PDF</span>
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPreviewKey(`/api/sales-ordering/pdf/e-invoice/${item.id}`)
+                              setPreviewTitle(`E-Invoice Corporate - ${item.customerName} (${item.poNumber || item.icNumber || "Form"})`)
+                            }}
+                            title="View E-Invoice PDF"
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-black text-purple-800 transition hover:bg-purple-100 shadow-sm"
+                          >
+                            <FileText className="h-4 w-4 text-purple-600" />
+                            <span>PDF</span>
+                          </button>
+                          {item.status !== "APPROVED" && (
+                            <button
+                              type="button"
+                              onClick={() => handleApproveEInvoice(item.id)}
+                              disabled={approvingId === item.id}
+                              title="Direct Approve E-Invoice"
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white hover:bg-emerald-700 shadow-sm transition disabled:opacity-50"
+                            >
+                              {approvingId === item.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="h-4 w-4" />
+                              )}
+                              <span>Approve</span>
+                            </button>
+                          )}
+                        </>
                       ) : isManualPo ? (
                         <div className="relative" data-pdf-menu>
                           <button

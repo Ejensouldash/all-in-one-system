@@ -14,7 +14,10 @@ export default async function IntakeQueuePage({ searchParams }: { searchParams: 
   const { page: rawPage } = await searchParams
   const parsedPage = Number(rawPage)
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? Math.floor(parsedPage) : 1
-  const visibleIntakeWhere = { status: { not: "DUPLICATE" } }
+  const visibleIntakeWhere = {
+    status: { not: "DUPLICATE" },
+    documentType: { not: "E_INVOICE_CORPORATE" },
+  }
   const total = await prisma.salesDocumentIntake.count({ where: visibleIntakeWhere })
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const activePage = Math.min(page, totalPages)

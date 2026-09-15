@@ -24,8 +24,11 @@ export default async function IntakeDetailPage({ params }: { params: Promise<{ i
   return <div className="space-y-6">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <Link href="/forms/sales-ordering/intake" className="inline-flex items-center gap-1 text-xs font-black text-cyan-700">
-          <ArrowLeft className="h-3.5 w-3.5" /> Intake queue
+        <Link
+          href={intake.documentType === "E_INVOICE_CORPORATE" ? "/forms/sales-ordering/documents" : "/forms/sales-ordering/intake"}
+          className="inline-flex items-center gap-1 text-xs font-black text-cyan-700"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> {intake.documentType === "E_INVOICE_CORPORATE" ? "Documents" : "Intake queue"}
         </Link>
         <h2 className="mt-2 text-2xl font-black text-slate-950">{intake.fileName}</h2>
         <p className="mt-1 text-sm text-slate-500">Status: {intake.status} · R2 private object</p>

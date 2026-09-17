@@ -1,10 +1,20 @@
 "use client"
 
-import { LogOut, User, Menu } from "lucide-react"
+import { LogOut, User, Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
 
-export function Topbar({ user, onMenuClick }: { user: any, onMenuClick?: () => void }) {
+export function Topbar({ 
+  user, 
+  onMenuClick,
+  isCollapsed,
+  onToggleCollapse
+}: { 
+  user: any, 
+  onMenuClick?: () => void,
+  isCollapsed?: boolean,
+  onToggleCollapse?: () => void
+}) {
   const pathname = usePathname()
 
   let title = "Dashboard"
@@ -33,6 +43,15 @@ export function Topbar({ user, onMenuClick }: { user: any, onMenuClick?: () => v
             className="mr-3 md:hidden p-2 -ml-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 rounded-lg transition-colors"
           >
             <Menu className="h-5 w-5" />
+          </button>
+        )}
+        {onToggleCollapse && (
+          <button 
+            onClick={onToggleCollapse}
+            title={isCollapsed ? "Kembangkan Sidebar (Expand)" : "Kecilkan Sidebar (Minimize)"}
+            className="hidden md:flex mr-3 p-2 -ml-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800 rounded-lg transition-colors items-center justify-center"
+          >
+            {isCollapsed ? <PanelLeftOpen className="h-5 w-5 text-blue-600" /> : <PanelLeftClose className="h-5 w-5" />}
           </button>
         )}
         <h2 className="text-xl font-semibold text-gray-800">{title}</h2>

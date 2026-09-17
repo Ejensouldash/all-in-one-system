@@ -15,8 +15,13 @@ import {
   Building2,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   QrCode,
-  X
+  X,
+  ShoppingCart,
+  Factory,
+  Warehouse,
+  Wrench
 } from "lucide-react"
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
@@ -38,28 +43,54 @@ type NavLink = {
   href?: string
   icon: any
   module?: string
+  modules?: string[]
   subLinks?: SubLink[]
 }
+
+const SOD_MODULES = [
+  "SALES_ORDERING",
+  "SALES_ORDERING_DASHBOARD",
+  "SALES_ORDERING_CUSTOMERS",
+  "SALES_ORDERING_DOCUMENTS",
+  "SALES_ORDERING_INTAKE",
+  "SALES_ORDERING_CREDIT_CHECK",
+  "SALES_ORDERING_ORDERS",
+  "SALES_ORDERING_CUSTOMERS_MANAGE",
+  "SALES_ORDERING_DOCUMENT_MANAGE",
+]
 
 const staffLinks: NavLink[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, module: "DASHBOARD" },
   { name: "Tickets", href: "/tickets", icon: Ticket, module: "TICKETS" },
-  { 
-    name: 'Forms', 
-    icon: FileText, 
+  { name: "Sales Ordering", href: "/forms/sales-ordering", icon: ShoppingCart, modules: SOD_MODULES },
+  {
+    name: "Production",
+    icon: Factory,
     subLinks: [
-      { name: "Production", href: "/forms/production", module: "FORMS" },
-      { name: "Warehouse", href: "/forms/warehouse/dashboard", module: "WAREHOUSE", restrictToWarehouseUnit: true },
-      { name: "Gatepass", href: "/forms/warehouse/gatepass", modules: ["GATEPASS_REQUESTER", "WAREHOUSE_GATEPASS"] },
-      { name: "Security Gate", href: "/forms/warehouse/gatepass/security", module: "SECURITY_GATEPASS" },
-      { name: "Sales Ordering", href: "/forms/sales-ordering", modules: ["SALES_ORDERING", "SALES_ORDERING_DASHBOARD", "SALES_ORDERING_CUSTOMERS", "SALES_ORDERING_DOCUMENTS", "SALES_ORDERING_INTAKE", "SALES_ORDERING_CREDIT_CHECK", "SALES_ORDERING_ORDERS", "SALES_ORDERING_CUSTOMERS_MANAGE", "SALES_ORDERING_DOCUMENT_MANAGE"] },
-      // Production staff who take raw material off the rack. Deliberately not unit-restricted:
-      // they are not in the Warehouse unit, which is the whole point of the narrow grant.
-      { name: "Ambil Bahan", href: "/forms/warehouse/reports/raw-material", module: "RAW_MATERIAL_WITHDRAWAL" },
-      { name: "GMP", href: "/forms/maintenance?_cache=bust", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS", "PALLET_LEDGER"] },
-    ]
+      { name: "Daily Report (Rantau)", href: "/forms/production", modules: ["FORMS", "PRODUCTION_STOCK", "HANDOVER"] },
+      { name: "KBP — Batch QR (Pedas)", href: "/kbp", module: "KBP" },
+    ],
   },
-  { name: "KBP", href: "/kbp", icon: QrCode, module: "KBP" },
+  {
+    name: "Warehouse & Logistics",
+    icon: Warehouse,
+    subLinks: [
+      { name: "Inventory & Distribution", href: "/forms/warehouse/dashboard", module: "WAREHOUSE", restrictToWarehouseUnit: true },
+      { name: "Gatepass Planning", href: "/forms/warehouse/gatepass", modules: ["GATEPASS_REQUESTER", "WAREHOUSE_GATEPASS"] },
+      { name: "Security Gate", href: "/forms/warehouse/gatepass/security", module: "SECURITY_GATEPASS" },
+      { name: "Ambil Bahan (Withdrawal)", href: "/forms/warehouse/reports/raw-material", module: "RAW_MATERIAL_WITHDRAWAL" },
+    ],
+  },
+  {
+    name: "Maintenance & GMP",
+    icon: Wrench,
+    subLinks: [
+      { name: "GMP Checklists", href: "/forms/maintenance?_cache=bust", module: "MAINTENANCE_FORMS" },
+      { name: "Maintenance Stock", href: "/forms/maintenance/dashboard", module: "MAINTENANCE_DASHBOARD" },
+      { name: "Maintenance Reports", href: "/forms/maintenance/reports", module: "MAINTENANCE_REPORTS" },
+      { name: "Pallet Ledger", href: "/forms/maintenance/pallet-transfer", module: "PALLET_LEDGER" },
+    ],
+  },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
   { name: "Reminders", href: "/reminders", icon: BellRing, module: "REMINDERS" },
   { name: "Assets", href: "/dashboard/assets", icon: Package, module: "ASSETS" },
@@ -68,22 +99,35 @@ const staffLinks: NavLink[] = [
 const adminLinks: NavLink[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, module: "DASHBOARD" },
   { name: "Tickets", href: "/tickets", icon: Ticket, module: "TICKETS" },
-  { 
-    name: 'Forms', 
-    icon: FileText, 
+  { name: "Sales Ordering", href: "/forms/sales-ordering", icon: ShoppingCart, modules: SOD_MODULES },
+  {
+    name: "Production",
+    icon: Factory,
     subLinks: [
-      { name: "Production", href: "/forms/production", module: "FORMS" },
-      { name: "Warehouse", href: "/forms/warehouse/dashboard", module: "WAREHOUSE", restrictToWarehouseUnit: true },
-      { name: "Gatepass", href: "/forms/warehouse/gatepass", modules: ["GATEPASS_REQUESTER", "WAREHOUSE_GATEPASS"] },
-      { name: "Security Gate", href: "/forms/warehouse/gatepass/security", module: "SECURITY_GATEPASS" },
-      { name: "Sales Ordering", href: "/forms/sales-ordering", modules: ["SALES_ORDERING", "SALES_ORDERING_DASHBOARD", "SALES_ORDERING_CUSTOMERS", "SALES_ORDERING_DOCUMENTS", "SALES_ORDERING_INTAKE", "SALES_ORDERING_CREDIT_CHECK", "SALES_ORDERING_ORDERS", "SALES_ORDERING_CUSTOMERS_MANAGE", "SALES_ORDERING_DOCUMENT_MANAGE"] },
-      // Production staff who take raw material off the rack. Deliberately not unit-restricted:
-      // they are not in the Warehouse unit, which is the whole point of the narrow grant.
-      { name: "Ambil Bahan", href: "/forms/warehouse/reports/raw-material", module: "RAW_MATERIAL_WITHDRAWAL" },
-      { name: "GMP", href: "/forms/maintenance?_cache=bust", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS", "PALLET_LEDGER"] },
-    ]
+      { name: "Daily Report (Rantau)", href: "/forms/production", modules: ["FORMS", "PRODUCTION_STOCK", "HANDOVER"] },
+      { name: "KBP — Batch QR (Pedas)", href: "/kbp", module: "KBP" },
+    ],
   },
-  { name: "KBP", href: "/kbp", icon: QrCode, module: "KBP" },
+  {
+    name: "Warehouse & Logistics",
+    icon: Warehouse,
+    subLinks: [
+      { name: "Inventory & Distribution", href: "/forms/warehouse/dashboard", module: "WAREHOUSE", restrictToWarehouseUnit: true },
+      { name: "Gatepass Planning", href: "/forms/warehouse/gatepass", modules: ["GATEPASS_REQUESTER", "WAREHOUSE_GATEPASS"] },
+      { name: "Security Gate", href: "/forms/warehouse/gatepass/security", module: "SECURITY_GATEPASS" },
+      { name: "Ambil Bahan (Withdrawal)", href: "/forms/warehouse/reports/raw-material", module: "RAW_MATERIAL_WITHDRAWAL" },
+    ],
+  },
+  {
+    name: "Maintenance & GMP",
+    icon: Wrench,
+    subLinks: [
+      { name: "GMP Checklists", href: "/forms/maintenance?_cache=bust", module: "MAINTENANCE_FORMS" },
+      { name: "Maintenance Stock", href: "/forms/maintenance/dashboard", module: "MAINTENANCE_DASHBOARD" },
+      { name: "Maintenance Reports", href: "/forms/maintenance/reports", module: "MAINTENANCE_REPORTS" },
+      { name: "Pallet Ledger", href: "/forms/maintenance/pallet-transfer", module: "PALLET_LEDGER" },
+    ],
+  },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
   { name: "Reminders", href: "/reminders", icon: BellRing, module: "REMINDERS" },
   { name: "Assets", href: "/dashboard/assets", icon: Package, module: "ASSETS" },
@@ -99,7 +143,19 @@ const adminLinks: NavLink[] = [
   { name: "Settings", href: "/settings", icon: Settings, module: "SETTINGS" },
 ]
 
-export function Sidebar({ role, user, onMobileClose }: { role: string, user?: any, onMobileClose?: () => void }) {
+export function Sidebar({ 
+  role, 
+  user, 
+  onMobileClose,
+  isCollapsed = false,
+  onToggleCollapse
+}: { 
+  role: string, 
+  user?: any, 
+  onMobileClose?: () => void,
+  isCollapsed?: boolean,
+  onToggleCollapse?: () => void
+}) {
   const pathname = usePathname() || ""
   
   // State for accordion menus
@@ -109,7 +165,9 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
     // Auto-open menus if we are in their sub-route
     setOpenMenus(prev => {
       let next = { ...prev };
-      if (pathname.startsWith("/forms")) next["Forms"] = true;
+      if (pathname.startsWith("/forms/production") || pathname.startsWith("/kbp")) next["Production"] = true;
+      if (pathname.startsWith("/forms/warehouse")) next["Warehouse & Logistics"] = true;
+      if (pathname.startsWith("/forms/maintenance")) next["Maintenance & GMP"] = true;
       if (pathname.startsWith("/organization")) next["Organization"] = true;
       return next;
     });
@@ -151,25 +209,6 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
         }
         
         return true;
-      }).map(sub => {
-        // Keep the name as "Maintenance Inventory" for users who only have access to the dashboard
-        if (sub.name === "GMP" && user?.trueRole !== "SUPERADMIN") {
-          const hasForms = userModules.includes("MAINTENANCE_FORMS");
-          const hasReports = userModules.includes("MAINTENANCE_REPORTS");
-          const hasDashboard = userModules.includes("MAINTENANCE_DASHBOARD");
-          const hasPallet = userModules.includes("PALLET_LEDGER");
-          
-          if (!hasForms && !hasReports && hasDashboard) {
-            return { ...sub, name: "Maintenance Inventory", href: "/forms/maintenance/dashboard" };
-          }
-          if (!hasForms && hasReports && !hasDashboard) {
-            return { ...sub, name: "Maintenance Reports", href: "/forms/maintenance/reports" };
-          }
-          if (!hasForms && !hasReports && !hasDashboard && hasPallet) {
-            return { ...sub, name: "Pallet Ledger", href: "/forms/maintenance/pallet-transfer" };
-          }
-        }
-        return sub;
       })
     }
     return newLink;
@@ -186,6 +225,9 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
     }
 
     // If the link has a module requirement, check if it's in the user's array
+    if (link.modules) {
+      return link.modules.some(mod => userModules.includes(mod))
+    }
     if (link.module) {
       return userModules.includes(link.module)
     }
@@ -198,35 +240,121 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
   }
 
   return (
-    <div className="flex h-screen w-64 flex-col bg-gray-900 text-white shadow-xl overflow-y-auto">
-      <div className="flex flex-col h-20 items-center justify-center border-b border-gray-800 px-4 text-center shrink-0">
-        <h1 className="text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
-          BubblesO2
-        </h1>
-        <p className="text-[10px] font-bold tracking-widest text-gray-400 uppercase mt-0.5">AIO System</p>
-        
-        {/* Mobile Close Button */}
-        {onMobileClose && (
-          <button 
-            onClick={onMobileClose}
-            className="md:hidden absolute right-4 top-6 text-gray-400 hover:text-white"
+    <div className={cn(
+      "flex h-screen flex-col bg-gray-900 text-white shadow-xl transition-all duration-300 relative select-none",
+      isCollapsed ? "w-20 overflow-visible" : "w-64 overflow-y-auto"
+    )}>
+      {/* Header */}
+      {isCollapsed ? (
+        <div className="flex h-20 items-center justify-center border-b border-gray-800 px-2 shrink-0">
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            title="Kembangkan Sidebar (Expand)"
+            className="flex flex-col items-center justify-center p-2 rounded-xl bg-gradient-to-br from-blue-600/20 to-emerald-600/20 border border-blue-500/30 hover:border-blue-400 hover:scale-105 transition-all group cursor-pointer"
           >
-            <X className="h-6 w-6" />
+            <span className="text-sm font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
+              B2
+            </span>
+            <span className="text-[8px] font-extrabold text-blue-400 tracking-wider">AIO</span>
           </button>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between h-20 border-b border-gray-800 px-4 shrink-0 relative">
+          <div className="flex-1 text-center pl-6">
+            <h1 className="text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
+              BubblesO2
+            </h1>
+            <p className="text-[10px] font-bold tracking-widest text-gray-400 uppercase mt-0.5">AIO System</p>
+          </div>
+          
+          {onToggleCollapse && (
+            <button 
+              type="button"
+              onClick={onToggleCollapse}
+              title="Kecilkan Sidebar (Minimize)"
+              className="hidden md:flex p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors cursor-pointer"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          )}
+
+          {/* Mobile Close Button */}
+          {onMobileClose && (
+            <button 
+              type="button"
+              onClick={onMobileClose}
+              className="md:hidden absolute right-4 top-6 text-gray-400 hover:text-white"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          )}
+        </div>
+      )}
       
-      <nav className="flex-1 space-y-1 px-2 py-4">
+      {/* Navigation */}
+      <nav className={cn(
+        "flex-1 space-y-1 py-4",
+        isCollapsed ? "px-2 overflow-visible" : "px-2 overflow-y-auto"
+      )}>
         {links.map((link) => {
           const Icon = link.icon
           
           if (link.subLinks) {
-            const isOpen = openMenus[link.name]
             const isChildActive = link.subLinks.some(sub => pathname.startsWith(sub.href.split('?')[0]))
             
+            if (isCollapsed) {
+              return (
+                <div key={link.name} className="relative group/flyout px-1 py-1 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => onToggleCollapse?.()}
+                    className={cn(
+                      "h-10 w-10 flex items-center justify-center rounded-xl transition-all cursor-pointer",
+                      isChildActive
+                        ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                        : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                    )}
+                    title={link.name}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </button>
+
+                  {/* Flyout Submenu on Hover */}
+                  <div className="pointer-events-none group-hover/flyout:pointer-events-auto opacity-0 group-hover/flyout:opacity-100 transition-all duration-150 absolute left-full top-0 ml-2.5 w-56 rounded-xl bg-gray-900 border border-gray-700 shadow-2xl p-2 z-50">
+                    <div className="px-2.5 py-1.5 border-b border-gray-800 mb-1.5 flex items-center justify-between">
+                      <span className="text-xs font-bold text-gray-200 uppercase tracking-wider">{link.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-semibold">{link.subLinks.length}</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      {link.subLinks.map((subLink) => {
+                        const isSubActive = pathname.startsWith(subLink.href.split('?')[0])
+                        return (
+                          <Link
+                            key={subLink.name}
+                            href={subLink.href}
+                            className={cn(
+                              "block px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors",
+                              isSubActive
+                                ? "bg-blue-600 text-white font-semibold"
+                                : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                            )}
+                          >
+                            {subLink.name}
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+
+            const isOpen = openMenus[link.name]
             return (
               <div key={link.name} className="space-y-1">
                 <button
+                  type="button"
                   onClick={() => toggleMenu(link.name)}
                   className={cn(
                     "w-full group flex items-center justify-between rounded-md px-2 py-2 text-sm font-medium transition-colors",
@@ -273,6 +401,29 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
           }
 
           const isActive = pathname.startsWith(link.href!)
+          
+          if (isCollapsed) {
+            return (
+              <div key={link.name} className="relative group/tooltip px-1 py-1 flex justify-center">
+                <Link
+                  href={link.href!}
+                  className={cn(
+                    "h-10 w-10 flex items-center justify-center rounded-xl transition-all",
+                    isActive
+                      ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                      : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                  )}
+                >
+                  <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                </Link>
+                {/* Floating Tooltip */}
+                <div className="pointer-events-none opacity-0 group-hover/tooltip:opacity-100 transition-all duration-150 absolute left-full top-1/2 -translate-y-1/2 ml-2.5 px-2.5 py-1 bg-gray-800 text-white text-xs font-medium rounded-lg shadow-xl border border-gray-700 whitespace-nowrap z-50">
+                  {link.name}
+                </div>
+              </div>
+            )
+          }
+
           return (
             <Link
               key={link.name}
@@ -297,20 +448,34 @@ export function Sidebar({ role, user, onMobileClose }: { role: string, user?: an
         })}
       </nav>
       
-      <div className="p-4 border-t border-gray-800 flex flex-col mt-auto shrink-0">
-        <div className="flex items-center mb-4">
-          <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0">
+      {/* Footer */}
+      {isCollapsed ? (
+        <div className="p-3 border-t border-gray-800 flex flex-col items-center mt-auto shrink-0 relative group/user">
+          <div className="h-9 w-9 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold shadow-lg cursor-pointer">
             {user?.name ? user.name.charAt(0).toUpperCase() : role.charAt(0)}
           </div>
-          <div className="ml-3 flex-1 min-w-0">
-            <p className="text-sm font-bold text-white truncate">{user?.name || "Current User"}</p>
-            <p className="text-xs font-medium text-blue-400 tracking-wide mt-0.5">{role}</p>
+          {/* Floating Profile Info */}
+          <div className="pointer-events-none opacity-0 group-hover/user:opacity-100 transition-all duration-150 absolute left-full bottom-2 ml-2.5 p-2 bg-gray-900 text-white text-xs rounded-xl shadow-xl border border-gray-700 whitespace-nowrap z-50">
+            <p className="font-bold text-gray-100">{user?.name || "Current User"}</p>
+            <p className="text-[10px] text-blue-400 font-medium">{role}</p>
           </div>
         </div>
-        <div className="text-[9px] text-gray-500 text-center leading-relaxed font-medium uppercase tracking-wider">
-          All right reserve by Information Technology Department BubblesO2 2026
+      ) : (
+        <div className="p-4 border-t border-gray-800 flex flex-col mt-auto shrink-0">
+          <div className="flex items-center mb-4">
+            <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0">
+              {user?.name ? user.name.charAt(0).toUpperCase() : role.charAt(0)}
+            </div>
+            <div className="ml-3 flex-1 min-w-0">
+              <p className="text-sm font-bold text-white truncate">{user?.name || "Current User"}</p>
+              <p className="text-xs font-medium text-blue-400 tracking-wide mt-0.5">{role}</p>
+            </div>
+          </div>
+          <div className="text-[9px] text-gray-500 text-center leading-relaxed font-medium uppercase tracking-wider">
+            All right reserve by Information Technology Department BubblesO2 2026
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

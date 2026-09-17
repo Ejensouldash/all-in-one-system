@@ -52,7 +52,7 @@ const staffLinks: NavLink[] = [
       { name: "Warehouse", href: "/forms/warehouse/dashboard", module: "WAREHOUSE", restrictToWarehouseUnit: true },
       { name: "Gatepass", href: "/forms/warehouse/gatepass", modules: ["GATEPASS_REQUESTER", "WAREHOUSE_GATEPASS"] },
       { name: "Security Gate", href: "/forms/warehouse/gatepass/security", module: "SECURITY_GATEPASS" },
-      { name: "Sales Ordering", href: "/forms/sales-ordering", modules: ["SALES_ORDERING", "SALES_ORDERING_DASHBOARD", "SALES_ORDERING_INTAKE", "SALES_ORDERING_ORDERS", "SALES_ORDERING_CUSTOMERS", "SALES_ORDERING_CUSTOMERS_MANAGE", "SALES_ORDERING_DOCUMENT_MANAGE"] },
+      { name: "Sales Ordering", href: "/forms/sales-ordering", modules: ["SALES_ORDERING", "SALES_ORDERING_DASHBOARD", "SALES_ORDERING_CUSTOMERS", "SALES_ORDERING_DOCUMENTS", "SALES_ORDERING_INTAKE", "SALES_ORDERING_CREDIT_CHECK", "SALES_ORDERING_ORDERS", "SALES_ORDERING_CUSTOMERS_MANAGE", "SALES_ORDERING_DOCUMENT_MANAGE"] },
       // Production staff who take raw material off the rack. Deliberately not unit-restricted:
       // they are not in the Warehouse unit, which is the whole point of the narrow grant.
       { name: "Ambil Bahan", href: "/forms/warehouse/reports/raw-material", module: "RAW_MATERIAL_WITHDRAWAL" },
@@ -76,7 +76,7 @@ const adminLinks: NavLink[] = [
       { name: "Warehouse", href: "/forms/warehouse/dashboard", module: "WAREHOUSE", restrictToWarehouseUnit: true },
       { name: "Gatepass", href: "/forms/warehouse/gatepass", modules: ["GATEPASS_REQUESTER", "WAREHOUSE_GATEPASS"] },
       { name: "Security Gate", href: "/forms/warehouse/gatepass/security", module: "SECURITY_GATEPASS" },
-      { name: "Sales Ordering", href: "/forms/sales-ordering", modules: ["SALES_ORDERING", "SALES_ORDERING_DASHBOARD", "SALES_ORDERING_INTAKE", "SALES_ORDERING_ORDERS", "SALES_ORDERING_CUSTOMERS", "SALES_ORDERING_CUSTOMERS_MANAGE", "SALES_ORDERING_DOCUMENT_MANAGE"] },
+      { name: "Sales Ordering", href: "/forms/sales-ordering", modules: ["SALES_ORDERING", "SALES_ORDERING_DASHBOARD", "SALES_ORDERING_CUSTOMERS", "SALES_ORDERING_DOCUMENTS", "SALES_ORDERING_INTAKE", "SALES_ORDERING_CREDIT_CHECK", "SALES_ORDERING_ORDERS", "SALES_ORDERING_CUSTOMERS_MANAGE", "SALES_ORDERING_DOCUMENT_MANAGE"] },
       // Production staff who take raw material off the rack. Deliberately not unit-restricted:
       // they are not in the Warehouse unit, which is the whole point of the narrow grant.
       { name: "Ambil Bahan", href: "/forms/warehouse/reports/raw-material", module: "RAW_MATERIAL_WITHDRAWAL" },

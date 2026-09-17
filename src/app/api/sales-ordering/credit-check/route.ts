@@ -9,7 +9,9 @@ const MAX_SIZE = 20 * 1024 * 1024
 
 export async function POST(request: Request) {
   const access = await getSalesOrderingAccess()
-  if (!access || !canAccessSalesOrderingTab(access, "intake")) return NextResponse.json({ error: "AI Intake access required." }, { status: 403 })
+  if (!access || (!canAccessSalesOrderingTab(access, "creditCheck") && !canAccessSalesOrderingTab(access, "intake"))) {
+    return NextResponse.json({ error: "PO-SOA Check access required." }, { status: 403 })
+  }
   try {
     const body = await request.json() as { poName?: string; poSize?: number; soaName?: string; soaSize?: number; checkMode?: CheckMode; existingCaseId?: string }
     const valid = (name?: string, size?: number) => Boolean(name?.toLowerCase().endsWith(".pdf") && size && size <= MAX_SIZE)

@@ -14,9 +14,11 @@ export default async function SalesOrderingLayout({ children }: { children: Reac
       </header>
       <SalesOrderingTabs permissions={{
         dashboard: canAccessSalesOrderingTab(access, "dashboard"),
-        intake: canAccessSalesOrderingTab(access, "intake"),
-        orders: canAccessSalesOrderingTab(access, "orders"),
         customers: canAccessSalesOrderingTab(access, "customers"),
+        documents: canAccessSalesOrderingTab(access, "documents"),
+        intake: canAccessSalesOrderingTab(access, "intake"),
+        creditCheck: canAccessSalesOrderingTab(access, "creditCheck"),
+        orders: canAccessSalesOrderingTab(access, "orders"),
         isSuperAdmin: access.isSuperAdmin,
       }} />
       {children}

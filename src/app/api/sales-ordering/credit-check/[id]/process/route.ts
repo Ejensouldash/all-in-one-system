@@ -14,7 +14,9 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   let id = ""
   try {
     const access = await getSalesOrderingAccess()
-    if (!access || !canAccessSalesOrderingTab(access, "intake")) return NextResponse.json({ error: "AI Intake access required." }, { status: 403 })
+    if (!access || (!canAccessSalesOrderingTab(access, "creditCheck") && !canAccessSalesOrderingTab(access, "intake"))) {
+      return NextResponse.json({ error: "PO-SOA Check access required." }, { status: 403 })
+    }
     id = (await context.params).id
     const item = await prisma.creditCheckCase.findUnique({ where: { id } })
     if (!item) return NextResponse.json({ error: "Evaluation not found." }, { status: 404 })

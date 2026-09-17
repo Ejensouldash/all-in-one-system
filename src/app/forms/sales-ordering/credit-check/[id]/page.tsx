@@ -10,7 +10,7 @@ import type { ExtractedSalesDocument } from "@/lib/sales-ordering/types"
 export default async function CreditCheckDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const access = await getSalesOrderingAccess()
   if (!access) redirect("/dashboard")
-  if (!canAccessSalesOrderingTab(access, "intake")) redirect(firstSalesOrderingPath(access))
+  if (!canAccessSalesOrderingTab(access, "creditCheck")) redirect(firstSalesOrderingPath(access))
 
   const { id } = await params
   const item = await prisma.creditCheckCase.findUnique({ where: { id } })

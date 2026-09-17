@@ -69,7 +69,7 @@ export default async function SalesOrderingDashboard() {
               href="/forms/sales-ordering/intake"
               className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-cyan-400 px-5 py-3 text-sm font-black text-slate-950 hover:bg-cyan-300 transition shadow-lg"
             >
-              Open AI Intake Queue <ArrowRight className="h-4 w-4" />
+              Open PO Upload Queue <ArrowRight className="h-4 w-4" />
             </Link>
           )}
         </div>

@@ -4,17 +4,25 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Database, FileCheck, FileSearch, LayoutDashboard, ShieldCheck, ShoppingCart, Users } from "lucide-react"
 
-type TabPermissions = { dashboard: boolean; intake: boolean; orders: boolean; customers: boolean; isSuperAdmin?: boolean }
+type TabPermissions = {
+  dashboard: boolean
+  customers: boolean
+  documents: boolean
+  intake: boolean
+  creditCheck: boolean
+  orders: boolean
+  isSuperAdmin?: boolean
+}
 
 export function SalesOrderingTabs({ permissions }: { permissions: TabPermissions }) {
   const pathname = usePathname()
   const visibleTabs = [
     ...(permissions.dashboard ? [{ label: "Dashboard", href: "/forms/sales-ordering", icon: LayoutDashboard }] : []),
-    ...(permissions.dashboard || permissions.intake ? [{ label: "Documents", href: "/forms/sales-ordering/documents", icon: FileCheck }] : []),
-    ...(permissions.intake ? [{ label: "AI Intake", href: "/forms/sales-ordering/intake", icon: FileSearch }] : []),
-    ...(permissions.intake ? [{ label: "PO-SOA Check", href: "/forms/sales-ordering/credit-check", icon: ShieldCheck }] : []),
-    ...(permissions.orders ? [{ label: "Sales Orders", href: "/forms/sales-ordering/orders", icon: ShoppingCart }] : []),
     ...(permissions.customers ? [{ label: "Customers", href: "/forms/sales-ordering/customers", icon: Users }] : []),
+    ...(permissions.documents ? [{ label: "Documents", href: "/forms/sales-ordering/documents", icon: FileCheck }] : []),
+    ...(permissions.intake ? [{ label: "PO Upload", href: "/forms/sales-ordering/intake", icon: FileSearch }] : []),
+    ...(permissions.creditCheck ? [{ label: "PO-SOA Check", href: "/forms/sales-ordering/credit-check", icon: ShieldCheck }] : []),
+    ...(permissions.orders ? [{ label: "Sales Orders", href: "/forms/sales-ordering/orders", icon: ShoppingCart }] : []),
     ...(permissions.isSuperAdmin ? [{ label: "Database", href: "/forms/sales-ordering/database", icon: Database }] : []),
   ]
   return (

@@ -11,7 +11,7 @@ type CreditResultSummary = {
 export default async function PoCustomerPage() {
   const access = await getSalesOrderingAccess()
   if (!access) redirect("/dashboard")
-  if (!canAccessSalesOrderingTab(access, "dashboard") && !canAccessSalesOrderingTab(access, "intake")) {
+  if (!canAccessSalesOrderingTab(access, "documents") && !canAccessSalesOrderingTab(access, "dashboard")) {
     redirect(firstSalesOrderingPath(access))
   }
 

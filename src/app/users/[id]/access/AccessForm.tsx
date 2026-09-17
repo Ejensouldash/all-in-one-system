@@ -11,7 +11,7 @@ import {
   Users, Activity, Settings,
   Workflow, Factory, Building2, ShieldCheck,
   LayoutDashboard, FileSpreadsheet, BellRing,
-  ShoppingCart, FileSearch, FilePenLine, Trash2, UserCheck,
+  ShoppingCart, FileSearch, FileCheck, FilePenLine, Trash2, UserCheck,
   type LucideIcon,
 } from "lucide-react"
 
@@ -37,9 +37,11 @@ const MODULE_CATEGORIES: CategoryDef[] = [
     iconClass: "bg-emerald-50 text-emerald-600 border-emerald-100",
     modules: [
       { id: "SALES_ORDERING_DASHBOARD", name: "Dashboard Tab", description: "View the Sales Ordering dashboard, queue counts and recent document summary.", icon: LayoutDashboard },
-      { id: "SALES_ORDERING_INTAKE", name: "AI Intake Tab", description: "Upload customer PDFs and view the AI intake queue and document review screens.", icon: FileSearch },
-      { id: "SALES_ORDERING_ORDERS", name: "Sales Orders Tab", description: "View Sales Orders and allow approved intake data to create a draft Sales Order.", icon: ShoppingCart },
       { id: "SALES_ORDERING_CUSTOMERS", name: "Customers Tab", description: "View and search the Customer Master tab.", icon: Users },
+      { id: "SALES_ORDERING_DOCUMENTS", name: "Documents Tab", description: "View Customer Document Control and consolidated intake/credit check records.", icon: FileCheck },
+      { id: "SALES_ORDERING_INTAKE", name: "PO Upload Tab", description: "Upload customer purchase order PDFs and view document review screens.", icon: FileSearch },
+      { id: "SALES_ORDERING_CREDIT_CHECK", name: "PO-SOA Check Tab", description: "Review customer PO against SOA, evaluate credit terms/aging breakdown, and approve/reject credit clearance.", icon: ShieldCheck },
+      { id: "SALES_ORDERING_ORDERS", name: "Sales Orders Tab", description: "View Sales Orders and allow approved intake data to create a draft Sales Order.", icon: ShoppingCart },
       { id: "SALES_ORDERING_CUSTOMERS_MANAGE", name: "Customer Master Admin", description: "Import or update the Sage X3 customer master. Give Customers Tab too.", icon: FilePenLine },
       { id: "SALES_ORDERING_DOCUMENT_MANAGE", name: "Edit / Delete Documents", description: "Correct AI-extracted document data, save review changes, retry AI and delete an intake before an SO exists.", icon: Trash2 },
     ],

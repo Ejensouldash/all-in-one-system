@@ -4,9 +4,11 @@ export const SALES_ORDERING_LEGACY_MODULE = "SALES_ORDERING"
 
 export const SALES_ORDERING_TAB_MODULES = {
   dashboard: "SALES_ORDERING_DASHBOARD",
-  intake: "SALES_ORDERING_INTAKE",
-  orders: "SALES_ORDERING_ORDERS",
   customers: "SALES_ORDERING_CUSTOMERS",
+  documents: "SALES_ORDERING_DOCUMENTS",
+  intake: "SALES_ORDERING_INTAKE",
+  creditCheck: "SALES_ORDERING_CREDIT_CHECK",
+  orders: "SALES_ORDERING_ORDERS",
 } as const
 
 export const SALES_ORDERING_CUSTOMER_MANAGE_MODULE = "SALES_ORDERING_CUSTOMERS_MANAGE"
@@ -41,8 +43,10 @@ export function canManageSalesOrderingDocuments(access: AccessInfo) {
 
 export function firstSalesOrderingPath(access: AccessInfo) {
   if (canAccessSalesOrderingTab(access, "dashboard")) return "/forms/sales-ordering"
-  if (canAccessSalesOrderingTab(access, "intake")) return "/forms/sales-ordering/intake"
-  if (canAccessSalesOrderingTab(access, "orders")) return "/forms/sales-ordering/orders"
   if (canAccessSalesOrderingTab(access, "customers")) return "/forms/sales-ordering/customers"
+  if (canAccessSalesOrderingTab(access, "documents")) return "/forms/sales-ordering/documents"
+  if (canAccessSalesOrderingTab(access, "intake")) return "/forms/sales-ordering/intake"
+  if (canAccessSalesOrderingTab(access, "creditCheck")) return "/forms/sales-ordering/credit-check"
+  if (canAccessSalesOrderingTab(access, "orders")) return "/forms/sales-ordering/orders"
   return "/dashboard"
 }

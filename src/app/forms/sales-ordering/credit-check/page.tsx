@@ -7,7 +7,7 @@ import { canAccessSalesOrderingTab, firstSalesOrderingPath, getSalesOrderingAcce
 export default async function CreditCheckPage({ searchParams }: { searchParams: Promise<{ highlight?: string }> }) {
   const access = await getSalesOrderingAccess()
   if (!access) redirect("/dashboard")
-  if (!canAccessSalesOrderingTab(access, "intake")) redirect(firstSalesOrderingPath(access))
+  if (!canAccessSalesOrderingTab(access, "creditCheck")) redirect(firstSalesOrderingPath(access))
 
   const highlight = (await searchParams).highlight
   let existingCase = null

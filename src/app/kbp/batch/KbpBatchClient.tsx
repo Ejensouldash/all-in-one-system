@@ -33,12 +33,10 @@ type Batch = {
 }
 
 function getSheetBagIndices(sheetIdx: number, totalBagsCount: number): (number | null)[] {
-  const startBag = (sheetIdx - 1) * 4 + 1
+  const startBag = (sheetIdx - 1) * 2 + 1
   return [
     startBag <= totalBagsCount ? startBag : null,
     startBag + 1 <= totalBagsCount ? startBag + 1 : null,
-    startBag + 2 <= totalBagsCount ? startBag + 2 : null,
-    startBag + 3 <= totalBagsCount ? startBag + 3 : null,
   ]
 }
 
@@ -76,11 +74,11 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
     }
   }, [machineId, previewDate, shift])
 
-  // Total bags count in active preview
+  // Total bags count in active preview (2 bags per 100mm x 100mm sheet)
   const activeTotalBags = printTagData
     ? Math.max(1, printTagData.totalBags || 1)
     : Math.max(1, Number(totalBags) || 1)
-  const totalSheets = Math.ceil(activeTotalBags / 4)
+  const totalSheets = Math.ceil(activeTotalBags / 2)
 
   // Safe sheet index (clamped between 1 and totalSheets)
   const safeSheetIndex = Math.min(Math.max(1, previewSheetIndex), totalSheets)
@@ -88,8 +86,8 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
     () => getSheetBagIndices(safeSheetIndex, activeTotalBags),
     [safeSheetIndex, activeTotalBags]
   )
-  const startBag = (safeSheetIndex - 1) * 4 + 1
-  const endBag = Math.min(startBag + 3, activeTotalBags)
+  const startBag = (safeSheetIndex - 1) * 2 + 1
+  const endBag = Math.min(startBag + 1, activeTotalBags)
 
   // Active display batch for live preview (shows current form inputs or selected batch)
   const currentDisplayBatch = useMemo<KbpStickerBatchData | null>(() => {
@@ -118,11 +116,11 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
     return null
   }, [printTagData, previewBatchNo, machine, shift, dateValue, activeQtyPerBag, totalBags, currentSheetIndices])
 
-  // Print sheets generation (1 sheet contains 4 bag strips)
+  // Print sheets generation (1 sheet contains 2 bag stickers)
   const printSheets = useMemo(() => {
     if (!printTagData) return []
     const total = Math.max(1, printTagData.totalBags || 1)
-    const sheetsCount = Math.ceil(total / 4)
+    const sheetsCount = Math.ceil(total / 2)
     if (typeof printTarget === "number") {
       const validSheet = Math.min(Math.max(1, printTarget), sheetsCount)
       return [{ sheetIndex: validSheet, indices: getSheetBagIndices(validSheet, total) }]
@@ -326,7 +324,7 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
                     required
                   />
                   <p className="text-[11px] text-gray-400 mt-1.5">
-                    {Math.ceil((Number(totalBags) || 1) / 4)} helaian sticker (4-in-1)
+                    {Math.ceil((Number(totalBags) || 1) / 2)} helaian sticker (2-in-1)
                   </p>
                 </div>
               </div>
@@ -354,7 +352,7 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-black uppercase tracking-widest text-gray-900">Preview Sticker</h2>
-                <p className="text-xs text-gray-500 mt-0.5">Thermal 100mm × 100mm (4-in-1 Beg)</p>
+                <p className="text-xs text-gray-500 mt-0.5">Thermal 100mm × 100mm (2-in-1 Beg)</p>
               </div>
               {currentDisplayBatch && totalSheets > 1 ? (
                 <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 rounded-lg px-2 py-1">
@@ -382,7 +380,7 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
                 </div>
               ) : (
                 <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-[11px] font-black text-indigo-700 uppercase tracking-wider">
-                  1 Helaian (4 Beg)
+                  1 Helaian (2 Beg)
                 </span>
               )}
             </div>
@@ -421,7 +419,7 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
                   )}
 
                   <p className="text-[11px] text-center text-gray-500 font-medium leading-relaxed">
-                    💡 <span className="font-bold">Tips Cetakan:</span> Pada Chrome Print, setkan <span className="font-bold text-gray-900">Margins: None</span>. 1 helaian mengandungi 4 jalur sticker (100mm × 25mm). Potong mengikut garisan ✂️.
+                    💡 <span className="font-bold">Tips Cetakan:</span> Pada Chrome Print, setkan <span className="font-bold text-gray-900">Margins: None</span>. 1 helaian mengandungi 2 pelekat (100mm × 50mm) berserta ruang COP QC. Potong mengikut garisan ✂️.
                   </p>
                   {isDraftPreview && (
                     <p className="text-[11px] text-center text-amber-700 font-bold">
@@ -485,7 +483,7 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
                       </td>
                       <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap tabular-nums">
                         {b.totalQty.toLocaleString()}
-                        <span className="text-gray-400"> ({b.totalBags} beg · {Math.ceil(b.totalBags / 4)} helaian)</span>
+                        <span className="text-gray-400"> ({b.totalBags} beg · {Math.ceil(b.totalBags / 2)} helaian)</span>
                       </td>
                       <td className="px-5 py-3 text-sm text-gray-500 whitespace-nowrap">{b.createdBy}</td>
                       <td className="px-5 py-3 whitespace-nowrap text-right">

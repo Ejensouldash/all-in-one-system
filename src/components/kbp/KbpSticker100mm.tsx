@@ -40,14 +40,14 @@ function KbpSingleStrip({ batch, bagNumber, isLast, isPrint }: KbpSingleStripPro
         className={`w-full flex-1 flex flex-col justify-between ${
           !isLast ? "border-b border-dashed border-gray-300" : ""
         }`}
-        style={{ minHeight: isPrint ? "43mm" : "46mm" }}
+        style={{ minHeight: isPrint ? "42mm" : "46mm" }}
       >
         <div className="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl bg-gray-50/50 m-1 p-3">
           <span className="text-[8.5pt] font-black text-gray-400 uppercase tracking-widest">
-            [ KOSONG / TIADA BEG ]
+            [ EMPTY / NO BAG ]
           </span>
           <span className="text-[6pt] text-gray-400 font-bold mt-1">
-            Slot Tambahan · Saiz Kertas 100mm × 100mm
+            Spare Slot · Paper Size 100mm × 100mm
           </span>
         </div>
         {!isLast && (
@@ -62,7 +62,7 @@ function KbpSingleStrip({ batch, bagNumber, isLast, isPrint }: KbpSingleStripPro
   const totalBagsCount = batch.totalBags > 0 ? batch.totalBags : 1
   const machineId = batch.machine || batch.batchNo.split("-")[0] || "—"
   const shiftNumber = batch.shift ? String(batch.shift).padStart(2, "0") : ""
-  const shiftText = shiftNumber === "01" ? "01 (PAGI)" : shiftNumber === "02" ? "02 (MALAM)" : (batch.shift || "—")
+  const shiftText = shiftNumber === "01" ? "01 (MORNING)" : shiftNumber === "02" ? "02 (NIGHT)" : (batch.shift || "—")
   const formattedDate = formatDateOnly(batch.productionDate)
 
   // Standard payload compatible with TransferInForm & CreateDOForm
@@ -82,93 +82,97 @@ function KbpSingleStrip({ batch, bagNumber, isLast, isPrint }: KbpSingleStripPro
         !isLast ? "border-b-[0.4mm] border-dashed border-gray-400" : ""
       }`}
       style={{
-        minHeight: isPrint ? "43.5mm" : "46.5mm",
-        padding: isPrint ? "1mm 1.5mm" : "1.5mm 2mm",
+        minHeight: isPrint ? "42mm" : "46mm",
+        padding: isPrint ? "0.8mm 1.5mm" : "1.2mm 2mm",
         boxSizing: "border-box",
       }}
     >
-      <div className="w-full h-full flex flex-col justify-between border-[0.7mm] border-black rounded-[1.6mm] p-1.5 bg-white relative box-border">
+      <div className="w-full h-full flex flex-col justify-between border-[0.7mm] border-black rounded-[1.6mm] p-[1.2mm] sm:p-1.5 bg-white relative box-border">
         {/* Decorative corner notches */}
         <div className="absolute top-[0.5mm] left-[0.5mm] w-[2mm] h-[2mm] border-t-[0.4mm] border-l-[0.4mm] border-black pointer-events-none" />
         <div className="absolute top-[0.5mm] right-[0.5mm] w-[2mm] h-[2mm] border-t-[0.4mm] border-r-[0.4mm] border-black pointer-events-none" />
         <div className="absolute bottom-[0.5mm] left-[0.5mm] w-[2mm] h-[2mm] border-b-[0.4mm] border-l-[0.4mm] border-black pointer-events-none" />
         <div className="absolute bottom-[0.5mm] right-[0.5mm] w-[2mm] h-[2mm] border-b-[0.4mm] border-r-[0.4mm] border-black pointer-events-none" />
 
-        {/* 1. TOP HEADER BAR: Full width (~88mm) with machine, shift, date & NO. BEG badge */}
-        <div className="w-full flex items-center justify-between border-b-[0.4mm] border-gray-300 pb-1 mb-1 leading-none">
+        {/* 1. TOP HEADER BAR: Full width with machine, shift, date & BAG NO. badge */}
+        <div className="w-full flex items-center justify-between border-b-[0.4mm] border-gray-300 pb-0.5 mb-1 leading-none">
           <div className="flex items-center gap-2 text-[5.8pt] font-black uppercase text-gray-700 tracking-tight">
-            <span>MESIN: <strong className="text-black">{machineId}</strong></span>
+            <span>MACHINE: <strong className="text-black">{machineId}</strong></span>
             <span>·</span>
-            <span>SYIF: <strong className="text-black">{shiftText}</strong></span>
+            <span>SHIFT: <strong className="text-black">{shiftText}</strong></span>
             <span>·</span>
-            <span>TARIKH: <strong className="text-black">{formattedDate}</strong></span>
+            <span>DATE: <strong className="text-black">{formattedDate}</strong></span>
           </div>
 
+          {/* Running number only without total bags suffix */}
           <div className="inline-flex items-center gap-1.5 bg-black text-white px-2 py-0.5 rounded-[1mm] shrink-0">
-            <span className="text-[4.5pt] font-extrabold text-gray-300 uppercase tracking-wider">NO. BEG</span>
-            <span className="text-[8.5pt] font-black font-mono leading-none">{String(bagNumber).padStart(2, "0")}</span>
-            <span className="text-[5pt] font-bold text-gray-300 leading-none">/ {totalBagsCount}</span>
+            <span className="text-[4.8pt] font-extrabold text-gray-300 uppercase tracking-wider">BAG NO.</span>
+            <span className="text-[9pt] font-black font-mono leading-none">{String(bagNumber).padStart(2, "0")}</span>
           </div>
         </div>
 
-        {/* 2. BODY SECTION: QR Code on Left, Info & COP QC on Right */}
-        <div className="w-full flex-1 flex items-stretch gap-2.5 min-h-0">
-          {/* 2A. LEFT: QR CODE (~28mm x 28mm) */}
+        {/* 2. BODY SECTION: Large QR Code on Left, Shifted Info & Quality Control on Right */}
+        <div className="w-full flex-1 flex items-stretch gap-2.5 sm:gap-3 min-h-0">
+          {/* 2A. LEFT: ENLARGED QR CODE (~29mm - 31mm) */}
           <div className="shrink-0 flex flex-col items-center justify-center">
-            <div className="p-0.8 rounded-[1mm] bg-white border-[0.4mm] border-black flex items-center justify-center">
+            <div className="p-[0.6mm] rounded-[1mm] bg-white border-[0.4mm] border-black flex items-center justify-center">
               <QRCodeSVG
                 value={qrPayload}
-                size={isPrint ? 74 : 80}
+                size={isPrint ? 108 : 116}
                 level="M"
                 includeMargin={false}
                 bgColor="#ffffff"
                 fgColor="#000000"
+                style={{
+                  width: isPrint ? "28.5mm" : "30.5mm",
+                  height: isPrint ? "28.5mm" : "30.5mm",
+                }}
               />
             </div>
-            <span className="text-[4.2pt] font-bold text-gray-400 uppercase tracking-wider mt-0.5">
-              BEG #{bagNumber}
+            <span className="text-[4.2pt] font-black text-gray-500 uppercase tracking-wider mt-0.5 leading-none">
+              BAG #{bagNumber}
             </span>
           </div>
 
-          {/* 2B. RIGHT AREA: Batch No across top, Details + COP QC on bottom */}
-          <div className="flex-1 flex flex-col justify-between min-w-0">
-            {/* Batch Number: Spans full width of the right area (~58mm) */}
-            <div className="border-b-[0.3mm] border-gray-200 pb-0.5">
-              <div className="text-[11pt] sm:text-[11.5pt] font-black font-mono tracking-wider text-black leading-none truncate">
-                {batch.batchNo}
+          {/* 2B. RIGHT AREA: Batch No & Details spanning across, Quality Control at bottom-right */}
+          <div className="flex-1 flex flex-col justify-between min-w-0 pl-1 sm:pl-1.5">
+            {/* Top Text Block: Spans full width of the right section */}
+            <div className="w-full flex flex-col">
+              {/* Batch Number */}
+              <div className="border-b-[0.3mm] border-gray-200 pb-0.5 mb-1">
+                <div className="text-[11pt] sm:text-[11.5pt] font-black font-mono tracking-wider text-black leading-none truncate">
+                  {batch.batchNo}
+                </div>
+              </div>
+
+              {/* Product & Quantity Rows (Spans across space above Quality Control) */}
+              <div className="text-[7.2pt] sm:text-[7.5pt] font-black uppercase text-gray-900 tracking-tight leading-tight">
+                PRODUCT: <span className="text-black font-mono font-black">{batch.sku}</span>
+              </div>
+              <div className="text-[7.2pt] sm:text-[7.5pt] font-extrabold uppercase text-gray-800 tracking-tight leading-tight mt-0.5">
+                QUANTITY: <span className="text-black font-mono font-black">{batch.qtyPerBag.toLocaleString()} PCS/BAG</span>
               </div>
             </div>
 
-            {/* Bottom Row: Product details on Left, COP QC box on Right */}
-            <div className="flex-1 flex items-end justify-between gap-2 pt-1">
-              {/* Product Info */}
-              <div className="flex-1 flex flex-col justify-between h-full min-w-0 py-0.5">
-                <div>
-                  <div className="text-[7.2pt] font-black uppercase text-gray-900 tracking-tight truncate leading-tight">
-                    PRODUK: <span className="text-black font-mono">{batch.sku}</span>
-                  </div>
-                  <div className="text-[6.8pt] font-extrabold uppercase text-gray-800 tracking-tight leading-tight mt-0.5">
-                    KUANTITI: <span className="text-black font-mono font-black">{batch.qtyPerBag.toLocaleString()} PCS/BEG</span>
-                  </div>
-                </div>
-                <div className="text-[4.5pt] font-bold uppercase tracking-wider text-gray-400 mt-1">
-                  ASAL: KBP PEDAS · BUBBLESO2
-                </div>
+            {/* Bottom Row: Origin on Left, Quality Control on Right */}
+            <div className="w-full flex items-end justify-between gap-1.5 pt-0.5">
+              <div className="text-[4.5pt] font-bold uppercase tracking-wider text-gray-400 leading-tight">
+                ORIGIN: KBP PEDAS · BUBBLESO2
               </div>
 
-              {/* COP QC Box in the Bottom Right Corner */}
+              {/* Quality Control Box in the Bottom Right Corner */}
               <div
-                className="shrink-0 border-[0.5mm] border-dashed border-black rounded-[1mm] bg-gray-50/70 p-1 flex flex-col justify-between text-center box-border"
-                style={{ width: isPrint ? "25mm" : "27mm", height: isPrint ? "19mm" : "21mm" }}
+                className="shrink-0 border-[0.4mm] border-dashed border-black rounded-[1mm] bg-gray-50/70 p-1 flex flex-col justify-between text-center box-border"
+                style={{ width: isPrint ? "25mm" : "26mm", height: isPrint ? "17mm" : "18.5mm" }}
               >
-                <div className="text-[4.8pt] font-black uppercase tracking-wider text-black border-b-[0.3mm] border-gray-300 pb-0.5 leading-none">
-                  [ COP QC ]
+                <div className="text-[4.2pt] font-black uppercase tracking-tight text-black border-b-[0.3mm] border-gray-300 pb-0.5 leading-none truncate">
+                  [ QUALITY CONTROL ]
                 </div>
-                <div className="flex-1 flex items-center justify-center text-[4.8pt] text-gray-400 font-bold italic select-none leading-none">
-                  Ruang Cop QC
+                <div className="flex-1 flex items-center justify-center text-[4.5pt] text-gray-400 font-bold italic select-none leading-none">
+                  QC Stamp Area
                 </div>
-                <div className="text-[4.2pt] font-extrabold text-gray-700 text-left border-t-[0.3mm] border-gray-200 pt-0.5 leading-none">
-                  Tarikh: ______
+                <div className="text-[4pt] font-extrabold text-gray-700 text-left border-t-[0.3mm] border-gray-200 pt-0.5 leading-none">
+                  Date: ______
                 </div>
               </div>
             </div>

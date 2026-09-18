@@ -157,39 +157,9 @@ export async function POST(request: Request) {
     // lineItems remains empty [] and grandTotal is 0.00. Items can be added manually in AIO system review.
     const grandTotal = Number(lineItems.reduce((acc, item) => acc + item.amount, 0).toFixed(2))
 
-    // 4. Pre-match customer from Customer Master
-    let matchedCustomer = null
-    if (companyName) {
-      matchedCustomer = await prisma.customer.findFirst({
-        where: {
-          OR: [
-            { legalName: { contains: companyName, mode: "insensitive" } },
-            { tradingName: { contains: companyName, mode: "insensitive" } },
-            ...(ssmCert ? [{ companyRegistrationNo: ssmCert }] : []),
-          ],
-        },
-      })
-    }
-
-    if (!matchedCustomer && icNumber) {
-      matchedCustomer = await prisma.customer.findFirst({
-        where: {
-          OR: [
-            { companyRegistrationNo: icNumber },
-            { tinNo: icNumber },
-            { phonePrimary: phone ? { contains: phone.slice(-8) } : undefined },
-          ],
-        },
-      })
-    }
-
-    if (!matchedCustomer && fullName) {
-      matchedCustomer = await prisma.customer.findFirst({
-        where: {
-          legalName: { equals: fullName, mode: "insensitive" },
-        },
-      })
-    }
+    // 4. E-Invoice Direct Buyer does not auto-match against commercial Customer Master
+    // It remains unlinked (null) by default. Staff can manually select a customer in Review if desired.
+    const matchedCustomer = null
 
     // 5. Generate reference codes & dates
     const today = new Date().toISOString().slice(0, 10)
@@ -212,8 +182,8 @@ export async function POST(request: Request) {
       poNumber: autoDocNumber,
       documentDate: today,
       requestedDeliveryDate: "",
-      customerReference: matchedCustomer?.customerCode || "",
-      customerName: companyName || fullName || matchedCustomer?.legalName || "E-Invoice Customer",
+      customerReference: "",
+      customerName: companyName || fullName || "E-Invoice Customer",
       fullName,
       icNumber,
       companyName: companyName || undefined,
@@ -280,7 +250,7 @@ export async function POST(request: Request) {
         status: "REVIEW",
         documentType: "E_INVOICE_CORPORATE",
         extractedData,
-        matchedCustomerId: matchedCustomer?.id || null,
+        matchedCustomerId: null,
         uploadedById: systemUser.id,
       },
     })
@@ -311,7 +281,7 @@ export async function POST(request: Request) {
       intakeId: intake.id,
       documentNumber: autoDocNumber,
       customerName: fullName,
-      matchedCustomerId: matchedCustomer?.id || null,
+      matchedCustomerId: null,
       totalAmount: grandTotal,
       pdfKey: pdfR2Key,
     })

@@ -97,10 +97,12 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
     let scannedSku = ""
     let scannedBags = 0
     let scannedQty = 0
+    let scannedBagIndex = 0
+    let scannedTotalBags = 0
 
     const text = decodedText.trim()
 
-    // 1. Try parsing JSON: {"batch":"...","sku":"...","qty":225,"bags":1}
+    // 1. Try parsing JSON: {"batch":"...","bag":1,"totalBags":50,"sku":"...","qty":181,"bags":1}
     if (text.startsWith("{") && text.endsWith("}")) {
       try {
         const parsed = JSON.parse(text)
@@ -108,6 +110,8 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
         if (parsed.sku) scannedSku = String(parsed.sku).trim()
         if (parsed.qty) scannedQty = Number(parsed.qty) || 0
         if (parsed.bags) scannedBags = Number(parsed.bags) || 1
+        if (parsed.bag) scannedBagIndex = Number(parsed.bag) || 0
+        if (parsed.totalBags) scannedTotalBags = Number(parsed.totalBags) || 0
       } catch (e) {}
     }
 
@@ -118,8 +122,12 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
         const urlObj = new URL(dummyUrl)
         const bParam = urlObj.searchParams.get("batch")
         const sParam = urlObj.searchParams.get("sku")
+        const bagParam = urlObj.searchParams.get("bag")
+        const totalParam = urlObj.searchParams.get("totalBags")
         if (bParam) scannedBatch = bParam.trim().toUpperCase()
         if (sParam) scannedSku = sParam.trim()
+        if (bagParam) scannedBagIndex = Number(bagParam) || 0
+        if (totalParam) scannedTotalBags = Number(totalParam) || 0
       } catch (e) {}
     }
 
@@ -151,6 +159,75 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
     if (targetCategory.includes("BOX")) targetMult = MULTIPLIERS.BOX[0]
     if (targetCategory === "CAP") targetMult = 4000
 
+    // CASE A: 1 Beg = 1 QR (Running Number per Bag)
+    if (scannedBagIndex > 0) {
+      const existingRowIndex = watchItems.findIndex((item: any) =>
+        (item.batchNo || "").trim().toUpperCase() === scannedBatch &&
+        (item.category || "").trim().toUpperCase() === targetCategory.toUpperCase()
+      )
+
+      if (existingRowIndex >= 0) {
+        const existingItem = watchItems[existingRowIndex]
+        const currentScannedBags: number[] = Array.isArray(existingItem.scannedBags) ? [...existingItem.scannedBags] : []
+
+        // Prevent exact duplicate bag scanning
+        if (currentScannedBags.includes(scannedBagIndex)) {
+          alert(`⚠️ PERINGATAN DUPLICATE: Beg #${scannedBagIndex} bagi Batch ${scannedBatch} (${targetCategory}) SUDAH diimbas sebelum ini!\n\nSila imbas beg seterusnya.`)
+          setIsScannerOpen(false)
+          return
+        }
+
+        // Add bag to list and auto-increment bags count
+        currentScannedBags.push(scannedBagIndex)
+        const newBagsCount = Number(existingItem.bags || 0) + 1
+
+        setValue(`items.${existingRowIndex}.bags`, newBagsCount, { shouldValidate: true, shouldDirty: true })
+        setValue(`items.${existingRowIndex}.scannedBags`, currentScannedBags, { shouldDirty: true })
+        if (scannedTotalBags > 0) {
+          setValue(`items.${existingRowIndex}.totalBagsInBatch`, scannedTotalBags, { shouldDirty: true })
+        }
+        setValue(`items.${existingRowIndex}.isQrScanned`, true)
+
+        const progressInfo = scannedTotalBags > 0 ? ` (${newBagsCount}/${scannedTotalBags} beg)` : ` (${newBagsCount} beg)`
+        alert(`✅ Beg #${scannedBagIndex} bagi Batch ${scannedBatch} berjaya ditambah!${progressInfo}`)
+        setIsScannerOpen(false)
+        return
+      } else {
+        // First bag for this batch
+        const isFirstRowEmpty = watchItems.length === 1 && !watchItems[0].batchNo && (Number(watchItems[0].bags) === 0 || !watchItems[0].bags)
+
+        if (isFirstRowEmpty) {
+          setValue("items.0.category", targetCategory, { shouldDirty: true })
+          setValue("items.0.batchNo", scannedBatch, { shouldValidate: true, shouldDirty: true })
+          setValue("items.0.bags", 1, { shouldValidate: true, shouldDirty: true })
+          setValue("items.0.mult", targetMult, { shouldDirty: true })
+          setValue("items.0.weight", 0)
+          setValue("items.0.scannedBags", [scannedBagIndex], { shouldDirty: true })
+          if (scannedTotalBags > 0) {
+            setValue("items.0.totalBagsInBatch", scannedTotalBags, { shouldDirty: true })
+          }
+          setValue("items.0.isQrScanned", true)
+        } else {
+          append({
+            category: targetCategory,
+            batchNo: scannedBatch,
+            bags: 1,
+            mult: targetMult,
+            weight: 0,
+            scannedBags: [scannedBagIndex],
+            totalBagsInBatch: scannedTotalBags > 0 ? scannedTotalBags : undefined,
+            isQrScanned: true
+          })
+        }
+
+        const progressInfo = scannedTotalBags > 0 ? ` (1/${scannedTotalBags} beg)` : ` (1 beg)`
+        alert(`✅ Beg #${scannedBagIndex} bagi Batch ${scannedBatch} (${targetCategory}) berjaya dimasukkan!${progressInfo}`)
+        setIsScannerOpen(false)
+        return
+      }
+    }
+
+    // CASE B: Legacy QR (no bag running index)
     const finalBags = scannedBags > 0 ? scannedBags : (scannedQty > 0 ? Math.ceil(scannedQty / targetMult) : 1)
 
     // SMART DUPLICATE CHECK:
@@ -578,6 +655,17 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
                         maxLength={needsBatchMask(cat) ? 17 : undefined}
                         className="w-full p-3 md:p-2 border-2 border-gray-300 bg-white font-bold outline-none focus:border-black uppercase text-sm" 
                       />
+                      {Array.isArray(watchItems[index]?.scannedBags) && watchItems[index].scannedBags.length > 0 && (
+                        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">
+                            🏷️ {watchItems[index].scannedBags.length} Beg Diimbas
+                            {watchItems[index].totalBagsInBatch ? ` / ${watchItems[index].totalBagsInBatch}` : ""}
+                          </span>
+                          <span className="text-[9px] text-gray-500 font-bold truncate max-w-[180px]" title={watchItems[index].scannedBags.map((n: number) => `#${n}`).join(", ")}>
+                            Beg: {watchItems[index].scannedBags.map((n: number) => `#${n}`).join(", ")}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex w-full md:w-[30%] gap-3 md:gap-2">

@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Printer, Trash2, Save, AlertCircle, CheckCircle2, Sun, Moon } from "lucide-react"
+import { Printer, Trash2, Save, AlertCircle, CheckCircle2, Sun, Moon, ChevronLeft, ChevronRight } from "lucide-react"
 import { createKbpBatch, deleteKbpBatch } from "@/app/actions/kbpBatch"
 import {
   KBP_MACHINES,
@@ -32,6 +32,16 @@ type Batch = {
   createdAt: string
 }
 
+function getSheetBagIndices(sheetIdx: number, totalBagsCount: number): (number | null)[] {
+  const startBag = (sheetIdx - 1) * 4 + 1
+  return [
+    startBag <= totalBagsCount ? startBag : null,
+    startBag + 1 <= totalBagsCount ? startBag + 1 : null,
+    startBag + 2 <= totalBagsCount ? startBag + 2 : null,
+    startBag + 3 <= totalBagsCount ? startBag + 3 : null,
+  ]
+}
+
 export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) {
   const [batches, setBatches] = useState<Batch[]>(initialBatches)
   const [machineId, setMachineId] = useState(KBP_MACHINES[0].id)
@@ -42,8 +52,18 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<{ type: "ok" | "err"; text: string } | null>(null)
   const [printTagData, setPrintTagData] = useState<Batch | null>(null)
+  const [previewSheetIndex, setPreviewSheetIndex] = useState(1)
+  const [printTarget, setPrintTarget] = useState<number | "all">("all")
 
   const machine = getMachine(machineId)!
+
+  // Ensure qtyPerBag matches allowed list for active machine
+  const activeQtyPerBag = useMemo(() => {
+    if (typeof qtyPerBag === "number" && machine.allowedQtyPerBag.includes(qtyPerBag)) {
+      return qtyPerBag
+    }
+    return machine.defaultQtyPerBag
+  }, [machine, qtyPerBag])
 
   // Batch No is fully derived — never typed by hand, so it cannot drift from the
   // machine/date/shift that were actually selected.
@@ -56,9 +76,29 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
     }
   }, [machineId, previewDate, shift])
 
+  // Total bags count in active preview
+  const activeTotalBags = printTagData
+    ? Math.max(1, printTagData.totalBags || 1)
+    : Math.max(1, Number(totalBags) || 1)
+  const totalSheets = Math.ceil(activeTotalBags / 4)
+
+  // Safe sheet index (clamped between 1 and totalSheets)
+  const safeSheetIndex = Math.min(Math.max(1, previewSheetIndex), totalSheets)
+  const currentSheetIndices = useMemo(
+    () => getSheetBagIndices(safeSheetIndex, activeTotalBags),
+    [safeSheetIndex, activeTotalBags]
+  )
+  const startBag = (safeSheetIndex - 1) * 4 + 1
+  const endBag = Math.min(startBag + 3, activeTotalBags)
+
   // Active display batch for live preview (shows current form inputs or selected batch)
   const currentDisplayBatch = useMemo<KbpStickerBatchData | null>(() => {
-    if (printTagData) return printTagData
+    if (printTagData) {
+      return {
+        ...printTagData,
+        sheetBagIndices: currentSheetIndices,
+      }
+    }
     if (previewBatchNo) {
       return {
         batchNo: previewBatchNo,
@@ -67,22 +107,44 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
         productCode: machine.productCode,
         shift,
         productionDate: dateValue,
-        qtyPerBag: Number(qtyPerBag) || 0,
+        qtyPerBag: activeQtyPerBag,
         totalBags: Number(totalBags) || 1,
-        totalQty: (Number(qtyPerBag) || 0) * (Number(totalBags) || 1),
+        totalQty: activeQtyPerBag * (Number(totalBags) || 1),
         createdBy: "Draft",
         createdAt: new Date().toISOString(),
+        sheetBagIndices: currentSheetIndices,
       }
     }
     return null
-  }, [printTagData, previewBatchNo, machine, shift, dateValue, qtyPerBag, totalBags])
+  }, [printTagData, previewBatchNo, machine, shift, dateValue, activeQtyPerBag, totalBags, currentSheetIndices])
+
+  // Print sheets generation (1 sheet contains 4 bag strips)
+  const printSheets = useMemo(() => {
+    if (!printTagData) return []
+    const total = Math.max(1, printTagData.totalBags || 1)
+    const sheetsCount = Math.ceil(total / 4)
+    if (typeof printTarget === "number") {
+      const validSheet = Math.min(Math.max(1, printTarget), sheetsCount)
+      return [{ sheetIndex: validSheet, indices: getSheetBagIndices(validSheet, total) }]
+    }
+    return Array.from({ length: sheetsCount }, (_, i) => {
+      const s = i + 1
+      return { sheetIndex: s, indices: getSheetBagIndices(s, total) }
+    })
+  }, [printTagData, printTarget])
 
   const isDraftPreview = !printTagData && !!currentDisplayBatch
 
   const handleMachineChange = (id: string) => {
     setMachineId(id)
     const found = getMachine(id)
-    if (found) setQtyPerBag(found.defaultQtyPerBag)
+    if (found) {
+      if (typeof qtyPerBag === "number" && found.allowedQtyPerBag.includes(qtyPerBag)) {
+        // Keep current selection if valid for new machine (e.g. 181 or 162 between BM1 and BM2)
+      } else {
+        setQtyPerBag(found.defaultQtyPerBag)
+      }
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -94,7 +156,7 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
       machine: machineId,
       productionDate: dateValue,
       shift,
-      qtyPerBag: Number(qtyPerBag) || 0,
+      qtyPerBag: activeQtyPerBag,
       totalBags: Number(totalBags) || 1,
     })
 
@@ -108,14 +170,16 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
       } as Batch
       setBatches([created, ...batches])
       setPrintTagData(created)
+      setPreviewSheetIndex(1)
       setFeedback({ type: "ok", text: `Batch ${created.batchNo} berjaya didaftarkan. Sila cetak sticker.` })
     } else {
       setFeedback({ type: "err", text: res.error || "Gagal mendaftar batch." })
     }
   }
 
-  const handlePrint = (batch: Batch | KbpStickerBatchData) => {
+  const handlePrint = (batch: Batch | KbpStickerBatchData, target: number | "all" = "all") => {
     setPrintTagData(batch as Batch)
+    setPrintTarget(target)
     setTimeout(() => window.print(), 150)
   }
 
@@ -221,16 +285,33 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={labelClass}>Qty per Bag</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={qtyPerBag}
-                    onFocus={e => e.target.select()}
-                    onChange={e => setQtyPerBag(e.target.value === "" ? "" : Number(e.target.value))}
-                    placeholder="181"
-                    className={inputClass}
-                    required
-                  />
+                  {machine.allowedQtyPerBag.length > 1 ? (
+                    <select
+                      value={activeQtyPerBag}
+                      onChange={e => setQtyPerBag(Number(e.target.value))}
+                      className={inputClass}
+                      required
+                    >
+                      {machine.allowedQtyPerBag.map(q => (
+                        <option key={q} value={q}>
+                          {q.toLocaleString()} pcs / beg
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={`${machine.defaultQtyPerBag.toLocaleString()} pcs / beg`}
+                      disabled
+                      readOnly
+                      className={`${inputClass} bg-gray-50 cursor-not-allowed text-gray-800 font-bold border-gray-300 select-none`}
+                    />
+                  )}
+                  <p className="text-[11px] text-gray-400 mt-1.5">
+                    {machine.allowedQtyPerBag.length > 1
+                      ? "Pilih kuantiti standard kilang (181 atau 162)"
+                      : `Kuantiti standard bagi ${machine.sku}`}
+                  </p>
                 </div>
                 <div>
                   <label className={labelClass}>Total Bags</label>
@@ -244,19 +325,22 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
                     className={inputClass}
                     required
                   />
+                  <p className="text-[11px] text-gray-400 mt-1.5">
+                    {Math.ceil((Number(totalBags) || 1) / 4)} helaian sticker (4-in-1)
+                  </p>
                 </div>
               </div>
 
               <div className="flex items-center justify-between rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Jumlah Kuantiti</span>
                 <span className="text-lg font-black text-emerald-700 tabular-nums">
-                  {((Number(qtyPerBag) || 0) * (Number(totalBags) || 0)).toLocaleString()} pcs
+                  {((activeQtyPerBag || 0) * (Number(totalBags) || 0)).toLocaleString()} pcs
                 </span>
               </div>
 
               <button
                 type="submit"
-                disabled={isSubmitting || !previewBatchNo || !qtyPerBag || !totalBags}
+                disabled={isSubmitting || !previewBatchNo || !activeQtyPerBag || !totalBags}
                 className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 font-black uppercase tracking-wider text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm"
               >
                 <Save className="h-5 w-5" />
@@ -270,15 +354,47 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-black uppercase tracking-widest text-gray-900">Preview Sticker</h2>
-                <p className="text-xs text-gray-500 mt-0.5">Thermal 100mm × 100mm (Square Label)</p>
+                <p className="text-xs text-gray-500 mt-0.5">Thermal 100mm × 100mm (4-in-1 Beg)</p>
               </div>
-              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-[11px] font-black text-indigo-700 uppercase tracking-wider">
-                100mm × 100mm
-              </span>
+              {currentDisplayBatch && totalSheets > 1 ? (
+                <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 rounded-lg px-2 py-1">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewSheetIndex(prev => Math.max(1, prev - 1))}
+                    disabled={safeSheetIndex <= 1}
+                    className="p-1 rounded text-indigo-700 hover:bg-indigo-100 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                    title="Helaian Sebelumnya"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="text-[11px] font-black uppercase tracking-wider text-indigo-900 tabular-nums">
+                    Helaian {safeSheetIndex} / {totalSheets}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewSheetIndex(prev => Math.min(totalSheets, prev + 1))}
+                    disabled={safeSheetIndex >= totalSheets}
+                    className="p-1 rounded text-indigo-700 hover:bg-indigo-100 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                    title="Helaian Seterusnya"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-[11px] font-black text-indigo-700 uppercase tracking-wider">
+                  1 Helaian (4 Beg)
+                </span>
+              )}
             </div>
 
             {currentDisplayBatch ? (
               <div className="p-6 flex flex-col items-center gap-5">
+                <div className="text-center">
+                  <span className="inline-block bg-slate-100 text-slate-700 text-xs font-bold px-3 py-1 rounded-full border border-slate-200">
+                    Helaian {safeSheetIndex}: Beg {startBag} – {endBag} (daripada {activeTotalBags} beg)
+                  </span>
+                </div>
+
                 <div className="w-full flex items-center justify-center p-3 bg-slate-100/80 rounded-2xl border border-slate-200 shadow-inner overflow-hidden">
                   <KbpSticker100mm batch={currentDisplayBatch} mode="preview" />
                 </div>
@@ -286,14 +402,26 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
                 <div className="w-full space-y-2">
                   <button
                     type="button"
-                    onClick={() => handlePrint(currentDisplayBatch)}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-6 py-3 font-black uppercase tracking-wider text-white hover:bg-gray-800 transition shadow-sm"
+                    onClick={() => handlePrint(currentDisplayBatch, "all")}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-6 py-3.5 font-black uppercase tracking-wider text-white hover:bg-gray-800 transition shadow-sm"
                   >
                     <Printer className="h-4 w-4" />
-                    Cetak Sticker (100mm × 100mm)
+                    Cetak Semua Helaian ({totalSheets} Keping · {activeTotalBags} Beg)
                   </button>
+
+                  {totalSheets > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handlePrint(currentDisplayBatch, safeSheetIndex)}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-gray-300 bg-white px-6 py-2.5 font-black uppercase tracking-wider text-gray-700 hover:bg-gray-50 transition"
+                    >
+                      <Printer className="h-3.5 w-3.5 text-gray-500" />
+                      Cetak Helaian #{safeSheetIndex} Sahaja (Beg {startBag} - {endBag})
+                    </button>
+                  )}
+
                   <p className="text-[11px] text-center text-gray-500 font-medium leading-relaxed">
-                    💡 <span className="font-bold">Tips Cetakan:</span> Pada Chrome Print, setkan <span className="font-bold text-gray-900">Margins: None</span> jika ada ruang kosong berlebihan.
+                    💡 <span className="font-bold">Tips Cetakan:</span> Pada Chrome Print, setkan <span className="font-bold text-gray-900">Margins: None</span>. 1 helaian mengandungi 4 jalur sticker (100mm × 25mm). Potong mengikut garisan ✂️.
                   </p>
                   {isDraftPreview && (
                     <p className="text-[11px] text-center text-amber-700 font-bold">
@@ -357,17 +485,22 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
                       </td>
                       <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap tabular-nums">
                         {b.totalQty.toLocaleString()}
-                        <span className="text-gray-400"> ({b.totalBags} bag)</span>
+                        <span className="text-gray-400"> ({b.totalBags} beg · {Math.ceil(b.totalBags / 4)} helaian)</span>
                       </td>
                       <td className="px-5 py-3 text-sm text-gray-500 whitespace-nowrap">{b.createdBy}</td>
                       <td className="px-5 py-3 whitespace-nowrap text-right">
                         <div className="inline-flex items-center gap-2">
                           <button
-                            onClick={() => handlePrint(b)}
+                            onClick={() => {
+                              setPrintTagData(b)
+                              setPreviewSheetIndex(1)
+                              window.scrollTo({ top: 0, behavior: 'smooth' })
+                            }}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 transition"
+                            title="Pilih & Pratonton Batch"
                           >
                             <Printer className="h-3.5 w-3.5" />
-                            Cetak
+                            Pilih / Cetak
                           </button>
                           <button
                             onClick={() => handleDelete(b.id, b.batchNo)}
@@ -402,8 +535,6 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
                     margin: 0 !important;
                     padding: 0 !important;
                     width: 100mm !important;
-                    height: 100mm !important;
-                    overflow: hidden !important;
                     background: #ffffff !important;
                     -webkit-print-color-adjust: exact !important;
                     print-color-adjust: exact !important;
@@ -411,35 +542,57 @@ export function KbpBatchClient({ initialBatches }: { initialBatches: Batch[] }) 
                   body * {
                     visibility: hidden !important;
                   }
-                  .print-thermal-container,
-                  .print-thermal-container * {
+                  .print-thermal-wrapper,
+                  .print-thermal-wrapper * {
                     visibility: visible !important;
                   }
-                  .print-thermal-container {
-                    position: fixed !important;
+                  .print-thermal-wrapper {
+                    position: absolute !important;
                     left: 0 !important;
                     top: 0 !important;
                     width: 100mm !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    background: #ffffff !important;
+                    z-index: 999999 !important;
+                  }
+                  .print-thermal-page {
+                    width: 100mm !important;
                     height: 100mm !important;
+                    max-height: 100mm !important;
                     margin: 0 !important;
                     padding: 0 !important;
                     display: flex !important;
                     justify-content: center !important;
                     align-items: center !important;
-                    page-break-after: avoid !important;
-                    break-after: avoid !important;
+                    page-break-after: always !important;
+                    break-after: page !important;
                     page-break-inside: avoid !important;
                     break-inside: avoid !important;
                     background: #ffffff !important;
                     overflow: hidden !important;
-                    z-index: 999999 !important;
+                    box-sizing: border-box !important;
+                  }
+                  .print-thermal-page:last-child {
+                    page-break-after: avoid !important;
+                    break-after: avoid !important;
                   }
                 }
               `,
             }}
           />
-          <div className="hidden print:flex print-thermal-container bg-white">
-            <KbpSticker100mm batch={printTagData} mode="print" />
+          <div className="hidden print:block print-thermal-wrapper bg-white">
+            {printSheets.map(({ sheetIndex, indices }) => (
+              <div key={sheetIndex} className="print-thermal-page">
+                <KbpSticker100mm
+                  batch={{
+                    ...printTagData,
+                    sheetBagIndices: indices,
+                  }}
+                  mode="print"
+                />
+              </div>
+            ))}
           </div>
         </>
       )}

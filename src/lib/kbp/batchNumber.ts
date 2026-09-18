@@ -21,14 +21,15 @@ export type KbpMachine = {
   productCode: string
   sku: string
   defaultQtyPerBag: number
+  allowedQtyPerBag: number[]
 }
 
 export const KBP_MACHINES: KbpMachine[] = [
-  { id: "BM1", label: "BM1 — Blow Moulding 1", productCode: "425", sku: "BOTTLE 425ml", defaultQtyPerBag: 181 },
-  { id: "BM2", label: "BM2 — Blow Moulding 2", productCode: "425", sku: "BOTTLE 425ml", defaultQtyPerBag: 181 },
-  { id: "BM3", label: "BM3 — Blow Moulding 3", productCode: "800", sku: "BOTTLE 800ml", defaultQtyPerBag: 225 },
-  { id: "CM1", label: "CM1 — Cap Moulding 1", productCode: "CAP", sku: "CAP", defaultQtyPerBag: 4000 },
-  { id: "CM2", label: "CM2 — Cap Moulding 2", productCode: "CAP", sku: "CAP", defaultQtyPerBag: 4000 },
+  { id: "BM1", label: "BM1 — Blow Moulding 1", productCode: "425", sku: "BOTTLE 425ml", defaultQtyPerBag: 181, allowedQtyPerBag: [181, 162] },
+  { id: "BM2", label: "BM2 — Blow Moulding 2", productCode: "425", sku: "BOTTLE 425ml", defaultQtyPerBag: 181, allowedQtyPerBag: [181, 162] },
+  { id: "BM3", label: "BM3 — Blow Moulding 3", productCode: "800", sku: "BOTTLE 800ml", defaultQtyPerBag: 225, allowedQtyPerBag: [225] },
+  { id: "CM1", label: "CM1 — Cap Moulding 1", productCode: "CAP", sku: "CAP", defaultQtyPerBag: 4000, allowedQtyPerBag: [4000] },
+  { id: "CM2", label: "CM2 — Cap Moulding 2", productCode: "CAP", sku: "CAP", defaultQtyPerBag: 4000, allowedQtyPerBag: [4000] },
 ]
 
 export type KbpShiftId = "01" | "02"

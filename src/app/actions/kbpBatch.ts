@@ -70,6 +70,13 @@ export async function createKbpBatch(data: {
   if (qtyPerBag <= 0) return { success: false, error: "Qty per bag mesti lebih dari 0." }
   if (totalBags <= 0) return { success: false, error: "Total bags mesti lebih dari 0." }
 
+  if (!machine.allowedQtyPerBag.includes(qtyPerBag)) {
+    return {
+      success: false,
+      error: `Qty per bag (${qtyPerBag}) tidak sah untuk ${machine.sku}. Pilihan sah: ${machine.allowedQtyPerBag.join(", ")} pcs.`,
+    }
+  }
+
   const batchNo = buildKbpBatchNo(machine.id, productionDate, shift as KbpShiftId)
   const dayCode = getIsoDayCode(productionDate)
   const { week, weekYear } = getIsoWeek(productionDate)

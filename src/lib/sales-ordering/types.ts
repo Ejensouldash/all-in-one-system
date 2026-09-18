@@ -55,6 +55,14 @@ export type ExtractedSalesDocument = {
   remarks: string
   confidence: number
   warnings: string[]
+  fullName?: string
+  icNumber?: string
+  companyName?: string
+  ssmCert?: string
+  ssmNumber?: string
+  picPhone?: string
+  deliveryMode?: string
+  deliveryEmail?: string
 }
 
 export type SalesValidationIssue = {
@@ -190,6 +198,14 @@ export function normalizeExtractedDocument(value: unknown): ExtractedSalesDocume
     remarks: text(source.remarks),
     confidence: Math.min(1, Math.max(0, number(source.confidence))),
     warnings: Array.isArray(source.warnings) ? source.warnings.map(text).filter(Boolean) : [],
+    fullName: text(source.fullName) || text(source.customerName) || undefined,
+    icNumber: text(source.icNumber) || text(source.customerIc) || undefined,
+    companyName: text(source.companyName) || undefined,
+    ssmCert: text(source.ssmCert) || text(source.ssmNumber) || undefined,
+    ssmNumber: text(source.ssmNumber) || text(source.ssmCert) || undefined,
+    picPhone: text(source.picPhone) || undefined,
+    deliveryMode: text(source.deliveryMode) || undefined,
+    deliveryEmail: text(source.deliveryEmail) || undefined,
   }
 }
 

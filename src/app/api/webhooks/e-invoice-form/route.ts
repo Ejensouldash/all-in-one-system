@@ -207,9 +207,7 @@ export async function POST(request: Request) {
         tax: 0,
         grandTotal,
       },
-      remarks: remarks
-        ? `[E-Invoice Corporate Form] ${remarks} | IC: ${icNumber}${companyName ? ` | Company: ${companyName}` : ""}`
-        : `[E-Invoice Corporate Form] Delivery: ${deliveryMode} | IC: ${icNumber}${companyName ? ` | Company: ${companyName}` : ""}`,
+      remarks: remarks || "",
       confidence: 1,
       warnings: [],
       sourceSubmissionId: submissionId || undefined,

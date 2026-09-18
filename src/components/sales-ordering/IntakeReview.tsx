@@ -2,9 +2,17 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { AlertTriangle, CheckCircle2, FileText, Loader2, Plus, RefreshCw, Save, Search, Sparkles, Trash2 } from "lucide-react"
+import { AlertTriangle, CheckCircle2, ExternalLink, FileText, Loader2, Plus, RefreshCw, Save, Search, Sparkles, Trash2 } from "lucide-react"
 import type { ExtractedSalesDocument, ExtractedSalesLine, SalesValidationIssue } from "@/lib/sales-ordering/types"
 import { normalizeExtractedDocument } from "@/lib/sales-ordering/types"
+
+function getDriveEmbedUrl(url: string): string {
+  if (!url) return ""
+  if (url.includes("drive.google.com/file/d/")) {
+    return url.replace(/\/view(\?.*)?$/, "/preview").replace(/\/edit(\?.*)?$/, "/preview")
+  }
+  return url
+}
 
 type CustomerOption = {
   id: string
@@ -312,30 +320,30 @@ export function IntakeReview({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
           <div className="rounded-xl bg-white p-3 border border-purple-100">
             <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">
-              {(document as any).companyName ? "Company & Customer Name" : "Full Name (as per IC)"}
+              {document.companyName ? "Company & Customer Name" : "Full Name (as per IC)"}
             </p>
-            {(document as any).companyName && (
-              <p className="font-black text-purple-950 text-sm mt-0.5">{(document as any).companyName}</p>
+            {document.companyName && (
+              <p className="font-black text-purple-950 text-sm mt-0.5">{document.companyName}</p>
             )}
             <p className="font-bold text-slate-700 text-xs mt-0.5">
-              {(document as any).fullName || document.customerName || "-"}
+              {document.fullName || document.customerName || "-"}
             </p>
           </div>
           <div className="rounded-xl bg-white p-3 border border-purple-100">
             <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">NRIC / SSM Registration</p>
-            <p className="font-black text-purple-900 font-mono text-sm mt-0.5">{(document as any).icNumber || "-"}</p>
-            {(document as any).ssmCert && (
-              <p className="font-semibold text-slate-600 text-xs mt-0.5 truncate" title={(document as any).ssmCert}>
-                SSM: {(document as any).ssmCert}
+            <p className="font-black text-purple-900 font-mono text-sm mt-0.5">{document.icNumber || "-"}</p>
+            {document.ssmCert && (
+              <p className="font-semibold text-slate-600 text-xs mt-0.5 truncate" title={document.ssmCert}>
+                SSM: {document.ssmCert.startsWith("http") ? "Dokumen Terlampir" : document.ssmCert}
               </p>
             )}
           </div>
           <div className="rounded-xl bg-white p-3 border border-purple-100">
             <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Active Contact & PIC</p>
             <p className="font-bold text-slate-800 mt-0.5">{document.deliveryPhone || "-"} · {document.deliveryContact || "-"}</p>
-            {(document as any).picPhone && (
+            {document.picPhone && (
               <p className="font-bold text-purple-700 text-xs mt-0.5">
-                PIC Phone: {(document as any).picPhone}
+                PIC Phone: {document.picPhone}
               </p>
             )}
           </div>
@@ -343,17 +351,76 @@ export function IntakeReview({
       </section>
     )}
 
+    {/* Sijil SSM Preview Card */}
+    {document.documentType === "E_INVOICE_CORPORATE" && (document.ssmCert || document.ssmNumber) && (
+      <section className="rounded-3xl border border-purple-200 bg-white p-6 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-purple-100 pb-3">
+          <div className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-purple-600" />
+            <div>
+              <h3 className="font-black text-slate-950 text-base">Sijil SSM (Suruhanjaya Syarikat Malaysia)</h3>
+              <p className="text-xs text-slate-500">Salinan sijil pendaftaran perniagaan / dokumen sokongan SSM.</p>
+            </div>
+          </div>
+          {(document.ssmCert?.startsWith("http") || document.ssmNumber?.startsWith("http")) && (
+            <a
+              href={document.ssmCert || document.ssmNumber}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-purple-600 px-4 py-2 text-xs font-black text-white hover:bg-purple-700 transition shadow-sm shrink-0"
+            >
+              <ExternalLink className="h-4 w-4" />
+              <span>Lihat Dokumen SSM</span>
+            </a>
+          )}
+        </div>
+
+        {(document.ssmCert?.startsWith("http") || document.ssmNumber?.startsWith("http")) ? (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-600">Pratonton Dokumen SSM:</span>
+              <span className="text-[11px] text-slate-400">Jika paparan tidak keluar secara automatik, sila klik butang &quot;Lihat Dokumen SSM&quot; di atas.</span>
+            </div>
+            <div className="w-full h-96 rounded-2xl border border-purple-100 overflow-hidden bg-slate-50 shadow-inner">
+              <iframe
+                src={getDriveEmbedUrl(document.ssmCert || document.ssmNumber || "")}
+                className="w-full h-full border-0"
+                title="Pratonton Sijil SSM"
+                allow="autoplay"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 rounded-2xl bg-purple-50 border border-purple-200 text-purple-950 font-bold text-sm">
+            Nombor Pendaftaran SSM: <span className="font-mono text-purple-900 font-black">{document.ssmCert || document.ssmNumber}</span>
+          </div>
+        )}
+      </section>
+    )}
+
     <section className="grid gap-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:grid-cols-2 lg:p-7">
       <div className="relative lg:col-span-2"><label className="text-xs font-black uppercase tracking-wider text-slate-500">{document.documentType === "E_INVOICE_CORPORATE" ? "Customer Master (Optional - Link Only If Existing Customer)" : "Customer Master"}</label><div className="relative"><Search className="absolute left-3 top-4 h-4 w-4 text-slate-400" /><input value={query} onChange={event => { setQuery(event.target.value); setCustomer(null); setResults([]) }} className={`${inputClass} pl-9`} placeholder={document.documentType === "E_INVOICE_CORPORATE" ? "Search existing customer to link (or leave blank for direct buyer)..." : "Search Customer ID, Sage ID, or name..."} /></div>{(searching || results.length > 0) && !customer && <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">{searching ? <p className="p-3 text-sm text-slate-500">Searching...</p> : results.map(option => <button key={option.id} type="button" onClick={() => { setCustomer(option); setQuery(`${option.customerCode} - ${option.legalName}`); setResults([]) }} className="block w-full rounded-lg px-3 py-2 text-left hover:bg-cyan-50"><p className="text-sm font-black text-slate-900">{option.customerCode} · {option.legalName}</p><p className="text-xs text-slate-500">{option.sageCustomerId || "No Sage ID"} · {option.creditTermsRaw || "No terms"} · {option.zone || "No zone"}</p></button>)}</div>}</div>
       <label className="text-xs font-black uppercase tracking-wider text-slate-500">Document Type<select value={document.documentType} onChange={event => setField("documentType", event.target.value)} className={inputClass}><option>PURCHASE_ORDER</option><option>E_INVOICE_CORPORATE</option><option>PROFORMA_INVOICE</option><option>INVOICE</option><option>OTHER</option></select></label>
-      <label className="text-xs font-black uppercase tracking-wider text-slate-500">Document Number<input value={document.documentNumber} onChange={event => setField("documentNumber", event.target.value)} className={inputClass} /></label>
-      <label className="text-xs font-black uppercase tracking-wider text-slate-500">PO Number<input value={document.poNumber} onChange={event => setField("poNumber", event.target.value)} className={inputClass} /></label>
+      <label className="text-xs font-black uppercase tracking-wider text-slate-500">{document.documentType === "E_INVOICE_CORPORATE" ? "E-Invoice Number" : "Document Number"}<input value={document.documentNumber} onChange={event => setField("documentNumber", event.target.value)} className={inputClass} /></label>
+      {document.documentType !== "E_INVOICE_CORPORATE" && (
+        <label className="text-xs font-black uppercase tracking-wider text-slate-500">PO Number<input value={document.poNumber} onChange={event => setField("poNumber", event.target.value)} className={inputClass} /></label>
+      )}
       <label className="text-xs font-black uppercase tracking-wider text-slate-500">Document Date<input type="date" value={document.documentDate} onChange={event => setField("documentDate", event.target.value)} className={inputClass} /></label>
-      <label className="text-xs font-black uppercase tracking-wider text-slate-500">Payment Terms<input value={document.paymentTermsRaw} onChange={event => setField("paymentTermsRaw", event.target.value)} className={inputClass} /></label>
-      <label className="text-xs font-black uppercase tracking-wider text-slate-500">Requested Delivery Date<input type="date" value={document.requestedDeliveryDate} onChange={event => setField("requestedDeliveryDate", event.target.value)} className={inputClass} /></label>
+      {document.documentType !== "E_INVOICE_CORPORATE" && (
+        <label className="text-xs font-black uppercase tracking-wider text-slate-500">Payment Terms<input value={document.paymentTermsRaw} onChange={event => setField("paymentTermsRaw", event.target.value)} className={inputClass} /></label>
+      )}
+      {document.documentType !== "E_INVOICE_CORPORATE" && (
+        <label className="text-xs font-black uppercase tracking-wider text-slate-500">Requested Delivery Date<input type="date" value={document.requestedDeliveryDate} onChange={event => setField("requestedDeliveryDate", event.target.value)} className={inputClass} /></label>
+      )}
       <label className="text-xs font-black uppercase tracking-wider text-slate-500 lg:col-span-2">Delivery Address<textarea rows={3} value={document.deliveryAddress} onChange={event => setField("deliveryAddress", event.target.value)} className={inputClass} /></label>
       <label className="text-xs font-black uppercase tracking-wider text-slate-500">Delivery Contact<input value={document.deliveryContact} onChange={event => setField("deliveryContact", event.target.value)} className={inputClass} /></label>
       <label className="text-xs font-black uppercase tracking-wider text-slate-500">Delivery Phone<input value={document.deliveryPhone} onChange={event => setField("deliveryPhone", event.target.value)} className={inputClass} /></label>
+      {document.documentType === "E_INVOICE_CORPORATE" && (
+        <label className="text-xs font-black uppercase tracking-wider text-slate-500 lg:col-span-2">
+          Remarks (Catatan)
+          <textarea rows={2} value={document.remarks} onChange={event => setField("remarks", event.target.value)} className={inputClass} placeholder="Tiada catatan..." />
+        </label>
+      )}
     </section>
 
     {/* Multi-PO Batch Breakdown Card */}
@@ -410,178 +477,182 @@ export function IntakeReview({
       </section>
     )}
 
-    <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-        <div>
-          <h3 className="font-black text-slate-950">Order Items</h3>
-          <p className="text-xs text-slate-500">Verify SKU, quantity, and price from document. Totals will be calculated automatically.</p>
+    {document.documentType !== "E_INVOICE_CORPORATE" && (
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <div>
+            <h3 className="font-black text-slate-950">Order Items</h3>
+            <p className="text-xs text-slate-500">Verify SKU, quantity, and price from document. Totals will be calculated automatically.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const newLine = emptyLine()
+              newLine.quantity = 1
+              setDocument(previous => ({ ...previous, lines: [...previous.lines, newLine] }))
+            }}
+            className="inline-flex items-center gap-1 rounded-lg bg-cyan-50 px-3 py-2 text-xs font-black text-cyan-700 hover:bg-cyan-100 transition"
+          >
+            <Plus className="h-4 w-4" /> Add item
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            const newLine = emptyLine()
-            newLine.quantity = 1
-            setDocument(previous => ({ ...previous, lines: [...previous.lines, newLine] }))
-          }}
-          className="inline-flex items-center gap-1 rounded-lg bg-cyan-50 px-3 py-2 text-xs font-black text-cyan-700 hover:bg-cyan-100 transition"
-        >
-          <Plus className="h-4 w-4" /> Add item
-        </button>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-[1050px] w-full text-sm">
-          <thead className="bg-slate-50 text-left text-[10px] uppercase tracking-wider text-slate-500">
-            <tr>
-              <th className="px-3 py-3">SKU / Item</th>
-              <th className="px-3 py-3">Description</th>
-              <th className="px-3 py-3">Qty</th>
-              <th className="px-3 py-3">UOM</th>
-              <th className="px-3 py-3">Unit Price (RM)</th>
-              <th className="px-3 py-3">Discount (RM)</th>
-              <th className="px-3 py-3">Tax (RM)</th>
-              <th className="px-3 py-3">Amount (RM)</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {document.lines.length === 0 ? (
+        <div className="overflow-x-auto">
+          <table className="min-w-[1050px] w-full text-sm">
+            <thead className="bg-slate-50 text-left text-[10px] uppercase tracking-wider text-slate-500">
               <tr>
-                <td colSpan={8} className="py-8 text-center bg-slate-50/50">
-                  <p className="text-sm font-bold text-slate-600">No order items attached in this submission</p>
-                  <p className="text-xs text-slate-400 mt-1">Customer E-Invoice details registered. You can add items using &quot;+ Add item&quot; above, or proceed to Approve.</p>
-                </td>
+                <th className="px-3 py-3">SKU / Item</th>
+                <th className="px-3 py-3">Description</th>
+                <th className="px-3 py-3">Qty</th>
+                <th className="px-3 py-3">UOM</th>
+                <th className="px-3 py-3">Unit Price (RM)</th>
+                <th className="px-3 py-3">Discount (RM)</th>
+                <th className="px-3 py-3">Tax (RM)</th>
+                <th className="px-3 py-3">Amount (RM)</th>
+                <th></th>
               </tr>
-            ) : (
-              document.lines.map((line, index) => (
-              <tr key={`${line.sku || "line"}-${index}`}>
-                <td className="p-2">
-                  <input
-                    value={line.sku}
-                    onChange={event => updateLine(index, "sku", event.target.value)}
-                    className={inputClass}
-                    placeholder="SKU Code"
-                  />
-                  <input
-                    value={line.barcode}
-                    onChange={event => updateLine(index, "barcode", event.target.value)}
-                    className={`${inputClass} text-xs`}
-                    placeholder="Barcode"
-                  />
-                </td>
-                <td className="p-2">
-                  <textarea
-                    rows={2}
-                    value={line.description}
-                    onChange={event => updateLine(index, "description", event.target.value)}
-                    className={inputClass}
-                    placeholder="Product Description"
-                  />
-                </td>
-                <td className="p-2">
-                  <input
-                    type="number"
-                    step="1"
-                    min="0"
-                    placeholder="0"
-                    value={line.quantity === 0 ? "" : line.quantity}
-                    onFocus={e => e.target.select()}
-                    onChange={event => updateLine(index, "quantity", event.target.value === "" ? 0 : Number(event.target.value))}
-                    className={`${inputClass} min-w-20 text-center font-bold`}
-                  />
-                </td>
-                <td className="p-2">
-                  <input
-                    value={line.uom}
-                    onChange={event => updateLine(index, "uom", event.target.value)}
-                    className={`${inputClass} min-w-16 text-center`}
-                    placeholder="CTN"
-                  />
-                </td>
-                <td className="p-2">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={line.unitPrice === 0 ? "" : line.unitPrice}
-                    onFocus={e => e.target.select()}
-                    onChange={event => updateLine(index, "unitPrice", event.target.value === "" ? 0 : Number(event.target.value))}
-                    className={`${inputClass} min-w-24 text-right`}
-                  />
-                </td>
-                <td className="p-2">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={line.discount === 0 ? "" : line.discount}
-                    onFocus={e => e.target.select()}
-                    onChange={event => updateLine(index, "discount", event.target.value === "" ? 0 : Number(event.target.value))}
-                    className={`${inputClass} min-w-20 text-right`}
-                  />
-                </td>
-                <td className="p-2">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={line.tax === 0 ? "" : line.tax}
-                    onFocus={e => e.target.select()}
-                    onChange={event => updateLine(index, "tax", event.target.value === "" ? 0 : Number(event.target.value))}
-                    className={`${inputClass} min-w-20 text-right`}
-                  />
-                </td>
-                <td className="p-2">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={line.amount === 0 ? "" : line.amount}
-                    onFocus={e => e.target.select()}
-                    onChange={event => updateLine(index, "amount", event.target.value === "" ? 0 : Number(event.target.value))}
-                    className={`${inputClass} min-w-28 text-right font-black text-slate-900 bg-slate-50 border-slate-300`}
-                  />
-                </td>
-                <td className="p-2 text-center">
-                  <button
-                    type="button"
-                    onClick={() => removeLine(index)}
-                    title="Delete this line item"
-                    className="rounded-xl p-2.5 text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
-            )))}
-          </tbody>
-        </table>
-      </div>
-    </section>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {document.lines.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-8 text-center bg-slate-50/50">
+                    <p className="text-sm font-bold text-slate-600">No order items attached in this submission</p>
+                    <p className="text-xs text-slate-400 mt-1">Customer E-Invoice details registered. You can add items using &quot;+ Add item&quot; above, or proceed to Approve.</p>
+                  </td>
+                </tr>
+              ) : (
+                document.lines.map((line, index) => (
+                <tr key={`${line.sku || "line"}-${index}`}>
+                  <td className="p-2">
+                    <input
+                      value={line.sku}
+                      onChange={event => updateLine(index, "sku", event.target.value)}
+                      className={inputClass}
+                      placeholder="SKU Code"
+                    />
+                    <input
+                      value={line.barcode}
+                      onChange={event => updateLine(index, "barcode", event.target.value)}
+                      className={`${inputClass} text-xs`}
+                      placeholder="Barcode"
+                    />
+                  </td>
+                  <td className="p-2">
+                    <textarea
+                      rows={2}
+                      value={line.description}
+                      onChange={event => updateLine(index, "description", event.target.value)}
+                      className={inputClass}
+                      placeholder="Product Description"
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      placeholder="0"
+                      value={line.quantity === 0 ? "" : line.quantity}
+                      onFocus={e => e.target.select()}
+                      onChange={event => updateLine(index, "quantity", event.target.value === "" ? 0 : Number(event.target.value))}
+                      className={`${inputClass} min-w-20 text-center font-bold`}
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      value={line.uom}
+                      onChange={event => updateLine(index, "uom", event.target.value)}
+                      className={`${inputClass} min-w-16 text-center`}
+                      placeholder="CTN"
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={line.unitPrice === 0 ? "" : line.unitPrice}
+                      onFocus={e => e.target.select()}
+                      onChange={event => updateLine(index, "unitPrice", event.target.value === "" ? 0 : Number(event.target.value))}
+                      className={`${inputClass} min-w-24 text-right`}
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={line.discount === 0 ? "" : line.discount}
+                      onFocus={e => e.target.select()}
+                      onChange={event => updateLine(index, "discount", event.target.value === "" ? 0 : Number(event.target.value))}
+                      className={`${inputClass} min-w-20 text-right`}
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={line.tax === 0 ? "" : line.tax}
+                      onFocus={e => e.target.select()}
+                      onChange={event => updateLine(index, "tax", event.target.value === "" ? 0 : Number(event.target.value))}
+                      className={`${inputClass} min-w-20 text-right`}
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={line.amount === 0 ? "" : line.amount}
+                      onFocus={e => e.target.select()}
+                      onChange={event => updateLine(index, "amount", event.target.value === "" ? 0 : Number(event.target.value))}
+                      className={`${inputClass} min-w-28 text-right font-black text-slate-900 bg-slate-50 border-slate-300`}
+                    />
+                  </td>
+                  <td className="p-2 text-center">
+                    <button
+                      type="button"
+                      onClick={() => removeLine(index)}
+                      title="Delete this line item"
+                      className="rounded-xl p-2.5 text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              )))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    )}
 
-    <section className="grid gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
-      {(["subtotal", "discount", "freight", "tax", "grandTotal"] as const).map(key => (
-        <label key={key} className="text-xs font-black uppercase tracking-wider text-slate-500">
-          {key}
-          <input
-            type="number"
-            step="0.01"
-            placeholder="0.00"
-            value={document.totals[key] === 0 ? "" : document.totals[key]}
-            onFocus={e => e.target.select()}
-            onChange={event => updateTotal(key, event.target.value === "" ? 0 : Number(event.target.value))}
-            className={`${inputClass} ${key === "grandTotal" ? "bg-cyan-50 font-black text-cyan-900 border-cyan-300 text-base" : ""}`}
-          />
+    {document.documentType !== "E_INVOICE_CORPORATE" && (
+      <section className="grid gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
+        {(["subtotal", "discount", "freight", "tax", "grandTotal"] as const).map(key => (
+          <label key={key} className="text-xs font-black uppercase tracking-wider text-slate-500">
+            {key}
+            <input
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={document.totals[key] === 0 ? "" : document.totals[key]}
+              onFocus={e => e.target.select()}
+              onChange={event => updateTotal(key, event.target.value === "" ? 0 : Number(event.target.value))}
+              className={`${inputClass} ${key === "grandTotal" ? "bg-cyan-50 font-black text-cyan-900 border-cyan-300 text-base" : ""}`}
+            />
+          </label>
+        ))}
+        <label className="text-xs font-black uppercase tracking-wider text-slate-500 sm:col-span-2 lg:col-span-5">
+          Remarks
+          <textarea rows={2} value={document.remarks} onChange={event => setField("remarks", event.target.value)} className={inputClass} />
         </label>
-      ))}
-      <label className="text-xs font-black uppercase tracking-wider text-slate-500 sm:col-span-2 lg:col-span-5">
-        Remarks
-        <textarea rows={2} value={document.remarks} onChange={event => setField("remarks", event.target.value)} className={inputClass} />
-      </label>
-    </section>
+      </section>
+    )}
 
     </fieldset>
     <section className="sticky bottom-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-xl backdrop-blur sm:flex-row sm:items-center sm:justify-between">

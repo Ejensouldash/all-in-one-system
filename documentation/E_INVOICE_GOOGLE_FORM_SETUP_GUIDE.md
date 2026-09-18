@@ -81,13 +81,25 @@ function onFormSubmit(e) {
       if (titleLower.indexOf("company") !== -1 || titleLower.indexOf("syarikat") !== -1) {
         payload.companyName = String(answer).trim();
       } else if (titleLower.indexOf("ssm") !== -1) {
-        // Jika soalan jenis File Upload, tukar ID Google Drive kepada pautan yang boleh dibuka
+        // Jika soalan jenis File Upload (mengandungi ID fail Google Drive)
+        function processDriveFile(fileId) {
+          try {
+            var file = DriveApp.getFileById(fileId);
+            // Tetapkan kebenaran supaya sesiapa yang mempunyai pautan boleh melihat sijil SSM
+            file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+            return "https://drive.google.com/file/d/" + fileId + "/preview";
+          } catch (err) {
+            Logger.log("Ralat menetapkan kebenaran fail Drive " + fileId + ": " + err.toString());
+            return "https://drive.google.com/file/d/" + fileId + "/preview";
+          }
+        }
+
         if (Array.isArray(answer)) {
           payload.ssmCert = answer.map(function(id) { 
-            return "https://drive.google.com/file/d/" + id + "/view"; 
+            return processDriveFile(id); 
           }).join(", ");
         } else if (typeof answer === "string" && answer.length > 20 && answer.indexOf(" ") === -1 && answer.indexOf("/") === -1) {
-          payload.ssmCert = "https://drive.google.com/file/d/" + answer + "/view";
+          payload.ssmCert = processDriveFile(answer);
         } else {
           payload.ssmCert = String(answer).trim();
         }
@@ -162,7 +174,7 @@ Untuk memastikan skrip berjalan setiap kali borang dihantar oleh responden:
    - Pilih akaun Google anda.
    - Jika keluar amaran *"Google hasn't verified this app"*, klik **Advanced** di bahagian bawah kiri.
    - Klik pautan **Go to BubblesO2 E-Invoice Webhook (unsafe)**.
-   - Klik **Allow** untuk membenarkan kebenaran sambungan internet (*UrlFetch*).
+   - Klik **Allow** untuk membenarkan kebenaran sambungan internet (*UrlFetch*) dan pengurusan fail Google Drive (*DriveApp*) supaya sistem boleh memberikan akses pratonton kepada dokumen SSM yang dimuat naik.
 
 ---
 

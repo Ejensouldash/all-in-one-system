@@ -338,6 +338,66 @@ const styles = StyleSheet.create({
     color: palette.slateMuted,
     lineHeight: 1.4,
   },
+  // Verification Details Table
+  detailsTable: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: palette.borderLight,
+    borderRadius: 6,
+    overflow: "hidden",
+    marginBottom: 14,
+  },
+  detailsTableHeader: {
+    backgroundColor: palette.navyDark,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  detailsTableHeaderText: {
+    color: palette.white,
+    fontFamily: "Helvetica-Bold",
+    fontSize: 8,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  detailsTableRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: palette.borderLight,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    alignItems: "center",
+  },
+  detailsRowLabel: {
+    width: "36%",
+    fontSize: 8,
+    fontFamily: "Helvetica-Bold",
+    color: palette.slateMuted,
+  },
+  detailsRowValue: {
+    width: "64%",
+    fontSize: 8.5,
+    fontFamily: "Helvetica",
+    color: palette.navyDark,
+    lineHeight: 1.3,
+  },
+  statusVerifiedTag: {
+    backgroundColor: palette.greenSoft,
+    borderWidth: 1,
+    borderColor: palette.greenBorder,
+    borderRadius: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    alignSelf: "flex-start",
+  },
+  statusVerifiedText: {
+    color: palette.green,
+    fontFamily: "Helvetica-Bold",
+    fontSize: 7.5,
+    letterSpacing: 0.3,
+  },
   footer: {
     position: "absolute",
     bottom: 20,
@@ -369,6 +429,9 @@ export function EInvoiceDocument({
   const lineItems = data.lines && data.lines.length > 0 ? data.lines : []
   const subtotal = data.subtotal || lineItems.reduce((acc, item) => acc + item.amount, 0)
   const grandTotal = data.grandTotal || subtotal
+  const ssmDisplay = data.ssmNumber
+    ? (data.ssmNumber.startsWith("http") ? "Salinan Digital Sijil SSM Dilampirkan" : data.ssmNumber)
+    : null
 
   return (
     <Document title={`E-Invoice - ${data.documentNumber}`} author="BubblesO2 All-in-One System">
@@ -393,9 +456,9 @@ export function EInvoiceDocument({
             <View style={styles.docTitleBadge}>
               <Text style={styles.docTitleText}>E-INVOICE / DIRECT DELIVERY</Text>
             </View>
+            <Text style={styles.docSubText}>E-Invoice Number</Text>
             <Text style={styles.docNumber}>{data.documentNumber}</Text>
-            <Text style={styles.docSubText}>Issue Date: {data.documentDate || "N/A"}</Text>
-            <Text style={styles.docSubText}>Payment Terms: CASH / PRE-PAID</Text>
+            <Text style={styles.docSubText}>Date: {data.documentDate || "N/A"}</Text>
             <Text style={styles.docSubText}>Currency: {data.currency || "MYR"}</Text>
           </View>
         </View>
@@ -421,9 +484,9 @@ export function EInvoiceDocument({
                   <Text style={styles.icBadgeText}>NRIC / IC: {data.icNumber}</Text>
                 </View>
               )}
-              {data.ssmNumber && (
+              {ssmDisplay && (
                 <View style={[styles.icBadge, { backgroundColor: palette.cyanSoft, borderColor: palette.cyanBorder }]}>
-                  <Text style={[styles.icBadgeText, { color: palette.cyanDark }]}>SSM: {data.ssmNumber}</Text>
+                  <Text style={[styles.icBadgeText, { color: palette.cyanDark }]}>SSM: {ssmDisplay}</Text>
                 </View>
               )}
             </View>
@@ -447,68 +510,138 @@ export function EInvoiceDocument({
           </View>
         </View>
 
-        {/* Itemized Order Table */}
-        <View style={styles.table}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, styles.colNo]}>No</Text>
-            <Text style={[styles.tableHeaderCell, styles.colSku]}>Product SKU</Text>
-            <Text style={[styles.tableHeaderCell, styles.colDesc]}>Description</Text>
-            <Text style={[styles.tableHeaderCell, styles.colQty]}>Qty (CTN)</Text>
-            <Text style={[styles.tableHeaderCell, styles.colPrice]}>Price (RM)</Text>
-            <Text style={[styles.tableHeaderCell, styles.colAmount]}>Total (RM)</Text>
-          </View>
+        {/* Details Section: either Line Items (if any) or Full Verification Table */}
+        {lineItems.length === 0 ? (
+          <View style={styles.detailsTable}>
+            <View style={styles.detailsTableHeader}>
+              <Text style={styles.detailsTableHeaderText}>Maklumat Pengesahan E-Invoice / Customer Registration Details</Text>
+              <View style={styles.statusVerifiedTag}>
+                <Text style={styles.statusVerifiedText}>MAKLUMAT DISAHKAN</Text>
+              </View>
+            </View>
 
-          {lineItems.length === 0 ? (
-            <View style={[styles.tableRow, { paddingVertical: 14, justifyContent: "center", alignItems: "center" }]}>
-              <Text style={{ fontSize: 8, color: palette.slateMuted, fontStyle: "italic", textAlign: "center", width: "100%" }}>
-                Customer E-Invoice Registration / Details — No product line items attached in submission.
+            <View style={[styles.detailsTableRow, styles.tableRowAlt]}>
+              <Text style={styles.detailsRowLabel}>Nama Penuh (Seperti Dalam IC)</Text>
+              <Text style={[styles.detailsRowValue, { fontFamily: "Helvetica-Bold" }]}>
+                {data.fullName || data.customerName || "-"}
               </Text>
             </View>
-          ) : (
-            lineItems.map((line, idx) => (
-              <View key={idx} style={[styles.tableRow, idx % 2 === 1 ? styles.tableRowAlt : {}]}>
-                <Text style={[styles.tableCell, styles.colNo]}>{idx + 1}</Text>
-                <View style={[styles.colSku]}>
-                  <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 8 }}>{line.sku || line.itemCode || "-"}</Text>
-                  {line.barcode && <Text style={{ fontSize: 7, color: palette.slateFaint }}>{line.barcode}</Text>}
-                </View>
-                <Text style={[styles.tableCell, styles.colDesc]}>{line.description}</Text>
-                <Text style={[styles.tableCell, styles.colQty, { fontFamily: "Helvetica-Bold" }]}>{line.quantity} {line.uom}</Text>
-                <Text style={[styles.tableCell, styles.colPrice]}>{formatMoney(line.unitPrice)}</Text>
-                <Text style={[styles.tableCell, styles.colAmount, { fontFamily: "Helvetica-Bold" }]}>{formatMoney(line.amount)}</Text>
+
+            <View style={styles.detailsTableRow}>
+              <Text style={styles.detailsRowLabel}>No. Kad Pengenalan (NRIC / IC)</Text>
+              <Text style={[styles.detailsRowValue, { fontFamily: "Helvetica-Bold", color: palette.purple }]}>
+                {data.icNumber || "-"}
+              </Text>
+            </View>
+
+            <View style={[styles.detailsTableRow, styles.tableRowAlt]}>
+              <Text style={styles.detailsRowLabel}>No. Telefon (Aktif)</Text>
+              <Text style={styles.detailsRowValue}>{data.phone || "-"}</Text>
+            </View>
+
+            <View style={styles.detailsTableRow}>
+              <Text style={styles.detailsRowLabel}>Alamat Emel (Aktif)</Text>
+              <Text style={styles.detailsRowValue}>{data.email || "-"}</Text>
+            </View>
+
+            <View style={[styles.detailsTableRow, styles.tableRowAlt]}>
+              <Text style={styles.detailsRowLabel}>Alamat Penuh (Poskod, Bandar & Negeri)</Text>
+              <Text style={styles.detailsRowValue}>{data.deliveryAddress || "-"}</Text>
+            </View>
+
+            <View style={styles.detailsTableRow}>
+              <Text style={styles.detailsRowLabel}>Kaedah Penghantaran</Text>
+              <Text style={[styles.detailsRowValue, { fontFamily: "Helvetica-Bold" }]}>
+                {data.deliveryMode || "Direct Delivery"}
+              </Text>
+            </View>
+
+            {data.companyName && (
+              <View style={[styles.detailsTableRow, styles.tableRowAlt]}>
+                <Text style={styles.detailsRowLabel}>Nama Syarikat (Jika Ada)</Text>
+                <Text style={[styles.detailsRowValue, { fontFamily: "Helvetica-Bold" }]}>{data.companyName}</Text>
               </View>
-            ))
-          )}
-        </View>
+            )}
 
-        {/* Summary & Totals */}
-        <View style={styles.summarySection}>
-          <View style={styles.remarksBox}>
-            <Text style={styles.sectionTitle}>Notes & Remarks</Text>
-            <Text style={{ fontSize: 8, color: palette.slateBody, lineHeight: 1.4 }}>
-              {data.remarks || "Standard direct delivery order processed via BubblesO2 AIO Digital Forms."}
-            </Text>
-          </View>
+            {data.picPhone && (
+              <View style={styles.detailsTableRow}>
+                <Text style={styles.detailsRowLabel}>No. Telefon PIC Syarikat</Text>
+                <Text style={styles.detailsRowValue}>{data.picPhone}</Text>
+              </View>
+            )}
 
-          <View style={styles.totalsBox}>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Subtotal</Text>
-              <Text style={styles.totalValue}>{formatMoney(subtotal)}</Text>
-            </View>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Sales Tax / SST (0%)</Text>
-              <Text style={styles.totalValue}>{formatMoney(data.taxTotal || 0)}</Text>
-            </View>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Direct Freight / Delivery</Text>
-              <Text style={styles.totalValue}>{formatMoney(data.freightTotal || 0)}</Text>
-            </View>
-            <View style={styles.totalRowFinal}>
-              <Text style={styles.grandTotalLabel}>TOTAL AMOUNT DUE</Text>
-              <Text style={styles.grandTotalValue}>{formatMoney(grandTotal)}</Text>
-            </View>
+            {ssmDisplay && (
+              <View style={[styles.detailsTableRow, styles.tableRowAlt]}>
+                <Text style={styles.detailsRowLabel}>Sijil SSM / Pendaftaran Syarikat</Text>
+                <Text style={[styles.detailsRowValue, { color: palette.purple, fontFamily: "Helvetica-Bold" }]}>
+                  {ssmDisplay}
+                </Text>
+              </View>
+            )}
           </View>
-        </View>
+        ) : (
+          <>
+            <View style={styles.table}>
+              <View style={styles.tableHeader}>
+                <Text style={[styles.tableHeaderCell, styles.colNo]}>No</Text>
+                <Text style={[styles.tableHeaderCell, styles.colSku]}>Product SKU</Text>
+                <Text style={[styles.tableHeaderCell, styles.colDesc]}>Description</Text>
+                <Text style={[styles.tableHeaderCell, styles.colQty]}>Qty (CTN)</Text>
+                <Text style={[styles.tableHeaderCell, styles.colPrice]}>Price (RM)</Text>
+                <Text style={[styles.tableHeaderCell, styles.colAmount]}>Total (RM)</Text>
+              </View>
+              {lineItems.map((line, idx) => (
+                <View key={idx} style={[styles.tableRow, idx % 2 === 1 ? styles.tableRowAlt : {}]}>
+                  <Text style={[styles.tableCell, styles.colNo]}>{idx + 1}</Text>
+                  <View style={[styles.colSku]}>
+                    <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 8 }}>{line.sku || line.itemCode || "-"}</Text>
+                    {line.barcode && <Text style={{ fontSize: 7, color: palette.slateFaint }}>{line.barcode}</Text>}
+                  </View>
+                  <Text style={[styles.tableCell, styles.colDesc]}>{line.description}</Text>
+                  <Text style={[styles.tableCell, styles.colQty, { fontFamily: "Helvetica-Bold" }]}>{line.quantity} {line.uom}</Text>
+                  <Text style={[styles.tableCell, styles.colPrice]}>{formatMoney(line.unitPrice)}</Text>
+                  <Text style={[styles.tableCell, styles.colAmount, { fontFamily: "Helvetica-Bold" }]}>{formatMoney(line.amount)}</Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.summarySection}>
+              {data.remarks && data.remarks.trim() ? (
+                <View style={styles.remarksBox}>
+                  <Text style={styles.sectionTitle}>Notes & Remarks</Text>
+                  <Text style={{ fontSize: 8, color: palette.slateBody, lineHeight: 1.4 }}>{data.remarks}</Text>
+                </View>
+              ) : <View style={{ width: "55%" }} />}
+
+              <View style={styles.totalsBox}>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Subtotal</Text>
+                  <Text style={styles.totalValue}>{formatMoney(subtotal)}</Text>
+                </View>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Sales Tax / SST (0%)</Text>
+                  <Text style={styles.totalValue}>{formatMoney(data.taxTotal || 0)}</Text>
+                </View>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Direct Freight / Delivery</Text>
+                  <Text style={styles.totalValue}>{formatMoney(data.freightTotal || 0)}</Text>
+                </View>
+                <View style={styles.totalRowFinal}>
+                  <Text style={styles.grandTotalLabel}>TOTAL AMOUNT DUE</Text>
+                  <Text style={styles.grandTotalValue}>{formatMoney(grandTotal)}</Text>
+                </View>
+              </View>
+            </View>
+          </>
+        )}
+
+        {/* Notes & Remarks (shown only if non-empty and no line items) */}
+        {lineItems.length === 0 && data.remarks && data.remarks.trim() ? (
+          <View style={[styles.remarksBox, { width: "100%", marginBottom: 14 }]}>
+            <Text style={styles.sectionTitle}>Notes & Remarks (Catatan)</Text>
+            <Text style={{ fontSize: 8, color: palette.slateBody, lineHeight: 1.4 }}>{data.remarks}</Text>
+          </View>
+        ) : null}
 
         {/* e-Invoice Legal & Audit Notice */}
         <View style={styles.complianceBox}>

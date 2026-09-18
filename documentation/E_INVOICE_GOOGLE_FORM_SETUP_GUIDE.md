@@ -14,13 +14,16 @@ Cipta soalan-soalan berikut mengikut urutan dan jenis soalan (*Question Type*) y
 | No | Tajuk Soalan (Question Title) | Jenis Soalan (Type) | Wajib (Required)? | Nota Tambahan |
 |---|---|---|:---:|---|
 | **1** | `Nama penuh (seperti dalam IC)` | Short answer | **Ya (Required)** | Nama rasmi individu/pemilik seperti dalam MyKad. |
-| **2** | `No. Telefon (Active)` | Short answer | **Ya (Required)** | Contoh: `0123456789` |
-| **3** | `Alamat Penuh (berserta poskod, bandar & negeri)` | Paragraph | **Ya (Required)** | Alamat lengkap premis penghantaran terus (*Direct Delivery*). |
-| **4** | `Email (Active)` | Short answer | **Ya (Required)** | Emel aktif untuk penghantaran e-Invois LHDN. |
-| **5** | `No. IC (wajib isi)` | Short answer | **Ya (Required)** | Nombor kad pengenalan (cth: `900101015555` atau `900101-01-5555`). |
-| **6** | `Order Item (Product SKU)` | Dropdown / Multiple Choice | **Ya (Required)** | Masukkan 3 pilihan SKU berikut:<br>1. `BUBBLES O2 425ML (24 BOTTLE / CARTON) [B2O2-425-24]`<br>2. `BUBBLES O2 800ML (20 BOTTLE / CARTON) [B2O2-800-20]`<br>3. `BUBBLES O2 800ML (12 BOTTLE / CARTON) [B2O2-800-12]` |
-| **7** | `Quantity (Carton)` | Short answer | **Ya (Required)** | Tetapkan pengesahan nombor (*Response validation: Number > 0*). |
-| **8** | `Catatan Tambahan (Remarks)` | Paragraph | Tidak (Optional) | Sebarang arahan khas penghantaran atau maklumat pesanan. |
+| **2** | `Nama Company (Jika Ada)` | Short answer | Tidak (Optional) | Nama syarikat / perniagaan untuk pendaftaran korporat. |
+| **3** | `Sijil SSM (Jika Ada)` | File upload / Short answer | Tidak (Optional) | Salinan sijil SSM (PDF/Imej) atau No. Pendaftaran SSM. |
+| **4** | `No. Telefon (Active)` | Short answer | **Ya (Required)** | Contoh: `0123456789` |
+| **5** | `No Telefon PIC (Jika Ada)` | Short answer | Tidak (Optional) | No. telefon individu yang boleh dihubungi (Person-in-Charge). |
+| **6** | `Alamat Penuh (berserta poskod, bandar & negeri)` | Paragraph | **Ya (Required)** | Alamat lengkap premis penghantaran terus (*Direct Delivery*). |
+| **7** | `Email (Active)` | Short answer | **Ya (Required)** | Emel aktif untuk penghantaran e-Invois LHDN. |
+| **8** | `No. IC (wajib isi)` | Short answer | **Ya (Required)** | Nombor kad pengenalan (cth: `900101015555` atau `900101-01-5555`). |
+| **9** | `Order Item (Product SKU)` | Dropdown / Multiple Choice | **Ya (Required)** | Masukkan 3 pilihan SKU berikut:<br>1. `BUBBLES O2 425ML (24 BOTTLE / CARTON) [B2O2-425-24]`<br>2. `BUBBLES O2 800ML (20 BOTTLE / CARTON) [B2O2-800-20]`<br>3. `BUBBLES O2 800ML (12 BOTTLE / CARTON) [B2O2-800-12]` |
+| **10** | `Quantity (Carton)` | Short answer | **Ya (Required)** | Tetapkan pengesahan nombor (*Response validation: Number > 0*). |
+| **11** | `Catatan Tambahan (Remarks)` | Paragraph | Tidak (Optional) | Sebarang arahan khas penghantaran atau maklumat pesanan. |
 
 ---
 
@@ -36,7 +39,7 @@ Cipta soalan-soalan berikut mengikut urutan dan jenis soalan (*Question Type*) y
 
 ## 3. SKRIP GOOGLE APPS SCRIPT (`Code.gs`)
 
-Salin (*copy*) kod lengkap di bawah dan tampal (*paste*) ke dalam fail `Code.gs` anda:
+Salin (*copy*) kod lengkap yang telah dikemaskini di bawah dan tampal (*paste*) ke dalam fail `Code.gs` anda:
 
 ```javascript
 /**
@@ -71,23 +74,44 @@ function onFormSubmit(e) {
     for (var i = 0; i < itemResponses.length; i++) {
       var itemResponse = itemResponses[i];
       var title = itemResponse.getItem().getTitle().trim();
+      var titleLower = title.toLowerCase();
       var answer = itemResponse.getResponse();
 
-      if (title.indexOf("Nama penuh") !== -1) {
+      if (!answer) continue;
+
+      // 1. Semak maklumat korporat & PIC dahulu bagi mengelakkan pertindihan
+      if (titleLower.indexOf("company") !== -1 || titleLower.indexOf("syarikat") !== -1) {
+        payload.companyName = String(answer).trim();
+      } else if (titleLower.indexOf("ssm") !== -1) {
+        // Jika soalan jenis File Upload, tukar ID Google Drive kepada pautan yang boleh dibuka
+        if (Array.isArray(answer)) {
+          payload.ssmCert = answer.map(function(id) { 
+            return "https://drive.google.com/file/d/" + id + "/view"; 
+          }).join(", ");
+        } else if (typeof answer === "string" && answer.length > 20 && answer.indexOf(" ") === -1 && answer.indexOf("/") === -1) {
+          payload.ssmCert = "https://drive.google.com/file/d/" + answer + "/view";
+        } else {
+          payload.ssmCert = String(answer).trim();
+        }
+      } else if (titleLower.indexOf("pic") !== -1) {
+        payload.picPhone = String(answer).trim();
+      } 
+      // 2. Maklumat peribadi & pesanan
+      else if (titleLower.indexOf("nama penuh") !== -1 || titleLower.indexOf("nama") !== -1) {
         payload.fullName = String(answer).trim();
-      } else if (title.indexOf("No. Telefon") !== -1 || title.indexOf("Telefon") !== -1) {
+      } else if (titleLower.indexOf("telefon") !== -1) {
         payload.phone = String(answer).trim();
-      } else if (title.indexOf("Alamat Penuh") !== -1 || title.indexOf("Alamat") !== -1) {
+      } else if (titleLower.indexOf("alamat") !== -1) {
         payload.address = String(answer).trim();
-      } else if (title.indexOf("Email") !== -1 || title.indexOf("Emel") !== -1) {
+      } else if (titleLower.indexOf("email") !== -1 || titleLower.indexOf("emel") !== -1) {
         payload.email = String(answer).trim();
-      } else if (title.indexOf("No. IC") !== -1 || title.indexOf("IC") !== -1) {
+      } else if (titleLower.indexOf("ic") !== -1 || titleLower.indexOf("kad pengenalan") !== -1) {
         payload.icNumber = String(answer).trim();
-      } else if (title.indexOf("Order Item") !== -1 || title.indexOf("SKU") !== -1) {
+      } else if (titleLower.indexOf("order item") !== -1 || titleLower.indexOf("sku") !== -1) {
         payload.orderItem = String(answer).trim();
-      } else if (title.indexOf("Quantity") !== -1 || title.indexOf("Kuantiti") !== -1) {
+      } else if (titleLower.indexOf("quantity") !== -1 || titleLower.indexOf("kuantiti") !== -1) {
         payload.quantity = Number(answer) || 1;
-      } else if (title.indexOf("Catatan") !== -1 || title.indexOf("Remarks") !== -1) {
+      } else if (titleLower.indexOf("catatan") !== -1 || titleLower.indexOf("remarks") !== -1) {
         payload.remarks = String(answer).trim();
       }
     }

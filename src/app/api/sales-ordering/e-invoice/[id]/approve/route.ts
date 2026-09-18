@@ -47,9 +47,24 @@ export async function POST(
     const email = String(raw.deliveryEmail || raw.email || "").trim()
     const address = String(raw.deliveryAddress || raw.billingAddress || "").trim()
     const deliveryMode = String(raw.deliveryMode || "Direct Delivery").trim()
+    const companyName = String(raw.companyName || "").trim()
+    const ssmNumber = String(raw.ssmCert || raw.ssmNumber || "").trim()
+    const picPhone = String(raw.picPhone || "").trim()
 
     // 1. Ensure a valid Customer record
     let customer = intake.matchedCustomer
+
+    if (!customer && companyName) {
+      customer = await prisma.customer.findFirst({
+        where: {
+          OR: [
+            { legalName: { contains: companyName, mode: "insensitive" } },
+            { tradingName: { contains: companyName, mode: "insensitive" } },
+            ...(ssmNumber ? [{ companyRegistrationNo: ssmNumber }] : []),
+          ],
+        },
+      })
+    }
 
     if (!customer && icNumber) {
       customer = await prisma.customer.findFirst({
@@ -67,17 +82,18 @@ export async function POST(
       // Auto-create a Direct Delivery customer record
       const todayCompact = new Date().toISOString().slice(0, 10).replaceAll("-", "")
       const randomCode = Math.random().toString(36).substring(2, 6).toUpperCase()
-      const customerCode = `CUST-INV-${icNumber ? icNumber.slice(0, 6) : todayCompact}-${randomCode}`
+      const customerCode = `CUST-INV-${(ssmNumber || icNumber || todayCompact).replace(/[^a-zA-Z0-9]/g, "").slice(0, 6)}-${randomCode}`
 
       customer = await prisma.customer.create({
         data: {
           customerCode,
-          legalName: fullName,
+          legalName: companyName || fullName,
           tradingName: fullName,
           pic: fullName,
-          phonePrimary: phone || null,
+          phonePrimary: phone || picPhone || null,
+          phoneSecondary: picPhone && phone !== picPhone ? picPhone : null,
           email: email || null,
-          companyRegistrationNo: icNumber || null,
+          companyRegistrationNo: ssmNumber || icNumber || null,
           customerType: "DIRECT_DELIVERY",
           paymentPolicy: "CASH",
           creditTermsRaw: "CASH",

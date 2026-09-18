@@ -56,7 +56,10 @@ export async function generateAndSaveEInvoicePdfToR2(intakeId: string): Promise<
   const pdfData: EInvoicePdfData = {
     documentNumber: raw.documentNumber || `E-INV-${intake.id.slice(0, 8).toUpperCase()}`,
     documentDate: raw.documentDate || new Date(intake.createdAt).toISOString().slice(0, 10),
-    customerName: raw.customerName || raw.fullName || "Customer",
+    customerName: raw.customerName || raw.companyName || raw.fullName || "Customer",
+    companyName: raw.companyName || null,
+    ssmNumber: raw.ssmNumber || raw.ssmCert || null,
+    picPhone: raw.picPhone || null,
     fullName: raw.fullName || raw.customerName || null,
     icNumber: raw.icNumber || null,
     phone: raw.deliveryPhone || raw.phone || null,

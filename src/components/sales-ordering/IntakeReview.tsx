@@ -303,16 +303,33 @@ export function IntakeReview({
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
           <div className="rounded-xl bg-white p-3 border border-purple-100">
-            <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Full Name (as per IC)</p>
-            <p className="font-black text-slate-900 text-sm mt-0.5">{(document as any).fullName || document.customerName || "-"}</p>
+            <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">
+              {(document as any).companyName ? "Company & Customer Name" : "Full Name (as per IC)"}
+            </p>
+            {(document as any).companyName && (
+              <p className="font-black text-purple-950 text-sm mt-0.5">{(document as any).companyName}</p>
+            )}
+            <p className="font-bold text-slate-700 text-xs mt-0.5">
+              {(document as any).fullName || document.customerName || "-"}
+            </p>
           </div>
           <div className="rounded-xl bg-white p-3 border border-purple-100">
-            <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">NRIC / IC Number</p>
+            <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">NRIC / SSM Registration</p>
             <p className="font-black text-purple-900 font-mono text-sm mt-0.5">{(document as any).icNumber || "-"}</p>
+            {(document as any).ssmCert && (
+              <p className="font-semibold text-slate-600 text-xs mt-0.5 truncate" title={(document as any).ssmCert}>
+                SSM: {(document as any).ssmCert}
+              </p>
+            )}
           </div>
           <div className="rounded-xl bg-white p-3 border border-purple-100">
-            <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Active Contact</p>
+            <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Active Contact & PIC</p>
             <p className="font-bold text-slate-800 mt-0.5">{document.deliveryPhone || "-"} · {document.deliveryContact || "-"}</p>
+            {(document as any).picPhone && (
+              <p className="font-bold text-purple-700 text-xs mt-0.5">
+                PIC Phone: {(document as any).picPhone}
+              </p>
+            )}
           </div>
         </div>
       </section>

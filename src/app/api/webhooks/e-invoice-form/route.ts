@@ -50,6 +50,11 @@ export async function POST(request: Request) {
     const deliveryMode = String(body.deliveryMode || "Direct Delivery").trim()
     const remarks = String(body.remarks || "").trim()
 
+    // Optional Corporate details
+    const companyName = String(body.companyName || body.namaCompany || body["Nama Company (Jika Ada)"] || body["Nama Company"] || "").trim()
+    const ssmCert = String(body.ssmCert || body.sijilSsm || body.ssmNumber || body["Sijil SSM (Jika Ada)"] || body["Sijil SSM"] || "").trim()
+    const picPhone = String(body.picPhone || body.noTelefonPic || body["No Telefon PIC (Jika Ada)"] || body["No Telefon PIC"] || "").trim()
+
     const submissionId = String(body.submissionId || body.responseId || body.formResponseId || "").trim()
 
     if (!fullName && !icNumber) {
@@ -170,7 +175,19 @@ export async function POST(request: Request) {
 
     // 4. Pre-match customer from Customer Master
     let matchedCustomer = null
-    if (icNumber) {
+    if (companyName) {
+      matchedCustomer = await prisma.customer.findFirst({
+        where: {
+          OR: [
+            { legalName: { contains: companyName, mode: "insensitive" } },
+            { tradingName: { contains: companyName, mode: "insensitive" } },
+            ...(ssmCert ? [{ companyRegistrationNo: ssmCert }] : []),
+          ],
+        },
+      })
+    }
+
+    if (!matchedCustomer && icNumber) {
       matchedCustomer = await prisma.customer.findFirst({
         where: {
           OR: [
@@ -212,9 +229,13 @@ export async function POST(request: Request) {
       documentDate: today,
       requestedDeliveryDate: "",
       customerReference: matchedCustomer?.customerCode || "",
-      customerName: fullName || matchedCustomer?.legalName || "E-Invoice Customer",
+      customerName: companyName || fullName || matchedCustomer?.legalName || "E-Invoice Customer",
       fullName,
       icNumber,
+      companyName: companyName || undefined,
+      ssmCert: ssmCert || undefined,
+      ssmNumber: ssmCert || undefined,
+      picPhone: picPhone || undefined,
       deliveryMode,
       paymentTermsRaw: "CASH",
       billingAddress: address,
@@ -233,8 +254,8 @@ export async function POST(request: Request) {
         grandTotal,
       },
       remarks: remarks
-        ? `[E-Invoice Corporate Form] ${remarks} | IC: ${icNumber}`
-        : `[E-Invoice Corporate Form] Delivery: ${deliveryMode} | IC: ${icNumber}`,
+        ? `[E-Invoice Corporate Form] ${remarks} | IC: ${icNumber}${companyName ? ` | Company: ${companyName}` : ""}`
+        : `[E-Invoice Corporate Form] Delivery: ${deliveryMode} | IC: ${icNumber}${companyName ? ` | Company: ${companyName}` : ""}`,
       confidence: 1,
       warnings: [],
       sourceSubmissionId: submissionId || undefined,

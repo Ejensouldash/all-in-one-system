@@ -24,6 +24,9 @@ export type EInvoicePdfData = {
   documentNumber: string
   documentDate: string
   customerName: string
+  companyName?: string | null
+  ssmNumber?: string | null
+  picPhone?: string | null
   fullName?: string | null
   icNumber?: string | null
   phone?: string | null
@@ -401,18 +404,32 @@ export function EInvoiceDocument({
         <View style={styles.customerSection}>
           <View style={styles.customerCard}>
             <Text style={styles.sectionTitle}>Billed & Delivered To (Customer Details)</Text>
-            <Text style={styles.customerName}>{data.fullName || data.customerName || "Customer"}</Text>
-            
-            {data.icNumber && (
-              <View style={styles.icBadgeContainer}>
-                <View style={styles.icBadge}>
-                  <Text style={styles.icBadgeText}>NRIC / IC NO: {data.icNumber}</Text>
-                </View>
+            {data.companyName ? (
+              <View style={{ marginBottom: 3 }}>
+                <Text style={styles.customerName}>{data.companyName}</Text>
+                <Text style={[styles.customerDetailText, { fontFamily: "Helvetica-Bold", color: palette.navySoft }]}>
+                  Attn / PIC: {data.fullName || data.customerName || "Customer"}
+                </Text>
               </View>
+            ) : (
+              <Text style={styles.customerName}>{data.fullName || data.customerName || "Customer"}</Text>
             )}
+            
+            <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap", marginVertical: 4 }}>
+              {data.icNumber && (
+                <View style={styles.icBadge}>
+                  <Text style={styles.icBadgeText}>NRIC / IC: {data.icNumber}</Text>
+                </View>
+              )}
+              {data.ssmNumber && (
+                <View style={[styles.icBadge, { backgroundColor: palette.cyanSoft, borderColor: palette.cyanBorder }]}>
+                  <Text style={[styles.icBadgeText, { color: palette.cyanDark }]}>SSM: {data.ssmNumber}</Text>
+                </View>
+              )}
+            </View>
 
             <Text style={styles.customerDetailText}>
-              Phone: {data.phone || "N/A"}  |  Email: {data.email || "N/A"}
+              Phone: {data.phone || "N/A"}{data.picPhone ? `  |  PIC Phone: ${data.picPhone}` : ""}  |  Email: {data.email || "N/A"}
             </Text>
             <Text style={[styles.customerDetailText, { marginTop: 4 }]}>
               Address: {data.deliveryAddress || "N/A"}

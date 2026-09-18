@@ -153,24 +153,8 @@ export async function POST(request: Request) {
       })
     }
 
-    // Fallback if no item was specified, default 1 CTN 425ml
-    if (lineItems.length === 0) {
-      const def = DEFAULT_PRICES["B2O2-425-24"]
-      lineItems.push({
-        sku: "B2O2-425-24",
-        itemCode: "B2O2-425-24",
-        barcode: def.barcode,
-        description: def.description,
-        uom: "CTN",
-        quantity: 1,
-        unitPrice: def.price,
-        discount: 0,
-        tax: 0,
-        amount: def.price,
-        isServiceCharge: false,
-      })
-    }
-
+    // Note: If no items were selected or questions were deleted from Google Form,
+    // lineItems remains empty [] and grandTotal is 0.00. Items can be added manually in AIO system review.
     const grandTotal = Number(lineItems.reduce((acc, item) => acc + item.amount, 0).toFixed(2))
 
     // 4. Pre-match customer from Customer Master

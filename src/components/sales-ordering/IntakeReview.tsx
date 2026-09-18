@@ -227,9 +227,17 @@ export function IntakeReview({
     setBusy(true)
     setError("")
     try {
+      // Save current document state first to preserve any added items or edits
+      await fetch(`/api/sales-ordering/intake/${intakeId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId: customer?.id, document }),
+      })
+
       const response = await fetch(`/api/sales-ordering/e-invoice/${intakeId}/approve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId: customer?.id, document }),
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || "Failed to approve E-Invoice.")
@@ -436,7 +444,15 @@ export function IntakeReview({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {document.lines.map((line, index) => (
+            {document.lines.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="py-8 text-center bg-slate-50/50">
+                  <p className="text-sm font-bold text-slate-600">No order items attached in this submission</p>
+                  <p className="text-xs text-slate-400 mt-1">Customer E-Invoice details registered. You can add items using &quot;+ Add item&quot; above, or proceed to Approve.</p>
+                </td>
+              </tr>
+            ) : (
+              document.lines.map((line, index) => (
               <tr key={`${line.sku || "line"}-${index}`}>
                 <td className="p-2">
                   <input
@@ -540,7 +556,7 @@ export function IntakeReview({
                   </button>
                 </td>
               </tr>
-            ))}
+            )))}
           </tbody>
         </table>
       </div>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { canManageSalesOrderingDocuments, getSalesOrderingAccess } from "@/lib/sales-ordering/access"
+import { generateAndSaveEInvoicePdfToR2 } from "@/lib/sales-ordering/einvoice-pdf"
 
 export const runtime = "nodejs"
 
@@ -22,6 +23,9 @@ export async function POST(
   }
 
   try {
+    const body = (await request.json().catch(() => ({}))) as Record<string, any>
+    const docFromBody = body.document
+
     const intake = await prisma.salesDocumentIntake.findUnique({
       where: { id },
       include: { salesOrder: true, matchedCustomer: true },
@@ -40,7 +44,18 @@ export async function POST(
       })
     }
 
-    const raw = (intake.extractedData as any) || {}
+    // If client submitted updated document state, persist it to intake first
+    if (docFromBody) {
+      await prisma.salesDocumentIntake.update({
+        where: { id: intake.id },
+        data: {
+          extractedData: docFromBody,
+          ...(body.customerId ? { matchedCustomerId: body.customerId } : {}),
+        },
+      })
+    }
+
+    const raw = docFromBody || (intake.extractedData as any) || {}
     const fullName = String(raw.fullName || raw.customerName || "E-Invoice Customer").trim()
     const icNumber = String(raw.icNumber || "").trim()
     const phone = String(raw.deliveryPhone || raw.phone || "").trim()
@@ -184,6 +199,13 @@ export async function POST(
         details: `E-Invoice ${intake.id} approved by ${approverName}. Approved Sales Order ${internalSoNo} created.`,
       },
     })
+
+    // 5. Recompile updated PDF in R2 to reflect final approved state
+    try {
+      await generateAndSaveEInvoicePdfToR2(intake.id)
+    } catch (pdfErr) {
+      console.warn(`[Approve E-Invoice] Could not recompile PDF for ${intake.id}:`, pdfErr)
+    }
 
     return NextResponse.json({
       success: true,

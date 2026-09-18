@@ -458,19 +458,27 @@ export function EInvoiceDocument({
             <Text style={[styles.tableHeaderCell, styles.colAmount]}>Total (RM)</Text>
           </View>
 
-          {lineItems.map((line, idx) => (
-            <View key={idx} style={[styles.tableRow, idx % 2 === 1 ? styles.tableRowAlt : {}]}>
-              <Text style={[styles.tableCell, styles.colNo]}>{idx + 1}</Text>
-              <View style={[styles.colSku]}>
-                <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 8 }}>{line.sku || line.itemCode || "-"}</Text>
-                {line.barcode && <Text style={{ fontSize: 7, color: palette.slateFaint }}>{line.barcode}</Text>}
-              </View>
-              <Text style={[styles.tableCell, styles.colDesc]}>{line.description}</Text>
-              <Text style={[styles.tableCell, styles.colQty, { fontFamily: "Helvetica-Bold" }]}>{line.quantity} {line.uom}</Text>
-              <Text style={[styles.tableCell, styles.colPrice]}>{formatMoney(line.unitPrice)}</Text>
-              <Text style={[styles.tableCell, styles.colAmount, { fontFamily: "Helvetica-Bold" }]}>{formatMoney(line.amount)}</Text>
+          {lineItems.length === 0 ? (
+            <View style={[styles.tableRow, { paddingVertical: 14, justifyContent: "center", alignItems: "center" }]}>
+              <Text style={{ fontSize: 8, color: palette.slateMuted, fontStyle: "italic", textAlign: "center", width: "100%" }}>
+                Customer E-Invoice Registration / Details — No product line items attached in submission.
+              </Text>
             </View>
-          ))}
+          ) : (
+            lineItems.map((line, idx) => (
+              <View key={idx} style={[styles.tableRow, idx % 2 === 1 ? styles.tableRowAlt : {}]}>
+                <Text style={[styles.tableCell, styles.colNo]}>{idx + 1}</Text>
+                <View style={[styles.colSku]}>
+                  <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 8 }}>{line.sku || line.itemCode || "-"}</Text>
+                  {line.barcode && <Text style={{ fontSize: 7, color: palette.slateFaint }}>{line.barcode}</Text>}
+                </View>
+                <Text style={[styles.tableCell, styles.colDesc]}>{line.description}</Text>
+                <Text style={[styles.tableCell, styles.colQty, { fontFamily: "Helvetica-Bold" }]}>{line.quantity} {line.uom}</Text>
+                <Text style={[styles.tableCell, styles.colPrice]}>{formatMoney(line.unitPrice)}</Text>
+                <Text style={[styles.tableCell, styles.colAmount, { fontFamily: "Helvetica-Bold" }]}>{formatMoney(line.amount)}</Text>
+              </View>
+            ))
+          )}
         </View>
 
         {/* Summary & Totals */}

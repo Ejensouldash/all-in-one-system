@@ -21,9 +21,7 @@ Cipta soalan-soalan berikut mengikut urutan dan jenis soalan (*Question Type*) y
 | **6** | `Alamat Penuh (berserta poskod, bandar & negeri)` | Paragraph | **Ya (Required)** | Alamat lengkap premis penghantaran terus (*Direct Delivery*). |
 | **7** | `Email (Active)` | Short answer | **Ya (Required)** | Emel aktif untuk penghantaran e-Invois LHDN. |
 | **8** | `No. IC (wajib isi)` | Short answer | **Ya (Required)** | Nombor kad pengenalan (cth: `900101015555` atau `900101-01-5555`). |
-| **9** | `Order Item (Product SKU)` | Dropdown / Multiple Choice | **Ya (Required)** | Masukkan 3 pilihan SKU berikut:<br>1. `BUBBLES O2 425ML (24 BOTTLE / CARTON) [B2O2-425-24]`<br>2. `BUBBLES O2 800ML (20 BOTTLE / CARTON) [B2O2-800-20]`<br>3. `BUBBLES O2 800ML (12 BOTTLE / CARTON) [B2O2-800-12]` |
-| **10** | `Quantity (Carton)` | Short answer | **Ya (Required)** | Tetapkan pengesahan nombor (*Response validation: Number > 0*). |
-| **11** | `Catatan Tambahan (Remarks)` | Paragraph | Tidak (Optional) | Sebarang arahan khas penghantaran atau maklumat pesanan. |
+| **9** | `Catatan Tambahan (Remarks)` | Paragraph | Tidak (Optional) | Sebarang arahan khas penghantaran atau maklumat pesanan. |
 
 ---
 
@@ -96,7 +94,7 @@ function onFormSubmit(e) {
       } else if (titleLower.indexOf("pic") !== -1) {
         payload.picPhone = String(answer).trim();
       } 
-      // 2. Maklumat peribadi & pesanan
+      // 2. Maklumat peribadi & perhubungan
       else if (titleLower.indexOf("nama penuh") !== -1 || titleLower.indexOf("nama") !== -1) {
         payload.fullName = String(answer).trim();
       } else if (titleLower.indexOf("telefon") !== -1) {
@@ -107,10 +105,6 @@ function onFormSubmit(e) {
         payload.email = String(answer).trim();
       } else if (titleLower.indexOf("ic") !== -1 || titleLower.indexOf("kad pengenalan") !== -1) {
         payload.icNumber = String(answer).trim();
-      } else if (titleLower.indexOf("order item") !== -1 || titleLower.indexOf("sku") !== -1) {
-        payload.orderItem = String(answer).trim();
-      } else if (titleLower.indexOf("quantity") !== -1 || titleLower.indexOf("kuantiti") !== -1) {
-        payload.quantity = Number(answer) || 1;
       } else if (titleLower.indexOf("catatan") !== -1 || titleLower.indexOf("remarks") !== -1) {
         payload.remarks = String(answer).trim();
       }
@@ -181,13 +175,13 @@ Untuk memastikan skrip berjalan setiap kali borang dihantar oleh responden:
    - **Alamat Penuh:** `No. 12, Jalan Perdana 4, Taman Perdana, 43000 Kajang, Selangor`
    - **Email:** `fakhrul@example.com`
    - **No. IC:** `880512-10-5431`
-   - **Order Item:** `BUBBLES O2 425ML (24 BOTTLE / CARTON) [B2O2-425-24]`
-   - **Quantity:** `10`
+   - **Nama Company (Jika Ada):** `Fakhrul Enterprise`
+   - **No Telefon PIC (Jika Ada):** `0191234567`
 3. Klik **Submit** (Hantar).
 4. Sekarang, buka portal AIO System anda di pelayar web:  
-   `https://aio.bubbleso2.com/forms/sales-ordering/documents` (atau menu **Documents**).
+   `https://bubbleso2-aio.vercel.app/forms/sales-ordering/documents` (atau menu **Documents**).
 5. **Keputusan Dalam Sistem:**
-   - Rekod pesanan baru akan muncul secara serta-merta di dalam tab **Documents**.
+   - Rekod pendaftaran e-Invois baharu akan muncul serta-merta di dalam tab **Documents**.
    - Dilabelkan dengan badge berwarna ungu: `E-Invoice Form` dan label biru: `Direct Delivery`.
-   - Memaparkan nombor IC dan jumlah nilai ringgit yang dikira secara automatik mengikut harga rasmi BubblesO2 (cth: RM 360.00 untuk 10 CTN 425ml).
-   - Pasukan SOD hanya perlu klik **Review** untuk menyemak dan menekan butang **Approve & Create Sales Order**!
+   - Menyenaraikan Nama Syarikat / Pelanggan, No. IC, dan maklumat perhubungan.
+   - Pasukan SOD hanya perlu klik **Review** untuk menyemak maklumat, menambah barangan sekiranya perlu melalui butang `+ Add item`, dan menekan butang **Approve E-Invoice**!

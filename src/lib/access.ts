@@ -33,6 +33,7 @@ export const FORM_MODULES = [
   // Production staff who take raw material off the warehouse rack themselves. Grants the Daily
   // Raw Material screens only — not the rest of the warehouse module.
   "RAW_MATERIAL_WITHDRAWAL",
+  "RETENTION_SAMPLE_MANAGE",
 ]
 
 export type AccessInfo = {

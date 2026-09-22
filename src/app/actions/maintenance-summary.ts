@@ -109,6 +109,29 @@ export async function getMaintenanceSummaryRecords(
       case "fuv":
         data = await prisma.maintenanceHazardProcessControl.findMany({ where, orderBy: { date: "desc" } })
         break
+      case "retention-sample": {
+        const sampleWhere: any = {}
+        if (startDate && endDate) {
+          sampleWhere.sampleDateTime = {
+            gte: new Date(startDate),
+            lte: new Date(endDate + "T23:59:59"),
+          }
+        }
+        const records = await prisma.retentionSampleRecord.findMany({
+          where: sampleWhere,
+          orderBy: { sampleDateTime: "desc" },
+        })
+        data = records.map((r) => {
+          const dt = new Date(r.sampleDateTime)
+          const time = dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: true })
+          return {
+            ...r,
+            date: r.sampleDateTime,
+            time,
+          }
+        })
+        break
+      }
       default:
         return { success: false, error: "Invalid form type" }
     }
@@ -220,6 +243,10 @@ export async function updateMaintenanceRecord(formType: string, id: string, data
         revalidatePath("/forms/maintenance/reports/fuv")
         break
       }
+      case "retention-sample":
+        await prisma.retentionSampleRecord.update({ where: { id }, data })
+        revalidatePath("/forms/maintenance/reports/retention-sample")
+        break
       default:
         return { success: false, error: "Invalid form type" }
     }
@@ -331,6 +358,10 @@ export async function deleteMaintenanceRecord(formType: string, id: string) {
         revalidatePath("/forms/maintenance/reports/fuv")
         break
       }
+      case "retention-sample":
+        await prisma.retentionSampleRecord.delete({ where: { id } })
+        revalidatePath("/forms/maintenance/reports/retention-sample")
+        break
       default:
         return { success: false, error: "Invalid form type" }
     }
@@ -440,6 +471,17 @@ export async function verifyMaintenanceRecord(
         })
         revalidatePath("/forms/maintenance/fuv")
         revalidatePath("/forms/maintenance/reports/fuv")
+        break
+      case "retention-sample":
+        await prisma.retentionSampleRecord.update({
+          where: { id },
+          data: {
+            verifiedBy,
+            verifiedSignature,
+            verifiedAt: new Date(),
+          },
+        })
+        revalidatePath("/forms/maintenance/reports/retention-sample")
         break
       default:
         return { success: false, error: "Invalid form type" }

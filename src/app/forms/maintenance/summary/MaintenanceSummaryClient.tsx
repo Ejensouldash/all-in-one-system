@@ -48,6 +48,7 @@ const FORM_TYPES: { value: string; label: string }[] = [
   { value: "fpir", label: "SGMP-18 FPIR" },
   { value: "wqtr", label: "SGMP-18 WQTR" },
   { value: "fuv", label: "SGMP-19 FUV (Hazard & Process Control)" },
+  { value: "retention-sample", label: "SGMP-21 RSR (Retention Sample)" },
 ]
 
 const FIELD_CONFIG: Record<string, FieldConfig[]> = {
@@ -233,6 +234,14 @@ const FIELD_CONFIG: Record<string, FieldConfig[]> = {
     { key: "shift", label: "Shift", type: "text" },
     { key: "checkedBy", label: "Checked By", type: "text" },
     { key: "remarks", label: "Remarks / CCP Action", type: "text" },
+  ],
+  "retention-sample": [
+    { key: "time", label: "Time", type: "text" },
+    { key: "sku", label: "SKU", type: "text" },
+    { key: "amountSample", label: "Amount Sample", type: "number" },
+    { key: "batchNo", label: "No Batch", type: "text" },
+    { key: "preparedByName", label: "Prepared By", type: "text" },
+    { key: "remarks", label: "Remarks", type: "text" },
   ],
 }
 

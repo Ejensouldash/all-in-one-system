@@ -11,7 +11,7 @@ import {
   Users, Activity, Settings,
   Workflow, Factory, Building2, ShieldCheck,
   LayoutDashboard, FileSpreadsheet, BellRing,
-  ShoppingCart, FileSearch, FileCheck, FilePenLine, Trash2, UserCheck,
+  ShoppingCart, FileSearch, FileCheck, FilePenLine, Trash2, UserCheck, BookmarkCheck,
   type LucideIcon,
 } from "lucide-react"
 
@@ -56,6 +56,7 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "MAINTENANCE_DASHBOARD", name: "Maintenance Stock Dashboard", description: "Log stock check-ins, check-outs, and manage assets.", icon: LayoutDashboard },
       { id: "MAINTENANCE_REPORTS", name: "Maintenance Reports", description: "Access to generate and print monthly maintenance reports.", icon: FileSpreadsheet },
       { id: "MAINTENANCE_SUMMARY", name: "Maintenance Summary", description: "Access to view, edit, delete, and sign all submitted maintenance checklists.", icon: FileSpreadsheet },
+      { id: "RETENTION_SAMPLE_MANAGE", name: "Retention Sample Management", description: "Access to edit, correct, and void retention sample records (SGMP/21/RSR) with GMP audit trail.", icon: BookmarkCheck },
     ],
   },
   {

@@ -15,6 +15,17 @@ export const GMP_FORM_REGISTRY: GMPScheduleRule[] = [
   // QUALITY CONTROL (QC)
   // ==========================================
   {
+    formType: "retention-sample",
+    formCode: "SGMP/21/RSR",
+    formTitle: "Retention Sample Record",
+    category: "QC",
+    frequency: "EVENT_BASED",
+    requiresVerification: false,
+    route: "/forms/maintenance/retention-sample",
+    description: "Digital record of retention samples collected for quality control and shelf-life tracking.",
+    notes: "Berasaskan kejadian (Event-based) mengikut tarikh, masa, SKU dan kelompok pengeluaran.",
+  },
+  {
     formType: "finished-goods",
     formCode: "SGMP/21/FIR",
     formTitle: "Finished Goods Product Inspection Record",

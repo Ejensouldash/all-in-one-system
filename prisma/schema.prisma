@@ -58,6 +58,7 @@ model User {
   reversedPalletTransfers    PalletTransfer[]        @relation("PalletTransferReverser")
   createdPalletMovements     PalletMovement[]        @relation("PalletMovementCreator")
   recordedPhysicalPalletEvents PhysicalPalletEvent[]
+  retentionSampleRecords     RetentionSampleRecord[] @relation("RetentionSamplePreparer")
 }
 
 model Branch {
@@ -2111,3 +2112,47 @@ model CreditCheckCase {
   @@index([status, createdAt])
   @@index([recommendation, createdAt])
 }
+
+// ============================================================
+// SGMP/21/RSR - RETENTION SAMPLE RECORD (Quality Control)
+// ============================================================
+
+model RetentionSampleRecord {
+  id              String    @id @default(uuid())
+  sampleDateTime  DateTime  // Sampling date & time
+  sku             String    // Selected SKU (e.g. "425", "800", "425 ML X 24", "800 ML X 12")
+  skuLabel        String?   // Snapshot of display label
+  amountSample    Int       // Positive integer quantity (e.g. 12, 24)
+  batchNo         String    // Batch string preserving leading zeros (e.g. "013526-01")
+  preparedById    String    // User who prepared the sample record
+  preparedByName  String    // Snapshot of user display name at creation time
+  remarks         String?   @db.Text
+  
+  // Quality Audit & Lifecycle Control
+  status          String    @default("ACTIVE") // ACTIVE | VOID
+  voidedAt        DateTime?
+  voidedById      String?
+  voidReason      String?   @db.Text
+  
+  editedAt        DateTime?
+  editedById      String?
+  editReason      String?   @db.Text
+  
+  // Signatures & Verification
+  performedSignature String?   @db.Text
+  verifiedBy         String?
+  verifiedSignature  String?   @db.Text
+  verifiedAt         DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  preparedByUser  User      @relation("RetentionSamplePreparer", fields: [preparedById], references: [id])
+
+  @@index([sampleDateTime])
+  @@index([batchNo])
+  @@index([sku])
+  @@index([preparedById])
+  @@index([status, sampleDateTime])
+}
+

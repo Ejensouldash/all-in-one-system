@@ -88,12 +88,12 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
     setError(null)
 
     if (!date) {
-      setError("Sila pilih tarikh persampelan.")
+      setError("Please select the sampling date.")
       return
     }
 
     if (rows.length === 0) {
-      setError("Sila masukkan sekurang-kurangnya satu baris sampel.")
+      setError("Please add at least one sample row.")
       return
     }
 
@@ -101,27 +101,27 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i]
       if (!r.sku) {
-        setError(`Baris #${i + 1}: Sila pilih SKU.`)
+        setError(`Row #${i + 1}: Please select SKU.`)
         return
       }
       if (!r.amountSample || r.amountSample < 1) {
-        setError(`Baris #${i + 1}: Kuantiti sampel mestilah sekurang-kurangnya 1.`)
+        setError(`Row #${i + 1}: Sample amount must be at least 1.`)
         return
       }
       if (!r.batchNo.trim()) {
-        setError(`Baris #${i + 1}: Sila masukkan No Batch.`)
+        setError(`Row #${i + 1}: Please enter Batch No.`)
         return
       }
       if (!isValidBatchFormat(r.batchNo)) {
         setError(
-          `Baris #${i + 1}: Format No Batch '${r.batchNo}' tidak sah. Sila gunakan format 6 digit - 2 digit (cth: 013526-01).`
+          `Row #${i + 1}: Invalid Batch No format '${r.batchNo}'. Please use 6 digits - 2 digits (e.g. 013526-01).`
         )
         return
       }
     }
 
     if (!signature) {
-      setError("Sila tandatangan borang pengesahan sebelum menghantar.")
+      setError("Please provide your digital signature before submitting.")
       return
     }
 
@@ -136,7 +136,7 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
     if (res.success) {
       setSubmittedCount(res.count || rows.length)
     } else {
-      setError(res.error || "Gagal menyimpan rekod sampel simpanan.")
+      setError(res.error || "Failed to submit retention sample records.")
     }
   }
 
@@ -168,14 +168,14 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
           href="/forms/maintenance"
           className="inline-flex items-center text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors"
         >
-          <ArrowLeft className="w-4 h-4 mr-1.5" /> Kembali ke Dashboard GMP
+          <ArrowLeft className="w-4 h-4 mr-1.5" /> Back to GMP Dashboard
         </Link>
 
         <Link
           href="/forms/maintenance/reports/retention-sample"
           className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-2 rounded-xl transition"
         >
-          <span>Lihat Laporan Bulanan (Reports)</span>
+          <span>View Monthly Reports</span>
           <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
@@ -193,7 +193,7 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
               Retention Sample Record
             </h1>
             <p className="text-slate-600 font-medium mt-1.5 text-sm sm:text-base">
-              Borang kemasukan sampel simpanan kualiti produk siap mengikut kumpulan (batch).
+              Quality retention sample recording form for finished goods production batches.
             </p>
           </div>
         </div>
@@ -208,11 +208,11 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
               </div>
               <div>
                 <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                  Sampel Berjaya Dihantar!
+                  Samples Submitted Successfully!
                 </h2>
                 <p className="text-slate-600 text-sm mt-2">
-                  Sebanyak <strong className="text-slate-900">{submittedCount} entri sampel</strong> bagi tarikh{" "}
-                  <strong className="text-slate-900">{date}</strong> telah selamat direkodkan ke dalam pangkalan data.
+                  Successfully recorded <strong className="text-slate-900">{submittedCount} sample entries</strong> for date{" "}
+                  <strong className="text-slate-900">{date}</strong> into the database.
                 </p>
               </div>
 
@@ -223,14 +223,14 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-sm uppercase tracking-wider transition shadow-sm"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>+ Isi Borang Baharu</span>
+                  <span>+ Record More Samples</span>
                 </button>
 
                 <Link
                   href="/forms/maintenance/reports/retention-sample"
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm transition"
                 >
-                  <span>Lihat di Halaman Laporan</span>
+                  <span>View in Reports Page</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -250,7 +250,7 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
                 <div className="space-y-2">
                   <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                     <Calendar className="w-4 h-4 text-blue-600" />
-                    Date of Sampling (Tarikh) <span className="text-red-500">*</span>
+                    Date of Sampling <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"
@@ -264,11 +264,11 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
                 <div className="space-y-2">
                   <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                     <User className="w-4 h-4 text-blue-600" />
-                    Prepared By (Disediakan Oleh)
+                    Prepared By
                   </label>
                   <div className="px-4 py-3 rounded-xl border border-slate-200 bg-slate-100 text-slate-700 font-bold text-sm flex items-center justify-between">
                     <span>{userName}</span>
-                    <span className="text-[11px] font-normal text-slate-400">Autentikasi Sistem</span>
+                    <span className="text-[11px] font-normal text-slate-400">System Authenticated</span>
                   </div>
                 </div>
               </div>
@@ -279,16 +279,16 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
                   <div>
                     <h3 className="text-base sm:text-lg font-black uppercase tracking-tight text-slate-900 flex items-center gap-2">
                       <Package className="w-5 h-5 text-blue-600" />
-                      Jadual Sampel Simpanan (Retention Samples Table)
+                      Retention Samples Table
                     </h3>
                     <p className="text-xs text-slate-500 font-medium mt-0.5">
-                      Masukkan sampel mengikut format borang fizikal. Anda boleh menambah beberapa baris sekaligus.
+                      Record samples according to the physical form layout. You can add multiple rows at once.
                     </p>
                   </div>
 
                   <div className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg self-start sm:self-auto">
-                    Jumlah: <strong className="text-blue-700">{rows.length} baris</strong> •{" "}
-                    <strong className="text-blue-700">{totalSamples} botol/pek</strong>
+                    Total: <strong className="text-blue-700">{rows.length} rows</strong> •{" "}
+                    <strong className="text-blue-700">{totalSamples} bottles/packs</strong>
                   </div>
                 </div>
 
@@ -298,12 +298,12 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
                     <thead>
                       <tr className="bg-slate-900 text-white font-black uppercase text-center">
                         <th className="py-3 px-2 border-r border-slate-700 w-10">#</th>
-                        <th className="py-3 px-3 border-r border-slate-700 w-32">Masa (Time)</th>
+                        <th className="py-3 px-3 border-r border-slate-700 w-32">Time</th>
                         <th className="py-3 px-3 border-r border-slate-700 w-48">SKU</th>
-                        <th className="py-3 px-3 border-r border-slate-700 w-36">Kuantiti (Amount)</th>
-                        <th className="py-3 px-3 border-r border-slate-700 w-44">No Batch</th>
-                        <th className="py-3 px-3 border-r border-slate-700">Catatan (Remarks)</th>
-                        <th className="py-3 px-2 w-14">Tindakan</th>
+                        <th className="py-3 px-3 border-r border-slate-700 w-36">Amount Sample</th>
+                        <th className="py-3 px-3 border-r border-slate-700 w-44">Batch No</th>
+                        <th className="py-3 px-3 border-r border-slate-700">Remarks</th>
+                        <th className="py-3 px-2 w-14">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white">
@@ -363,12 +363,12 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
                                   parseInt(e.target.value, 10) || 1
                                 )
                               }
-                              placeholder="Kuantiti"
+                              placeholder="Qty"
                               className="w-full px-2.5 py-2 rounded-lg border border-slate-300 font-bold text-slate-800 text-center text-xs focus:ring-2 focus:ring-blue-500 outline-none"
                             />
                           </td>
 
-                          {/* No Batch */}
+                          {/* Batch No */}
                           <td className="p-2 border-r border-slate-200">
                             <div>
                               <input
@@ -401,7 +401,7 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
                               onChange={(e) =>
                                 handleRowChange(idx, "remarks", e.target.value)
                               }
-                              placeholder="Catatan (pilihan)..."
+                              placeholder="Remarks (optional)..."
                               className="w-full px-2.5 py-2 rounded-lg border border-slate-300 text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 outline-none"
                             />
                           </td>
@@ -414,8 +414,8 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
                               disabled={rows.length <= 1}
                               title={
                                 rows.length <= 1
-                                  ? "Sekurang-kurangnya 1 baris diperlukan"
-                                  : "Padam Baris"
+                                  ? "At least 1 row required"
+                                  : "Remove Row"
                               }
                               className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
                             >
@@ -436,12 +436,12 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
                     className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-blue-400 hover:border-blue-600 bg-blue-50/50 hover:bg-blue-50 text-blue-700 font-black text-xs uppercase tracking-wider transition"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>+ Tambah Baris Sampel</span>
+                    <span>+ Add Sample Row</span>
                   </button>
 
                   <div className="text-[11px] text-slate-500 flex items-center gap-1">
                     <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Format No Batch: 6 digit tarikh - 2 digit kumpulan (cth: 013526-01)</span>
+                    <span>Batch No format: 6-digit date code - 2-digit batch run (e.g. 013526-01)</span>
                   </div>
                 </div>
               </div>
@@ -449,16 +449,16 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
               {/* Operator Signature Section */}
               <div className="space-y-3 pt-4 border-t border-slate-200">
                 <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  Tandatangan Pengesahan Operator / QC <span className="text-red-500">*</span>
+                  Operator / QC Digital Signature <span className="text-red-500">*</span>
                 </label>
                 <p className="text-xs text-slate-500">
-                  Dengan menandatangani borang ini, anda mengesahkan ketepatan dan integriti sampel simpanan yang direkodkan.
+                  By signing below, you certify the accuracy and physical authenticity of the retention samples recorded.
                 </p>
 
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 max-w-lg">
                   <SignaturePadClient
                     onSave={setSignature}
-                    label={`Penyedia: ${userName}`}
+                    label={`Prepared By: ${userName}`}
                   />
                 </div>
               </div>
@@ -466,8 +466,8 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
               {/* Submit Buttons */}
               <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-xs text-slate-500">
-                  Semakan & pengesahan penyelia boleh dibuat selepas penyerahan di bahagian{" "}
-                  <strong className="text-slate-800">Summary</strong>.
+                  Supervisor verification and sign-off can be performed after submission in the{" "}
+                  <strong className="text-slate-800">Summary</strong> section.
                 </div>
 
                 <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -475,7 +475,7 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
                     href="/forms/maintenance"
                     className="w-full sm:w-auto px-5 py-3 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs uppercase tracking-wider transition text-center"
                   >
-                    Batal
+                    Cancel
                   </Link>
 
                   <button
@@ -484,7 +484,7 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
                     className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider transition shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     <BookmarkCheck className="w-4 h-4" />
-                    <span>{loading ? "Menyimpan Sampel..." : "Hantar Rekod Sampel"}</span>
+                    <span>{loading ? "Submitting Samples..." : "Submit Retention Records"}</span>
                   </button>
                 </div>
               </div>

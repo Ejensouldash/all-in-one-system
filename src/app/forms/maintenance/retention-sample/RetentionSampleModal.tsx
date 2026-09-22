@@ -74,22 +74,22 @@ function RetentionSampleFormContent({
   const [successToast, setSuccessToast] = useState<string | null>(null)
 
   function validateInputs(): string | null {
-    if (!dateTime) return "Sila pilih Tarikh & Masa."
-    if (!sku) return "Sila pilih SKU."
+    if (!dateTime) return "Please select Date & Time."
+    if (!sku) return "Please select SKU."
 
     const parsedAmount = Number(amountSample)
     if (!amountSample || isNaN(parsedAmount) || !Number.isInteger(parsedAmount) || parsedAmount <= 0) {
-      return "Amount Sample mestilah nombor bulat positif (contoh: 12, 24)."
+      return "Amount Sample must be a positive whole number (e.g. 12, 24)."
     }
 
     const cleanBatch = batchNo.trim()
-    if (!cleanBatch) return "Sila masukkan No Batch."
+    if (!cleanBatch) return "Please enter Batch No."
     if (!isValidBatchFormat(cleanBatch)) {
-      return "Format No Batch mestilah 6 digit tarikh diikuti tanda sempang dan 2 digit running batch (contoh: 013526-01)."
+      return "Batch No must be 6-digit date code followed by hyphen and 2-digit batch run (e.g. 013526-01)."
     }
 
     if (isEditing && (!editReason || editReason.trim().length < 3)) {
-      return "Sila masukkan sebab pindaan/edit untuk rekod audit GMP (minima 3 aksara)."
+      return "Please provide an edit reason for the GMP audit trail (at least 3 characters)."
     }
 
     return null
@@ -120,7 +120,7 @@ function RetentionSampleFormContent({
         })
 
         if (!res.success) {
-          setError(res.error || "Gagal mengemaskini rekod.")
+          setError(res.error || "Failed to update record.")
           setLoading(false)
           return
         }
@@ -137,7 +137,7 @@ function RetentionSampleFormContent({
         })
 
         if (!res.success) {
-          setError(res.error || "Gagal menyimpan rekod.")
+          setError(res.error || "Failed to save record.")
           setLoading(false)
           return
         }
@@ -145,7 +145,7 @@ function RetentionSampleFormContent({
         onSuccess()
 
         if (keepOpenForNext) {
-          setSuccessToast(`Rekod SKU ${sku} (${amountSample}) berjaya disimpan! Boleh tambah SKU seterusnya.`)
+          setSuccessToast(`Record for SKU ${sku} (${amountSample}) saved! You can add the next SKU.`)
           setSku(sku === "425" ? "800" : "425")
           setAmountSample(sku === "425" ? "12" : "24")
           setTimeout(() => setSuccessToast(null), 4000)
@@ -155,7 +155,7 @@ function RetentionSampleFormContent({
       }
     } catch (err: unknown) {
       console.error(err)
-      const msg = err instanceof Error ? err.message : "Ralat luar jangka berlaku semasa menyimpan."
+      const msg = err instanceof Error ? err.message : "An unexpected error occurred while saving."
       setError(msg)
     } finally {
       setLoading(false)
@@ -171,7 +171,7 @@ function RetentionSampleFormContent({
             SGMP/21/RSR • Quality Control
           </div>
           <h2 className="text-base sm:text-lg font-black tracking-tight text-white mt-0.5">
-            {isEditing ? "Kemaskini Rekod Sampel Simpanan" : "Kemasukan Retention Sample Record"}
+            {isEditing ? "Edit Retention Sample Record" : "New Retention Sample Entry"}
           </h2>
         </div>
         <button
@@ -203,7 +203,7 @@ function RetentionSampleFormContent({
           {/* Field 1: Date & Time */}
           <div className="sm:col-span-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1 flex items-center justify-between">
-              <span>Date &amp; Time (Tarikh &amp; Masa) <span className="text-red-600">*</span></span>
+              <span>Date &amp; Time <span className="text-red-600">*</span></span>
               <span className="text-[11px] font-normal text-gray-500">
                 Format: {formatDisplayDateTime(dateTime)}
               </span>
@@ -218,7 +218,7 @@ function RetentionSampleFormContent({
               />
             </div>
             <p className="text-[10px] text-gray-500 mt-1">
-              Waktu standard Malaysia (Asia/Kuala_Lumpur). Boleh diubah sekiranya sampel direkodkan selepas persampelan.
+              Malaysia Standard Time (Asia/Kuala_Lumpur). Can be adjusted if recorded after sampling.
             </p>
           </div>
 
@@ -252,7 +252,7 @@ function RetentionSampleFormContent({
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1 flex items-center">
               <Hash className="w-3.5 h-3.5 mr-1 text-gray-500" />
-              <span>Amount Sample (Kuantiti) <span className="text-red-600">*</span></span>
+              <span>Amount Sample (Quantity) <span className="text-red-600">*</span></span>
             </label>
             <input
               type="number"
@@ -260,19 +260,19 @@ function RetentionSampleFormContent({
               step="1"
               value={amountSample}
               onChange={e => setAmountSample(e.target.value)}
-              placeholder="cth: 24 atau 12"
+              placeholder="e.g. 24 or 12"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 font-bold focus:ring-2 focus:ring-blue-600 focus:border-blue-600 text-xs sm:text-sm"
               required
             />
             <p className="text-[10px] text-gray-500 mt-1">
-              Hanya nombor bulat positif (botol/unit).
+              Positive whole numbers only (bottles/units).
             </p>
           </div>
 
-          {/* Field 4: No Batch */}
+          {/* Field 4: Batch No */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
-              <span>No Batch <span className="text-red-600">*</span></span>
+              <span>Batch No <span className="text-red-600">*</span></span>
             </label>
             <input
               type="text"
@@ -284,7 +284,7 @@ function RetentionSampleFormContent({
               required
             />
             <p className="text-[10px] text-gray-500 mt-1">
-              Format kilang: 6 digit tarikh - 2 digit siri (cth: 013526-01).
+              Factory format: 6-digit date code - 2-digit batch run (e.g. 013526-01).
             </p>
           </div>
 
@@ -293,7 +293,7 @@ function RetentionSampleFormContent({
             <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1 flex items-center justify-between">
               <span>Prepared By</span>
               <span className="inline-flex items-center text-[10px] text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded font-bold">
-                <Lock className="w-2.5 h-2.5 mr-1" /> Sistem
+                <Lock className="w-2.5 h-2.5 mr-1" /> System
               </span>
             </label>
             <input
@@ -305,8 +305,8 @@ function RetentionSampleFormContent({
             />
             <p className="text-[10px] text-gray-500 mt-1">
               {isEditing
-                ? "Nama pencipta asal terpelihara bagi tujuan audit GMP."
-                : "Ditetapkan secara automatik mengikut sesi log masuk."}
+                ? "Original creator name preserved for GMP audit trail."
+                : "Automatically set according to user login session."}
             </p>
           </div>
 
@@ -314,13 +314,13 @@ function RetentionSampleFormContent({
           {isEditing && (
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold uppercase tracking-wider text-amber-800 mb-1">
-                <span>Sebab Pindaan / Edit <span className="text-red-600">*</span></span>
+                <span>Reason for Revision / Edit <span className="text-red-600">*</span></span>
               </label>
               <input
                 type="text"
                 value={editReason}
                 onChange={e => setEditReason(e.target.value)}
-                placeholder="cth: Pembetulan kuantiti sampel mengikut fizikal rak"
+                placeholder="e.g. Physical stock quantity reconciliation on retention shelf"
                 className="w-full px-3 py-2 border-2 border-amber-400 bg-amber-50/50 rounded-lg text-gray-900 font-medium text-xs sm:text-sm focus:ring-2 focus:ring-amber-500"
                 required
               />
@@ -330,13 +330,13 @@ function RetentionSampleFormContent({
           {/* Field 6: Remarks (Optional) */}
           <div className="sm:col-span-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
-              Catatan / Remarks (Pilihan)
+              Remarks (Optional)
             </label>
             <textarea
               rows={2}
               value={remarks}
               onChange={e => setRemarks(e.target.value)}
-              placeholder="Catatan tambahan berkenaan sampel atau keadaan fizikal..."
+              placeholder="Additional notes regarding sample or physical condition..."
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 font-medium text-xs sm:text-sm focus:ring-2 focus:ring-blue-600"
             />
           </div>
@@ -351,7 +351,7 @@ function RetentionSampleFormContent({
           disabled={loading}
           className="px-4 py-2 text-xs sm:text-sm font-bold text-gray-700 hover:text-gray-950 bg-white border border-gray-300 hover:bg-gray-100 rounded-lg transition-colors"
         >
-          Batal
+          Cancel
         </button>
 
         <div className="flex items-center space-x-2">
@@ -363,7 +363,7 @@ function RetentionSampleFormContent({
               className="inline-flex items-center px-4 py-2 text-xs sm:text-sm font-bold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 rounded-lg transition-all disabled:opacity-50"
             >
               <PlusCircle className="w-4 h-4 mr-1.5" />
-              Simpan &amp; Tambah Lagi
+              Save &amp; Add Another
             </button>
           )}
 
@@ -374,7 +374,7 @@ function RetentionSampleFormContent({
             className="inline-flex items-center px-5 py-2 text-xs sm:text-sm font-black uppercase tracking-wider text-white bg-blue-700 hover:bg-blue-800 rounded-lg shadow-sm transition-all disabled:opacity-50"
           >
             <Save className="w-4 h-4 mr-1.5" />
-            {loading ? "Menyimpan..." : isEditing ? "Simpan Pindaan" : "Simpan Rekod"}
+            {loading ? "Saving..." : isEditing ? "Save Changes" : "Save Record"}
           </button>
         </div>
       </div>

@@ -5,7 +5,7 @@ import { RetentionSampleForm } from "./RetentionSampleForm"
 
 export const metadata = {
   title: "Retention Sample Entry (SGMP/21/RSR) | Bubbles O2",
-  description: "Borang kemasukan sampel simpanan (SGMP/21/RSR) bagi kawalan kualiti Bubbles O2.",
+  description: "Quality retention sample recording form (SGMP/21/RSR) for Bubbles O2.",
 }
 
 export const dynamic = "force-dynamic"

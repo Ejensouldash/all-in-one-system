@@ -270,7 +270,7 @@ export function RetentionSampleDocument({ payload }: { payload: RetentionSampleP
         </View>
 
         <Text style={styles.footerNote}>
-          Dokumen Kualiti Bubbles O2 • Dijana secara automatik melalui AIO System
+          Bubbles O2 Quality Document • Automatically generated via AIO System
         </Text>
       </Page>
     </Document>

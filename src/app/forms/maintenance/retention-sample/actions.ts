@@ -106,12 +106,12 @@ export async function createRetentionSampleRecord(data: {
   try {
     const session = await auth()
     if (!session?.user?.id) {
-      return { success: false, error: "Sesi tidak sah. Sila log masuk semula." }
+      return { success: false, error: "Invalid session. Please sign in again." }
     }
 
     const access = await getAccessInfo()
     if (!access) {
-      return { success: false, error: "Akses ditolak." }
+      return { success: false, error: "Access denied." }
     }
 
     // Input Validation
@@ -119,7 +119,7 @@ export async function createRetentionSampleRecord(data: {
     if (!isValidBatchFormat(cleanBatchNo)) {
       return {
         success: false,
-        error: "Format No Batch tidak sah. Wajib menggunakan format standard (6 digit tarikh - 2 digit giliran, cth: 013526-01).",
+        error: "Invalid Batch No format. Must use standard factory format (6-digit date code - 2-digit batch run, e.g. 013526-01).",
       }
     }
 
@@ -127,17 +127,17 @@ export async function createRetentionSampleRecord(data: {
     if (!Number.isInteger(amount) || amount <= 0) {
       return {
         success: false,
-        error: "Kuantiti 'Amount Sample' mestilah nombor bulat positif (cth: 12, 24).",
+        error: "Sample amount must be a positive whole number (e.g. 12, 24).",
       }
     }
 
     if (!data.sku || !data.sku.trim()) {
-      return { success: false, error: "Sila pilih SKU." }
+      return { success: false, error: "Please select SKU." }
     }
 
     const sampleDate = new Date(data.sampleDateTime)
     if (isNaN(sampleDate.getTime())) {
-      return { success: false, error: "Tarikh & Masa persampelan tidak sah." }
+      return { success: false, error: "Invalid sampling date and time." }
     }
 
     const selectedSkuOption = RETENTION_SKU_OPTIONS.find(o => o.value === data.sku)
@@ -151,7 +151,7 @@ export async function createRetentionSampleRecord(data: {
         amountSample: amount,
         batchNo: cleanBatchNo,
         preparedById: session.user.id,
-        preparedByName: session.user.name || "Pegawai Kualiti",
+        preparedByName: session.user.name || "Quality Inspector",
         remarks: data.remarks?.trim() || null,
         status: "ACTIVE",
       },
@@ -169,10 +169,12 @@ export async function createRetentionSampleRecord(data: {
     )
 
     revalidatePath("/forms/maintenance/retention-sample")
+    revalidatePath("/forms/maintenance/reports/retention-sample")
+    revalidatePath("/forms/maintenance/summary")
     return { success: true, recordId: record.id }
   } catch (error: unknown) {
     console.error("Failed to create retention sample record:", error)
-    return { success: false, error: getErrorMessage(error, "Gagal menyimpan rekod sampel.") }
+    return { success: false, error: getErrorMessage(error, "Failed to save sample record.") }
   }
 }
 
@@ -194,43 +196,43 @@ export async function updateRetentionSampleRecord(
   try {
     const access = await getAccessInfo()
     if (!access) {
-      return { success: false, error: "Sesi tidak sah." }
+      return { success: false, error: "Invalid session." }
     }
 
     const canManage = access.isSuperAdmin || access.modules.includes("RETENTION_SAMPLE_MANAGE")
     if (!canManage) {
-      return { success: false, error: "Anda tiada kebenaran untuk mengedit rekod ini (Memerlukan hak RETENTION_SAMPLE_MANAGE)." }
+      return { success: false, error: "You do not have permission to edit this record (Requires RETENTION_SAMPLE_MANAGE permission)." }
     }
 
     if (!data.editReason || data.editReason.trim().length < 3) {
-      return { success: false, error: "Sila nyatakan sebab pembetulan/edit bagi tujuan audit GMP." }
+      return { success: false, error: "Please provide a reason for editing for the GMP audit trail." }
     }
 
     const existing = await prisma.retentionSampleRecord.findUnique({ where: { id } })
     if (!existing) {
-      return { success: false, error: "Rekod tidak ditemui." }
+      return { success: false, error: "Record not found." }
     }
 
     if (existing.status === "VOID") {
-      return { success: false, error: "Rekod yang telah dibatalkan (VOID) tidak boleh diedit." }
+      return { success: false, error: "Voided records cannot be edited." }
     }
 
     const cleanBatchNo = (data.batchNo || "").trim()
     if (!isValidBatchFormat(cleanBatchNo)) {
       return {
         success: false,
-        error: "Format No Batch tidak sah. Wajib mengikut format standard (cth: 013526-01).",
+        error: "Invalid Batch No format. Must follow standard format (e.g. 013526-01).",
       }
     }
 
     const amount = Number(data.amountSample)
     if (!Number.isInteger(amount) || amount <= 0) {
-      return { success: false, error: "Kuantiti 'Amount Sample' mestilah nombor bulat positif." }
+      return { success: false, error: "Sample amount must be a positive whole number." }
     }
 
     const sampleDate = new Date(data.sampleDateTime)
     if (isNaN(sampleDate.getTime())) {
-      return { success: false, error: "Tarikh & Masa persampelan tidak sah." }
+      return { success: false, error: "Invalid sampling date and time." }
     }
 
     const selectedSkuOption = RETENTION_SKU_OPTIONS.find(o => o.value === data.sku)
@@ -273,10 +275,12 @@ export async function updateRetentionSampleRecord(
     )
 
     revalidatePath("/forms/maintenance/retention-sample")
+    revalidatePath("/forms/maintenance/reports/retention-sample")
+    revalidatePath("/forms/maintenance/summary")
     return { success: true }
   } catch (error: unknown) {
     console.error("Failed to update retention sample record:", error)
-    return { success: false, error: getErrorMessage(error, "Gagal mengemaskini rekod.") }
+    return { success: false, error: getErrorMessage(error, "Failed to update record.") }
   }
 }
 
@@ -288,26 +292,26 @@ export async function voidRetentionSampleRecord(id: string, voidReason: string) 
   try {
     const access = await getAccessInfo()
     if (!access) {
-      return { success: false, error: "Sesi tidak sah." }
+      return { success: false, error: "Invalid session." }
     }
 
     const canManage = access.isSuperAdmin || access.modules.includes("RETENTION_SAMPLE_MANAGE")
     if (!canManage) {
-      return { success: false, error: "Anda tiada kebenaran untuk membatalkan rekod ini (Memerlukan hak RETENTION_SAMPLE_MANAGE)." }
+      return { success: false, error: "You do not have permission to void this record (Requires RETENTION_SAMPLE_MANAGE permission)." }
     }
 
     const cleanReason = (voidReason || "").trim()
     if (cleanReason.length < 3) {
-      return { success: false, error: "Sila nyatakan sebab pembatalan (minima 3 aksara) untuk log audit." }
+      return { success: false, error: "Please provide a void reason (at least 3 characters) for the audit log." }
     }
 
     const existing = await prisma.retentionSampleRecord.findUnique({ where: { id } })
     if (!existing) {
-      return { success: false, error: "Rekod tidak ditemui." }
+      return { success: false, error: "Record not found." }
     }
 
     if (existing.status === "VOID") {
-      return { success: false, error: "Rekod ini sudah pun dibatalkan sebelum ini." }
+      return { success: false, error: "This record has already been voided." }
     }
 
     await prisma.retentionSampleRecord.update({
@@ -337,7 +341,7 @@ export async function voidRetentionSampleRecord(id: string, voidReason: string) 
     return { success: true }
   } catch (error: unknown) {
     console.error("Failed to void retention sample record:", error)
-    return { success: false, error: getErrorMessage(error, "Gagal membatalkan rekod.") }
+    return { success: false, error: getErrorMessage(error, "Failed to void record.") }
   }
 }
 
@@ -364,28 +368,28 @@ export async function submitRetentionSampleBatch({
   try {
     const access = await getAccessInfo()
     if (!access) {
-      return { success: false, error: "Akses tidak dibenarkan. Sila log masuk." }
+      return { success: false, error: "Unauthorized access. Please sign in." }
     }
 
     if (!date) {
-      return { success: false, error: "Tarikh sampel diperlukan." }
+      return { success: false, error: "Sampling date is required." }
     }
 
     if (!rows || rows.length === 0) {
-      return { success: false, error: "Sila masukkan sekurang-kurangnya satu baris sampel." }
+      return { success: false, error: "Please enter at least one sample row." }
     }
 
     const createdRecords = []
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]
       if (!row.sku) {
-        return { success: false, error: `Baris #${i + 1}: Sila pilih SKU.` }
+        return { success: false, error: `Row #${i + 1}: Please select SKU.` }
       }
       if (!row.amountSample || row.amountSample < 1) {
-        return { success: false, error: `Baris #${i + 1}: Kuantiti sampel mestilah sekurang-kurangnya 1.` }
+        return { success: false, error: `Row #${i + 1}: Sample amount must be at least 1.` }
       }
       if (!row.batchNo || !isValidBatchFormat(row.batchNo)) {
-        return { success: false, error: `Baris #${i + 1}: Format No Batch '${row.batchNo || ""}' tidak sah. Gunakan format 6 digit - 2 digit (cth: 013526-01).` }
+        return { success: false, error: `Row #${i + 1}: Invalid Batch No format '${row.batchNo || ""}'. Use 6 digits - 2 digits (e.g. 013526-01).` }
       }
 
       // Parse time
@@ -437,6 +441,6 @@ export async function submitRetentionSampleBatch({
     return { success: true, count: createdRecords.length }
   } catch (error: unknown) {
     console.error("Failed to submit retention sample batch:", error)
-    return { success: false, error: getErrorMessage(error, "Gagal menyimpan sampel simpanan.") }
+    return { success: false, error: getErrorMessage(error, "Failed to save retention samples.") }
   }
 }

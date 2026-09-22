@@ -31,8 +31,8 @@ import {
 } from "../../retention-sample/types"
 
 const MONTH_NAMES = [
-  "Januari", "Februari", "Mac", "April", "Mei", "Jun",
-  "Julai", "Ogos", "September", "Oktober", "November", "Disember"
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
 ]
 
 interface RetentionSampleReportClientProps {
@@ -140,7 +140,7 @@ export function RetentionSampleReportClient({
   async function handleConfirmVoid() {
     if (!voidingRecord) return
     if (!voidReason.trim() || voidReason.trim().length < 3) {
-      setVoidError("Sila masukkan sebab pembatalan (sekurang-kurangnya 3 aksara).")
+      setVoidError("Please provide a cancellation reason (at least 3 characters).")
       return
     }
 
@@ -153,10 +153,10 @@ export function RetentionSampleReportClient({
     if (res.success) {
       setVoidingRecord(null)
       setVoidReason("")
-      showToast("Rekod berjaya dibatalkan (VOID).")
+      showToast("Record successfully voided.")
       refreshRecords()
     } else {
-      setVoidError(res.error || "Gagal membatalkan rekod.")
+      setVoidError(res.error || "Failed to void record.")
     }
   }
 
@@ -195,11 +195,11 @@ export function RetentionSampleReportClient({
             className="inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-blue-700 transition-colors p-2 hover:bg-slate-100 rounded-xl"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Kembali ke Senarai Laporan</span>
+            <span>Back to Reports List</span>
           </Link>
           <span className="text-slate-300">|</span>
           <span className="text-xs font-semibold text-slate-500">
-            Pengguna: <strong className="text-slate-800">{userName}</strong>
+            User: <strong className="text-slate-800">{userName}</strong>
           </span>
         </div>
 
@@ -209,7 +209,7 @@ export function RetentionSampleReportClient({
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-black uppercase tracking-wider transition shadow-sm"
           >
             <Plus className="w-4 h-4" />
-            <span>+ Isi Borang Baharu</span>
+            <span>+ Add New Samples</span>
           </Link>
         </div>
       </div>
@@ -222,7 +222,7 @@ export function RetentionSampleReportClient({
             <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
               <button
                 onClick={handlePrevMonth}
-                title="Bulan Sebelumnya"
+                title="Previous Month"
                 className="p-2 hover:bg-white rounded-lg transition text-slate-700 disabled:opacity-40"
               >
                 <ChevronLeft className="w-5 h-5" />
@@ -232,7 +232,7 @@ export function RetentionSampleReportClient({
               </div>
               <button
                 onClick={handleNextMonth}
-                title="Bulan Seterusnya"
+                title="Next Month"
                 className="p-2 hover:bg-white rounded-lg transition text-slate-700 disabled:opacity-40"
               >
                 <ChevronRight className="w-5 h-5" />
@@ -269,19 +269,19 @@ export function RetentionSampleReportClient({
             <button
               onClick={handlePrint}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-bold transition shadow-xs"
-              title="Cetak format fizikal A4 Landscape"
+              title="Print physical A4 Landscape format"
             >
               <Printer className="w-4 h-4 text-slate-500" />
-              <span>Cetak (A4 Landscape)</span>
+              <span>Print (A4 Landscape)</span>
             </button>
 
             <button
               onClick={handleExportPdf}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs sm:text-sm font-bold transition shadow-xs"
-              title="Muat turun fail PDF"
+              title="Download PDF report"
             >
               <FileDown className="w-4 h-4 text-blue-600" />
-              <span>Eksport PDF</span>
+              <span>Export PDF</span>
             </button>
           </div>
         </div>
@@ -293,7 +293,7 @@ export function RetentionSampleReportClient({
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Cari No Batch atau Prepared By..."
+                placeholder="Search Batch No or Prepared By..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition"
@@ -303,7 +303,7 @@ export function RetentionSampleReportClient({
               type="submit"
               className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs sm:text-sm font-bold transition"
             >
-              Cari
+              Search
             </button>
           </form>
 
@@ -316,7 +316,7 @@ export function RetentionSampleReportClient({
                 onChange={(e) => setSelectedSku(e.target.value)}
                 className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none"
               >
-                <option value="ALL">Semua SKU</option>
+                <option value="ALL">All SKUs</option>
                 {RETENTION_SKU_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
@@ -332,7 +332,7 @@ export function RetentionSampleReportClient({
                 onChange={(e) => setIncludeVoided(e.target.checked)}
                 className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
               />
-              <span>Papar Batal (VOID)</span>
+              <span>Show Voided (VOID)</span>
             </label>
 
             {(search || selectedSku !== "ALL" || includeVoided) && (
@@ -341,7 +341,7 @@ export function RetentionSampleReportClient({
                 className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-800 transition"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>Set Semula</span>
+                <span>Reset</span>
               </button>
             )}
           </div>
@@ -362,9 +362,9 @@ export function RetentionSampleReportClient({
                 <th className="border border-black py-2.5 px-4 w-44">Date & Time</th>
                 <th className="border border-black py-2.5 px-4 w-28">SKU</th>
                 <th className="border border-black py-2.5 px-4 w-32">Amount Sample</th>
-                <th className="border border-black py-2.5 px-4 w-36">No Batch</th>
+                <th className="border border-black py-2.5 px-4 w-36">Batch No</th>
                 <th className="border border-black py-2.5 px-4">Prepared By</th>
-                <th className="border border-black py-2.5 px-4 w-44 print:w-36">Pengesahan / Status</th>
+                <th className="border border-black py-2.5 px-4 w-44 print:w-36">Verification / Status</th>
                 <th className="border border-black py-2.5 px-3 w-24 print:hidden">Actions</th>
               </tr>
             </thead>
@@ -372,13 +372,13 @@ export function RetentionSampleReportClient({
               {isPending ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-slate-400 font-medium">
-                    Memuatkan rekod sampel...
+                    Loading sample records...
                   </td>
                 </tr>
               ) : records.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-slate-400 font-medium">
-                    Tiada rekod sampel simpanan bagi {MONTH_NAMES[month - 1]} {year}.
+                    No retention sample records found for {MONTH_NAMES[month - 1]} {year}.
                   </td>
                 </tr>
               ) : (
@@ -411,14 +411,14 @@ export function RetentionSampleReportClient({
                         <div>{record.preparedByName}</div>
                         {record.remarks && (
                           <div className="text-[11px] text-slate-500 italic mt-0.5">
-                            Catatan: {record.remarks}
+                            Remarks: {record.remarks}
                           </div>
                         )}
                       </td>
                       <td className="border border-black py-2 px-3 text-center">
                         {isVoid ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-200 text-red-800">
-                            BATAL (VOID)
+                            VOIDED
                           </span>
                         ) : isVerified ? (
                           <div className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200">
@@ -428,13 +428,13 @@ export function RetentionSampleReportClient({
                         ) : (
                           <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200">
                             <Clock className="w-3 h-3 text-amber-500" />
-                            <span>Belum Disahkan</span>
+                            <span>Pending Verification</span>
                           </div>
                         )}
                       </td>
                       <td className="border border-black py-2 px-2 print:hidden">
                         {isVoid ? (
-                          <span className="text-[10px] text-red-600 italic">Batal</span>
+                          <span className="text-[10px] text-red-600 italic">Voided</span>
                         ) : canManage ? (
                           <div className="flex items-center justify-center gap-1.5">
                             <button
@@ -443,7 +443,7 @@ export function RetentionSampleReportClient({
                                 setIsModalOpen(true)
                               }}
                               className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition"
-                              title="Kemaskini Rekod"
+                              title="Edit Record"
                             >
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
@@ -454,7 +454,7 @@ export function RetentionSampleReportClient({
                                 setVoidError(null)
                               }}
                               className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition"
-                              title="Batal Rekod (VOID)"
+                              title="Void Record"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -474,37 +474,37 @@ export function RetentionSampleReportClient({
         {/* Footer & Signature Section for Physical Form Compliance */}
         <div className="mt-8 pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs text-slate-500 gap-4">
           <div>
-            <span>Jumlah Rekod Bulan Ini: </span>
-            <strong className="text-slate-800 font-bold">{records.length} entri</strong>
+            <span>Total Records This Month: </span>
+            <strong className="text-slate-800 font-bold">{records.length} entries</strong>
             {records.length > 0 && (
               <span className="ml-2 text-slate-400">
-                (Jumlah Sampel:{" "}
+                (Total Samples:{" "}
                 {records
                   .filter((r) => r.status === "ACTIVE")
                   .reduce((acc, r) => acc + r.amountSample, 0)}{" "}
-                unit)
+                units)
               </span>
             )}
           </div>
           <div className="text-[11px] text-slate-400 italic">
-            Dokumen Kualiti Bubbles O2 • Sistem Bersepadu AIO • Pengesahan Penyelia dibuat di tab Summary
+            Bubbles O2 Quality Document • AIO Integrated System • Supervisor verification is performed in Summary tab
           </div>
         </div>
 
         {/* Print-only Signatures Box */}
         <div className="hidden print:grid grid-cols-2 gap-8 mt-12 pt-6 border-t-2 border-black text-xs">
           <div className="border border-black p-4 h-28 flex flex-col justify-between">
-            <span className="font-bold uppercase tracking-wider">Disediakan Oleh (Operator / QC):</span>
+            <span className="font-bold uppercase tracking-wider">Prepared By (Operator / QC):</span>
             <div className="border-t border-dotted border-black pt-1 flex justify-between text-[11px]">
-              <span>Nama: _______________________</span>
-              <span>Tarikh: ____________</span>
+              <span>Name: _______________________</span>
+              <span>Date: ____________</span>
             </div>
           </div>
           <div className="border border-black p-4 h-28 flex flex-col justify-between">
-            <span className="font-bold uppercase tracking-wider">Disahkan Oleh (Penyelia / Supervisor):</span>
+            <span className="font-bold uppercase tracking-wider">Verified By (Supervisor):</span>
             <div className="border-t border-dotted border-black pt-1 flex justify-between text-[11px]">
-              <span>Nama: _______________________</span>
-              <span>Tarikh: ____________</span>
+              <span>Name: _______________________</span>
+              <span>Date: ____________</span>
             </div>
           </div>
         </div>
@@ -519,7 +519,7 @@ export function RetentionSampleReportClient({
             setEditingRecord(null)
           }}
           onSuccess={() => {
-            showToast("Rekod sampel berjaya dikemaskini.")
+            showToast("Sample record updated successfully.")
             refreshRecords()
           }}
           recordToEdit={editingRecord}
@@ -536,14 +536,14 @@ export function RetentionSampleReportClient({
                 <AlertTriangle className="w-6 h-6 text-red-600" />
               </div>
               <div>
-                <h3 className="text-lg font-black text-slate-900">Batal Rekod Sampel (VOID)</h3>
-                <p className="text-xs text-slate-500">Tindakan ini akan direkodkan dalam log audit.</p>
+                <h3 className="text-lg font-black text-slate-900">Void Retention Record</h3>
+                <p className="text-xs text-slate-500">This action will be permanently recorded in the audit log.</p>
               </div>
             </div>
 
             <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-1.5">
               <div>
-                <span className="text-slate-500">No Batch:</span>{" "}
+                <span className="text-slate-500">Batch No:</span>{" "}
                 <strong className="font-mono text-slate-900">{voidingRecord.batchNo}</strong>
               </div>
               <div>
@@ -551,7 +551,7 @@ export function RetentionSampleReportClient({
                 <strong className="text-slate-900">{voidingRecord.sku}</strong>
               </div>
               <div>
-                <span className="text-slate-500">Kuantiti:</span>{" "}
+                <span className="text-slate-500">Amount Sample:</span>{" "}
                 <strong className="text-slate-900">{voidingRecord.amountSample}</strong>
               </div>
             </div>
@@ -564,12 +564,12 @@ export function RetentionSampleReportClient({
 
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-700 uppercase">
-                Sebab Pembatalan <span className="text-red-500">*</span>
+                Reason for Voiding <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={voidReason}
                 onChange={(e) => setVoidReason(e.target.value)}
-                placeholder="Contoh: Kesilapan nombor batch / botol rosak semasa persampelan..."
+                placeholder="e.g. Wrong batch code entered / bottle damaged during sampling..."
                 rows={3}
                 className="w-full text-xs sm:text-sm p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-red-500 outline-none"
               />
@@ -582,7 +582,7 @@ export function RetentionSampleReportClient({
                 disabled={voidLoading}
                 className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition"
               >
-                Batal
+                Cancel
               </button>
               <button
                 type="button"
@@ -590,7 +590,7 @@ export function RetentionSampleReportClient({
                 disabled={voidLoading}
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition disabled:opacity-50"
               >
-                {voidLoading ? "Memproses..." : "Sahkan Batal (VOID)"}
+                {voidLoading ? "Processing..." : "Confirm Void"}
               </button>
             </div>
           </div>

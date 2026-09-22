@@ -10,9 +10,9 @@ import { RetentionSampleDocument, type RetentionSamplePdfRow } from "@/lib/pdf/R
 export const runtime = "nodejs"
 export const maxDuration = 60
 
-const MONTH_NAMES_MS = [
-  "JANUARI", "FEBRUARI", "MAC", "APRIL", "MEI", "JUN",
-  "JULAI", "OGOS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DISEMBER"
+const MONTH_NAMES_EN = [
+  "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
+  "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"
 ]
 
 let logoCache: string | null = null
@@ -32,7 +32,7 @@ async function loadLogo(): Promise<string> {
 export async function GET(request: Request) {
   const access = await getAccessInfo()
   if (!access || (!access.isSuperAdmin && !hasAnyModule(access, ["MAINTENANCE_FORMS", "FORMS"]))) {
-    return NextResponse.json({ error: "Tiada kebenaran untuk mengeksport rekod ini." }, { status: 401 })
+    return NextResponse.json({ error: "Unauthorized access to export records." }, { status: 401 })
   }
 
   const { searchParams } = new URL(request.url)
@@ -96,7 +96,7 @@ export async function GET(request: Request) {
     })
 
     const logoUrl = await loadLogo()
-    const monthName = MONTH_NAMES_MS[month - 1] || "OGOS"
+    const monthName = MONTH_NAMES_EN[month - 1] || "AUGUST"
 
     const buffer = await renderToBuffer(
       RetentionSampleDocument({

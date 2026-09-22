@@ -20,10 +20,10 @@ export const GMP_FORM_REGISTRY: GMPScheduleRule[] = [
     formTitle: "Retention Sample Record",
     category: "QC",
     frequency: "EVENT_BASED",
-    requiresVerification: false,
+    requiresVerification: true,
     route: "/forms/maintenance/retention-sample",
     description: "Digital record of retention samples collected for quality control and shelf-life tracking.",
-    notes: "Berasaskan kejadian (Event-based) mengikut tarikh, masa, SKU dan kelompok pengeluaran.",
+    notes: "Event-based sampling by date, time, SKU, and production batch.",
   },
   {
     formType: "finished-goods",

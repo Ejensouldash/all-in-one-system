@@ -36,7 +36,7 @@ export default async function IntakeDetailPage({ params }: { params: Promise<{ i
       <div className="flex items-center gap-2">
         {intake.documentType === "E_INVOICE_CORPORATE" && (
           <a
-            href={`/api/sales-ordering/pdf/e-invoice/${id}`}
+            href={`/api/sales-ordering/pdf/e-invoice/${id}?refresh=true`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-3 text-sm font-black text-white hover:bg-purple-700 transition shadow-sm"

@@ -315,7 +315,7 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
                             type="button"
                             onClick={() => {
                               const pdfId = item.sourceDocumentId || item.id
-                              setPreviewKey(`/api/sales-ordering/pdf/e-invoice/${pdfId}`)
+                              setPreviewKey(`/api/sales-ordering/pdf/e-invoice/${pdfId}?refresh=true`)
                               setPreviewTitle(`E-Invoice Corporate - ${item.customerName} (${item.poNumber || item.icNumber || "Form"})`)
                             }}
                             title="View E-Invoice PDF"

@@ -45,10 +45,13 @@ export async function GET(
     const docNumber = String(raw.documentNumber || raw.poNumber || intake.id.slice(0, 8)).replace(/[^a-zA-Z0-9_-]/g, "_")
     const fileName = `E_Invoice_${docNumber}.pdf`
 
+    const url = new URL(request.url)
+    const forceRecompile = url.searchParams.get("recompile") === "true" || url.searchParams.get("refresh") === "true"
+
     let pdfBuffer: Buffer | null = null
 
-    // 1. Try reading existing PDF from R2 if already uploaded
-    if (intake.r2ObjectKey && intake.r2ObjectKey.endsWith(".pdf")) {
+    // 1. Try reading existing PDF from R2 if already uploaded (unless force recompile requested)
+    if (!forceRecompile && intake.r2ObjectKey && intake.r2ObjectKey.endsWith(".pdf")) {
       try {
         pdfBuffer = await readR2Object(intake.r2ObjectKey)
       } catch (readErr) {
@@ -56,7 +59,7 @@ export async function GET(
       }
     }
 
-    // 2. If not found or not yet generated, compile vector PDF and upload to R2
+    // 2. If not found or forced recompile, compile vector PDF and upload to R2
     if (!pdfBuffer) {
       const generated = await generateAndSaveEInvoicePdfToR2(intake.id)
       pdfBuffer = generated.buffer

@@ -2,6 +2,7 @@ import React from "react"
 import {
   Document,
   Image,
+  Link,
   Page,
   StyleSheet,
   Text,
@@ -429,8 +430,9 @@ export function EInvoiceDocument({
   const lineItems = data.lines && data.lines.length > 0 ? data.lines : []
   const subtotal = data.subtotal || lineItems.reduce((acc, item) => acc + item.amount, 0)
   const grandTotal = data.grandTotal || subtotal
+  const isSsmUrl = Boolean(data.ssmNumber && data.ssmNumber.startsWith("http"))
   const ssmDisplay = data.ssmNumber
-    ? (data.ssmNumber.startsWith("http") ? "Salinan Digital Sijil SSM Dilampirkan" : data.ssmNumber)
+    ? (isSsmUrl ? "Salinan Digital Sijil SSM Dilampirkan" : data.ssmNumber)
     : null
 
   return (
@@ -484,10 +486,20 @@ export function EInvoiceDocument({
                   <Text style={styles.icBadgeText}>NRIC / IC: {data.icNumber}</Text>
                 </View>
               )}
-              {ssmDisplay && (
-                <View style={[styles.icBadge, { backgroundColor: palette.cyanSoft, borderColor: palette.cyanBorder }]}>
-                  <Text style={[styles.icBadgeText, { color: palette.cyanDark }]}>SSM: {ssmDisplay}</Text>
-                </View>
+              {data.ssmNumber && (
+                isSsmUrl ? (
+                  <Link src={data.ssmNumber} style={{ textDecoration: "none" }}>
+                    <View style={[styles.icBadge, { backgroundColor: palette.cyanSoft, borderColor: palette.cyanBorder }]}>
+                      <Text style={[styles.icBadgeText, { color: palette.cyanDark }]}>
+                        🔗 Buka Sijil SSM (Google Drive)
+                      </Text>
+                    </View>
+                  </Link>
+                ) : (
+                  <View style={[styles.icBadge, { backgroundColor: palette.cyanSoft, borderColor: palette.cyanBorder }]}>
+                    <Text style={[styles.icBadgeText, { color: palette.cyanDark }]}>SSM: {data.ssmNumber}</Text>
+                  </View>
+                )
               )}
             </View>
 
@@ -570,12 +582,20 @@ export function EInvoiceDocument({
               </View>
             )}
 
-            {ssmDisplay && (
+            {data.ssmNumber && (
               <View style={[styles.detailsTableRow, styles.tableRowAlt]}>
                 <Text style={styles.detailsRowLabel}>Sijil SSM / Pendaftaran Syarikat</Text>
-                <Text style={[styles.detailsRowValue, { color: palette.purple, fontFamily: "Helvetica-Bold" }]}>
-                  {ssmDisplay}
-                </Text>
+                {isSsmUrl ? (
+                  <Link src={data.ssmNumber} style={{ textDecoration: "none" }}>
+                    <Text style={[styles.detailsRowValue, { color: palette.purple, fontFamily: "Helvetica-Bold" }]}>
+                      🔗 Buka Salinan Sijil SSM (Google Drive)
+                    </Text>
+                  </Link>
+                ) : (
+                  <Text style={[styles.detailsRowValue, { color: palette.purple, fontFamily: "Helvetica-Bold" }]}>
+                    {data.ssmNumber}
+                  </Text>
+                )}
               </View>
             )}
           </View>

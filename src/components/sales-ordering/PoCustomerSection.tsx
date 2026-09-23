@@ -18,6 +18,8 @@ import { PdfPreviewModal } from "./PdfPreviewModal"
 
 export type CustomerPoItem = {
   id: string
+  salesOrderId?: string
+  sourceDocumentId?: string | null
   type: "SALES_ORDER" | "CREDIT_CASE" | "INTAKE"
   documentType?: "PURCHASE_ORDER" | "E_INVOICE_CORPORATE" | string
   sourceType?: "PO" | "E_INVOICE" | "SALES_ORDER"
@@ -312,7 +314,8 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
                           <button
                             type="button"
                             onClick={() => {
-                              setPreviewKey(`/api/sales-ordering/pdf/e-invoice/${item.id}`)
+                              const pdfId = item.sourceDocumentId || item.id
+                              setPreviewKey(`/api/sales-ordering/pdf/e-invoice/${pdfId}`)
                               setPreviewTitle(`E-Invoice Corporate - ${item.customerName} (${item.poNumber || item.icNumber || "Form"})`)
                             }}
                             title="View E-Invoice PDF"
@@ -374,7 +377,8 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
                                 role="menuitem"
                                 onClick={() => {
                                   setOpenMenuId(null)
-                                  setPreviewKey(`/api/sales-ordering/pdf/po/${item.id}?variant=internal`)
+                                  const pdfId = item.sourceDocumentId || item.id
+                                  setPreviewKey(`/api/sales-ordering/pdf/po/${pdfId}?variant=internal`)
                                   setPreviewTitle(`Internal Copy - ${item.customerName} (${item.poNumber})`)
                                 }}
                                 className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-bold text-slate-800 transition hover:bg-cyan-50 hover:text-cyan-900"
@@ -393,7 +397,8 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
                                 role="menuitem"
                                 onClick={() => {
                                   setOpenMenuId(null)
-                                  setPreviewKey(`/api/sales-ordering/pdf/po/${item.id}?variant=external`)
+                                  const pdfId = item.sourceDocumentId || item.id
+                                  setPreviewKey(`/api/sales-ordering/pdf/po/${pdfId}?variant=external`)
                                   setPreviewTitle(`External Copy - ${item.customerName} (${item.poNumber})`)
                                 }}
                                 className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-bold text-slate-800 transition hover:bg-slate-100 hover:text-slate-900 mt-1"
@@ -449,7 +454,7 @@ export function PoCustomerSection({ items }: { items: CustomerPoItem[] }) {
                       )}
                       {item.type === "SALES_ORDER" && (
                         <Link
-                          href={`/forms/sales-ordering/orders/${item.id}`}
+                          href={`/forms/sales-ordering/orders/${item.salesOrderId || item.id}`}
                           className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-800 transition hover:bg-emerald-100 shadow-sm"
                         >
                           <Eye className="h-4 w-4 text-emerald-600" />

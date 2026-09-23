@@ -21,16 +21,28 @@ export async function GET(
   }
 
   try {
-    const intake = await prisma.salesDocumentIntake.findUnique({
+    let intake = await prisma.salesDocumentIntake.findUnique({
       where: { id },
     })
+
+    if (!intake) {
+      const salesOrder = await prisma.salesOrder.findUnique({
+        where: { id },
+        select: { sourceDocumentId: true },
+      })
+      if (salesOrder?.sourceDocumentId) {
+        intake = await prisma.salesDocumentIntake.findUnique({
+          where: { id: salesOrder.sourceDocumentId },
+        })
+      }
+    }
 
     if (!intake) {
       return NextResponse.json({ error: "Intake document not found." }, { status: 404 })
     }
 
     const raw = (intake.extractedData as any) || {}
-    const docNumber = String(raw.documentNumber || raw.poNumber || id.slice(0, 8)).replace(/[^a-zA-Z0-9_-]/g, "_")
+    const docNumber = String(raw.documentNumber || raw.poNumber || intake.id.slice(0, 8)).replace(/[^a-zA-Z0-9_-]/g, "_")
     const fileName = `E_Invoice_${docNumber}.pdf`
 
     let pdfBuffer: Buffer | null = null
@@ -46,7 +58,7 @@ export async function GET(
 
     // 2. If not found or not yet generated, compile vector PDF and upload to R2
     if (!pdfBuffer) {
-      const generated = await generateAndSaveEInvoicePdfToR2(id)
+      const generated = await generateAndSaveEInvoicePdfToR2(intake.id)
       pdfBuffer = generated.buffer
     }
 

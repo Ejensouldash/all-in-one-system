@@ -25,31 +25,46 @@ export async function GET(
     const variantParam = request.nextUrl.searchParams.get("variant")?.toLowerCase()
     const variant: ManualPoVariant = variantParam === "external" ? "external" : "internal"
 
-    const intake = await prisma.salesDocumentIntake.findUnique({
-      where: { id },
-      include: {
-        uploadedBy: { select: { name: true } },
-        reviewedBy: { select: { name: true } },
-        matchedCustomer: {
-          select: {
-            customerCode: true,
-            legalName: true,
-            pic: true,
-            phonePrimary: true,
-            creditTermsRaw: true,
-            addresses: {
-              select: {
-                fullAddress: true,
-                attentionTo: true,
-                phone: true,
-                isDefaultDelivery: true,
-                isDefaultBilling: true,
-              },
+    const intakeInclude = {
+      uploadedBy: { select: { name: true } },
+      reviewedBy: { select: { name: true } },
+      matchedCustomer: {
+        select: {
+          customerCode: true,
+          legalName: true,
+          pic: true,
+          phonePrimary: true,
+          creditTermsRaw: true,
+          addresses: {
+            select: {
+              fullAddress: true,
+              attentionTo: true,
+              phone: true,
+              isDefaultDelivery: true,
+              isDefaultBilling: true,
             },
           },
         },
       },
+    }
+
+    let intake = await prisma.salesDocumentIntake.findUnique({
+      where: { id },
+      include: intakeInclude,
     })
+
+    if (!intake) {
+      const salesOrder = await prisma.salesOrder.findUnique({
+        where: { id },
+        select: { sourceDocumentId: true },
+      })
+      if (salesOrder?.sourceDocumentId) {
+        intake = await prisma.salesDocumentIntake.findUnique({
+          where: { id: salesOrder.sourceDocumentId },
+          include: intakeInclude,
+        })
+      }
+    }
 
     if (!intake || !isManualPoObjectKey(intake.r2ObjectKey)) {
       return new NextResponse("Manual PO intake not found", { status: 404 })

@@ -46,7 +46,9 @@ export default async function PoCustomerPage() {
 
   const poCustomerItems: CustomerPoItem[] = [
     ...salesOrders.map(so => ({
-      id: so.sourceDocument?.id || so.id,
+      id: so.id,
+      salesOrderId: so.id,
+      sourceDocumentId: so.sourceDocument?.id || null,
       type: "SALES_ORDER" as const,
       sourceType: "SALES_ORDER" as const,
       documentType: so.documentType || "SALES_ORDER",

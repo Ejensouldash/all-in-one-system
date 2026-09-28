@@ -8,11 +8,10 @@ export default auth((req) => {
   const { nextUrl } = req
   const isLoggedIn = !!req.auth
   const isAuthRoute = nextUrl.pathname.startsWith("/login")
-  const isPublicGatePassRoute = nextUrl.pathname.startsWith("/public/gatepass/")
+  const isPublicRoute = nextUrl.pathname.startsWith("/public/")
 
-  // External Gatepass links and read-only QR verification are deliberately public.
-  // Only this exact route family is exempt; internal Gatepass/Security pages stay authenticated.
-  if (isPublicGatePassRoute) {
+  // Public portal links (Maintenance Work Requests, Gatepass, Assets) are deliberately public without login.
+  if (isPublicRoute) {
     return NextResponse.next()
   }
   

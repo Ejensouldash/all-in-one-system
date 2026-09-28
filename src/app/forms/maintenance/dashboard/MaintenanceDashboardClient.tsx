@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
+import { MaintenanceNavTabs } from "@/components/forms/MaintenanceNavTabs"
 import { 
   Plus, Minus, FileText, Search, PackageOpen, AlertCircle, 
   Trash2, ArrowUpDown, RefreshCw, X, Calendar, Printer, User, MessageSquare
@@ -242,7 +242,7 @@ export function MaintenanceDashboardClient({
 
         {/* Navigation Tabs - Hidden in Print */}
         <div className="print:hidden">
-          <MaintenanceTabs userModules={userModules} />
+          <MaintenanceNavTabs userModules={userModules} />
         </div>
 
         {/* Global Notifications */}

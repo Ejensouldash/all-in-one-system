@@ -18,21 +18,22 @@ export function Topbar({
   const pathname = usePathname()
 
   let title = "Dashboard"
-  if (pathname.includes("/tickets")) title = "Tickets"
-  if (pathname.includes("/dashboard/assets")) title = "Assets"
-  if (pathname.includes("/users")) title = "Users"
-  if (pathname.includes("/forms/warehouse/trace")) title = "DO Traceability & Logistics"
-  else if (pathname.includes("/forms/warehouse/gatepass")) title = "Warehouse Gatepass"
+  if (pathname.startsWith("/forms/maintenance/tickets") || pathname.startsWith("/forms/maintenance/dashboard")) title = "Plant Maintenance"
   else if (pathname.includes("/forms/maintenance/pallet-transfer")) title = "Pallet Ledger"
+  else if (pathname.includes("/forms/maintenance")) title = "GMP & Quality"
+  else if (pathname.includes("/forms/warehouse/trace")) title = "DO Traceability & Logistics"
+  else if (pathname.includes("/forms/warehouse/gatepass")) title = "Warehouse Gatepass"
   else if (pathname.includes("/forms/warehouse/distribution")) title = "Distribution Orders"
   else if (pathname.includes("/forms/warehouse")) title = "Warehouse Management"
   else if (pathname.includes("/forms/production")) title = "Daily Production Report"
   else if (pathname.includes("/forms/sales-ordering")) title = "Sales Ordering"
-  else if (pathname.includes("/forms/maintenance")) title = "Maintenance Forms"
   else if (pathname.includes("/forms")) title = "Forms & Operations"
-  if (pathname.includes("/calendar")) title = "Event Calendar"
-  if (pathname.includes("/organization")) title = "Organization"
-  if (pathname.includes("/settings")) title = "Settings"
+  else if (pathname.startsWith("/tickets")) title = "Tickets"
+  else if (pathname.includes("/dashboard/assets")) title = "Assets"
+  else if (pathname.includes("/users")) title = "Users"
+  else if (pathname.includes("/calendar")) title = "Event Calendar"
+  else if (pathname.includes("/organization")) title = "Organization"
+  else if (pathname.includes("/settings")) title = "Settings"
 
   return (
     <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-6 shadow-sm sticky top-0 z-30 transition-colors">

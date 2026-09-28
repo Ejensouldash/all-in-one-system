@@ -21,13 +21,23 @@ import {
   ShoppingCart,
   Factory,
   Warehouse,
-  Wrench
+  Wrench,
+  ClipboardCheck
 } from "lucide-react"
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+function isSubLinkActive(subHref: string, currentPath: string): boolean {
+  const basePath = subHref.split('?')[0]
+  if (basePath === "/forms/maintenance") {
+    // Only active when strictly on /forms/maintenance (and not /forms/maintenance/tickets or /dashboard)
+    return currentPath === "/forms/maintenance" || currentPath.startsWith("/forms/maintenance?")
+  }
+  return currentPath.startsWith(basePath)
 }
 
 type SubLink = {
@@ -61,7 +71,7 @@ const SOD_MODULES = [
 
 const staffLinks: NavLink[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, module: "DASHBOARD" },
-  { name: "Tickets", href: "/tickets", icon: Ticket, module: "TICKETS" },
+  { name: "IT Tickets", href: "/tickets", icon: Ticket, module: "TICKETS" },
   { name: "Sales Ordering", href: "/forms/sales-ordering", icon: ShoppingCart, modules: SOD_MODULES },
   {
     name: "Production",
@@ -82,12 +92,19 @@ const staffLinks: NavLink[] = [
     ],
   },
   {
-    name: "Maintenance & GMP",
+    name: "Maintenance",
     icon: Wrench,
     subLinks: [
+      { name: "Work Requests", href: "/forms/maintenance/tickets", modules: ["MAINTENANCE_TICKETS_MANAGE", "MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS", "MAINTENANCE_SUMMARY"] },
+      { name: "Maintenance Inventory", href: "/forms/maintenance/dashboard", module: "MAINTENANCE_DASHBOARD" },
+    ],
+  },
+  {
+    name: "GMP & Quality",
+    icon: ClipboardCheck,
+    subLinks: [
       { name: "GMP Checklists", href: "/forms/maintenance?_cache=bust", module: "MAINTENANCE_FORMS" },
-      { name: "Maintenance Stock", href: "/forms/maintenance/dashboard", module: "MAINTENANCE_DASHBOARD" },
-      { name: "Maintenance Reports", href: "/forms/maintenance/reports", module: "MAINTENANCE_REPORTS" },
+      { name: "GMP Reports", href: "/forms/maintenance/reports", module: "MAINTENANCE_REPORTS" },
       { name: "Pallet Ledger", href: "/forms/maintenance/pallet-transfer", module: "PALLET_LEDGER" },
     ],
   },
@@ -98,7 +115,7 @@ const staffLinks: NavLink[] = [
 
 const adminLinks: NavLink[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, module: "DASHBOARD" },
-  { name: "Tickets", href: "/tickets", icon: Ticket, module: "TICKETS" },
+  { name: "IT Tickets", href: "/tickets", icon: Ticket, module: "TICKETS" },
   { name: "Sales Ordering", href: "/forms/sales-ordering", icon: ShoppingCart, modules: SOD_MODULES },
   {
     name: "Production",
@@ -119,12 +136,19 @@ const adminLinks: NavLink[] = [
     ],
   },
   {
-    name: "Maintenance & GMP",
+    name: "Maintenance",
     icon: Wrench,
     subLinks: [
+      { name: "Work Requests", href: "/forms/maintenance/tickets", modules: ["MAINTENANCE_TICKETS_MANAGE", "MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS", "MAINTENANCE_SUMMARY"] },
+      { name: "Maintenance Inventory", href: "/forms/maintenance/dashboard", module: "MAINTENANCE_DASHBOARD" },
+    ],
+  },
+  {
+    name: "GMP & Quality",
+    icon: ClipboardCheck,
+    subLinks: [
       { name: "GMP Checklists", href: "/forms/maintenance?_cache=bust", module: "MAINTENANCE_FORMS" },
-      { name: "Maintenance Stock", href: "/forms/maintenance/dashboard", module: "MAINTENANCE_DASHBOARD" },
-      { name: "Maintenance Reports", href: "/forms/maintenance/reports", module: "MAINTENANCE_REPORTS" },
+      { name: "GMP Reports", href: "/forms/maintenance/reports", module: "MAINTENANCE_REPORTS" },
       { name: "Pallet Ledger", href: "/forms/maintenance/pallet-transfer", module: "PALLET_LEDGER" },
     ],
   },
@@ -167,7 +191,11 @@ export function Sidebar({
       let next = { ...prev };
       if (pathname.startsWith("/forms/production") || pathname.startsWith("/kbp")) next["Production"] = true;
       if (pathname.startsWith("/forms/warehouse")) next["Warehouse & Logistics"] = true;
-      if (pathname.startsWith("/forms/maintenance")) next["Maintenance & GMP"] = true;
+      if (pathname.startsWith("/forms/maintenance/tickets") || pathname.startsWith("/forms/maintenance/dashboard")) {
+        next["Maintenance"] = true;
+      } else if (pathname.startsWith("/forms/maintenance")) {
+        next["GMP & Quality"] = true;
+      }
       if (pathname.startsWith("/organization")) next["Organization"] = true;
       return next;
     });
@@ -301,7 +329,7 @@ export function Sidebar({
           const Icon = link.icon
           
           if (link.subLinks) {
-            const isChildActive = link.subLinks.some(sub => pathname.startsWith(sub.href.split('?')[0]))
+            const isChildActive = link.subLinks.some(sub => isSubLinkActive(sub.href, pathname))
             
             if (isCollapsed) {
               return (
@@ -328,7 +356,7 @@ export function Sidebar({
                     </div>
                     <div className="space-y-0.5">
                       {link.subLinks.map((subLink) => {
-                        const isSubActive = pathname.startsWith(subLink.href.split('?')[0])
+                        const isSubActive = isSubLinkActive(subLink.href, pathname)
                         return (
                           <Link
                             key={subLink.name}
@@ -386,7 +414,7 @@ export function Sidebar({
                         href={subLink.href}
                         className={cn(
                           "block rounded-md px-2 py-1.5 text-sm font-medium transition-colors",
-                          pathname.startsWith(subLink.href.split('?')[0])
+                          isSubLinkActive(subLink.href, pathname)
                             ? "bg-gray-800 text-white"
                             : "text-gray-400 hover:text-white hover:bg-gray-800"
                         )}

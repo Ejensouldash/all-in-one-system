@@ -34,6 +34,7 @@ export const FORM_MODULES = [
   // Raw Material screens only — not the rest of the warehouse module.
   "RAW_MATERIAL_WITHDRAWAL",
   "RETENTION_SAMPLE_MANAGE",
+  "MAINTENANCE_TICKETS_MANAGE",
 ]
 
 export type AccessInfo = {

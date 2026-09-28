@@ -35,6 +35,8 @@ model User {
 
   assignedTickets        Ticket[]                @relation("TicketAssignee")
   tickets                Ticket[]                @relation("TicketCreator")
+  assignedMaintenanceTickets MaintenanceTicket[] @relation("MaintenanceTicketAssignee")
+  createdMaintenanceTickets  MaintenanceTicket[] @relation("MaintenanceTicketCreator")
   branch                 Branch?                 @relation(fields: [branchId], references: [id])
   unit                   Unit?                   @relation(fields: [unitId], references: [id])
   openingStocks          WarehouseOpeningStock[] @relation("OpeningStockSetter")
@@ -212,6 +214,86 @@ model Ticket {
   linkedAsset   Asset?       @relation(fields: [linkedAssetId], references: [id])
   unit          Unit?        @relation(fields: [unitId], references: [id])
   costs         TicketCost[]
+}
+
+enum MaintenanceTicketType {
+  MECHANICAL
+  CIVIL
+  ELECTRICAL
+  OTHERS
+}
+
+enum MaintenanceTicketStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  REJECTED
+}
+
+enum MaintenanceTicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model MaintenanceTicket {
+  id              String                    @id @default(uuid())
+  ticketNumber    Int                       @unique @default(autoincrement())
+  legacyProjectId String?                   // e.g. P0226-01 from old Excel
+  
+  title           String                    // Work Description
+  reasonOfWork    String?                   @db.Text
+  ticketType      MaintenanceTicketType     @default(MECHANICAL)
+  priority        MaintenanceTicketPriority @default(MEDIUM)
+  status          MaintenanceTicketStatus   @default(OPEN)
+  
+  location        String                    // KAR, KBP Block A, B, C, D, etc.
+  specificArea    String?                   // e.g. Rotary machine BM3, changing room
+  
+  requesterName   String
+  requesterPhone  String
+  requesterEmail  String?
+  createdById     String?                   // Nullable for unauthenticated public submissions
+  createdBy       User?                     @relation("MaintenanceTicketCreator", fields: [createdById], references: [id])
+  
+  assigneeId      String?
+  assignee        User?                     @relation("MaintenanceTicketAssignee", fields: [assigneeId], references: [id])
+  assigneeName    String?                   // Text fallback for external contractors / legacy PICs (e.g. Ridzuan, Akmal)
+  
+  targetStartDate DateTime?                 @db.Date
+  targetDateline  DateTime?                 @db.Date
+  estimatedDays   Float?
+  completedAt     DateTime?
+  kpiDays         Int?                      @default(0)
+  kpiStatus       String?                   // "On Time", "Delay", "In progress"
+  
+  rootCause       String?                   @db.Text
+  resolution      String?                   @db.Text
+  internalNotes   String?                   @db.Text
+  verifiedBy      String?
+  handover        String?
+  
+  photoUrl        String?                   // Cloudflare R2 path or public URL
+  
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  
+  costs           MaintenanceTicketCost[]
+
+  @@index([status])
+  @@index([ticketType])
+  @@index([createdAt])
+}
+
+model MaintenanceTicketCost {
+  id          String            @id @default(uuid())
+  ticketId    String
+  ticket      MaintenanceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  itemName    String
+  amount      Float
+  createdAt   DateTime          @default(now())
 }
 
 model Event {

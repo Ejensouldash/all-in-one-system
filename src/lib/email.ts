@@ -1,7 +1,5 @@
 import { Resend } from "resend"
-
-// Initialize Resend with API key if available
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+import { getSMTPConfig } from "@/lib/mailer"
 
 type EmailPayload = {
   to: string
@@ -11,11 +9,14 @@ type EmailPayload = {
 }
 
 export async function sendEmailNotification({ to, subject, html, from }: EmailPayload) {
-  const sender = from || 'BubblesO2 IT Support <it-noreply@bubbleso2.com>'
+  const config = await getSMTPConfig()
+  const apiKey = (config.resendApiKey || process.env.RESEND_API_KEY || "").trim()
+  const sender = from || config.resendFrom || "BubblesO2 Alerts <it@bubbleso2.com>"
+
   // If no real API key is configured, mock the email sending
-  if (!resend) {
+  if (!apiKey) {
     console.log(`\n==============================================`)
-    console.log(`[MOCK EMAIL SENT]`)
+    console.log(`[MOCK EMAIL SENT - NO RESEND API KEY]`)
     console.log(`From: ${sender}`)
     console.log(`To: ${to}`)
     console.log(`Subject: ${subject}`)
@@ -26,15 +27,23 @@ export async function sendEmailNotification({ to, subject, html, from }: EmailPa
   }
 
   try {
-    const data = await resend.emails.send({
+    const resendClient = new Resend(apiKey)
+    const { data, error } = await resendClient.emails.send({
       from: sender,
       to,
       subject,
       html,
     })
+
+    if (error) {
+      console.error("Resend error sending email:", error)
+      return { success: false, error }
+    }
+
+    console.log(`[EMAIL SENT VIA RESEND SUCCESS] To: ${to} (ID: ${data?.id})`)
     return { success: true, data }
   } catch (error) {
-    console.error("Failed to send email:", error)
+    console.error("Failed to send email via Resend:", error)
     return { success: false, error }
   }
 }

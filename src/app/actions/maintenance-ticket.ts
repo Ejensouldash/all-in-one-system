@@ -83,7 +83,7 @@ export async function createMaintenanceTicket(formData: FormData) {
 
       for (const email of alertEmails) {
         sendEmailNotification({
-          from: "BubblesO2 Maintenance <maintenance-noreply@bubbleso2.com>",
+          from: "BubblesO2 Maintenance <it@bubbleso2.com>",
           to: email,
           subject: `[Work Request Logged] ${formattedLog} (${ticketType}): ${title}`,
           html: emailHtml,
@@ -93,7 +93,7 @@ export async function createMaintenanceTicket(formData: FormData) {
       // Also send confirmation to requester if provided and not in alertEmails
       if (requesterEmail && !alertEmails.includes(requesterEmail.toLowerCase())) {
         sendEmailNotification({
-          from: "BubblesO2 Maintenance <maintenance-noreply@bubbleso2.com>",
+          from: "BubblesO2 Maintenance <it@bubbleso2.com>",
           to: requesterEmail,
           subject: `[Work Request Received] ${formattedLog}: ${title}`,
           html: emailHtml,
@@ -178,7 +178,7 @@ export async function publicCreateMaintenanceTicket(formData: FormData) {
 
       for (const email of alertEmails) {
         sendEmailNotification({
-          from: "BubblesO2 Maintenance <maintenance-noreply@bubbleso2.com>",
+          from: "BubblesO2 Maintenance <it@bubbleso2.com>",
           to: email,
           subject: `[Work Request Logged] ${formattedLog} (${ticketType}): ${title}`,
           html: emailHtml,
@@ -188,7 +188,7 @@ export async function publicCreateMaintenanceTicket(formData: FormData) {
       // Also send confirmation to requester if provided and not in alertEmails
       if (requesterEmail && !alertEmails.includes(requesterEmail.toLowerCase())) {
         sendEmailNotification({
-          from: "BubblesO2 Maintenance <maintenance-noreply@bubbleso2.com>",
+          from: "BubblesO2 Maintenance <it@bubbleso2.com>",
           to: requesterEmail,
           subject: `[Work Request Received] ${formattedLog}: ${title}`,
           html: emailHtml,
@@ -335,7 +335,7 @@ export async function updateMaintenanceTicket(id: string, formData: FormData) {
         resolution
       )
       sendEmailNotification({
-        from: "BubblesO2 Maintenance <maintenance-noreply@bubbleso2.com>",
+        from: "BubblesO2 Maintenance <it@bubbleso2.com>",
         to: recipientEmail,
         subject: `[Status Update] ${formattedLog}: ${updatedTicket.title}`,
         html: emailHtml,

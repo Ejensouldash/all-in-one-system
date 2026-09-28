@@ -13,7 +13,8 @@ import {
   CheckCircle2, 
   AlertCircle,
   TrendingUp,
-  Boxes
+  Boxes,
+  Bell
 } from "lucide-react"
 
 export const metadata = {
@@ -73,6 +74,16 @@ export default async function MaintenanceTicketsPage() {
             </div>
 
             <div className="flex items-center gap-2.5">
+              {canManage && (
+                <Link
+                  href="/forms/maintenance/tickets/notifications"
+                  className="px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-sm transition-all flex items-center gap-1.5"
+                  title="Urus penerima amaran emel automatik mengikut kategori"
+                >
+                  <Bell className="h-4 w-4 text-blue-600" />
+                  Email Alerts
+                </Link>
+              )}
               <Link
                 href="/forms/maintenance/tickets/qr"
                 className="px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-sm transition-all flex items-center gap-1.5"

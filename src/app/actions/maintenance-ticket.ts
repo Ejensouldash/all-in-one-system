@@ -11,6 +11,7 @@ import {
 } from "@/lib/email"
 import { uploadMaintenancePhotoToR2 } from "@/lib/maintenance-r2"
 import { MaintenanceTicketPriority, MaintenanceTicketStatus, MaintenanceTicketType } from "@prisma/client"
+import { getActiveMaintenanceNotificationEmails } from "./maintenance-notifications"
 
 export async function createMaintenanceTicket(formData: FormData) {
   const session = await auth()
@@ -68,8 +69,9 @@ export async function createMaintenanceTicket(formData: FormData) {
 
     const formattedLog = `BO2-MT-${ticket.ticketNumber.toString().padStart(4, "0")}`
 
-    // Send email notification
-    if (requesterEmail) {
+    // Send email notification to configured recipients (e.g. Akmal, Iskandar, etc. based on ticketType)
+    try {
+      const alertEmails = await getActiveMaintenanceNotificationEmails(ticketType)
       const emailHtml = generateMaintenanceTicketCreatedEmail(
         requesterName,
         formattedLog,
@@ -78,12 +80,27 @@ export async function createMaintenanceTicket(formData: FormData) {
         ticketType,
         priority
       )
-      sendEmailNotification({
-        from: "BubblesO2 Maintenance <maintenance-noreply@bubbleso2.com>",
-        to: requesterEmail,
-        subject: `[Work Request Received] ${formattedLog}: ${title}`,
-        html: emailHtml,
-      })
+
+      for (const email of alertEmails) {
+        sendEmailNotification({
+          from: "BubblesO2 Maintenance <maintenance-noreply@bubbleso2.com>",
+          to: email,
+          subject: `[Work Request Logged] ${formattedLog} (${ticketType}): ${title}`,
+          html: emailHtml,
+        }).catch((e) => console.error(`Failed to send notification to ${email}:`, e))
+      }
+
+      // Also send confirmation to requester if provided and not in alertEmails
+      if (requesterEmail && !alertEmails.includes(requesterEmail.toLowerCase())) {
+        sendEmailNotification({
+          from: "BubblesO2 Maintenance <maintenance-noreply@bubbleso2.com>",
+          to: requesterEmail,
+          subject: `[Work Request Received] ${formattedLog}: ${title}`,
+          html: emailHtml,
+        }).catch((e) => console.error(`Failed to send confirmation to ${requesterEmail}:`, e))
+      }
+    } catch (notifErr) {
+      console.error("Maintenance notification error:", notifErr)
     }
 
     revalidatePath("/forms/maintenance/tickets")
@@ -147,8 +164,9 @@ export async function publicCreateMaintenanceTicket(formData: FormData) {
 
     const formattedLog = `BO2-MT-${ticket.ticketNumber.toString().padStart(4, "0")}`
 
-    // Send email notification to requester if provided
-    if (requesterEmail) {
+    // Send email notification to configured recipients (e.g. Akmal, Iskandar, etc. based on ticketType)
+    try {
+      const alertEmails = await getActiveMaintenanceNotificationEmails(ticketType)
       const emailHtml = generateMaintenanceTicketCreatedEmail(
         requesterName,
         formattedLog,
@@ -157,12 +175,27 @@ export async function publicCreateMaintenanceTicket(formData: FormData) {
         ticketType,
         priority
       )
-      sendEmailNotification({
-        from: "BubblesO2 Maintenance <maintenance-noreply@bubbleso2.com>",
-        to: requesterEmail,
-        subject: `[Work Request Received] ${formattedLog}: ${title}`,
-        html: emailHtml,
-      })
+
+      for (const email of alertEmails) {
+        sendEmailNotification({
+          from: "BubblesO2 Maintenance <maintenance-noreply@bubbleso2.com>",
+          to: email,
+          subject: `[Work Request Logged] ${formattedLog} (${ticketType}): ${title}`,
+          html: emailHtml,
+        }).catch((e) => console.error(`Failed to send notification to ${email}:`, e))
+      }
+
+      // Also send confirmation to requester if provided and not in alertEmails
+      if (requesterEmail && !alertEmails.includes(requesterEmail.toLowerCase())) {
+        sendEmailNotification({
+          from: "BubblesO2 Maintenance <maintenance-noreply@bubbleso2.com>",
+          to: requesterEmail,
+          subject: `[Work Request Received] ${formattedLog}: ${title}`,
+          html: emailHtml,
+        }).catch((e) => console.error(`Failed to send confirmation to ${requesterEmail}:`, e))
+      }
+    } catch (notifErr) {
+      console.error("Public maintenance notification error:", notifErr)
     }
 
     revalidatePath("/forms/maintenance/tickets")

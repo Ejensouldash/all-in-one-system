@@ -296,6 +296,20 @@ model MaintenanceTicketCost {
   createdAt   DateTime          @default(now())
 }
 
+model MaintenanceNotificationRecipient {
+  id          String                 @id @default(uuid())
+  name        String
+  email       String
+  ticketType  MaintenanceTicketType? // null means ALL ticket types
+  isEnabled   Boolean                @default(true)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  @@index([isEnabled])
+  @@index([ticketType])
+}
+
+
 model Event {
   id            String          @id @default(uuid())
   title         String

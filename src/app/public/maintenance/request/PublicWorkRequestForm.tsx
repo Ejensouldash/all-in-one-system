@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { publicCreateMaintenanceTicket } from "@/app/actions/maintenance-ticket"
+import { useSearchParams } from "next/navigation"
+import { publicCreateMaintenanceTicket, extractMaintenancePdfAction } from "@/app/actions/maintenance-ticket"
 import { 
   Wrench, 
   Send, 
@@ -16,9 +16,11 @@ import {
   Zap, 
   HelpCircle,
   ExternalLink,
-  ShieldCheck,
   Copy,
-  Check
+  Check,
+  FileText,
+  Sparkles,
+  Info
 } from "lucide-react"
 import Link from "next/link"
 
@@ -32,29 +34,41 @@ const LOCATIONS = [
 ]
 
 export function PublicWorkRequestForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const prefilledLocation = searchParams?.get("location") || ""
 
+  const [activeTab, setActiveTab] = useState<"MANUAL" | "PDF">("MANUAL")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isExtractingPdf, setIsExtractingPdf] = useState(false)
+  const [pdfExtractionWarnings, setPdfExtractionWarnings] = useState<string[]>([])
   const [error, setError] = useState("")
   const [ticketResult, setTicketResult] = useState<{
     ticketId: string
     ticketNumber: number
     logNumber: string
+    token: string
   } | null>(null)
 
+  // Form field state (can be auto-filled by PDF or entered manually)
   const [ticketType, setTicketType] = useState<string>("MECHANICAL")
+  const [priority, setPriority] = useState<string>("MEDIUM")
+  const [title, setTitle] = useState("")
+  const [reasonOfWork, setReasonOfWork] = useState("")
+  const [specificArea, setSpecificArea] = useState("")
+  const [requesterName, setRequesterName] = useState("")
+  const [requesterPhone, setRequesterPhone] = useState("")
+  const [requesterEmail, setRequesterEmail] = useState("")
   const [location, setLocation] = useState<string>(
     prefilledLocation && LOCATIONS.includes(prefilledLocation)
       ? prefilledLocation
-      : (prefilledLocation ? "Other / Luar Kawasan" : "")
+      : (prefilledLocation ? "Other / Luar Kawasan" : "Kilang Air Rantau (KAR)")
   )
   const [customLocation, setCustomLocation] = useState<string>(
     prefilledLocation && !LOCATIONS.includes(prefilledLocation) ? prefilledLocation : ""
   )
   const [copied, setCopied] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null)
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -63,10 +77,57 @@ export function PublicWorkRequestForm() {
         setError("Image size exceeds 10MB limit.")
         return
       }
+      setSelectedPhotoFile(file)
       setPreviewUrl(URL.createObjectURL(file))
       setError("")
     } else {
+      setSelectedPhotoFile(null)
       setPreviewUrl(null)
+    }
+  }
+
+  // Handle PDF upload and AI extraction
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.type !== "application/pdf") {
+      setError("Please select a valid PDF document.")
+      return
+    }
+
+    setIsExtractingPdf(true)
+    setError("")
+    setPdfExtractionWarnings([])
+
+    const formData = new FormData()
+    formData.set("pdfFile", file)
+
+    const res = await extractMaintenancePdfAction(formData)
+    setIsExtractingPdf(false)
+
+    if (res.success && res.data) {
+      const d = res.data
+      setTitle(d.title || "")
+      setReasonOfWork(d.reasonOfWork || "")
+      setTicketType(d.ticketType || "MECHANICAL")
+      setPriority(d.priority || "MEDIUM")
+      setSpecificArea(d.specificArea || "")
+      if (d.requesterName && d.requesterName !== "Operator") setRequesterName(d.requesterName)
+      if (d.requesterPhone && d.requesterPhone !== "-") setRequesterPhone(d.requesterPhone)
+      if (d.requesterEmail) setRequesterEmail(d.requesterEmail)
+
+      if (LOCATIONS.includes(d.location)) {
+        setLocation(d.location)
+      } else if (d.location) {
+        setLocation("Other / Luar Kawasan")
+        setCustomLocation(d.location)
+      }
+
+      setPdfExtractionWarnings(d.warnings || [])
+      setActiveTab("MANUAL") // Switch back to manual form to review extracted fields
+    } else {
+      setError(res.error || "Failed to extract data from PDF. You can still fill the form manually.")
     }
   }
 
@@ -76,14 +137,40 @@ export function PublicWorkRequestForm() {
     setError("")
 
     if (!location) {
-      setError("Sila pilih lokasi kilang / cawangan terlebih dahulu.")
+      setError("Please choose a plant location.")
       setIsSubmitting(false)
       return
     }
 
-    const formData = new FormData(e.currentTarget)
-    if (location === "Other / Luar Kawasan" && customLocation.trim()) {
-      formData.set("location", customLocation.trim())
+    if (!title.trim()) {
+      setError("Please enter a work description.")
+      setIsSubmitting(false)
+      return
+    }
+
+    if (!requesterName.trim() || !requesterPhone.trim()) {
+      setError("Please provide your name and phone number so the engineering team can reach you.")
+      setIsSubmitting(false)
+      return
+    }
+
+    const formData = new FormData()
+    formData.set("title", title.trim())
+    formData.set("reasonOfWork", reasonOfWork.trim())
+    formData.set("ticketType", ticketType)
+    formData.set("priority", priority)
+    formData.set("specificArea", specificArea.trim())
+    formData.set("requesterName", requesterName.trim())
+    formData.set("requesterPhone", requesterPhone.trim())
+    if (requesterEmail.trim()) formData.set("requesterEmail", requesterEmail.trim())
+
+    const finalLocation = location === "Other / Luar Kawasan" && customLocation.trim()
+      ? customLocation.trim()
+      : location
+    formData.set("location", finalLocation)
+
+    if (selectedPhotoFile) {
+      formData.set("photo", selectedPhotoFile)
     }
 
     const res = await publicCreateMaintenanceTicket(formData)
@@ -94,6 +181,7 @@ export function PublicWorkRequestForm() {
         ticketId: res.ticketId,
         ticketNumber: res.ticketNumber || 0,
         logNumber: res.logNumber || "BO2-MT-XXXX",
+        token: res.requesterToken || "",
       })
     } else {
       setError(res.error || "Failed to submit work request.")
@@ -102,15 +190,15 @@ export function PublicWorkRequestForm() {
 
   const copyTrackingLink = () => {
     if (!ticketResult) return
-    const url = `${window.location.origin}/public/maintenance/track/${ticketResult.ticketId}`
+    const url = `${window.location.origin}/public/maintenance/track/${ticketResult.ticketId}?token=${ticketResult.token}`
     navigator.clipboard.writeText(url)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // If submitted successfully, show the instant Receipt & Tracking Card
+  // Submission Receipt Card
   if (ticketResult) {
-    const trackUrl = `/public/maintenance/track/${ticketResult.ticketId}`
+    const trackUrl = `/public/maintenance/track/${ticketResult.ticketId}?token=${ticketResult.token}`
     return (
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden max-w-lg mx-auto animate-in zoom-in-95 duration-300">
         <div className="bg-gradient-to-r from-emerald-600 to-teal-700 p-8 text-center text-white">
@@ -119,7 +207,7 @@ export function PublicWorkRequestForm() {
           </div>
           <h1 className="text-2xl font-black">Request Submitted!</h1>
           <p className="text-emerald-100 text-xs mt-1">
-            BubblesO2 Maintenance Team has received your request.
+            BubblesO2 Engineering &amp; Maintenance Team has received your request.
           </p>
           <div className="mt-4 inline-block bg-white/10 border border-white/20 px-4 py-1.5 rounded-full text-sm font-mono font-bold">
             Ref: {ticketResult.logNumber}
@@ -128,8 +216,8 @@ export function PublicWorkRequestForm() {
 
         <div className="p-6 sm:p-8 space-y-6">
           <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-            <p className="text-xs text-slate-500 font-medium leading-relaxed">
-              Your request has been logged into the system (SOP QR01). You can check live progress, technician assignment, and resolution using this link:
+            <p className="text-xs text-slate-600 font-medium leading-relaxed">
+              Your request has been logged under SOP BOSB-FMS-850-001 (QR01). Use this private tracking link to check live technician assignment, progress updates, and verify completion:
             </p>
 
             <div className="flex items-center gap-2">
@@ -140,6 +228,7 @@ export function PublicWorkRequestForm() {
                 className="flex-1 bg-white border border-slate-200 text-slate-700 text-xs rounded-xl px-3 py-2.5 font-mono outline-none"
               />
               <button
+                type="button"
                 onClick={copyTrackingLink}
                 className="px-3.5 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold transition-colors flex items-center gap-1 shrink-0"
               >
@@ -159,9 +248,14 @@ export function PublicWorkRequestForm() {
             </Link>
 
             <button
+              type="button"
               onClick={() => {
                 setTicketResult(null)
                 setPreviewUrl(null)
+                setSelectedPhotoFile(null)
+                setTitle("")
+                setReasonOfWork("")
+                setSpecificArea("")
               }}
               className="w-full py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs transition-colors"
             >
@@ -188,19 +282,76 @@ export function PublicWorkRequestForm() {
             </div>
           </div>
           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/10 text-slate-300 border border-white/10">
-            QR01 PORTAL
+            SOP QR01
           </span>
         </div>
 
         <div className="mt-6">
-          <h1 className="text-xl sm:text-2xl font-black">Work Request Form</h1>
+          <h1 className="text-xl sm:text-2xl font-black">Maintenance Work Request</h1>
           <p className="text-xs text-slate-400 mt-1">
-            Scan &amp; Submit repair requests directly to the engineering team.
+            Submit machine breakdowns, repairs, or facility requests directly to engineering.
           </p>
+        </div>
+
+        {/* Mode Selector Tabs */}
+        <div className="mt-6 flex bg-white/10 p-1 rounded-xl backdrop-blur-sm border border-white/10">
+          <button
+            type="button"
+            onClick={() => setActiveTab("MANUAL")}
+            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+              activeTab === "MANUAL"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-slate-300 hover:text-white"
+            }`}
+          >
+            <Wrench className="h-3.5 w-3.5" />
+            <span>Quick Form</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("PDF")}
+            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+              activeTab === "PDF"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-slate-300 hover:text-white"
+            }`}
+          >
+            <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+            <span>Scan PDF / Memo (AI)</span>
+          </button>
         </div>
       </div>
 
-      {/* Main Form */}
+      {/* PDF Upload Mode Banner */}
+      {activeTab === "PDF" && (
+        <div className="p-6 sm:p-8 bg-blue-50/50 border-b border-blue-100">
+          <div className="text-center max-w-sm mx-auto space-y-3">
+            <div className="h-12 w-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center mx-auto">
+              {isExtractingPdf ? <Loader2 className="h-6 w-6 animate-spin" /> : <FileText className="h-6 w-6" />}
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Upload Work Order or Breakdown Memo</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Our Gemini AI engine will analyze your PDF document and pre-fill all maintenance fields automatically.
+              </p>
+            </div>
+
+            <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow-sm transition-all">
+              <Upload className="h-4 w-4" />
+              <span>{isExtractingPdf ? "Analyzing Document..." : "Choose PDF Document"}</span>
+              <input
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                disabled={isExtractingPdf}
+                onChange={handlePdfUpload}
+              />
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* Main Submission Form */}
       <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6">
         {error && (
           <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-xl text-xs font-semibold flex items-center gap-2">
@@ -209,17 +360,30 @@ export function PublicWorkRequestForm() {
           </div>
         )}
 
-        {/* Category Choice */}
+        {pdfExtractionWarnings.length > 0 && (
+          <div className="p-4 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl text-xs space-y-1">
+            <div className="flex items-center gap-1.5 font-bold">
+              <Info className="h-4 w-4 text-amber-600 shrink-0" />
+              <span>AI Extraction Notes (Please review):</span>
+            </div>
+            <ul className="list-disc pl-5 space-y-0.5 text-[11px] text-amber-700">
+              {pdfExtractionWarnings.map((w, i) => (
+                <li key={i}>{w}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Category of Issue */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
             Category of Issue <span className="text-red-500">*</span>
           </label>
-          <input type="hidden" name="ticketType" value={ticketType} />
           <div className="grid grid-cols-2 gap-2.5">
             {[
               { id: "MECHANICAL", label: "Mechanical", icon: Cog, desc: "Machine, motor, pump, conveyor" },
               { id: "CIVIL", label: "Civil & Facility", icon: Building, desc: "Roof, floor, wall, toilet, piping" },
-              { id: "ELECTRICAL", label: "Electrical", icon: Zap, desc: "Power, wiring, plug, light, charger" },
+              { id: "ELECTRICAL", label: "Electrical", icon: Zap, desc: "Power, wiring, plug, light, trip" },
               { id: "OTHERS", label: "Others", icon: HelpCircle, desc: "General safety & facility" },
             ].map((cat) => {
               const Icon = cat.icon
@@ -249,45 +413,43 @@ export function PublicWorkRequestForm() {
         {/* Work Description */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-            Work Description / Issue <span className="text-red-500">*</span>
+            Work Description / Machine Issue <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
-            name="title"
             required
-            placeholder="e.g. Repair air conditioning leakage at Changing Room"
-            className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Chiller pump 2 leaking, conveyor belt misaligned"
+            className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all font-medium text-slate-800"
           />
         </div>
 
-        {/* Reason of Work */}
+        {/* Reason / Breakdown Symptoms */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-            Reason / Justification <span className="text-red-500">*</span>
+            Symptoms &amp; Observations <span className="text-slate-400 text-[10px] font-normal">(Optional)</span>
           </label>
           <textarea
-            name="reasonOfWork"
-            required
             rows={2}
-            placeholder="e.g. Water is dripping and causing slippery floor, high risk for GMP/OSH"
-            className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none font-medium"
+            value={reasonOfWork}
+            onChange={(e) => setReasonOfWork(e.target.value)}
+            placeholder="Describe abnormal sounds, water leakage, error codes, or safety risks..."
+            className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-800"
           />
         </div>
 
-        {/* Plant / Location */}
-        <div className="space-y-3">
+        {/* Location & Machine Specific Area */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-              Factory Location / Plant <span className="text-red-500">*</span>
+              Plant Location <span className="text-red-500">*</span>
             </label>
             <select
-              name="location"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              required
-              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
+              className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-800 font-medium"
             >
-              <option value="" disabled>-- Sila Pilih Lokasi Kilang / Cawangan --</option>
               {LOCATIONS.map((loc) => (
                 <option key={loc} value={loc}>
                   {loc}
@@ -297,127 +459,131 @@ export function PublicWorkRequestForm() {
             {location === "Other / Luar Kawasan" && (
               <input
                 type="text"
-                placeholder="Type specific factory location..."
                 value={customLocation}
                 onChange={(e) => setCustomLocation(e.target.value)}
-                required
-                className="mt-2 w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
+                placeholder="Specify exact location"
+                className="mt-2 w-full text-xs px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
               />
             )}
           </div>
 
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-              Specific Area / Line (Optional)
+              Specific Area / Line / Asset
             </label>
             <input
               type="text"
-              name="specificArea"
-              placeholder="e.g. Changing Room Block C, Guardhouse, BM3 machine"
-              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
+              value={specificArea}
+              onChange={(e) => setSpecificArea(e.target.value)}
+              placeholder="e.g. Rotary BM3, Line 1, Compressor Room"
+              className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-800"
             />
           </div>
         </div>
 
-        {/* Priority */}
+        {/* Priority Selection */}
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-            Priority Level <span className="text-red-500">*</span>
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+            Urgency / Priority
           </label>
-          <select
-            name="priority"
-            defaultValue="MEDIUM"
-            required
-            className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
-          >
-            <option value="LOW">Low Priority (&gt;14 days target)</option>
-            <option value="MEDIUM">Medium Priority (7 to 14 days target)</option>
-            <option value="HIGH">High Priority (&lt;3 days target)</option>
-            <option value="URGENT">Urgent Breakdown (&lt;24 hours target)</option>
-          </select>
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { id: "LOW", label: "Low", target: "14 Days" },
+              { id: "MEDIUM", label: "Medium", target: "7 Days" },
+              { id: "HIGH", label: "High", target: "3 Days" },
+              { id: "URGENT", label: "Urgent", target: "< 24 Hours" },
+            ].map((p) => {
+              const isSelected = priority === p.id
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setPriority(p.id)}
+                  className={`py-2 px-2 rounded-xl border text-center transition-all ${
+                    isSelected
+                      ? p.id === "URGENT"
+                        ? "bg-red-50 border-red-500 text-red-700 ring-2 ring-red-500/20 font-bold"
+                        : p.id === "HIGH"
+                        ? "bg-orange-50 border-orange-500 text-orange-700 ring-2 ring-orange-500/20 font-bold"
+                        : "bg-blue-50 border-blue-600 text-blue-700 ring-2 ring-blue-500/20 font-bold"
+                      : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <p className="text-xs">{p.label}</p>
+                  <p className="text-[9px] text-slate-400 mt-0.5">{p.target}</p>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
-        {/* Camera / Photo Upload */}
+        {/* Damage Photo Upload */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-            Take / Upload Photo (Direct to Cloudflare R2)
+            Damage Photo <span className="text-slate-400 text-[10px] font-normal">(Optional, Max 10MB)</span>
           </label>
-          <div className="border-2 border-dashed border-slate-200 rounded-2xl p-4 text-center hover:border-blue-400 transition-colors">
-            {previewUrl ? (
-              <div className="space-y-3">
-                <img
-                  src={previewUrl}
-                  alt="Upload preview"
-                  className="max-h-44 mx-auto rounded-xl object-contain shadow-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => setPreviewUrl(null)}
-                  className="text-xs text-red-600 hover:underline font-semibold"
-                >
-                  Remove &amp; retake photo
-                </button>
+          <div className="flex items-center gap-4">
+            <label className="flex-1 border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition-colors bg-slate-50/50">
+              <Upload className="h-5 w-5 text-slate-400 mb-1" />
+              <span className="text-xs font-semibold text-slate-600">Take or upload photo</span>
+              <span className="text-[10px] text-slate-400 mt-0.5">JPEG, PNG, WebP</span>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleImageChange}
+              />
+            </label>
+            {previewUrl && (
+              <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-slate-200 shrink-0">
+                <img src={previewUrl} alt="Damage preview" className="w-full h-full object-cover" />
               </div>
-            ) : (
-              <label className="cursor-pointer block py-2">
-                <Upload className="h-7 w-7 text-slate-400 mx-auto mb-2" />
-                <span className="text-xs font-bold text-blue-600 hover:text-blue-700">
-                  Tap to take photo or choose file
-                </span>
-                <p className="text-[10px] text-slate-400 mt-0.5">PNG, JPG up to 10MB</p>
-                <input
-                  type="file"
-                  name="photo"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-              </label>
             )}
           </div>
         </div>
 
-        {/* Requester Contact */}
-        <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100 space-y-3">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-700">
-            Your Contact Info
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Requester Contact Info */}
+        <div className="pt-2 border-t border-slate-100 space-y-4">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-700">Requester Contact</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                Your Full Name <span className="text-red-500">*</span>
+              <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                Your Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                name="requesterName"
                 required
-                placeholder="e.g. En Ridzuan"
-                className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
+                value={requesterName}
+                onChange={(e) => setRequesterName(e.target.value)}
+                placeholder="e.g. Azlan / Operator Line 2"
+                className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-800"
               />
             </div>
             <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+              <label className="block text-[11px] font-bold text-slate-600 mb-1">
                 Phone Number <span className="text-red-500">*</span>
               </label>
               <input
                 type="tel"
-                name="requesterPhone"
                 required
-                placeholder="e.g. 013-3500940"
-                className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
+                value={requesterPhone}
+                onChange={(e) => setRequesterPhone(e.target.value)}
+                placeholder="e.g. 012-3456789"
+                className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-800"
               />
             </div>
           </div>
           <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-              Email Address (Optional — for status updates)
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              Email Address <span className="text-slate-400 text-[10px] font-normal">(Optional, for status updates)</span>
             </label>
             <input
               type="email"
-              name="requesterEmail"
+              value={requesterEmail}
+              onChange={(e) => setRequesterEmail(e.target.value)}
               placeholder="e.g. yourname@bubbleso2.com"
-              className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
+              className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-800"
             />
           </div>
         </div>
@@ -426,17 +592,17 @@ export function PublicWorkRequestForm() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {isSubmitting ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Submitting Work Request...
+              <span>Logging Work Request...</span>
             </>
           ) : (
             <>
               <Send className="h-4 w-4" />
-              Submit Request to Maintenance
+              <span>Submit Work Request</span>
             </>
           )}
         </button>

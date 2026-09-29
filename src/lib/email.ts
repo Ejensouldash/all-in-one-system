@@ -142,7 +142,7 @@ export function generateMaintenanceTicketCreatedEmail(
         </table>
         <p style="font-size: 13px; color: #475569;">Our engineering &amp; maintenance technicians will review this work request and assign a PIC shortly.</p>
         <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-        <p style="font-size: 11px; color: #94a3b8; text-align: center;">This is an automated notification from BubblesO2 AIO Maintenance System (SOP BOSB-PFMD-850-001-QR01).</p>
+        <p style="font-size: 11px; color: #94a3b8; text-align: center;">This is an automated notification from BubblesO2 AIO Facilities Maintenance System (SOP BOSB-FMS-850-001-QR01).</p>
       </div>
     </div>
   `
@@ -179,7 +179,7 @@ export function generateMaintenanceTicketStatusUpdateEmail(
         ` : ""}
         <p style="font-size: 13px; color: #475569;">Thank you for your cooperation in maintaining facility standards.</p>
         <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-        <p style="font-size: 11px; color: #94a3b8; text-align: center;">BubblesO2 Maintenance &amp; Engineering Department (SOP BOSB-PFMD-850-001-QR01)</p>
+        <p style="font-size: 11px; color: #94a3b8; text-align: center;">BubblesO2 Facilities Maintenance &amp; Engineering Department (SOP BOSB-FMS-850-001-QR01)</p>
       </div>
     </div>
   `

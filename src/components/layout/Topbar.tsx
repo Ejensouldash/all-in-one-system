@@ -18,7 +18,7 @@ export function Topbar({
   const pathname = usePathname()
 
   let title = "Dashboard"
-  if (pathname.startsWith("/forms/maintenance/tickets") || pathname.startsWith("/forms/maintenance/dashboard")) title = "Plant Maintenance"
+  if (pathname.startsWith("/forms/maintenance/tickets") || pathname.startsWith("/forms/maintenance/dashboard")) title = "Facilities Maintenance"
   else if (pathname.includes("/forms/maintenance/pallet-transfer")) title = "Pallet Ledger"
   else if (pathname.includes("/forms/maintenance")) title = "GMP & Quality"
   else if (pathname.includes("/forms/warehouse/trace")) title = "DO Traceability & Logistics"

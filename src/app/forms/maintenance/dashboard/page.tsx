@@ -5,7 +5,7 @@ import { MaintenanceDashboardClient } from "./MaintenanceDashboardClient"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
 
 export const metadata = {
-  title: "Maintenance Inventory Dashboard",
+  title: "FMS Inventory Dashboard",
 }
 
 export default async function Page() {
@@ -50,6 +50,7 @@ export default async function Page() {
       initialLogs={recentLogs}
       userName={session.user.name || "Unknown"}
       userModules={access.modules}
+      isSuperAdmin={access.isSuperAdmin}
     />
   )
 }

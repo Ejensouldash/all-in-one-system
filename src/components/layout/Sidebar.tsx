@@ -92,11 +92,12 @@ const staffLinks: NavLink[] = [
     ],
   },
   {
-    name: "Maintenance",
+    name: "Facilities Maintenance",
     icon: Wrench,
     subLinks: [
-      { name: "Work Requests", href: "/forms/maintenance/tickets", modules: ["MAINTENANCE_TICKETS_MANAGE", "MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS", "MAINTENANCE_SUMMARY"] },
-      { name: "Maintenance Inventory", href: "/forms/maintenance/dashboard", module: "MAINTENANCE_DASHBOARD" },
+      { name: "FMS Work Request", href: "/forms/maintenance/tickets", module: "MAINTENANCE_TICKETS_MANAGE" },
+      { name: "Service Request", href: "/forms/maintenance/tickets/service-requests", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS", "MAINTENANCE_SUMMARY", "FORMS"] },
+      { name: "FMS Inventory", href: "/forms/maintenance/dashboard", module: "MAINTENANCE_DASHBOARD" },
     ],
   },
   {
@@ -136,11 +137,12 @@ const adminLinks: NavLink[] = [
     ],
   },
   {
-    name: "Maintenance",
+    name: "Facilities Maintenance",
     icon: Wrench,
     subLinks: [
-      { name: "Work Requests", href: "/forms/maintenance/tickets", modules: ["MAINTENANCE_TICKETS_MANAGE", "MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS", "MAINTENANCE_SUMMARY"] },
-      { name: "Maintenance Inventory", href: "/forms/maintenance/dashboard", module: "MAINTENANCE_DASHBOARD" },
+      { name: "FMS Work Request", href: "/forms/maintenance/tickets", module: "MAINTENANCE_TICKETS_MANAGE" },
+      { name: "Service Request", href: "/forms/maintenance/tickets/service-requests", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS", "MAINTENANCE_SUMMARY", "FORMS"] },
+      { name: "FMS Inventory", href: "/forms/maintenance/dashboard", module: "MAINTENANCE_DASHBOARD" },
     ],
   },
   {
@@ -192,7 +194,7 @@ export function Sidebar({
       if (pathname.startsWith("/forms/production") || pathname.startsWith("/kbp")) next["Production"] = true;
       if (pathname.startsWith("/forms/warehouse")) next["Warehouse & Logistics"] = true;
       if (pathname.startsWith("/forms/maintenance/tickets") || pathname.startsWith("/forms/maintenance/dashboard")) {
-        next["Maintenance"] = true;
+        next["Facilities Maintenance"] = true;
       } else if (pathname.startsWith("/forms/maintenance")) {
         next["GMP & Quality"] = true;
       }

@@ -5,47 +5,111 @@ import { auth } from "@/auth"
 import { revalidatePath } from "next/cache"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
 import { 
-  sendEmailNotification, 
-  generateMaintenanceTicketCreatedEmail, 
-  generateMaintenanceTicketStatusUpdateEmail 
-} from "@/lib/email"
-import { uploadMaintenancePhotoToR2 } from "@/lib/maintenance-r2"
-import { MaintenanceTicketPriority, MaintenanceTicketStatus, MaintenanceTicketType } from "@prisma/client"
+  queueMaintenanceEmailNotification,
+  generateTicketCreatedEmailEn,
+  generateTicketAcknowledgedEmailEn,
+  generateTicketWorkCompletedEmailEn
+} from "@/lib/maintenance-outbox"
+import { 
+  uploadMaintenancePhotoToR2,
+  uploadMaintenancePdfToR2
+} from "@/lib/maintenance-r2"
+import { extractMaintenanceFromPdf, type ExtractedMaintenanceData } from "@/lib/maintenance-ai"
+import { generateAndSaveMaintenanceJobSheet } from "@/lib/maintenance-pdf"
+import { 
+  MaintenanceCostCategory, 
+  MaintenancePhotoCategory, 
+  MaintenanceTicketPriority, 
+  MaintenanceTicketStatus, 
+  MaintenanceTicketType 
+} from "@prisma/client"
 import { getActiveMaintenanceNotificationEmails } from "./maintenance-notifications"
+import crypto from "node:crypto"
 
-export async function createMaintenanceTicket(formData: FormData) {
-  const session = await auth()
-  if (!session) return { success: false, error: "Unauthorized. Please log in." }
+function getBaseUrl(): string {
+  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL.replace(/\/$/, "")
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+  return "https://bubbleso2-aio.vercel.app"
+}
 
+/**
+ * Server Action: AI Extraction from uploaded PDF maintenance document
+ */
+export async function extractMaintenancePdfAction(formData: FormData): Promise<{
+  success: boolean
+  data?: ExtractedMaintenanceData
+  pdfUrl?: string
+  error?: string
+}> {
+  try {
+    const file = formData.get("pdfFile") as File | null
+    if (!file || file.size === 0) {
+      return { success: false, error: "No PDF file provided." }
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      return { success: false, error: "File exceeds 15MB limit." }
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer())
+
+    // Upload to private R2 storage
+    const { url: pdfUrl } = await uploadMaintenancePdfToR2(buffer, file.name)
+
+    // Call Gemini AI
+    const data = await extractMaintenanceFromPdf(buffer)
+
+    return {
+      success: true,
+      data,
+      pdfUrl,
+    }
+  } catch (err: any) {
+    console.error("extractMaintenancePdfAction error:", err)
+    return {
+      success: false,
+      error: err.message || "Failed to extract maintenance request from PDF.",
+    }
+  }
+}
+
+/**
+ * Public work request submission (QR01 Portal)
+ */
+export async function publicCreateMaintenanceTicket(formData: FormData) {
   const title = (formData.get("title") as string)?.trim()
   const reasonOfWork = (formData.get("reasonOfWork") as string)?.trim() || null
   const ticketType = ((formData.get("ticketType") as string) || "MECHANICAL") as MaintenanceTicketType
   const priority = ((formData.get("priority") as string) || "MEDIUM") as MaintenanceTicketPriority
   const location = (formData.get("location") as string)?.trim()
   const specificArea = (formData.get("specificArea") as string)?.trim() || null
-  const requesterName = (formData.get("requesterName") as string)?.trim() || session.user.name || "Staff"
-  const requesterPhone = (formData.get("requesterPhone") as string)?.trim() || "-"
-  const requesterEmail = (formData.get("requesterEmail") as string)?.trim() || session.user.email || null
+  const requesterName = (formData.get("requesterName") as string)?.trim()
+  const requesterPhone = (formData.get("requesterPhone") as string)?.trim()
+  const requesterEmail = (formData.get("requesterEmail") as string)?.trim().toLowerCase() || null
 
-  if (!title || !location) {
-    return { success: false, error: "Work description and location are required." }
+  if (!title || !location || !requesterName || !requesterPhone) {
+    return { success: false, error: "Please fill in all required fields (Name, Phone, Location, and Work Description)." }
   }
+
+  // Secure token for private requester status & acceptance
+  const requesterToken = crypto.randomBytes(16).toString("hex")
 
   // Handle Photo Upload if present
   let photoUrl: string | null = null
+  let photoUploadInfo: { key: string; url: string; size: number; name: string } | null = null
   const photoFile = formData.get("photo") as File | null
   if (photoFile && photoFile.size > 0 && photoFile.size <= 10 * 1024 * 1024) {
     try {
       const buffer = Buffer.from(await photoFile.arrayBuffer())
-      const { url } = await uploadMaintenancePhotoToR2(
+      const { key, url } = await uploadMaintenancePhotoToR2(
         buffer,
         photoFile.name,
         photoFile.type || "image/jpeg"
       )
       photoUrl = url
+      photoUploadInfo = { key, url, size: photoFile.size, name: photoFile.name }
     } catch (e: any) {
       console.error("Failed to upload photo to R2:", e)
-      // Continue without photo rather than hard failing
     }
   }
 
@@ -61,43 +125,195 @@ export async function createMaintenanceTicket(formData: FormData) {
         requesterName,
         requesterPhone,
         requesterEmail,
-        createdById: session.user.id,
+        requesterToken,
+        createdById: null, // Public anonymous guest
         photoUrl,
         status: MaintenanceTicketStatus.OPEN,
+        activityLogs: {
+          create: {
+            actorName: requesterName,
+            actorRole: "REQUESTER",
+            action: "REQUEST_LOGGED",
+            details: `Work request submitted via Public QR01 intake form. Category: ${ticketType}, Priority: ${priority}.`,
+            isPublic: true,
+          },
+        },
+        photos: photoUploadInfo ? {
+          create: {
+            category: MaintenancePhotoCategory.INITIAL_COMPLAINT,
+            objectKey: photoUploadInfo.key,
+            fileUrl: photoUploadInfo.url,
+            fileName: photoUploadInfo.name,
+            fileSize: photoUploadInfo.size,
+            uploadedByName: requesterName,
+            caption: "Initial complaint photo submitted by requester",
+          },
+        } : undefined,
       },
     })
 
     const formattedLog = `BO2-MT-${ticket.ticketNumber.toString().padStart(4, "0")}`
+    const baseUrl = getBaseUrl()
+    const ticketUrl = `${baseUrl}/forms/maintenance/tickets/${ticket.id}`
+    const trackUrl = `${baseUrl}/public/maintenance/track/${ticket.id}?token=${requesterToken}`
 
-    // Send email notification to configured recipients (e.g. Akmal, Iskandar, etc. based on ticketType)
+    // Queue email to category PICs
     try {
       const alertEmails = await getActiveMaintenanceNotificationEmails(ticketType)
-      const emailHtml = generateMaintenanceTicketCreatedEmail(
-        requesterName,
-        formattedLog,
+      const picEmailHtml = generateTicketCreatedEmailEn({
+        logNumber: formattedLog,
         title,
-        location,
         ticketType,
-        priority
-      )
+        priority,
+        location,
+        specificArea,
+        requesterName,
+        ticketUrl,
+        trackUrl,
+      })
 
       for (const email of alertEmails) {
-        sendEmailNotification({
-          from: "BubblesO2 Maintenance <it@bubbleso2.com>",
+        await queueMaintenanceEmailNotification({
+          ticketId: ticket.id,
           to: email,
           subject: `[Work Request Logged] ${formattedLog} (${ticketType}): ${title}`,
-          html: emailHtml,
-        }).catch((e) => console.error(`Failed to send notification to ${email}:`, e))
+          html: picEmailHtml,
+        })
       }
 
-      // Also send confirmation to requester if provided and not in alertEmails
-      if (requesterEmail && !alertEmails.includes(requesterEmail.toLowerCase())) {
-        sendEmailNotification({
-          from: "BubblesO2 Maintenance <it@bubbleso2.com>",
+      // Confirmation to Requester
+      if (requesterEmail) {
+        await queueMaintenanceEmailNotification({
+          ticketId: ticket.id,
           to: requesterEmail,
           subject: `[Work Request Received] ${formattedLog}: ${title}`,
-          html: emailHtml,
-        }).catch((e) => console.error(`Failed to send confirmation to ${requesterEmail}:`, e))
+          html: picEmailHtml,
+        })
+      }
+    } catch (notifErr) {
+      console.error("Public maintenance notification error:", notifErr)
+    }
+
+    revalidatePath("/forms/maintenance/tickets")
+    return {
+      success: true,
+      ticketId: ticket.id,
+      ticketNumber: ticket.ticketNumber,
+      logNumber: formattedLog,
+      requesterToken,
+    }
+  } catch (err: any) {
+    console.error("publicCreateMaintenanceTicket error:", err)
+    return { success: false, error: err.message || "Failed to submit work request." }
+  }
+}
+
+/**
+ * Authenticated staff work request submission
+ */
+export async function createMaintenanceTicket(formData: FormData) {
+  const session = await auth()
+  if (!session) return { success: false, error: "Unauthorized. Please log in." }
+
+  const title = (formData.get("title") as string)?.trim()
+  const reasonOfWork = (formData.get("reasonOfWork") as string)?.trim() || null
+  const ticketType = ((formData.get("ticketType") as string) || "MECHANICAL") as MaintenanceTicketType
+  const priority = ((formData.get("priority") as string) || "MEDIUM") as MaintenanceTicketPriority
+  const location = (formData.get("location") as string)?.trim()
+  const specificArea = (formData.get("specificArea") as string)?.trim() || null
+  const requesterName = (formData.get("requesterName") as string)?.trim() || session.user.name || "Staff"
+  const requesterPhone = (formData.get("requesterPhone") as string)?.trim() || "-"
+  const requesterEmail = (formData.get("requesterEmail") as string)?.trim().toLowerCase() || session.user.email?.toLowerCase() || null
+
+  if (!title || !location) {
+    return { success: false, error: "Work description and location are required." }
+  }
+
+  const requesterToken = crypto.randomBytes(16).toString("hex")
+
+  let photoUrl: string | null = null
+  let photoUploadInfo: { key: string; url: string; size: number; name: string } | null = null
+  const photoFile = formData.get("photo") as File | null
+  if (photoFile && photoFile.size > 0 && photoFile.size <= 10 * 1024 * 1024) {
+    try {
+      const buffer = Buffer.from(await photoFile.arrayBuffer())
+      const { key, url } = await uploadMaintenancePhotoToR2(
+        buffer,
+        photoFile.name,
+        photoFile.type || "image/jpeg"
+      )
+      photoUrl = url
+      photoUploadInfo = { key, url, size: photoFile.size, name: photoFile.name }
+    } catch (e: any) {
+      console.error("Failed to upload photo to R2:", e)
+    }
+  }
+
+  try {
+    const ticket = await prisma.maintenanceTicket.create({
+      data: {
+        title,
+        reasonOfWork,
+        ticketType,
+        priority,
+        location,
+        specificArea,
+        requesterName,
+        requesterPhone,
+        requesterEmail,
+        requesterToken,
+        createdById: session.user.id,
+        photoUrl,
+        status: MaintenanceTicketStatus.OPEN,
+        activityLogs: {
+          create: {
+            actorName: session.user.name || "Staff",
+            actorRole: "STAFF",
+            action: "REQUEST_LOGGED",
+            details: `Internal work request submitted. Category: ${ticketType}, Priority: ${priority}.`,
+            isPublic: true,
+          },
+        },
+        photos: photoUploadInfo ? {
+          create: {
+            category: MaintenancePhotoCategory.INITIAL_COMPLAINT,
+            objectKey: photoUploadInfo.key,
+            fileUrl: photoUploadInfo.url,
+            fileName: photoUploadInfo.name,
+            fileSize: photoUploadInfo.size,
+            uploadedByName: session.user.name || "Staff",
+            caption: "Initial complaint photo",
+          },
+        } : undefined,
+      },
+    })
+
+    const formattedLog = `BO2-MT-${ticket.ticketNumber.toString().padStart(4, "0")}`
+    const baseUrl = getBaseUrl()
+    const ticketUrl = `${baseUrl}/forms/maintenance/tickets/${ticket.id}`
+    const trackUrl = `${baseUrl}/public/maintenance/track/${ticket.id}?token=${requesterToken}`
+
+    try {
+      const alertEmails = await getActiveMaintenanceNotificationEmails(ticketType)
+      const picEmailHtml = generateTicketCreatedEmailEn({
+        logNumber: formattedLog,
+        title,
+        ticketType,
+        priority,
+        location,
+        specificArea,
+        requesterName,
+        ticketUrl,
+        trackUrl,
+      })
+
+      for (const email of alertEmails) {
+        await queueMaintenanceEmailNotification({
+          ticketId: ticket.id,
+          to: email,
+          subject: `[Work Request Logged] ${formattedLog} (${ticketType}): ${title}`,
+          html: picEmailHtml,
+        })
       }
     } catch (notifErr) {
       console.error("Maintenance notification error:", notifErr)
@@ -112,246 +328,590 @@ export async function createMaintenanceTicket(formData: FormData) {
   }
 }
 
-export async function publicCreateMaintenanceTicket(formData: FormData) {
-  const title = (formData.get("title") as string)?.trim()
-  const reasonOfWork = (formData.get("reasonOfWork") as string)?.trim() || null
-  const ticketType = ((formData.get("ticketType") as string) || "MECHANICAL") as MaintenanceTicketType
-  const priority = ((formData.get("priority") as string) || "MEDIUM") as MaintenanceTicketPriority
-  const location = (formData.get("location") as string)?.trim()
-  const specificArea = (formData.get("specificArea") as string)?.trim() || null
-  const requesterName = (formData.get("requesterName") as string)?.trim()
-  const requesterPhone = (formData.get("requesterPhone") as string)?.trim()
-  const requesterEmail = (formData.get("requesterEmail") as string)?.trim() || null
-
-  if (!title || !location || !requesterName || !requesterPhone) {
-    return { success: false, error: "Please fill in all required fields (Name, Phone, Location, and Work Description)." }
-  }
-
-  // Handle Photo Upload if present
-  let photoUrl: string | null = null
-  const photoFile = formData.get("photo") as File | null
-  if (photoFile && photoFile.size > 0 && photoFile.size <= 10 * 1024 * 1024) {
-    try {
-      const buffer = Buffer.from(await photoFile.arrayBuffer())
-      const { url } = await uploadMaintenancePhotoToR2(
-        buffer,
-        photoFile.name,
-        photoFile.type || "image/jpeg"
-      )
-      photoUrl = url
-    } catch (e: any) {
-      console.error("Failed to upload photo to R2:", e)
-    }
-  }
-
-  try {
-    const ticket = await prisma.maintenanceTicket.create({
-      data: {
-        title,
-        reasonOfWork,
-        ticketType,
-        priority,
-        location,
-        specificArea,
-        requesterName,
-        requesterPhone,
-        requesterEmail,
-        createdById: null, // anonymous guest/public submission
-        photoUrl,
-        status: MaintenanceTicketStatus.OPEN,
-      },
-    })
-
-    const formattedLog = `BO2-MT-${ticket.ticketNumber.toString().padStart(4, "0")}`
-
-    // Send email notification to configured recipients (e.g. Akmal, Iskandar, etc. based on ticketType)
-    try {
-      const alertEmails = await getActiveMaintenanceNotificationEmails(ticketType)
-      const emailHtml = generateMaintenanceTicketCreatedEmail(
-        requesterName,
-        formattedLog,
-        title,
-        location,
-        ticketType,
-        priority
-      )
-
-      for (const email of alertEmails) {
-        sendEmailNotification({
-          from: "BubblesO2 Maintenance <it@bubbleso2.com>",
-          to: email,
-          subject: `[Work Request Logged] ${formattedLog} (${ticketType}): ${title}`,
-          html: emailHtml,
-        }).catch((e) => console.error(`Failed to send notification to ${email}:`, e))
-      }
-
-      // Also send confirmation to requester if provided and not in alertEmails
-      if (requesterEmail && !alertEmails.includes(requesterEmail.toLowerCase())) {
-        sendEmailNotification({
-          from: "BubblesO2 Maintenance <it@bubbleso2.com>",
-          to: requesterEmail,
-          subject: `[Work Request Received] ${formattedLog}: ${title}`,
-          html: emailHtml,
-        }).catch((e) => console.error(`Failed to send confirmation to ${requesterEmail}:`, e))
-      }
-    } catch (notifErr) {
-      console.error("Public maintenance notification error:", notifErr)
-    }
-
-    revalidatePath("/forms/maintenance/tickets")
-    return { 
-      success: true, 
-      ticketId: ticket.id, 
-      ticketNumber: ticket.ticketNumber, 
-      logNumber: formattedLog 
-    }
-  } catch (err: any) {
-    console.error("publicCreateMaintenanceTicket error:", err)
-    return { success: false, error: err.message || "Failed to submit work request." }
-  }
-}
-
-export async function updateMaintenanceTicket(id: string, formData: FormData) {
+/**
+ * PIC Acknowledgment Action:
+ * Explicitly acknowledges the ticket, starts the SLA clock, and sets target dateline.
+ */
+export async function acknowledgeMaintenanceTicket(id: string, formData: FormData) {
   const session = await auth()
-  if (!session) return { success: false, error: "Unauthorized" }
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" }
 
   const access = await getAccessInfo()
   if (!access || (!access.isSuperAdmin && !hasAnyModule(access, ["MAINTENANCE_TICKETS_MANAGE"]))) {
-    return { success: false, error: "Unauthorized: MAINTENANCE_TICKETS_MANAGE module permission required." }
+    return { success: false, error: "Unauthorized. MAINTENANCE_TICKETS_MANAGE permission required." }
   }
 
-  const status = formData.get("status") as MaintenanceTicketStatus | null
-  const priority = formData.get("priority") as MaintenanceTicketPriority | null
-  const ticketType = formData.get("ticketType") as MaintenanceTicketType | null
-  const assigneeId = formData.get("assigneeId") as string | null
-  const assigneeName = formData.get("assigneeName") as string | null
-  
-  const targetStartDateStr = formData.get("targetStartDate") as string | null
-  const targetDatelineStr = formData.get("targetDateline") as string | null
-  const completedAtStr = formData.get("completedAt") as string | null
-  
-  const rootCause = formData.get("rootCause") as string | null
-  const resolution = formData.get("resolution") as string | null
-  const internalNotes = formData.get("internalNotes") as string | null
-  const verifiedBy = formData.get("verifiedBy") as string | null
-  const handover = formData.get("handover") as string | null
-  const costsDataStr = formData.get("costsData") as string | null
+  const agree = formData.get("agree") === "true" || formData.get("agree") === "on"
+  if (!agree) {
+    return { success: false, error: "You must check the agreement box to formally acknowledge accountability." }
+  }
+
+  const customDeadlineStr = (formData.get("targetDateline") as string)?.trim() || null
+
+  const ticket = await prisma.maintenanceTicket.findUnique({
+    where: { id },
+  })
+
+  if (!ticket) return { success: false, error: "Ticket not found." }
+  if (ticket.status !== "OPEN") {
+    return { success: false, error: `Ticket cannot be acknowledged from current status: ${ticket.status}` }
+  }
+
+  const now = new Date()
+  const responseMinutes = Math.max(0, Math.round((now.getTime() - ticket.createdAt.getTime()) / (1000 * 60)))
+
+  // Calculate default target dateline based on priority:
+  // URGENT: +24h, HIGH: +72h (3d), MEDIUM: +7d, LOW: +14d
+  let targetEnd: Date
+  if (customDeadlineStr) {
+    targetEnd = new Date(customDeadlineStr)
+  } else {
+    targetEnd = new Date(now)
+    if (ticket.priority === "URGENT") {
+      targetEnd.setHours(targetEnd.getHours() + 24)
+    } else if (ticket.priority === "HIGH") {
+      targetEnd.setDate(targetEnd.getDate() + 3)
+    } else if (ticket.priority === "MEDIUM") {
+      targetEnd.setDate(targetEnd.getDate() + 7)
+    } else {
+      targetEnd.setDate(targetEnd.getDate() + 14)
+    }
+  }
 
   try {
-    const data: any = {}
-    if (status) data.status = status
-    if (priority) data.priority = priority
-    if (ticketType) data.ticketType = ticketType
-
-    if (assigneeId !== undefined) {
-      data.assigneeId = assigneeId && assigneeId !== "" ? assigneeId : null
-    }
-    if (assigneeName !== undefined) {
-      data.assigneeName = assigneeName?.trim() || null
-    }
-
-    let targetStart: Date | null = null
-    let targetEnd: Date | null = null
-
-    if (targetStartDateStr) {
-      targetStart = new Date(targetStartDateStr)
-      data.targetStartDate = targetStart
-    } else if (targetStartDateStr === "") {
-      data.targetStartDate = null
-    }
-
-    if (targetDatelineStr) {
-      targetEnd = new Date(targetDatelineStr)
-      data.targetDateline = targetEnd
-    } else if (targetDatelineStr === "") {
-      data.targetDateline = null
-    }
-
-    // Auto-calculate estimated days if both target dates present
-    if (targetStart && targetEnd) {
-      const diffMs = targetEnd.getTime() - targetStart.getTime()
-      const days = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)))
-      data.estimatedDays = days
-    }
-
-    let compDate: Date | null = null
-    if (completedAtStr) {
-      compDate = new Date(completedAtStr)
-      data.completedAt = compDate
-    } else if (status === MaintenanceTicketStatus.COMPLETED) {
-      compDate = new Date()
-      data.completedAt = compDate
-    } else if (completedAtStr === "") {
-      data.completedAt = null
-    }
-
-    // Calculate KPI Status
-    if (compDate && targetEnd) {
-      const diffDays = Math.round((compDate.getTime() - targetEnd.getTime()) / (1000 * 60 * 60 * 24))
-      data.kpiDays = diffDays
-      data.kpiStatus = diffDays > 0 ? "Delay" : "On Time"
-    } else if (status === MaintenanceTicketStatus.IN_PROGRESS) {
-      data.kpiStatus = "In progress"
-    } else if (status === MaintenanceTicketStatus.COMPLETED && !data.kpiStatus) {
-      data.kpiStatus = "On Time"
-    }
-
-    if (rootCause !== null) data.rootCause = rootCause?.trim() || null
-    if (resolution !== null) data.resolution = resolution?.trim() || null
-    if (internalNotes !== null) data.internalNotes = internalNotes?.trim() || null
-    if (verifiedBy !== null) data.verifiedBy = verifiedBy?.trim() || null
-    if (handover !== null) data.handover = handover?.trim() || null
-
-    const updatedTicket = await prisma.maintenanceTicket.update({
+    const updated = await prisma.maintenanceTicket.update({
       where: { id },
-      data,
-      include: { createdBy: true, assignee: true },
+      data: {
+        status: MaintenanceTicketStatus.ACKNOWLEDGED,
+        acknowledgedById: session.user.id,
+        acknowledgedAt: now,
+        picAgreement: true,
+        kpiResponseMins: responseMinutes,
+        targetStartDate: now,
+        targetDateline: targetEnd,
+        activityLogs: {
+          create: {
+            actorName: session.user.name || "PIC",
+            actorRole: "PIC",
+            action: "ACKNOWLEDGED",
+            details: `Ticket formally acknowledged by ${session.user.name || 'PIC'}. Response time: ${responseMinutes} minutes. Target deadline set to ${targetEnd.toLocaleString('en-GB')}.`,
+            isPublic: true,
+          },
+        },
+      },
     })
 
-    // Handle Costs
-    if (costsDataStr) {
-      const costsData = JSON.parse(costsDataStr)
-      await prisma.maintenanceTicketCost.deleteMany({ where: { ticketId: id } })
-      if (Array.isArray(costsData) && costsData.length > 0) {
-        await prisma.maintenanceTicketCost.createMany({
-          data: costsData.map((c: any) => ({
-            ticketId: id,
-            itemName: c.itemName,
-            amount: parseFloat(c.amount) || 0,
-          })),
-        })
-      }
-    }
+    const formattedLog = `BO2-MT-${updated.ticketNumber.toString().padStart(4, "0")}`
+    const baseUrl = getBaseUrl()
+    const trackUrl = `${baseUrl}/public/maintenance/track/${updated.id}?token=${updated.requesterToken}`
 
-    // Send email notification on status change or completion
-    const recipientEmail = updatedTicket.requesterEmail || updatedTicket.createdBy?.email
-    if ((status || resolution) && recipientEmail) {
-      const formattedLog = `BO2-MT-${updatedTicket.ticketNumber.toString().padStart(4, "0")}`
-      const emailHtml = generateMaintenanceTicketStatusUpdateEmail(
-        updatedTicket.requesterName,
-        formattedLog,
-        updatedTicket.title,
-        updatedTicket.status,
-        resolution
-      )
-      sendEmailNotification({
-        from: "BubblesO2 Maintenance <it@bubbleso2.com>",
-        to: recipientEmail,
-        subject: `[Status Update] ${formattedLog}: ${updatedTicket.title}`,
+    // Notify Requester
+    if (updated.requesterEmail) {
+      const emailHtml = generateTicketAcknowledgedEmailEn({
+        logNumber: formattedLog,
+        title: updated.title,
+        requesterName: updated.requesterName,
+        picName: session.user.name || "Maintenance Lead",
+        targetDateline: targetEnd,
+        trackUrl,
+      })
+      await queueMaintenanceEmailNotification({
+        ticketId: updated.id,
+        to: updated.requesterEmail,
+        subject: `[Acknowledged] ${formattedLog}: ${updated.title}`,
         html: emailHtml,
       })
     }
 
     revalidatePath(`/forms/maintenance/tickets/${id}`)
     revalidatePath("/forms/maintenance/tickets")
-    revalidatePath("/forms/maintenance/dashboard")
     return { success: true }
   } catch (err: any) {
-    console.error("updateMaintenanceTicket error:", err)
-    return { success: false, error: err.message || "Failed to update ticket." }
+    console.error("acknowledgeMaintenanceTicket error:", err)
+    return { success: false, error: err.message || "Failed to acknowledge ticket." }
   }
 }
 
+/**
+ * Assign Technician or External Contractor
+ */
+export async function assignMaintenanceTicket(id: string, formData: FormData) {
+  const session = await auth()
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" }
+
+  const access = await getAccessInfo()
+  if (!access || (!access.isSuperAdmin && !hasAnyModule(access, ["MAINTENANCE_TICKETS_MANAGE"]))) {
+    return { success: false, error: "Unauthorized. Insufficient permissions." }
+  }
+
+  const assigneeType = formData.get("assigneeType") as string // "INTERNAL" or "CONTRACTOR"
+  const assigneeId = (formData.get("assigneeId") as string)?.trim() || null
+  const assigneeName = (formData.get("assigneeName") as string)?.trim() || null
+  const contractorPhone = (formData.get("contractorPhone") as string)?.trim() || null
+  const reassignmentReason = (formData.get("reassignmentReason") as string)?.trim() || null
+
+  const ticket = await prisma.maintenanceTicket.findUnique({
+    where: { id },
+    include: { assignee: { select: { id: true, name: true } } },
+  })
+
+  if (!ticket) return { success: false, error: "Ticket not found." }
+
+  let contractorToken = ticket.contractorToken
+  if (assigneeType === "CONTRACTOR" && !contractorToken) {
+    contractorToken = crypto.randomBytes(16).toString("hex")
+  }
+
+  let finalAssigneeId = assigneeId
+  let finalAssigneeName = assigneeName
+
+  if (assigneeType === "INTERNAL") {
+    if (!assigneeId) return { success: false, error: "Please select an internal technician." }
+    const assignedUser = await prisma.user.findUnique({
+      where: { id: assigneeId },
+      select: { name: true },
+    })
+    finalAssigneeName = assignedUser?.name || null
+  } else {
+    if (!assigneeName) return { success: false, error: "Please provide the external contractor/vendor name." }
+    finalAssigneeId = null
+  }
+
+  try {
+    await prisma.maintenanceTicket.update({
+      where: { id },
+      data: {
+        assigneeId: finalAssigneeId,
+        assigneeName: finalAssigneeName,
+        contractorPhone: assigneeType === "CONTRACTOR" ? contractorPhone : null,
+        contractorToken,
+        status: ticket.status === "OPEN" || ticket.status === "ACKNOWLEDGED" 
+          ? MaintenanceTicketStatus.IN_PROGRESS 
+          : ticket.status,
+        activityLogs: {
+          create: {
+            actorName: session.user.name || "PIC",
+            actorRole: "PIC",
+            action: "ASSIGNED",
+            details: `Assigned to ${assigneeType === "INTERNAL" ? 'Technician' : 'Contractor'}: ${finalAssigneeName}.${reassignmentReason ? ` Reassignment note: ${reassignmentReason}` : ''}`,
+            isPublic: true,
+          },
+        },
+      },
+    })
+
+    revalidatePath(`/forms/maintenance/tickets/${id}`)
+    revalidatePath("/forms/maintenance/tickets")
+    return { success: true }
+  } catch (err: any) {
+    console.error("assignMaintenanceTicket error:", err)
+    return { success: false, error: err.message || "Failed to assign ticket." }
+  }
+}
+
+/**
+ * Mobile Technician / Contractor Action: Start Work
+ */
+export async function technicianStartWork(id: string, contractorToken?: string) {
+  const session = await auth()
+  const ticket = await prisma.maintenanceTicket.findUnique({ where: { id } })
+  if (!ticket) return { success: false, error: "Ticket not found." }
+
+  // Verify access: internal user or contractor token
+  if (!session?.user?.id && (!contractorToken || ticket.contractorToken !== contractorToken)) {
+    return { success: false, error: "Unauthorized access." }
+  }
+
+  const actorName = session?.user?.name || ticket.assigneeName || "Technician"
+
+  try {
+    await prisma.maintenanceTicket.update({
+      where: { id },
+      data: {
+        startedAt: ticket.startedAt || new Date(),
+        status: MaintenanceTicketStatus.IN_PROGRESS,
+        activityLogs: {
+          create: {
+            actorName,
+            actorRole: session?.user?.id ? "TECHNICIAN" : "CONTRACTOR",
+            action: "WORK_STARTED",
+            details: `Repair work commenced on-site by ${actorName}.`,
+            isPublic: true,
+          },
+        },
+      },
+    })
+
+    revalidatePath(`/forms/maintenance/tickets/${id}`)
+    revalidatePath(`/maintenance/work/${id}`)
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to start work." }
+  }
+}
+
+/**
+ * Mobile Technician / Contractor Action: Upload Evidence Photo
+ */
+export async function uploadTechnicianPhoto(
+  ticketId: string,
+  category: "BEFORE" | "PROGRESS" | "AFTER",
+  formData: FormData,
+  contractorToken?: string
+) {
+  const session = await auth()
+  const ticket = await prisma.maintenanceTicket.findUnique({ where: { id: ticketId } })
+  if (!ticket) return { success: false, error: "Ticket not found." }
+
+  if (!session?.user?.id && (!contractorToken || ticket.contractorToken !== contractorToken)) {
+    return { success: false, error: "Unauthorized access." }
+  }
+
+  const file = formData.get("photo") as File | null
+  const caption = (formData.get("caption") as string)?.trim() || null
+
+  if (!file || file.size === 0) return { success: false, error: "No photo selected." }
+  if (file.size > 10 * 1024 * 1024) return { success: false, error: "File exceeds 10MB limit." }
+
+  const actorName = session?.user?.name || ticket.assigneeName || "Technician"
+
+  try {
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const { key, url } = await uploadMaintenancePhotoToR2(buffer, file.name, file.type || "image/jpeg")
+
+    const photo = await prisma.maintenanceTicketPhoto.create({
+      data: {
+        ticketId,
+        category: category as MaintenancePhotoCategory,
+        objectKey: key,
+        fileUrl: url,
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type || "image/jpeg",
+        caption,
+        uploadedByName: actorName,
+      },
+    })
+
+    await prisma.maintenanceActivityLog.create({
+      data: {
+        ticketId,
+        actorName,
+        actorRole: session?.user?.id ? "TECHNICIAN" : "CONTRACTOR",
+        action: "PHOTO_UPLOADED",
+        details: `Uploaded ${category} evidence photo: ${file.name}`,
+        isPublic: true,
+      },
+    })
+
+    revalidatePath(`/forms/maintenance/tickets/${ticketId}`)
+    revalidatePath(`/maintenance/work/${ticketId}`)
+    return { success: true, photo }
+  } catch (err: any) {
+    console.error("uploadTechnicianPhoto error:", err)
+    return { success: false, error: err.message || "Failed to upload photo." }
+  }
+}
+
+/**
+ * Mobile Technician / Contractor Action: Submit Completed Work
+ */
+export async function technicianSubmitWork(id: string, formData: FormData, contractorToken?: string) {
+  const session = await auth()
+  const ticket = await prisma.maintenanceTicket.findUnique({
+    where: { id },
+    include: { photos: true },
+  })
+
+  if (!ticket) return { success: false, error: "Ticket not found." }
+
+  if (!session?.user?.id && (!contractorToken || ticket.contractorToken !== contractorToken)) {
+    return { success: false, error: "Unauthorized access." }
+  }
+
+  const rootCause = (formData.get("rootCause") as string)?.trim() || null
+  const resolution = (formData.get("resolution") as string)?.trim()
+  const noPhotoExemption = formData.get("noPhotoExemption") === "true" || formData.get("noPhotoExemption") === "on"
+  const noPhotoReason = (formData.get("noPhotoReason") as string)?.trim() || null
+
+  if (!resolution) {
+    return { success: false, error: "Technical resolution summary is mandatory." }
+  }
+
+  // Validate Photo Evidence: Must have BEFORE and AFTER or valid exemption reason
+  const hasBefore = ticket.photos.some((p) => p.category === "BEFORE")
+  const hasAfter = ticket.photos.some((p) => p.category === "AFTER")
+
+  if (!noPhotoExemption && (!hasBefore || !hasAfter)) {
+    return {
+      success: false,
+      error: `Evidence incomplete. You must upload at least one BEFORE photo and one AFTER photo (or check 'No Physical Change Exemption' with a valid reason).`,
+    }
+  }
+
+  if (noPhotoExemption && !noPhotoReason) {
+    return { success: false, error: "Please provide an explanation for the photo exemption." }
+  }
+
+  const now = new Date()
+  const actorName = session?.user?.name || ticket.assigneeName || "Technician"
+
+  // SLA Calculation (Clock started at acknowledgment)
+  const startTime = ticket.acknowledgedAt || ticket.createdAt
+  const repairHours = Math.round(((now.getTime() - startTime.getTime()) / (1000 * 60 * 60)) * 10) / 10
+
+  let kpiStatus = "On Time"
+  if (ticket.targetDateline && now.getTime() > ticket.targetDateline.getTime()) {
+    kpiStatus = "Delay"
+  }
+
+  try {
+    const updated = await prisma.maintenanceTicket.update({
+      where: { id },
+      data: {
+        rootCause,
+        resolution,
+        noPhotoReason: noPhotoExemption ? noPhotoReason : null,
+        workCompletedAt: now,
+        completedAt: now,
+        kpiRepairHours: repairHours,
+        kpiStatus,
+        status: MaintenanceTicketStatus.AWAITING_VERIFICATION,
+        activityLogs: {
+          create: {
+            actorName,
+            actorRole: session?.user?.id ? "TECHNICIAN" : "CONTRACTOR",
+            action: "WORK_COMPLETED",
+            details: `Repair work submitted as completed by ${actorName}. Resolution: ${resolution}. Total repair time: ${repairHours} hours (KPI: ${kpiStatus}).`,
+            isPublic: true,
+          },
+        },
+      },
+    })
+
+    const formattedLog = `BO2-MT-${updated.ticketNumber.toString().padStart(4, "0")}`
+    const baseUrl = getBaseUrl()
+    const trackUrl = `${baseUrl}/public/maintenance/track/${updated.id}?token=${updated.requesterToken}`
+
+    // Notify Requester to verify work
+    if (updated.requesterEmail) {
+      const emailHtml = generateTicketWorkCompletedEmailEn({
+        logNumber: formattedLog,
+        title: updated.title,
+        requesterName: updated.requesterName,
+        resolution,
+        trackUrl,
+      })
+      await queueMaintenanceEmailNotification({
+        ticketId: updated.id,
+        to: updated.requesterEmail,
+        subject: `[Work Completed - Verification Needed] ${formattedLog}: ${updated.title}`,
+        html: emailHtml,
+      })
+    }
+
+    revalidatePath(`/forms/maintenance/tickets/${id}`)
+    revalidatePath(`/maintenance/work/${id}`)
+    revalidatePath(`/public/maintenance/track/${id}`)
+    return { success: true }
+  } catch (err: any) {
+    console.error("technicianSubmitWork error:", err)
+    return { success: false, error: err.message || "Failed to submit completed work." }
+  }
+}
+
+/**
+ * Requester Verification Action (from public tracking page or authenticated workspace)
+ */
+export async function verifyMaintenanceWork(
+  id: string,
+  token: string,
+  satisfied: boolean,
+  feedback?: string
+) {
+  const ticket = await prisma.maintenanceTicket.findUnique({ where: { id } })
+  if (!ticket) return { success: false, error: "Ticket not found." }
+
+  if (ticket.requesterToken !== token) {
+    return { success: false, error: "Invalid or expired verification token." }
+  }
+
+  const now = new Date()
+
+  try {
+    if (satisfied) {
+      await prisma.maintenanceTicket.update({
+        where: { id },
+        data: {
+          verifiedByRequester: true,
+          requesterVerifiedAt: now,
+          requesterFeedback: feedback?.trim() || "Work confirmed satisfactory.",
+          status: MaintenanceTicketStatus.AWAITING_COSTING,
+          activityLogs: {
+            create: {
+              actorName: ticket.requesterName,
+              actorRole: "REQUESTER",
+              action: "VERIFIED_SATISFACTORY",
+              details: `Requester confirmed work is satisfactory.${feedback ? ` Feedback: ${feedback}` : ''}`,
+              isPublic: true,
+            },
+          },
+        },
+      })
+    } else {
+      // Rework requested
+      await prisma.maintenanceTicket.update({
+        where: { id },
+        data: {
+          status: MaintenanceTicketStatus.IN_PROGRESS,
+          requesterFeedback: feedback?.trim() || "Rework requested by requester.",
+          activityLogs: {
+            create: {
+              actorName: ticket.requesterName,
+              actorRole: "REQUESTER",
+              action: "REWORK_REQUESTED",
+              details: `Requester requested rework: ${feedback || 'Not satisfied with repair.'}`,
+              isPublic: true,
+            },
+          },
+        },
+      })
+    }
+
+    revalidatePath(`/public/maintenance/track/${id}`)
+    revalidatePath(`/forms/maintenance/tickets/${id}`)
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to record verification." }
+  }
+}
+
+/**
+ * Atomic Cost Finalization (Materials & Labour)
+ */
+export async function updateMaintenanceCosts(id: string, costsData: any[]) {
+  const session = await auth()
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" }
+
+  const access = await getAccessInfo()
+  if (!access || (!access.isSuperAdmin && !hasAnyModule(access, ["MAINTENANCE_TICKETS_MANAGE"]))) {
+    return { success: false, error: "Unauthorized. Insufficient permissions." }
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Clear existing costs
+      await tx.maintenanceTicketCost.deleteMany({ where: { ticketId: id } })
+
+      if (Array.isArray(costsData) && costsData.length > 0) {
+        const rows = costsData.map((c: any) => {
+          const qty = parseFloat(c.quantity) || 1
+          const unitPrice = parseFloat(c.unitPrice) || 0
+          const amount = parseFloat(c.amount) || qty * unitPrice
+          return {
+            ticketId: id,
+            category: (c.category || "SPARE_PART") as MaintenanceCostCategory,
+            itemId: c.itemId || null,
+            itemName: String(c.itemName || "Item").trim(),
+            quantity: qty,
+            unit: String(c.unit || "PCS").trim().toUpperCase(),
+            unitPrice,
+            amount,
+            remarks: c.remarks ? String(c.remarks).trim() : null,
+          }
+        })
+
+        await tx.maintenanceTicketCost.createMany({ data: rows })
+      }
+
+      await tx.maintenanceActivityLog.create({
+        data: {
+          ticketId: id,
+          actorName: session.user.name || "PIC",
+          actorRole: "PIC",
+          action: "COSTS_FINALIZED",
+          details: `Updated ${costsData.length} cost rows. Total: RM ${costsData.reduce((acc, c) => acc + (parseFloat(c.amount) || 0), 0).toFixed(2)}`,
+          isPublic: false,
+        },
+      })
+    })
+
+    revalidatePath(`/forms/maintenance/tickets/${id}`)
+    return { success: true }
+  } catch (err: any) {
+    console.error("updateMaintenanceCosts error:", err)
+    return { success: false, error: err.message || "Failed to update costs." }
+  }
+}
+
+/**
+ * Administrative Closure & Combined Job Sheet / Billing Memo PDF Generation
+ */
+export async function closeMaintenanceTicket(id: string, formData: FormData) {
+  const session = await auth()
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" }
+
+  const access = await getAccessInfo()
+  if (!access || (!access.isSuperAdmin && !hasAnyModule(access, ["MAINTENANCE_TICKETS_MANAGE"]))) {
+    return { success: false, error: "Unauthorized. Insufficient permissions." }
+  }
+
+  const closingRemarks = (formData.get("closingRemarks") as string)?.trim() || null
+
+  const ticket = await prisma.maintenanceTicket.findUnique({
+    where: { id },
+    include: { costs: true },
+  })
+
+  if (!ticket) return { success: false, error: "Ticket not found." }
+
+  const now = new Date()
+  const jobSheetNumber = `BO2-MJS-${ticket.ticketNumber.toString().padStart(4, "0")}`
+
+  try {
+    // 1. Mark ticket CLOSED in DB
+    await prisma.maintenanceTicket.update({
+      where: { id },
+      data: {
+        status: MaintenanceTicketStatus.CLOSED,
+        closedById: session.user.id,
+        closedAt: now,
+        internalNotes: closingRemarks ? `${ticket.internalNotes ? ticket.internalNotes + "\n" : ""}[Closure Remark]: ${closingRemarks}` : ticket.internalNotes,
+        jobSheetNumber,
+        activityLogs: {
+          create: {
+            actorName: session.user.name || "Supervisor / HOD",
+            actorRole: "HOD",
+            action: "TICKET_CLOSED",
+            details: `Ticket formally approved and closed by ${session.user.name}. Job Sheet & Billing Memo generated (${jobSheetNumber}).`,
+            isPublic: true,
+          },
+        },
+      },
+    })
+
+    // 2. Generate and upload Job Sheet PDF to R2
+    let pdfUrl: string | null = null
+    try {
+      const { url } = await generateAndSaveMaintenanceJobSheet(id)
+      pdfUrl = url
+    } catch (pdfErr) {
+      console.error("Failed to generate job sheet PDF:", pdfErr)
+    }
+
+    revalidatePath(`/forms/maintenance/tickets/${id}`)
+    revalidatePath("/forms/maintenance/tickets")
+    revalidatePath("/forms/maintenance/dashboard")
+    return { success: true, jobSheetNumber, pdfUrl }
+  } catch (err: any) {
+    console.error("closeMaintenanceTicket error:", err)
+    return { success: false, error: err.message || "Failed to close ticket." }
+  }
+}
+
+/**
+ * Fetch workspace data with safe selects (excluding password hashes)
+ */
 export async function getMaintenanceWorkspaceData(ticketId: string) {
   const session = await auth()
   if (!session) return null
@@ -359,21 +919,39 @@ export async function getMaintenanceWorkspaceData(ticketId: string) {
   const ticket = await prisma.maintenanceTicket.findUnique({
     where: { id: ticketId },
     include: {
-      createdBy: true,
-      assignee: true,
-      costs: true,
+      createdBy: {
+        select: { id: true, name: true, email: true, unit: { select: { name: true } } },
+      },
+      assignee: {
+        select: { id: true, name: true, email: true, unit: { select: { name: true } } },
+      },
+      acknowledgedBy: {
+        select: { id: true, name: true, email: true },
+      },
+      closedBy: {
+        select: { id: true, name: true, email: true },
+      },
+      costs: {
+        orderBy: { createdAt: "asc" },
+      },
+      photos: {
+        orderBy: { createdAt: "asc" },
+      },
+      activityLogs: {
+        orderBy: { createdAt: "desc" },
+      },
     },
   })
 
   if (!ticket) return null
 
-  // Fetch list of technicians / potential assignees (Maintenance staff or all active users)
+  // Fetch list of technicians
   const staffList = await prisma.user.findMany({
     select: { id: true, name: true, email: true, unit: { select: { name: true } } },
     orderBy: { name: "asc" },
   })
 
-  // Fetch spare parts / inventory catalog items for cost linking
+  // Fetch spare parts catalog items
   const catalogItems = await prisma.maintenanceItem.findMany({
     select: { id: true, name: true, location: true, quantity: true, unit: true },
     orderBy: { name: "asc" },

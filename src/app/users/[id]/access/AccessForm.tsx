@@ -57,7 +57,7 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "MAINTENANCE_REPORTS", name: "Maintenance Reports", description: "Access to generate and print monthly maintenance reports.", icon: FileSpreadsheet },
       { id: "MAINTENANCE_SUMMARY", name: "Maintenance Summary", description: "Access to view, edit, delete, and sign all submitted maintenance checklists.", icon: FileSpreadsheet },
       { id: "RETENTION_SAMPLE_MANAGE", name: "Retention Sample Management", description: "Access to edit, correct, and void retention sample records (SGMP/21/RSR) with GMP audit trail.", icon: BookmarkCheck },
-      { id: "MAINTENANCE_TICKETS_MANAGE", name: "Maintenance Work Requests & Resolution", description: "Access to manage, assign PIC, update status, and track KPI for plant work requests (BOSB-PFMD-850-001-QR01).", icon: Wrench },
+      { id: "MAINTENANCE_TICKETS_MANAGE", name: "FMS Work Requests & Management", description: "Access to manage, assign PIC, update status, and track KPI for facilities work requests (BOSB-FMS-850-001-QR01).", icon: Wrench },
     ],
   },
   {

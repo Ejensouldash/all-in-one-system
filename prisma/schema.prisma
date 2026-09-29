@@ -37,6 +37,8 @@ model User {
   tickets                Ticket[]                @relation("TicketCreator")
   assignedMaintenanceTickets MaintenanceTicket[] @relation("MaintenanceTicketAssignee")
   createdMaintenanceTickets  MaintenanceTicket[] @relation("MaintenanceTicketCreator")
+  acknowledgedMaintenanceTickets MaintenanceTicket[] @relation("MaintenanceTicketAcknowledger")
+  closedMaintenanceTickets       MaintenanceTicket[] @relation("MaintenanceTicketCloser")
   branch                 Branch?                 @relation(fields: [branchId], references: [id])
   unit                   Unit?                   @relation(fields: [unitId], references: [id])
   openingStocks          WarehouseOpeningStock[] @relation("OpeningStockSetter")
@@ -225,10 +227,14 @@ enum MaintenanceTicketType {
 
 enum MaintenanceTicketStatus {
   OPEN
+  ACKNOWLEDGED
   IN_PROGRESS
-  COMPLETED
+  AWAITING_VERIFICATION
+  AWAITING_COSTING
+  CLOSED
   CANCELLED
   REJECTED
+  COMPLETED
 }
 
 enum MaintenanceTicketPriority {
@@ -236,6 +242,20 @@ enum MaintenanceTicketPriority {
   MEDIUM
   HIGH
   URGENT
+}
+
+enum MaintenancePhotoCategory {
+  INITIAL_COMPLAINT
+  BEFORE
+  PROGRESS
+  AFTER
+}
+
+enum MaintenanceCostCategory {
+  SPARE_PART
+  LABOUR
+  CONTRACTOR
+  OTHER
 }
 
 model MaintenanceTicket {
@@ -255,45 +275,118 @@ model MaintenanceTicket {
   requesterName   String
   requesterPhone  String
   requesterEmail  String?
+  requesterToken  String?                   @unique
   createdById     String?                   // Nullable for unauthenticated public submissions
   createdBy       User?                     @relation("MaintenanceTicketCreator", fields: [createdById], references: [id])
   
+  // PIC Accountability
+  acknowledgedById   String?
+  acknowledgedBy     User?                  @relation("MaintenanceTicketAcknowledger", fields: [acknowledgedById], references: [id])
+  acknowledgedAt     DateTime?
+  picAgreement       Boolean                @default(false)
+  
+  // Assignment
   assigneeId      String?
   assignee        User?                     @relation("MaintenanceTicketAssignee", fields: [assigneeId], references: [id])
   assigneeName    String?                   // Text fallback for external contractors / legacy PICs (e.g. Ridzuan, Akmal)
+  contractorToken String?                   @unique
+  contractorPhone String?
   
-  targetStartDate DateTime?                 @db.Date
-  targetDateline  DateTime?                 @db.Date
+  // High-precision Scheduling
+  targetStartDate DateTime?
+  targetDateline  DateTime?
   estimatedDays   Float?
-  completedAt     DateTime?
-  kpiDays         Int?                      @default(0)
+  startedAt       DateTime?
+  workCompletedAt DateTime?
+  completedAt     DateTime?                 // Kept for backward compatibility
+  closedAt        DateTime?
+  
+  kpiDays         Int?                      @default(0) // Legacy
+  kpiResponseMins Int?
+  kpiRepairHours  Float?
   kpiStatus       String?                   // "On Time", "Delay", "In progress"
   
   rootCause       String?                   @db.Text
   resolution      String?                   @db.Text
   internalNotes   String?                   @db.Text
+  noPhotoReason   String?
   verifiedBy      String?
   handover        String?
   
-  photoUrl        String?                   // Cloudflare R2 path or public URL
+  // Requester Acceptance & Verification
+  verifiedByRequester Boolean               @default(false)
+  requesterFeedback   String?
+  requesterVerifiedAt DateTime?
+  
+  // Closure
+  closedById      String?
+  closedBy        User?                     @relation("MaintenanceTicketCloser", fields: [closedById], references: [id])
+  jobSheetNumber  String?                   @unique
+  jobSheetPdfUrl  String?
+  
+  photoUrl        String?                   // Cloudflare R2 path or public URL (Legacy / complaint preview)
   
   createdAt       DateTime                  @default(now())
   updatedAt       DateTime                  @updatedAt
   
   costs           MaintenanceTicketCost[]
+  photos          MaintenanceTicketPhoto[]
+  activityLogs    MaintenanceActivityLog[]
 
   @@index([status])
   @@index([ticketType])
   @@index([createdAt])
+  @@index([requesterToken])
+  @@index([contractorToken])
+}
+
+model MaintenanceTicketPhoto {
+  id              String                   @id @default(uuid())
+  ticketId        String
+  ticket          MaintenanceTicket        @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  category        MaintenancePhotoCategory
+  objectKey       String
+  fileUrl         String
+  fileName        String
+  fileSize        Int?
+  mimeType        String                   @default("image/jpeg")
+  caption         String?
+  uploadedByName  String?
+  createdAt       DateTime                 @default(now())
+
+  @@index([ticketId])
+  @@index([category])
 }
 
 model MaintenanceTicketCost {
+  id          String                  @id @default(uuid())
+  ticketId    String
+  ticket      MaintenanceTicket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  category    MaintenanceCostCategory @default(SPARE_PART)
+  itemId      String?
+  itemName    String
+  quantity    Float                   @default(1.0)
+  unit        String                  @default("PCS")
+  unitPrice   Float                   @default(0.0)
+  amount      Float
+  remarks     String?
+  createdAt   DateTime                @default(now())
+
+  @@index([ticketId])
+}
+
+model MaintenanceActivityLog {
   id          String            @id @default(uuid())
   ticketId    String
   ticket      MaintenanceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  itemName    String
-  amount      Float
+  actorName   String
+  actorRole   String
+  action      String
+  details     String?           @db.Text
+  isPublic    Boolean           @default(false)
   createdAt   DateTime          @default(now())
+
+  @@index([ticketId])
 }
 
 model MaintenanceNotificationRecipient {
@@ -307,6 +400,22 @@ model MaintenanceNotificationRecipient {
 
   @@index([isEnabled])
   @@index([ticketType])
+}
+
+model MaintenanceNotificationOutbox {
+  id          String    @id @default(uuid())
+  ticketId    String?
+  to          String
+  subject     String
+  html        String    @db.Text
+  status      String    @default("PENDING") // PENDING, SENT, FAILED
+  error       String?   @db.Text
+  attempts    Int       @default(0)
+  sentAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status])
 }
 
 

@@ -41,14 +41,14 @@ export function MaintenanceQRPosterClient() {
               href="/forms/maintenance/tickets"
               className="inline-flex items-center text-xs font-bold text-slate-500 hover:text-slate-900 mb-2 transition-colors"
             >
-              <ArrowLeft className="h-4 w-4 mr-1" /> Back to Work Requests
+              <ArrowLeft className="h-4 w-4 mr-1" /> Back to FMS Work Request
             </Link>
             <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
               <QrCode className="h-5 w-5 text-blue-600" />
-              Maintenance Work Request QR Poster
+              FMS Work Request QR Poster
             </h1>
             <p className="text-xs text-slate-500 mt-1">
-              Cetak poster QR rasmi ini dan tampal di papan kenyataan kilang, pos pengawal, atau kawasan mesin. Pekerja atau kontraktor boleh imbas untuk membuat laporan kerosakan serta-merta tanpa perlu log masuk.
+              Print this official QR poster and display it on factory notice boards, security guard posts, or near machinery. Staff, operators, and contractors can scan to submit breakdown and repair reports instantly without logging in.
             </p>
           </div>
 
@@ -57,17 +57,17 @@ export function MaintenanceQRPosterClient() {
               type="button"
               onClick={handleCopy}
               className="px-3.5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
-              title="Salin Pautan Awam"
+              title="Copy Public Link"
             >
               {copied ? (
                 <>
                   <Check className="h-4 w-4 text-emerald-600" />
-                  <span className="text-emerald-700">Disalin!</span>
+                  <span className="text-emerald-700">Copied!</span>
                 </>
               ) : (
                 <>
                   <Copy className="h-4 w-4 text-slate-500" />
-                  <span>Salin Link</span>
+                  <span>Copy Link</span>
                 </>
               )}
             </button>
@@ -77,10 +77,10 @@ export function MaintenanceQRPosterClient() {
               target="_blank"
               rel="noopener noreferrer"
               className="px-3.5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all flex items-center gap-1.5"
-              title="Buka Portal Awam"
+              title="Open Public Portal"
             >
               <ExternalLink className="h-4 w-4 text-slate-500" />
-              <span>Buka Portal</span>
+              <span>Open Portal</span>
             </a>
 
             <button
@@ -89,7 +89,7 @@ export function MaintenanceQRPosterClient() {
               className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
             >
               <Printer className="h-4 w-4" />
-              <span>Cetak Poster (A4)</span>
+              <span>Print Poster (A4)</span>
             </button>
           </div>
         </div>
@@ -109,20 +109,20 @@ export function MaintenanceQRPosterClient() {
               </span>
             </div>
             <p className="text-xs font-black tracking-widest uppercase text-blue-700">
-              PLANT MAINTENANCE &amp; ENGINEERING
+              FMS WORK REQUEST FORMS
             </p>
             <div className="mt-2 inline-block bg-slate-900 text-white text-[10px] font-mono px-3.5 py-0.5 rounded-full font-bold">
-              SOP BOSB-PFMD-850-001-QR01
+              SOP BOSB-FMS-850-001-QR01
             </div>
           </div>
 
           {/* Title & Call to action */}
           <div className="mb-6 space-y-1">
             <h2 className="text-3xl font-black uppercase text-slate-900 tracking-tight">
-              WORK REQUEST
+              FMS WORK REQUEST
             </h2>
             <p className="text-xs font-black text-slate-700 uppercase tracking-wide">
-              IMBAS UNTUK LAPOR KEROSAKAN / PEMBAIKAN
+              SCAN TO REPORT BREAKDOWN / REPAIR
             </p>
             <p className="text-[11px] font-medium text-slate-500">
               Mechanical • Civil &amp; Facility • Electrical
@@ -139,26 +139,26 @@ export function MaintenanceQRPosterClient() {
             />
           </div>
 
-          {/* Location / Kawasan Notice */}
+          {/* Location Notice */}
           <div className="w-full bg-slate-50 border-2 border-slate-900 rounded-xl p-3.5 mb-5 text-center">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-0.5">
-              Lokasi / Kawasan
+              Location / Plant Facilities
             </span>
             <span className="text-base font-black text-slate-900 block">
-              Semua Cawangan &amp; Kilang BubblesO2
+              All BubblesO2 Branches &amp; Plants
             </span>
             <span className="text-[11px] text-slate-500 block mt-0.5 font-medium">
-              (Pilih lokasi kilang anda di dalam borang semasa membuat laporan)
+              (Select your plant branch and machinery area in the form upon scanning)
             </span>
           </div>
 
           {/* Instructions */}
           <div className="w-full text-left bg-blue-50/70 border border-blue-200 rounded-xl p-3.5 text-[11px] text-slate-700 space-y-1.5">
-            <p className="font-bold text-blue-900">Arahan Penggunaan:</p>
+            <p className="font-bold text-blue-900">Instructions:</p>
             <ol className="list-decimal list-inside space-y-1 text-slate-600 font-medium">
-              <li>Buka kamera telefon pintar &amp; imbas QR code di atas.</li>
-              <li>Pilih lokasi kilang (Rantau / Pedas) dan nyatakan butiran kerosakan serta gambar.</li>
-              <li>Tekan <span className="font-bold text-slate-800">Hantar</span> — juruteknik bertugas akan menerima notifikasi segera.</li>
+              <li>Open smartphone camera &amp; scan the QR code above.</li>
+              <li>Select plant location (Rantau / Pedas), describe breakdown, and attach photos.</li>
+              <li>Tap <span className="font-bold text-slate-800">Submit</span> — the maintenance team on duty will be notified immediately.</li>
             </ol>
           </div>
 

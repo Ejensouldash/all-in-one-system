@@ -42,14 +42,17 @@ type Props = {
   initialItems: Item[]
   initialLogs: any[]
   userName: string
+  userModules?: string[]
+  isSuperAdmin?: boolean
 }
 
 export function MaintenanceDashboardClient({ 
   initialItems, 
   initialLogs, 
   userName,
-  userModules = []
-}: Props & { userModules?: string[] }) {
+  userModules = [],
+  isSuperAdmin = false,
+}: Props) {
   const [items, setItems] = useState<Item[]>(initialItems)
   const [logs, setLogs] = useState<StockLog[]>(initialLogs as any)
   const [searchTerm, setSearchTerm] = useState("")
@@ -231,7 +234,7 @@ export function MaintenanceDashboardClient({
             <PackageOpen className="h-10 w-10 text-blue-700" />
             <div>
               <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tighter text-gray-900">
-                Maintenance Inventory
+                FMS Inventory
               </h1>
               <p className="font-bold text-gray-500 uppercase tracking-widest text-xs mt-1">
                 Log check-ins, check-outs, and stock audits
@@ -242,7 +245,7 @@ export function MaintenanceDashboardClient({
 
         {/* Navigation Tabs - Hidden in Print */}
         <div className="print:hidden">
-          <MaintenanceNavTabs userModules={userModules} />
+          <MaintenanceNavTabs userModules={userModules} isSuperAdmin={isSuperAdmin} />
         </div>
 
         {/* Global Notifications */}

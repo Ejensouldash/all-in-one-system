@@ -2,8 +2,8 @@ import { Suspense } from "react"
 import { PublicWorkRequestForm } from "./PublicWorkRequestForm"
 
 export const metadata = {
-  title: "Submit Maintenance Work Request | BubblesO2",
-  description: "Public Work Request Form for plant and facility repairs (SOP BOSB-PFMD-850-001-QR01)",
+  title: "Submit Facilities Work Request | BubblesO2",
+  description: "Public Work Request Form for plant and facility repairs (SOP BOSB-FMS-850-001-QR01)",
 }
 
 export default function PublicWorkRequestPage() {

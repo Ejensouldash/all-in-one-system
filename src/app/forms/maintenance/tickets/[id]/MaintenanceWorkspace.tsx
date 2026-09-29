@@ -2,11 +2,14 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { updateMaintenanceTicket } from "@/app/actions/maintenance-ticket"
+import { 
+  acknowledgeMaintenanceTicket,
+  assignMaintenanceTicket,
+  updateMaintenanceCosts,
+  closeMaintenanceTicket
+} from "@/app/actions/maintenance-ticket"
 import { 
   Wrench, 
-  Save, 
-  Loader2, 
   CheckCircle2, 
   AlertCircle, 
   ArrowLeft, 
@@ -18,17 +21,21 @@ import {
   MapPin, 
   FileText,
   Clock,
+  ExternalLink,
+  Copy,
+  Check,
+  Send,
+  Loader2,
   ShieldCheck,
-  Building,
-  Zap,
-  Cog,
-  ExternalLink
+  Download,
+  AlertTriangle,
+  UserPlus
 } from "lucide-react"
 import Link from "next/link"
 
 export function MaintenanceWorkspace({
   ticket,
-  staffList,
+  staffList = [],
   catalogItems = [],
 }: {
   ticket: any
@@ -38,465 +45,837 @@ export function MaintenanceWorkspace({
   const router = useRouter()
   const formattedLog = `BO2-MT-${ticket.ticketNumber.toString().padStart(4, "0")}`
 
-  const [isSaving, setIsSaving] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
-  
-  const [status, setStatus] = useState(ticket.status || "OPEN")
-  const [priority, setPriority] = useState(ticket.priority || "MEDIUM")
-  const [ticketType, setTicketType] = useState(ticket.ticketType || "MECHANICAL")
-  const [assigneeId, setAssigneeId] = useState(ticket.assigneeId || "")
-  const [assigneeName, setAssigneeName] = useState(ticket.assigneeName || "")
+  const [copiedLink, setCopiedLink] = useState<string | null>(null)
 
-  const [targetStartDate, setTargetStartDate] = useState(
-    ticket.targetStartDate ? new Date(ticket.targetStartDate).toISOString().split("T")[0] : ""
-  )
-  const [targetDateline, setTargetDateline] = useState(
-    ticket.targetDateline ? new Date(ticket.targetDateline).toISOString().split("T")[0] : ""
-  )
-  const [completedAt, setCompletedAt] = useState(
-    ticket.completedAt ? new Date(ticket.completedAt).toISOString().split("T")[0] : ""
+  // Acknowledgment State
+  const [ackAgree, setAckAgree] = useState(false)
+  const [customDeadline, setCustomDeadline] = useState(
+    ticket.targetDateline
+      ? new Date(ticket.targetDateline).toISOString().slice(0, 16)
+      : ""
   )
 
-  const [costs, setCosts] = useState<{ itemName: string; amount: number }[]>(
-    ticket.costs ? ticket.costs.map((c: any) => ({ itemName: c.itemName, amount: c.amount })) : []
+  // Assignment Modal/Panel State
+  const [showAssignPanel, setShowAssignPanel] = useState(false)
+  const [assigneeType, setAssigneeType] = useState<"INTERNAL" | "CONTRACTOR">(
+    ticket.assigneeId ? "INTERNAL" : ticket.assigneeName ? "CONTRACTOR" : "INTERNAL"
+  )
+  const [selectedStaffId, setSelectedStaffId] = useState(ticket.assigneeId || "")
+  const [contractorName, setContractorName] = useState(ticket.assigneeName || "")
+  const [contractorPhone, setContractorPhone] = useState(ticket.contractorPhone || "")
+  const [reassignmentReason, setReassignmentReason] = useState("")
+
+  // Costs State
+  const [costs, setCosts] = useState<any[]>(
+    ticket.costs && ticket.costs.length > 0
+      ? ticket.costs.map((c: any) => ({
+          category: c.category || "SPARE_PART",
+          itemId: c.itemId || "",
+          itemName: c.itemName || "",
+          quantity: c.quantity || 1,
+          unit: c.unit || "PCS",
+          unitPrice: c.unitPrice || 0,
+          amount: c.amount || 0,
+          remarks: c.remarks || "",
+        }))
+      : []
   )
 
-  const handleAddCatalogItem = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const itemId = e.target.value
-    if (!itemId) return
+  // Closure Remarks
+  const [closingRemarks, setClosingRemarks] = useState("")
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedLink(label)
+    setTimeout(() => setCopiedLink(null), 2000)
+  }
+
+  // Cost handlers
+  const handleAddCostRow = () => {
+    setCosts([
+      ...costs,
+      {
+        category: "SPARE_PART",
+        itemId: "",
+        itemName: "",
+        quantity: 1,
+        unit: "PCS",
+        unitPrice: 0,
+        amount: 0,
+        remarks: "",
+      },
+    ])
+  }
+
+  const handlePickCatalogItem = (index: number, itemId: string) => {
     const item = catalogItems.find((c) => c.id === itemId)
-    if (item) {
-      setCosts([...costs, { itemName: `${item.name} (${item.location})`, amount: 0 }])
-    }
-    e.target.value = ""
-  }
-
-  const handleAddCustomCost = () => {
-    setCosts([...costs, { itemName: "", amount: 0 }])
-  }
-
-  const handleRemoveCost = (index: number) => {
-    setCosts(costs.filter((_, i) => i !== index))
-  }
-
-  const handleCostChange = (index: number, field: "itemName" | "amount", value: any) => {
     const updated = [...costs]
-    if (field === "amount") {
-      updated[index].amount = parseFloat(value) || 0
+    if (item) {
+      updated[index].itemId = item.id
+      updated[index].itemName = `${item.name} (${item.location || 'Warehouse'})`
+      updated[index].unit = item.unit || "PCS"
     } else {
-      updated[index].itemName = value
+      updated[index].itemId = ""
     }
     setCosts(updated)
   }
 
-  const totalCost = costs.reduce((acc, c) => acc + (c.amount || 0), 0)
+  const handleCostFieldChange = (index: number, field: string, val: any) => {
+    const updated = [...costs]
+    updated[index][field] = val
+    if (field === "quantity" || field === "unitPrice") {
+      const q = parseFloat(updated[index].quantity) || 0
+      const p = parseFloat(updated[index].unitPrice) || 0
+      updated[index].amount = Math.round(q * p * 100) / 100
+    }
+    setCosts(updated)
+  }
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleRemoveCostRow = (index: number) => {
+    setCosts(costs.filter((_, i) => i !== index))
+  }
+
+  const totalCost = costs.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0)
+
+  // 1. Submit Acknowledgment
+  const handleAcknowledge = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSaving(true)
+    setIsProcessing(true)
     setStatusMsg(null)
 
-    const formData = new FormData(e.currentTarget)
-    formData.set("costsData", JSON.stringify(costs))
+    const formData = new FormData()
+    formData.set("agree", ackAgree ? "true" : "false")
+    if (customDeadline) formData.set("targetDateline", customDeadline)
 
-    const res = await updateMaintenanceTicket(ticket.id, formData)
-    setIsSaving(false)
+    const res = await acknowledgeMaintenanceTicket(ticket.id, formData)
+    setIsProcessing(false)
 
     if (res.success) {
-      setStatusMsg({ type: "success", text: "Ticket details updated successfully!" })
-      setTimeout(() => {
-        router.push("/forms/maintenance/tickets")
-        router.refresh()
-      }, 1200)
+      setStatusMsg({ type: "success", text: "Ticket acknowledged successfully! SLA timer started." })
+      setTimeout(() => router.refresh(), 1000)
     } else {
-      setStatusMsg({ type: "error", text: res.error || "Failed to update ticket." })
+      setStatusMsg({ type: "error", text: res.error || "Failed to acknowledge ticket." })
     }
   }
 
+  // 2. Submit Assignment
+  const handleAssign = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsProcessing(true)
+    setStatusMsg(null)
+
+    const formData = new FormData()
+    formData.set("assigneeType", assigneeType)
+    if (assigneeType === "INTERNAL") {
+      formData.set("assigneeId", selectedStaffId)
+    } else {
+      formData.set("assigneeName", contractorName)
+      formData.set("contractorPhone", contractorPhone)
+    }
+    if (reassignmentReason) formData.set("reassignmentReason", reassignmentReason)
+
+    const res = await assignMaintenanceTicket(ticket.id, formData)
+    setIsProcessing(false)
+
+    if (res.success) {
+      setStatusMsg({ type: "success", text: "Technician/Contractor assigned successfully!" })
+      setShowAssignPanel(false)
+      setTimeout(() => router.refresh(), 1000)
+    } else {
+      setStatusMsg({ type: "error", text: res.error || "Failed to assign." })
+    }
+  }
+
+  // 3. Save Costs Atomically
+  const handleSaveCosts = async () => {
+    setIsProcessing(true)
+    setStatusMsg(null)
+
+    const res = await updateMaintenanceCosts(ticket.id, costs)
+    setIsProcessing(false)
+
+    if (res.success) {
+      setStatusMsg({ type: "success", text: "Costs saved atomically in database!" })
+      setTimeout(() => router.refresh(), 1000)
+    } else {
+      setStatusMsg({ type: "error", text: res.error || "Failed to save costs." })
+    }
+  }
+
+  // 4. Close Ticket & Generate Job Sheet PDF
+  const handleCloseTicket = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsProcessing(true)
+    setStatusMsg(null)
+
+    const formData = new FormData()
+    formData.set("closingRemarks", closingRemarks)
+
+    const res = await closeMaintenanceTicket(ticket.id, formData)
+    setIsProcessing(false)
+
+    if (res.success) {
+      setStatusMsg({
+        type: "success",
+        text: `Ticket closed successfully! Job sheet ${res.jobSheetNumber} generated.`,
+      })
+      setTimeout(() => router.refresh(), 1200)
+    } else {
+      setStatusMsg({ type: "error", text: res.error || "Failed to close ticket." })
+    }
+  }
+
+  const isClosed = ticket.status === "CLOSED" || ticket.status === "COMPLETED"
+  const isAwaitingVerification = ticket.status === "AWAITING_VERIFICATION"
+  const isAwaitingCosting = ticket.status === "AWAITING_COSTING"
+  const beforePhoto = ticket.photos?.find((p: any) => p.category === "BEFORE")
+  const afterPhoto = ticket.photos?.find((p: any) => p.category === "AFTER")
+  const complaintPhoto = ticket.photos?.find((p: any) => p.category === "INITIAL_COMPLAINT") || (ticket.photoUrl ? { fileUrl: ticket.photoUrl } : null)
+
+  const publicTrackUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/public/maintenance/track/${ticket.id}?token=${ticket.requesterToken}`
+    : `/public/maintenance/track/${ticket.id}?token=${ticket.requesterToken}`
+
+  const contractorMagicUrl = ticket.contractorToken && typeof window !== "undefined"
+    ? `${window.location.origin}/maintenance/work/${ticket.id}?token=${ticket.contractorToken}`
+    : `/maintenance/work/${ticket.id}?token=${ticket.contractorToken}`
+
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      {/* Top back link */}
-      <div className="flex items-center justify-between">
+    <div className="max-w-6xl mx-auto space-y-6">
+      {/* Top Header & Breadcrumb */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <Link
           href="/forms/maintenance/tickets"
           className="inline-flex items-center text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors"
         >
-          <ArrowLeft className="h-4 w-4 mr-1" /> Back to Work Requests
+          <ArrowLeft className="h-4 w-4 mr-1.5" /> Back to Maintenance Ledger
         </Link>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono font-bold text-slate-500">{formattedLog}</span>
-          {ticket.legacyProjectId && (
-            <span className="text-xs font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-              Ref: {ticket.legacyProjectId}
-            </span>
+
+        {/* Quick Links Toolbar */}
+        <div className="flex flex-wrap items-center gap-2">
+          {ticket.jobSheetNumber && (
+            <a
+              href={`/api/public/maintenance/jobsheet/${ticket.jobSheetNumber}`}
+              target="_blank"
+              rel="noreferrer"
+              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>Job Sheet ({ticket.jobSheetNumber})</span>
+            </a>
           )}
+
+          <button
+            type="button"
+            onClick={() => copyToClipboard(publicTrackUrl, "requester")}
+            className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+          >
+            {copiedLink === "requester" ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+            <span>{copiedLink === "requester" ? "Copied Track Link!" : "Copy Requester Link"}</span>
+          </button>
+
+          {ticket.contractorToken && (
+            <button
+              type="button"
+              onClick={() => copyToClipboard(contractorMagicUrl, "contractor")}
+              className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+            >
+              {copiedLink === "contractor" ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-orange-600" />}
+              <span>{copiedLink === "contractor" ? "Copied Magic Link!" : "Copy Contractor Magic Link"}</span>
+            </button>
+          )}
+
+          <Link
+            href={`/maintenance/work/${ticket.id}`}
+            target="_blank"
+            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+          >
+            <Wrench className="h-3.5 w-3.5" />
+            <span>Open Technician View</span>
+            <ExternalLink className="h-3 w-3 text-slate-400" />
+          </Link>
         </div>
       </div>
 
-      <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-slate-800 text-white">
-        {/* Header Bar */}
-        <div className="bg-gradient-to-r from-blue-900 via-indigo-950 to-slate-900 p-6 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="bg-blue-500/20 text-blue-300 font-mono font-bold text-xs px-2.5 py-1 rounded border border-blue-400/30">
+      {statusMsg && (
+        <div
+          className={`p-4 rounded-2xl text-xs font-semibold flex items-center gap-2.5 animate-in fade-in ${
+            statusMsg.type === "success"
+              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+              : "bg-red-50 text-red-800 border border-red-200"
+          }`}
+        >
+          {statusMsg.type === "success" ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" /> : <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />}
+          <span>{statusMsg.text}</span>
+        </div>
+      )}
+
+      {/* Ticket Banner */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-xs font-bold px-3 py-1 rounded-lg bg-slate-100 text-slate-800 border border-slate-200">
                 {formattedLog}
               </span>
-              <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                MAINTENANCE RESOLUTION WORKSPACE
+              <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                ticket.status === 'CLOSED' || ticket.status === 'COMPLETED'
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                  : ticket.status === 'IN_PROGRESS'
+                  ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                  : ticket.status === 'AWAITING_VERIFICATION'
+                  ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                  : ticket.status === 'AWAITING_COSTING'
+                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                  : 'bg-slate-100 text-slate-700'
+              }`}>
+                {ticket.status.replace("_", " ")}
+              </span>
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200">
+                {ticket.ticketType}
+              </span>
+              <span className={`text-xs font-bold px-2.5 py-0.5 rounded ${
+                ticket.priority === 'URGENT' ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-slate-100 text-slate-700'
+              }`}>
+                Priority: {ticket.priority}
               </span>
             </div>
-            <h1 className="text-xl font-bold text-white">{ticket.title}</h1>
-            <p className="text-xs text-slate-400 mt-1">
-              Location: {ticket.location} {ticket.specificArea ? `(${ticket.specificArea})` : ""} • Requester: {ticket.requesterName}
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900">{ticket.title}</h1>
+            <p className="text-xs text-slate-500 flex items-center gap-1.5 font-medium">
+              <MapPin className="h-3.5 w-3.5 text-slate-400" />
+              <span>{ticket.location} {ticket.specificArea ? `• ${ticket.specificArea}` : ''}</span>
             </p>
           </div>
-          <span className="text-xs font-bold bg-slate-800 text-slate-300 px-3 py-1 rounded-full border border-slate-700">
-            SOP BOSB-PFMD-850-001
+
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 min-w-[240px] space-y-1.5 text-xs">
+            <div className="flex justify-between text-slate-500">
+              <span>Requester:</span>
+              <span className="font-bold text-slate-800">{ticket.requesterName}</span>
+            </div>
+            <div className="flex justify-between text-slate-500">
+              <span>Contact:</span>
+              <span className="text-slate-700">{ticket.requesterPhone}</span>
+            </div>
+            <div className="flex justify-between text-slate-500">
+              <span>Logged:</span>
+              <span className="text-slate-700">{new Date(ticket.createdAt).toLocaleDateString("en-GB")}</span>
+            </div>
+            {ticket.targetDateline && (
+              <div className="flex justify-between text-blue-700 font-semibold pt-1 border-t border-slate-200">
+                <span>Target:</span>
+                <span>{new Date(ticket.targetDateline).toLocaleDateString("en-GB")}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {ticket.reasonOfWork && (
+          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700">
+            <span className="font-bold text-slate-500 uppercase tracking-wider block text-[10px] mb-0.5">Reported Symptoms</span>
+            {ticket.reasonOfWork}
+          </div>
+        )}
+      </div>
+
+      {/* GATE 1: PIC Formal Acknowledgment (If still OPEN) */}
+      {ticket.status === "OPEN" && (
+        <form onSubmit={handleAcknowledge} className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-3xl p-6 sm:p-8 space-y-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+              <ShieldCheck className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-amber-950">Action Required: Acknowledge Ticket &amp; Set SLA Target</h3>
+              <p className="text-xs text-amber-900 mt-0.5">
+                As the designated PIC for {ticket.ticketType}, please review this request, accept supervisory accountability, and confirm the repair deadline.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Target Completion Deadline <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="datetime-local"
+                required
+                value={customDeadline}
+                onChange={(e) => setCustomDeadline(e.target.value)}
+                className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+              <p className="text-[10px] text-slate-500 mt-1">
+                Default for {ticket.priority}: {ticket.priority === 'URGENT' ? '24 Hours' : ticket.priority === 'HIGH' ? '3 Days' : '7 Days'} from acknowledgment.
+              </p>
+            </div>
+
+            <div className="flex items-center">
+              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-white/80 border border-amber-200 cursor-pointer">
+                <input
+                  type="checkbox"
+                  required
+                  checked={ackAgree}
+                  onChange={(e) => setAckAgree(e.target.checked)}
+                  className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 h-4 w-4 mt-0.5"
+                />
+                <span className="text-xs text-slate-800 leading-snug font-medium">
+                  I formally acknowledge receipt of this work request and assume supervisory responsibility for the repair execution.
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isProcessing || !ackAgree}
+            className="w-full sm:w-auto px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+            <span>Formally Acknowledge Ticket</span>
+          </button>
+        </form>
+      )}
+
+      {/* GATE 2: Technician & Contractor Assignment */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <UserCheck className="h-5 w-5 text-blue-600" />
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900">
+              Technician / Contractor Assignment
+            </h3>
+          </div>
+          {!isClosed && (
+            <button
+              type="button"
+              onClick={() => setShowAssignPanel(!showAssignPanel)}
+              className="px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors flex items-center gap-1.5"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              <span>{ticket.assigneeId || ticket.assigneeName ? "Reassign" : "Assign Technician"}</span>
+            </button>
+          )}
+        </div>
+
+        {/* Current Assignee Display */}
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div>
+            <span className="text-slate-400 uppercase text-[10px] font-bold block">Assigned Worker</span>
+            <span className="font-bold text-slate-900 text-sm">
+              {ticket.assignee?.name || ticket.assigneeName || "Unassigned"}
+            </span>
+            {ticket.contractorPhone && (
+              <span className="text-slate-500 block text-[11px]">Phone: {ticket.contractorPhone}</span>
+            )}
+          </div>
+          {ticket.acknowledgedBy && (
+            <div className="text-left sm:text-right">
+              <span className="text-slate-400 uppercase text-[10px] font-bold block">Supervising PIC</span>
+              <span className="font-semibold text-slate-800">{ticket.acknowledgedBy.name}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Expandable Assign Form */}
+        {showAssignPanel && (
+          <form onSubmit={handleAssign} className="p-5 bg-blue-50/50 rounded-2xl border border-blue-200 space-y-4">
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer">
+                <input
+                  type="radio"
+                  name="assignTypeRadio"
+                  checked={assigneeType === "INTERNAL"}
+                  onChange={() => setAssigneeType("INTERNAL")}
+                  className="text-blue-600"
+                />
+                <span>Internal Staff Technician</span>
+              </label>
+              <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer">
+                <input
+                  type="radio"
+                  name="assignTypeRadio"
+                  checked={assigneeType === "CONTRACTOR"}
+                  onChange={() => setAssigneeType("CONTRACTOR")}
+                  className="text-blue-600"
+                />
+                <span>External Contractor / Vendor</span>
+              </label>
+            </div>
+
+            {assigneeType === "INTERNAL" ? (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Select Staff Member</label>
+                <select
+                  value={selectedStaffId}
+                  onChange={(e) => setSelectedStaffId(e.target.value)}
+                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white"
+                >
+                  <option value="">-- Choose technician --</option>
+                  {staffList.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.unit?.name || 'Staff'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Contractor / Firm Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={contractorName}
+                    onChange={(e) => setContractorName(e.target.value)}
+                    placeholder="e.g. Pro-Chill Engineering / Akmal Vendor"
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Contractor Phone (For Magic Link)</label>
+                  <input
+                    type="tel"
+                    value={contractorPhone}
+                    onChange={(e) => setContractorPhone(e.target.value)}
+                    placeholder="e.g. 019-8765432"
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Assignment / Handover Note (Optional)</label>
+              <input
+                type="text"
+                value={reassignmentReason}
+                onChange={(e) => setReassignmentReason(e.target.value)}
+                placeholder="Specific instructions or tool requirements..."
+                className="w-full text-xs px-3.5 py-2 rounded-xl border border-slate-300 bg-white"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="submit"
+                disabled={isProcessing}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5"
+              >
+                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                <span>Confirm Assignment</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAssignPanel(false)}
+                className="px-3 py-2 text-slate-500 hover:text-slate-700 text-xs font-semibold"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+
+      {/* GATE 3: Evidence & Work Progress Gallery */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900">
+            Photographic Evidence &amp; Resolution
+          </h3>
+          <span className="text-xs text-slate-500">
+            Total Photos: {ticket.photos?.length || 0}
           </span>
         </div>
 
-        {/* Form Controls */}
-        <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-8">
-          {statusMsg && (
-            <div
-              className={`p-4 rounded-xl text-xs font-bold flex items-center gap-2 border ${
-                statusMsg.type === "success"
-                  ? "bg-emerald-950/60 text-emerald-300 border-emerald-800"
-                  : "bg-red-950/60 text-red-300 border-red-800"
-              }`}
-            >
-              {statusMsg.type === "success" ? (
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
-              ) : (
-                <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
-              )}
-              {statusMsg.text}
-            </div>
-          )}
-
-          {/* Section 1: Core Lifecycle Controls */}
-          <div>
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center">
-              <Clock className="h-4 w-4 mr-1.5 text-blue-400" />
-              1. Ticket Status &amp; Assignment
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Status</label>
-                <select
-                  name="status"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
-                >
-                  <option value="OPEN">Open (New Request)</option>
-                  <option value="IN_PROGRESS">In Progress</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="CANCELLED">Cancelled</option>
-                  <option value="REJECTED">Rejected</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Category</label>
-                <select
-                  name="ticketType"
-                  value={ticketType}
-                  onChange={(e) => setTicketType(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
-                >
-                  <option value="MECHANICAL">Mechanical</option>
-                  <option value="CIVIL">Civil &amp; Facility</option>
-                  <option value="ELECTRICAL">Electrical</option>
-                  <option value="OTHERS">Others</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Priority</label>
-                <select
-                  name="priority"
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
-                >
-                  <option value="LOW">Low (&gt;14 days)</option>
-                  <option value="MEDIUM">Medium (7-14 days)</option>
-                  <option value="HIGH">High (&lt;3 days)</option>
-                  <option value="URGENT">Urgent (&lt;24 hours)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Assigned PIC</label>
-                <select
-                  name="assigneeId"
-                  value={assigneeId}
-                  onChange={(e) => {
-                    setAssigneeId(e.target.value)
-                    const found = staffList.find((s) => s.id === e.target.value)
-                    if (found) setAssigneeName(found.name)
-                  }}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
-                >
-                  <option value="">Unassigned</option>
-                  {staffList.map((staff) => (
-                    <option key={staff.id} value={staff.id}>
-                      {staff.name} {staff.unit?.name ? `(${staff.unit.name})` : ""}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  name="assigneeName"
-                  value={assigneeName}
-                  onChange={(e) => setAssigneeName(e.target.value)}
-                  placeholder="Or enter contractor name..."
-                  className="mt-1 w-full bg-slate-800/60 border border-slate-700 rounded px-2.5 py-1 text-[11px] text-slate-300 focus:outline-none"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 2: Schedule & Target Datelines (SOP QR02) */}
-          <div className="pt-6 border-t border-slate-800">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center">
-              <Calendar className="h-4 w-4 mr-1.5 text-indigo-400" />
-              2. Schedule &amp; KPI Datelines (SOP QR02 Tracker)
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Target Start Date</label>
-                <input
-                  type="date"
-                  name="targetStartDate"
-                  value={targetStartDate}
-                  onChange={(e) => setTargetStartDate(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Target Dateline (Due Date)</label>
-                <input
-                  type="date"
-                  name="targetDateline"
-                  value={targetDateline}
-                  onChange={(e) => setTargetDateline(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Actual Completed Date</label>
-                <input
-                  type="date"
-                  name="completedAt"
-                  value={completedAt}
-                  onChange={(e) => setCompletedAt(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 3: Root Cause & Resolution */}
-          <div className="pt-6 border-t border-slate-800">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center">
-              <FileText className="h-4 w-4 mr-1.5 text-amber-400" />
-              3. Root Cause Analysis &amp; Corrective Resolution
-            </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Root Cause Analysis (RCA)</label>
-                <textarea
-                  name="rootCause"
-                  defaultValue={ticket.rootCause || ""}
-                  rows={4}
-                  placeholder="What was the technical cause of the breakdown or fault?"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-medium"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Resolution &amp; Corrective Steps</label>
-                <textarea
-                  name="resolution"
-                  defaultValue={ticket.resolution || ""}
-                  rows={4}
-                  placeholder="Describe maintenance actions taken, replaced components, tests performed..."
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-medium"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 4: Verification & Handover */}
-          <div className="pt-6 border-t border-slate-800">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center">
-              <ShieldCheck className="h-4 w-4 mr-1.5 text-emerald-400" />
-              4. Verification &amp; Plant Handover
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Verified By (Maintenance Lead)</label>
-                <input
-                  type="text"
-                  name="verifiedBy"
-                  defaultValue={ticket.verifiedBy || ""}
-                  placeholder="e.g. En Ridzuan / En Akmal"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Handover Acknowledgment</label>
-                <input
-                  type="text"
-                  name="handover"
-                  defaultValue={ticket.handover || ""}
-                  placeholder="e.g. Handed over to Production Shift Lead"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 5: Spare Parts & Material Costs */}
-          <div className="pt-6 border-t border-slate-800">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center">
-                <DollarSign className="h-4 w-4 mr-1 text-emerald-400" />
-                5. Spare Parts &amp; Repair Expenses
-              </h2>
-              <div className="flex items-center gap-2">
-                <select
-                  onChange={handleAddCatalogItem}
-                  className="bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="">+ Pick from Maintenance Inventory...</option>
-                  {catalogItems.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name} ({item.quantity} {item.unit})
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={handleAddCustomCost}
-                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 transition-colors flex items-center gap-1"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Custom Item
-                </button>
-              </div>
-            </div>
-
-            {costs.length > 0 ? (
-              <div className="bg-slate-800/60 rounded-xl border border-slate-800 overflow-hidden">
-                <table className="w-full text-xs text-left text-slate-300">
-                  <thead className="bg-slate-800 text-slate-400 uppercase font-semibold text-[10px]">
-                    <tr>
-                      <th className="px-4 py-2.5">Item Description</th>
-                      <th className="px-4 py-2.5 w-36">Cost (RM)</th>
-                      <th className="px-4 py-2.5 w-16 text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/80">
-                    {costs.map((c, i) => (
-                      <tr key={i}>
-                        <td className="px-4 py-2">
-                          <input
-                            type="text"
-                            value={c.itemName}
-                            onChange={(e) => handleCostChange(i, "itemName", e.target.value)}
-                            placeholder="Part / Service description..."
-                            className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-xs text-white focus:outline-none"
-                          />
-                        </td>
-                        <td className="px-4 py-2">
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={c.amount}
-                            onChange={(e) => handleCostChange(i, "amount", e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-xs text-right font-mono text-emerald-400 focus:outline-none"
-                          />
-                        </td>
-                        <td className="px-4 py-2 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveCost(i)}
-                            className="p-1 text-rose-400 hover:text-rose-200 transition-colors"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-slate-800/80 font-bold text-xs text-white">
-                    <tr>
-                      <td className="px-4 py-2.5 text-right uppercase text-slate-400">Total Material Cost:</td>
-                      <td className="px-4 py-2.5 text-right font-mono text-emerald-400">
-                        RM {totalCost.toFixed(2)}
-                      </td>
-                      <td></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="border border-slate-200 rounded-2xl p-3 bg-slate-50/50 space-y-2">
+            <span className="text-[10px] font-bold uppercase text-slate-500 block">1. Complaint Photo</span>
+            {complaintPhoto ? (
+              <img src={complaintPhoto.fileUrl} alt="Complaint" className="w-full h-36 object-cover rounded-xl border border-slate-200" />
             ) : (
-              <p className="text-xs text-slate-500 italic">No spare parts or material expenses logged for this ticket.</p>
+              <div className="h-36 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-xs text-slate-400">
+                No complaint photo
+              </div>
             )}
           </div>
 
-          {/* Damage Photo preview if exists */}
-          {ticket.photoUrl && (
-            <div className="pt-6 border-t border-slate-800">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                Attached Photo (Cloudflare R2)
-              </h2>
-              <div className="flex items-center gap-3">
-                <img
-                  src={ticket.photoUrl}
-                  alt="Damage photo"
-                  className="h-24 w-32 object-cover rounded-lg border border-slate-700"
-                />
-                <a
-                  href={ticket.photoUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs font-bold text-blue-400 hover:underline inline-flex items-center gap-1"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" /> View Full Resolution
-                </a>
+          <div className="border border-slate-200 rounded-2xl p-3 bg-slate-50/50 space-y-2">
+            <span className="text-[10px] font-bold uppercase text-amber-700 block">2. Before Repair (Technician)</span>
+            {beforePhoto ? (
+              <img src={beforePhoto.fileUrl} alt="Before" className="w-full h-36 object-cover rounded-xl border border-slate-200" />
+            ) : (
+              <div className="h-36 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-xs text-slate-400">
+                Pending technician before photo
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Action buttons */}
-          <div className="pt-6 border-t border-slate-800 flex items-center justify-between">
-            <Link
-              href="/forms/maintenance/tickets"
-              className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
-            >
-              Cancel
-            </Link>
+          <div className="border border-slate-200 rounded-2xl p-3 bg-slate-50/50 space-y-2">
+            <span className="text-[10px] font-bold uppercase text-emerald-700 block">3. After Repair (Restored)</span>
+            {afterPhoto ? (
+              <img src={afterPhoto.fileUrl} alt="After" className="w-full h-36 object-cover rounded-xl border border-slate-200" />
+            ) : (
+              <div className="h-36 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-xs text-slate-400">
+                Pending technician after photo
+              </div>
+            )}
+          </div>
+        </div>
+
+        {ticket.noPhotoReason && (
+          <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800">
+            <strong>Photo Exemption:</strong> {ticket.noPhotoReason}
+          </div>
+        )}
+
+        {ticket.resolution && (
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+            <span className="text-[10px] font-bold uppercase text-slate-500 block">Technical Resolution</span>
+            <p className="text-xs text-slate-900 whitespace-pre-wrap">{ticket.resolution}</p>
+          </div>
+        )}
+      </div>
+
+      {/* GATE 4: Atomic Costing (Parts, Materials & Labour) */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900">
+              Spare Parts &amp; Maintenance Costing
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Record inventory spare parts used, labor hours, and contractor billing.
+            </p>
+          </div>
+          {!isClosed && (
             <button
-              type="submit"
-              disabled={isSaving}
-              className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50 flex items-center gap-2"
+              type="button"
+              onClick={handleAddCostRow}
+              className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
             >
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving Updates...
-                </>
+              <Plus className="h-3.5 w-3.5" />
+              <span>Add Cost Item</span>
+            </button>
+          )}
+        </div>
+
+        {/* Cost Table */}
+        <div className="border border-slate-200 rounded-2xl overflow-hidden">
+          <table className="w-full text-left text-xs divide-y divide-slate-200">
+            <thead className="bg-slate-50 font-bold text-slate-600">
+              <tr>
+                <th className="py-2.5 px-3">Category</th>
+                <th className="py-2.5 px-3">Catalog Item / Description</th>
+                <th className="py-2.5 px-3 w-20">Qty</th>
+                <th className="py-2.5 px-3 w-20">Unit</th>
+                <th className="py-2.5 px-3 w-28 text-right">Price (RM)</th>
+                <th className="py-2.5 px-3 w-28 text-right">Total (RM)</th>
+                {!isClosed && <th className="py-2.5 px-2 w-10 text-center"></th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {costs.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-slate-400">
+                    No chargeable items recorded. Click "Add Cost Item" to add parts or contractor charges.
+                  </td>
+                </tr>
               ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  Save Changes
-                </>
+                costs.map((c, i) => (
+                  <tr key={i} className="hover:bg-slate-50/50">
+                    <td className="py-2 px-3">
+                      {isClosed ? (
+                        <span>{c.category}</span>
+                      ) : (
+                        <select
+                          value={c.category}
+                          onChange={(e) => handleCostFieldChange(i, "category", e.target.value)}
+                          className="w-full p-1.5 rounded-lg border border-slate-200 text-xs bg-white"
+                        >
+                          <option value="SPARE_PART">Spare Part</option>
+                          <option value="LABOUR">Labour</option>
+                          <option value="CONTRACTOR">Contractor</option>
+                          <option value="OTHER">Other</option>
+                        </select>
+                      )}
+                    </td>
+                    <td className="py-2 px-3 space-y-1">
+                      {isClosed ? (
+                        <span className="font-semibold text-slate-800">{c.itemName}</span>
+                      ) : (
+                        <>
+                          {c.category === "SPARE_PART" && catalogItems.length > 0 && (
+                            <select
+                              value={c.itemId || ""}
+                              onChange={(e) => handlePickCatalogItem(i, e.target.value)}
+                              className="w-full p-1 rounded border border-slate-200 text-[11px] text-slate-600 bg-slate-50 mb-1"
+                            >
+                              <option value="">-- Pick from Spare Parts Catalog --</option>
+                              {catalogItems.map((item) => (
+                                <option key={item.id} value={item.id}>
+                                  {item.name} ({item.quantity} {item.unit} available)
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                          <input
+                            type="text"
+                            value={c.itemName}
+                            onChange={(e) => handleCostFieldChange(i, "itemName", e.target.value)}
+                            placeholder="Item name / repair charge"
+                            className="w-full p-1.5 rounded-lg border border-slate-200 text-xs"
+                          />
+                        </>
+                      )}
+                    </td>
+                    <td className="py-2 px-3">
+                      {isClosed ? (
+                        <span>{c.quantity}</span>
+                      ) : (
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={c.quantity}
+                          onChange={(e) => handleCostFieldChange(i, "quantity", e.target.value)}
+                          className="w-full p-1.5 rounded-lg border border-slate-200 text-xs text-center"
+                        />
+                      )}
+                    </td>
+                    <td className="py-2 px-3">
+                      {isClosed ? (
+                        <span>{c.unit}</span>
+                      ) : (
+                        <input
+                          type="text"
+                          value={c.unit}
+                          onChange={(e) => handleCostFieldChange(i, "unit", e.target.value)}
+                          className="w-full p-1.5 rounded-lg border border-slate-200 text-xs text-center"
+                        />
+                      )}
+                    </td>
+                    <td className="py-2 px-3 text-right">
+                      {isClosed ? (
+                        <span>{parseFloat(c.unitPrice).toFixed(2)}</span>
+                      ) : (
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={c.unitPrice}
+                          onChange={(e) => handleCostFieldChange(i, "unitPrice", e.target.value)}
+                          className="w-full p-1.5 rounded-lg border border-slate-200 text-xs text-right"
+                        />
+                      )}
+                    </td>
+                    <td className="py-2 px-3 text-right font-bold text-slate-900">
+                      RM {parseFloat(c.amount || 0).toFixed(2)}
+                    </td>
+                    {!isClosed && (
+                      <td className="py-2 px-2 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCostRow(i)}
+                          className="p-1 text-slate-400 hover:text-red-600 rounded"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))
               )}
+            </tbody>
+            <tfoot className="bg-slate-50 font-bold border-t border-slate-200">
+              <tr>
+                <td colSpan={5} className="py-3 px-3 text-right text-slate-700">
+                  TOTAL MAINTENANCE COST:
+                </td>
+                <td className="py-3 px-3 text-right text-blue-700 text-sm">
+                  RM {totalCost.toFixed(2)}
+                </td>
+                {!isClosed && <td></td>}
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        {!isClosed && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              disabled={isProcessing}
+              onClick={handleSaveCosts}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5 disabled:opacity-50"
+            >
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              <span>Save Costs Atomically</span>
             </button>
           </div>
+        )}
+      </div>
+
+      {/* GATE 5: Formal Closure & Job Sheet PDF Generation */}
+      {!isClosed && (
+        <form onSubmit={handleCloseTicket} className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-3xl p-6 sm:p-8 space-y-4 shadow-xl">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-2xl bg-blue-600/30 border border-blue-400/30 text-blue-300 flex items-center justify-center shrink-0">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-black">HOD / Lead Final Approval &amp; Job Sheet Generation</h3>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Approving closure will lock the ticket, generate the official Job Sheet &amp; Billing Memo PDF, and store it in Cloudflare R2.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">
+              Closure Remarks / Supervisor Sign-off Notes
+            </label>
+            <input
+              type="text"
+              value={closingRemarks}
+              onChange={(e) => setClosingRemarks(e.target.value)}
+              placeholder="e.g. Work inspected, machine running satisfactorily in production, approved."
+              className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isProcessing}
+            className="w-full sm:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+            <span>Approve, Close Ticket &amp; Issue Job Sheet PDF</span>
+          </button>
         </form>
+      )}
+
+      {/* Activity Log Audit Timeline */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 space-y-4">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900">
+          Immutable Audit Log Timeline
+        </h3>
+        <div className="relative pl-6 space-y-4 border-l-2 border-slate-200 text-xs">
+          {ticket.activityLogs?.map((log: any) => (
+            <div key={log.id} className="relative">
+              <span className="absolute -left-[31px] top-0.5 h-4 w-4 rounded-full bg-slate-300 border-2 border-white" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-900">{log.action.replace("_", " ")}</span>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {new Date(log.createdAt).toLocaleString("en-GB")}
+                  </span>
+                </div>
+                <p className="text-slate-600 mt-0.5">{log.details}</p>
+                <span className="text-[10px] text-slate-400">By: {log.actorName} ({log.actorRole})</span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

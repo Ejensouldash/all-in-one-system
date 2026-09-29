@@ -2,32 +2,48 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Wrench, PackageOpen, Bell } from "lucide-react"
+import { Wrench, ClipboardList, PackageOpen, Bell } from "lucide-react"
 
-export function MaintenanceNavTabs({ userModules = [] }: { userModules?: string[] }) {
+export function MaintenanceNavTabs({ 
+  userModules = [],
+  isSuperAdmin = false,
+}: { 
+  userModules?: string[]
+  isSuperAdmin?: boolean
+}) {
   const pathname = usePathname()
 
   const isNotifications = pathname.startsWith("/forms/maintenance/tickets/notifications")
-  const isTickets = pathname.startsWith("/forms/maintenance/tickets") && !isNotifications
+  const isRequests = pathname.startsWith("/forms/maintenance/tickets/service-requests")
+  const isTickets = pathname.startsWith("/forms/maintenance/tickets") && !isNotifications && !isRequests
   const isDashboard = pathname.startsWith("/forms/maintenance/dashboard")
 
-  const hasTickets = userModules.length === 0 || 
-    userModules.includes("MAINTENANCE_TICKETS_MANAGE") || 
-    userModules.includes("MAINTENANCE_FORMS") || 
+  // 1st tier: Can manage work orders, assign PIC, track KPI & costing
+  // Superadmin, tickets page context, empty modules fallback, or users with maintenance management permissions
+  const canManage = isSuperAdmin || 
+    isTickets ||
+    userModules.length === 0 || 
+    userModules.includes("MAINTENANCE_TICKETS_MANAGE") ||
+    userModules.includes("MAINTENANCE_FORMS")
+
+  // 2nd tier floor/department requests: Accessible to all
+  const hasRequests = true
+
+  // FMS Inventory / Stock: Accessible to Superadmin & maintenance users or if currently on dashboard
+  const hasDashboard = isSuperAdmin || 
+    isDashboard ||
+    userModules.length === 0 || 
     userModules.includes("MAINTENANCE_DASHBOARD") ||
-    userModules.includes("MAINTENANCE_REPORTS") ||
-    userModules.includes("MAINTENANCE_SUMMARY")
-
-  const hasDashboard = userModules.length === 0 || 
-    userModules.includes("MAINTENANCE_DASHBOARD")
-
-  const hasNotifications = userModules.length === 0 || 
+    userModules.includes("MAINTENANCE_FORMS") ||
     userModules.includes("MAINTENANCE_TICKETS_MANAGE")
+
+  const hasNotifications = canManage
 
   return (
     <div className="mb-8 border-b border-gray-200 overflow-x-auto">
       <div className="flex space-x-8 min-w-max px-2">
-        {hasTickets && (
+        {/* Tab 1: FMS Work Request */}
+        {canManage && (
           <Link 
             href="/forms/maintenance/tickets"
             className={`flex items-center pb-4 text-sm font-black uppercase tracking-wider border-b-4 transition-colors ${
@@ -37,10 +53,26 @@ export function MaintenanceNavTabs({ userModules = [] }: { userModules?: string[
             }`}
           >
             <Wrench className="w-5 h-5 mr-2" />
-            Work Requests
+            FMS Work Request
           </Link>
         )}
 
+        {/* Tab 2: Service Request */}
+        {hasRequests && (
+          <Link 
+            href="/forms/maintenance/tickets/service-requests"
+            className={`flex items-center pb-4 text-sm font-black uppercase tracking-wider border-b-4 transition-colors ${
+              isRequests
+                ? "border-blue-700 text-blue-700" 
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            <ClipboardList className="w-5 h-5 mr-2" />
+            Service Request
+          </Link>
+        )}
+
+        {/* Tab 3: FMS Inventory */}
         {hasDashboard && (
           <Link 
             href="/forms/maintenance/dashboard"
@@ -51,10 +83,11 @@ export function MaintenanceNavTabs({ userModules = [] }: { userModules?: string[
             }`}
           >
             <PackageOpen className="w-5 h-5 mr-2" />
-            Maintenance Inventory
+            FMS Inventory
           </Link>
         )}
 
+        {/* Tab 4: Email Alerts (Management) */}
         {hasNotifications && (
           <Link 
             href="/forms/maintenance/tickets/notifications"

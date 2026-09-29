@@ -18,7 +18,7 @@ export default async function MaintenanceQRPage() {
     <div className="bg-slate-50 min-h-screen pb-12 print:bg-white print:p-0">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 print:p-0 print:max-w-none">
         <div className="print:hidden">
-          <MaintenanceNavTabs userModules={access?.modules || []} />
+          <MaintenanceNavTabs userModules={access?.modules || []} isSuperAdmin={access?.isSuperAdmin} />
         </div>
         <MaintenanceQRPosterClient />
       </div>

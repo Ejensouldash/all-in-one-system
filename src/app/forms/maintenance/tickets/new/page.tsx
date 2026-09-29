@@ -17,7 +17,7 @@ export default async function NewMaintenanceTicketPage() {
   return (
     <div className="bg-slate-50 min-h-screen pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        <MaintenanceNavTabs userModules={access?.modules || []} />
+        <MaintenanceNavTabs userModules={access?.modules || []} isSuperAdmin={access?.isSuperAdmin} />
         <MaintenanceTicketCreateForm
           defaultName={session.user.name || ""}
           defaultEmail={session.user.email || ""}

@@ -1,12 +1,15 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
-import { getMaintenanceNotificationRecipients } from "@/app/actions/maintenance-notifications"
+import { 
+  getMaintenanceNotificationRecipients, 
+  getMaintenanceOutboxItems 
+} from "@/app/actions/maintenance-notifications"
 import { MaintenanceNotificationSettingsClient } from "./MaintenanceNotificationSettingsClient"
 import { MaintenanceNavTabs } from "@/components/forms/MaintenanceNavTabs"
 
 export const metadata = {
-  title: "Maintenance Email Alert Settings | BubblesO2",
+  title: "Email Alerts & Notification Outbox | BubblesO2",
 }
 
 export default async function MaintenanceNotificationSettingsPage() {
@@ -21,12 +24,16 @@ export default async function MaintenanceNotificationSettingsPage() {
   }
 
   const recipients = await getMaintenanceNotificationRecipients()
+  const outbox = await getMaintenanceOutboxItems(50)
 
   return (
     <div className="bg-slate-50 min-h-screen pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        <MaintenanceNavTabs userModules={access.modules} />
-        <MaintenanceNotificationSettingsClient initialRecipients={recipients} />
+        <MaintenanceNavTabs userModules={access.modules} isSuperAdmin={access.isSuperAdmin} />
+        <MaintenanceNotificationSettingsClient 
+          initialRecipients={recipients as any} 
+          initialOutbox={outbox as any}
+        />
       </div>
     </div>
   )

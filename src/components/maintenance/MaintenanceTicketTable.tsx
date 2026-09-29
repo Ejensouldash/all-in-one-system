@@ -16,7 +16,10 @@ import {
   Cog, 
   HelpCircle,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  FileText,
+  RotateCcw,
+  DollarSign
 } from "lucide-react"
 import { MaintenanceTicketViewModal } from "./MaintenanceTicketViewModal"
 
@@ -48,7 +51,7 @@ export function MaintenanceTicketTable({
   const [statusFilter, setStatusFilter] = useState<string>("ALL")
   const [search, setSearch] = useState<string>("")
   const [currentPage, setCurrentPage] = useState<number>(1)
-  const [pageSize, setPageSize] = useState<number>(5)
+  const [pageSize, setPageSize] = useState<number>(10)
 
   const filteredTickets = useMemo(() => {
     return tickets.filter((ticket) => {
@@ -56,7 +59,13 @@ export function MaintenanceTicketTable({
       if (typeFilter !== "ALL" && ticket.ticketType !== typeFilter) return false
 
       // Status Filter
-      if (statusFilter !== "ALL" && ticket.status !== statusFilter) return false
+      if (statusFilter !== "ALL") {
+        if (statusFilter === "CLOSED") {
+          if (ticket.status !== "CLOSED" && ticket.status !== "COMPLETED") return false
+        } else if (ticket.status !== statusFilter) {
+          return false
+        }
+      }
 
       // Search Query
       if (search.trim()) {
@@ -68,8 +77,9 @@ export function MaintenanceTicketTable({
         const matchRequester = ticket.requesterName?.toLowerCase().includes(q)
         const matchPic = (ticket.assignee?.name || ticket.assigneeName)?.toLowerCase().includes(q)
         const matchLog = logFormatted.includes(q) || (ticket.legacyProjectId && ticket.legacyProjectId.toLowerCase().includes(q))
+        const matchJobSheet = ticket.jobSheetNumber?.toLowerCase().includes(q)
 
-        if (!matchTitle && !matchReason && !matchLocation && !matchRequester && !matchPic && !matchLog) {
+        if (!matchTitle && !matchReason && !matchLocation && !matchRequester && !matchPic && !matchLog && !matchJobSheet) {
           return false
         }
       }
@@ -118,16 +128,16 @@ export function MaintenanceTicketTable({
   return (
     <div className="space-y-4">
       {/* Category Tabs & Filter Toolbar */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200/80 p-4 space-y-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Category Quick Pills */}
           <div className="flex flex-wrap gap-2">
             {[
               { id: "ALL", label: "All Categories", icon: Filter, count: typeCounts.ALL },
-              { id: "MECHANICAL", label: "Mechanical", icon: Cog, count: typeCounts.MECHANICAL, color: "text-amber-600 bg-amber-50 border-amber-200" },
-              { id: "CIVIL", label: "Civil & Facility", icon: Building, count: typeCounts.CIVIL, color: "text-emerald-600 bg-emerald-50 border-emerald-200" },
-              { id: "ELECTRICAL", label: "Electrical", icon: Zap, count: typeCounts.ELECTRICAL, color: "text-blue-600 bg-blue-50 border-blue-200" },
-              { id: "OTHERS", label: "Others", icon: HelpCircle, count: typeCounts.OTHERS, color: "text-slate-600 bg-slate-50 border-slate-200" },
+              { id: "MECHANICAL", label: "Mechanical", icon: Cog, count: typeCounts.MECHANICAL },
+              { id: "CIVIL", label: "Civil & Facility", icon: Building, count: typeCounts.CIVIL },
+              { id: "ELECTRICAL", label: "Electrical", icon: Zap, count: typeCounts.ELECTRICAL },
+              { id: "OTHERS", label: "Others", icon: HelpCircle, count: typeCounts.OTHERS },
             ].map((tab) => {
               const Icon = tab.icon
               const isActive = typeFilter === tab.id
@@ -135,7 +145,7 @@ export function MaintenanceTicketTable({
                 <button
                   key={tab.id}
                   onClick={() => handleTypeFilter(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
                     isActive
                       ? "bg-slate-900 text-white border-slate-900 shadow-sm"
                       : "bg-white text-slate-600 hover:bg-slate-50 border-slate-200"
@@ -158,12 +168,15 @@ export function MaintenanceTicketTable({
             <select
               value={statusFilter}
               onChange={(e) => handleStatusFilter(e.target.value)}
-              className="bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              className="bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             >
               <option value="ALL">All Statuses</option>
-              <option value="OPEN">Open</option>
+              <option value="OPEN">Open (Pending PIC)</option>
+              <option value="ACKNOWLEDGED">Acknowledged</option>
               <option value="IN_PROGRESS">In Progress</option>
-              <option value="COMPLETED">Completed</option>
+              <option value="AWAITING_VERIFICATION">Awaiting Verification</option>
+              <option value="AWAITING_COSTING">Awaiting Costing</option>
+              <option value="CLOSED">Closed / Completed</option>
               <option value="CANCELLED">Cancelled</option>
               <option value="REJECTED">Rejected</option>
             </select>
@@ -174,16 +187,42 @@ export function MaintenanceTicketTable({
                 type="text"
                 value={search}
                 onChange={(e) => handleSearch(e.target.value)}
-                placeholder="Search ticket, plant, requester..."
-                className="w-full pl-8 pr-3 py-2 text-xs rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                placeholder="Search ref, machine, requester..."
+                className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Results summary and Page size */}
+        <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
+          <span>
+            Showing <strong className="text-slate-800">{totalFiltered === 0 ? 0 : startIndex + 1}</strong> to{" "}
+            <strong className="text-slate-800">{endIndex}</strong> of{" "}
+            <strong className="text-slate-800">{totalFiltered}</strong> tickets
+          </span>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs">Per page:</span>
+            {[10, 25, 50].map((size) => (
+              <button
+                key={size}
+                onClick={() => handlePageSizeChange(size)}
+                className={`px-2 py-0.5 rounded text-xs font-bold ${
+                  pageSize === size
+                    ? "bg-slate-800 text-white"
+                    : "text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                {size}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
       {/* Main Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50 text-slate-600 text-left text-xs font-bold uppercase tracking-wider">
@@ -194,10 +233,10 @@ export function MaintenanceTicketTable({
                 <th className="px-5 py-3.5">Location</th>
                 <th className="px-5 py-3.5">Status</th>
                 <th className="px-5 py-3.5">Priority</th>
-                <th className="px-5 py-3.5">PIC</th>
+                <th className="px-5 py-3.5">Assigned To</th>
                 <th className="px-5 py-3.5">Requester</th>
                 <th className="px-5 py-3.5">Date</th>
-                <th className="px-5 py-3.5 text-right">Action</th>
+                <th className="px-5 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-slate-100 text-xs">
@@ -210,17 +249,24 @@ export function MaintenanceTicketTable({
               ) : (
                 paginatedTickets.map((ticket) => {
                   const logNumber = `BO2-MT-${ticket.ticketNumber.toString().padStart(4, "0")}`
+                  const isClosed = ticket.status === "CLOSED" || ticket.status === "COMPLETED"
+
                   return (
                     <tr key={ticket.id} className="hover:bg-slate-50/80 transition-colors">
                       {/* Log No */}
                       <td className="px-5 py-3.5 whitespace-nowrap">
                         <div className="flex flex-col items-start gap-1">
-                          <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded border border-slate-200">
+                          <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                             {logNumber}
                           </span>
                           {ticket.legacyProjectId && (
-                            <span className="text-[10px] text-amber-700 font-mono bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                            <span className="text-[10px] text-amber-700 font-mono bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
                               {ticket.legacyProjectId}
+                            </span>
+                          )}
+                          {ticket.jobSheetNumber && (
+                            <span className="text-[10px] text-blue-700 font-mono bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">
+                              {ticket.jobSheetNumber}
                             </span>
                           )}
                         </div>
@@ -275,10 +321,16 @@ export function MaintenanceTicketTable({
                       <td className="px-5 py-3.5 whitespace-nowrap">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                            ticket.status === "COMPLETED"
+                            isClosed
                               ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                               : ticket.status === "IN_PROGRESS"
                               ? "bg-blue-100 text-blue-800 border border-blue-200"
+                              : ticket.status === "ACKNOWLEDGED"
+                              ? "bg-indigo-100 text-indigo-800 border border-indigo-200"
+                              : ticket.status === "AWAITING_VERIFICATION"
+                              ? "bg-purple-100 text-purple-800 border border-purple-200"
+                              : ticket.status === "AWAITING_COSTING"
+                              ? "bg-amber-100 text-amber-800 border border-amber-200"
                               : ticket.status === "CANCELLED"
                               ? "bg-gray-100 text-gray-700 border border-gray-200"
                               : ticket.status === "REJECTED"
@@ -286,8 +338,11 @@ export function MaintenanceTicketTable({
                               : "bg-amber-100 text-amber-800 border border-amber-200"
                           }`}
                         >
-                          {ticket.status === "COMPLETED" && <CheckCircle2 className="mr-1 h-3 w-3" />}
+                          {isClosed && <CheckCircle2 className="mr-1 h-3 w-3" />}
                           {ticket.status === "IN_PROGRESS" && <Clock className="mr-1 h-3 w-3" />}
+                          {ticket.status === "ACKNOWLEDGED" && <Clock className="mr-1 h-3 w-3" />}
+                          {ticket.status === "AWAITING_VERIFICATION" && <RotateCcw className="mr-1 h-3 w-3" />}
+                          {ticket.status === "AWAITING_COSTING" && <DollarSign className="mr-1 h-3 w-3" />}
                           {ticket.status === "OPEN" && <AlertCircle className="mr-1 h-3 w-3" />}
                           {ticket.status.replace("_", " ")}
                         </span>
@@ -309,7 +364,7 @@ export function MaintenanceTicketTable({
                         </span>
                       </td>
 
-                      {/* PIC */}
+                      {/* Assigned Worker / Contractor */}
                       <td className="px-5 py-3.5 whitespace-nowrap text-slate-700 font-medium">
                         {ticket.assignee?.name || ticket.assigneeName || (
                           <span className="text-slate-400 italic">Unassigned</span>
@@ -332,9 +387,20 @@ export function MaintenanceTicketTable({
                       {/* Actions */}
                       <td className="px-5 py-3.5 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {ticket.jobSheetNumber && (
+                            <a
+                              href={`/api/public/maintenance/jobsheet/${ticket.jobSheetNumber}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-1.5 rounded-lg text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 transition-colors"
+                              title="Download Job Sheet & Billing Memo PDF"
+                            >
+                              <FileText className="h-4 w-4" />
+                            </a>
+                          )}
                           <button
                             onClick={() => setSelectedTicket(ticket)}
-                            className="p-1.5 rounded-lg text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 transition-colors"
+                            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 transition-colors"
                             title="Quick View Details"
                           >
                             <Eye className="h-4 w-4" />
@@ -359,91 +425,52 @@ export function MaintenanceTicketTable({
         </div>
 
         {/* Pagination Controls */}
-        <div className="bg-white px-4 py-3.5 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
-            <p className="text-xs sm:text-sm text-slate-600 font-medium">
-              Showing <span className="font-bold text-slate-900">{totalFiltered > 0 ? startIndex + 1 : 0}</span> to{" "}
-              <span className="font-bold text-slate-900">{endIndex}</span> of{" "}
-              <span className="font-bold text-slate-900">{totalFiltered}</span> requests
-            </p>
+        {totalPages > 1 && (
+          <div className="px-6 py-4 bg-slate-50/80 border-t border-slate-200 flex items-center justify-between">
+            <span className="text-xs text-slate-500">
+              Page {safeCurrentPage} of {totalPages}
+            </span>
 
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 pl-3 border-l border-slate-200">
-              <span className="font-medium text-slate-600">Rows:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                className="text-xs font-semibold bg-slate-50 border border-slate-300 rounded px-2 py-1 text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setCurrentPage(Math.max(1, safeCurrentPage - 1))}
+                disabled={safeCurrentPage === 1}
+                className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors"
               >
-                <option value={5}>5</option>
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+
+              {getPaginationItems(safeCurrentPage, totalPages).map((item, idx) =>
+                item === "..." ? (
+                  <span key={idx} className="px-2 text-xs text-slate-400">...</span>
+                ) : (
+                  <button
+                    key={idx}
+                    onClick={() => setCurrentPage(item as number)}
+                    className={`min-w-[32px] h-8 rounded-lg text-xs font-bold transition-all ${
+                      safeCurrentPage === item
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                )
+              )}
+
+              <button
+                onClick={() => setCurrentPage(Math.min(totalPages, safeCurrentPage + 1))}
+                disabled={safeCurrentPage === totalPages}
+                className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
           </div>
-
-          <div className="flex items-center gap-1">
-            <nav className="inline-flex rounded-lg shadow-sm -space-x-px" aria-label="Pagination">
-              <button
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                disabled={safeCurrentPage === 1}
-                className="inline-flex items-center px-2.5 py-1.5 rounded-l-lg border border-slate-300 bg-white text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                title="Previous Page"
-              >
-                <ChevronLeft className="h-4 w-4 mr-0.5" />
-                <span>Prev</span>
-              </button>
-
-              <div className="hidden sm:flex">
-                {getPaginationItems(safeCurrentPage, totalPages).map((item, index) => {
-                  if (item === "...") {
-                    return (
-                      <span
-                        key={`ellipsis-${index}`}
-                        className="inline-flex items-center px-3 py-1.5 border border-slate-300 bg-white text-xs font-medium text-slate-400 select-none"
-                      >
-                        ...
-                      </span>
-                    )
-                  }
-                  const pageNum = item as number
-                  const isActive = safeCurrentPage === pageNum
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => setCurrentPage(pageNum)}
-                      className={`inline-flex items-center px-3 py-1.5 border text-xs font-bold transition-colors ${
-                        isActive
-                          ? "z-10 bg-blue-600 border-blue-600 text-white shadow-sm"
-                          : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* Mobile current indicator */}
-              <div className="flex sm:hidden items-center px-3 py-1.5 border border-slate-300 bg-slate-50 text-xs font-bold text-slate-700">
-                {safeCurrentPage} / {totalPages}
-              </div>
-
-              <button
-                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                disabled={safeCurrentPage === totalPages || totalFiltered === 0}
-                className="inline-flex items-center px-2.5 py-1.5 rounded-r-lg border border-slate-300 bg-white text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                title="Next Page"
-              >
-                <span>Next</span>
-                <ChevronRight className="h-4 w-4 ml-0.5" />
-              </button>
-            </nav>
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Ticket Details Modal */}
+      {/* Quick View Modal */}
       {selectedTicket && (
         <MaintenanceTicketViewModal
           ticket={selectedTicket}

@@ -239,8 +239,8 @@ export function MaintenanceTicketViewModal({
             </div>
           )}
 
-          {/* Costs */}
-          {ticket.costs && ticket.costs.length > 0 && (
+          {/* Costs (1st Tier / Management Only) */}
+          {canManage && ticket.costs && ticket.costs.length > 0 && (
             <div className="p-4 bg-white rounded-xl border border-slate-200">
               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center">
                 <DollarSign className="h-4 w-4 mr-1 text-emerald-600" />

@@ -19,7 +19,9 @@ import {
   ArrowLeft,
   RotateCw,
   Clock,
-  Send
+  Send,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react"
 import Link from "next/link"
 import { 
@@ -27,7 +29,8 @@ import {
   updateMaintenanceNotificationRecipient, 
   toggleMaintenanceNotificationRecipient, 
   deleteMaintenanceNotificationRecipient,
-  retryMaintenanceOutboxEmailAction
+  retryMaintenanceOutboxEmailAction,
+  getMaintenanceOutboxPaginated
 } from "@/app/actions/maintenance-notifications"
 
 type Recipient = {
@@ -55,13 +58,21 @@ type OutboxItem = {
 export function MaintenanceNotificationSettingsClient({
   initialRecipients,
   initialOutbox = [],
+  initialTotalCount = 0,
+  initialTotalPages = 1,
 }: {
   initialRecipients: Recipient[]
   initialOutbox?: OutboxItem[]
+  initialTotalCount?: number
+  initialTotalPages?: number
 }) {
   const [activeTab, setActiveTab] = useState<"RECIPIENTS" | "OUTBOX">("RECIPIENTS")
   const [recipients, setRecipients] = useState<Recipient[]>(initialRecipients)
   const [outbox, setOutbox] = useState<OutboxItem[]>(initialOutbox)
+  const [outboxPage, setOutboxPage] = useState<number>(1)
+  const [totalCount, setTotalCount] = useState<number>(initialTotalCount || initialOutbox.length)
+  const [totalPages, setTotalPages] = useState<number>(initialTotalPages || Math.max(1, Math.ceil(initialOutbox.length / 5)))
+  const [isOutboxLoading, setIsOutboxLoading] = useState<boolean>(false)
   const [retryingId, setRetryingId] = useState<string | null>(null)
 
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -171,6 +182,23 @@ export function MaintenanceNotificationSettingsClient({
     }
   }
 
+  const handlePageChange = async (newPage: number) => {
+    if (newPage < 1 || (totalPages > 0 && newPage > totalPages) || isOutboxLoading) return
+    setIsOutboxLoading(true)
+    setError("")
+    try {
+      const res = await getMaintenanceOutboxPaginated(newPage, 5)
+      setOutbox(res.items as any)
+      setTotalCount(res.totalCount)
+      setTotalPages(res.totalPages)
+      setOutboxPage(res.currentPage)
+    } catch (err: any) {
+      setError(err?.message || "Failed to load outbox page.")
+    } finally {
+      setIsOutboxLoading(false)
+    }
+  }
+
   const handleRetryOutbox = async (id: string) => {
     setRetryingId(id)
     setError("")
@@ -178,15 +206,10 @@ export function MaintenanceNotificationSettingsClient({
     setRetryingId(null)
 
     if (res.success) {
-      setOutbox((prev) =>
-        prev.map((item) =>
-          item.id === id
-            ? { ...item, status: "SENT", sentAt: new Date(), error: null, attempts: item.attempts + 1 }
-            : item
-        )
-      )
       setSuccess("Email sent successfully!")
       setTimeout(() => setSuccess(""), 2000)
+      // Refresh current page
+      await handlePageChange(outboxPage)
     } else {
       setError(res.error || "Retry failed. Provider rejected delivery.")
     }
@@ -350,68 +373,142 @@ export function MaintenanceNotificationSettingsClient({
       {/* TAB 2: OUTBOX */}
       {activeTab === "OUTBOX" && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <table className="w-full text-left text-xs divide-y divide-slate-200">
-            <thead className="bg-slate-50 font-bold text-slate-600 uppercase tracking-wider">
-              <tr>
-                <th className="py-3 px-4">Date / Time</th>
-                <th className="py-3 px-4">Recipient</th>
-                <th className="py-3 px-4">Subject</th>
-                <th className="py-3 px-4 text-center">Status</th>
-                <th className="py-3 px-4 text-center">Attempts</th>
-                <th className="py-3 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
-              {outbox.length === 0 ? (
+          <div className="relative">
+            {isOutboxLoading && (
+              <div className="absolute inset-0 bg-white/70 backdrop-blur-[1px] z-10 flex items-center justify-center">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/90 text-white text-xs font-bold rounded-lg shadow">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Loading outbox...</span>
+                </div>
+              </div>
+            )}
+            <table className="w-full text-left text-xs divide-y divide-slate-200">
+              <thead className="bg-slate-50 font-bold text-slate-600 uppercase tracking-wider">
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-400">
-                    No emails recorded in the outbox yet.
-                  </td>
+                  <th className="py-3 px-4">Date / Time</th>
+                  <th className="py-3 px-4">Recipient</th>
+                  <th className="py-3 px-4">Subject</th>
+                  <th className="py-3 px-4 text-center">Status</th>
+                  <th className="py-3 px-4 text-center">Attempts</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
-              ) : (
-                outbox.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50/50">
-                    <td className="py-3 px-4 whitespace-nowrap text-slate-500 font-mono text-[11px]">
-                      {new Date(item.createdAt).toLocaleString("en-GB")}
-                    </td>
-                    <td className="py-3 px-4 font-mono font-medium text-slate-800">{item.to}</td>
-                    <td className="py-3 px-4 text-slate-700 max-w-xs truncate">{item.subject}</td>
-                    <td className="py-3 px-4 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        item.status === 'SENT'
-                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                          : item.status === 'FAILED'
-                          ? 'bg-red-100 text-red-800 border border-red-200'
-                          : 'bg-amber-100 text-amber-800 border border-amber-200'
-                      }`}>
-                        {item.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-center text-slate-500 font-mono">
-                      {item.attempts}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      {item.status === "FAILED" && (
-                        <button
-                          type="button"
-                          disabled={retryingId === item.id}
-                          onClick={() => handleRetryOutbox(item.id)}
-                          className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-[11px] rounded-lg transition-colors inline-flex items-center gap-1"
-                        >
-                          {retryingId === item.id ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <RotateCw className="h-3 w-3" />
-                          )}
-                          <span>Retry</span>
-                        </button>
-                      )}
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {outbox.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-400">
+                      No emails recorded in the outbox yet.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  outbox.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50/50">
+                      <td className="py-3 px-4 whitespace-nowrap text-slate-500 font-mono text-[11px]">
+                        {new Date(item.createdAt).toLocaleString("en-GB")}
+                      </td>
+                      <td className="py-3 px-4 font-mono font-medium text-slate-800">{item.to}</td>
+                      <td className="py-3 px-4 text-slate-700 max-w-xs truncate">{item.subject}</td>
+                      <td className="py-3 px-4 text-center">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          item.status === 'SENT'
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            : item.status === 'FAILED'
+                            ? 'bg-red-100 text-red-800 border border-red-200'
+                            : 'bg-amber-100 text-amber-800 border border-amber-200'
+                        }`}>
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center text-slate-500 font-mono">
+                        {item.attempts}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        {item.status === "FAILED" && (
+                          <button
+                            type="button"
+                            disabled={retryingId === item.id}
+                            onClick={() => handleRetryOutbox(item.id)}
+                            className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-[11px] rounded-lg transition-colors inline-flex items-center gap-1"
+                          >
+                            {retryingId === item.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <RotateCw className="h-3 w-3" />
+                            )}
+                            <span>Retry</span>
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Bar */}
+          {totalCount > 0 && (
+            <div className="px-4 py-3 bg-slate-50/80 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+              <div className="text-slate-500 text-[11px]">
+                Showing <span className="font-bold text-slate-800">{Math.min((outboxPage - 1) * 5 + 1, totalCount)}</span> to{" "}
+                <span className="font-bold text-slate-800">{Math.min(outboxPage * 5, totalCount)}</span> of{" "}
+                <span className="font-bold text-slate-800">{totalCount}</span> delivery logs (5 per page)
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={outboxPage <= 1 || isOutboxLoading}
+                  onClick={() => handlePageChange(outboxPage - 1)}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium inline-flex items-center gap-1 text-[11px] transition-colors"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  <span>Previous</span>
+                </button>
+
+                <div className="flex items-center gap-1 px-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum = i + 1
+                    if (totalPages > 5) {
+                      if (outboxPage > 3) {
+                        pageNum = outboxPage - 3 + i
+                      }
+                      if (pageNum > totalPages) {
+                        pageNum = totalPages - (4 - i)
+                      }
+                    }
+                    if (pageNum < 1 || pageNum > totalPages) return null
+
+                    return (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        disabled={isOutboxLoading}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`min-w-[28px] h-7 px-2 rounded-lg text-[11px] font-bold transition-colors ${
+                          outboxPage === pageNum
+                            ? "bg-blue-600 text-white shadow-sm"
+                            : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={outboxPage >= totalPages || isOutboxLoading}
+                  onClick={() => handlePageChange(outboxPage + 1)}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium inline-flex items-center gap-1 text-[11px] transition-colors"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

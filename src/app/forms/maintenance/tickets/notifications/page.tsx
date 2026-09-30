@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
 import { 
   getMaintenanceNotificationRecipients, 
-  getMaintenanceOutboxItems 
+  getMaintenanceOutboxPaginated 
 } from "@/app/actions/maintenance-notifications"
 import { MaintenanceNotificationSettingsClient } from "./MaintenanceNotificationSettingsClient"
 import { MaintenanceNavTabs } from "@/components/forms/MaintenanceNavTabs"
@@ -24,7 +24,7 @@ export default async function MaintenanceNotificationSettingsPage() {
   }
 
   const recipients = await getMaintenanceNotificationRecipients()
-  const outbox = await getMaintenanceOutboxItems(50)
+  const outboxData = await getMaintenanceOutboxPaginated(1, 5)
 
   return (
     <div className="bg-slate-50 min-h-screen pb-12">
@@ -32,7 +32,9 @@ export default async function MaintenanceNotificationSettingsPage() {
         <MaintenanceNavTabs userModules={access.modules} isSuperAdmin={access.isSuperAdmin} />
         <MaintenanceNotificationSettingsClient 
           initialRecipients={recipients as any} 
-          initialOutbox={outbox as any}
+          initialOutbox={outboxData.items as any}
+          initialTotalCount={outboxData.totalCount}
+          initialTotalPages={outboxData.totalPages}
         />
       </div>
     </div>

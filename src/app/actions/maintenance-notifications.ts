@@ -200,9 +200,61 @@ export async function deleteMaintenanceNotificationRecipient(id: string) {
 }
 
 /**
- * Outbox & Notification Monitoring Actions
+ * Outbox & Notification Monitoring Actions with Pagination
+ * Explicitly excludes heavy HTML email content to save egress and database bandwidth.
  */
-export async function getMaintenanceOutboxItems(limit = 50) {
+export async function getMaintenanceOutboxPaginated(page = 1, pageSize = 5) {
+  const session = await auth()
+  if (!session) {
+    return { items: [], totalCount: 0, totalPages: 0, currentPage: page }
+  }
+
+  const access = await getAccessInfo()
+  if (!access || (!access.isSuperAdmin && !hasAnyModule(access, ["MAINTENANCE_TICKETS_MANAGE"]))) {
+    return { items: [], totalCount: 0, totalPages: 0, currentPage: page }
+  }
+
+  const safePage = Math.max(1, page)
+  const safePageSize = Math.max(1, Math.min(50, pageSize))
+  const skip = (safePage - 1) * safePageSize
+
+  try {
+    const [totalCount, rawItems] = await Promise.all([
+      prisma.maintenanceNotificationOutbox.count(),
+      prisma.maintenanceNotificationOutbox.findMany({
+        skip,
+        take: safePageSize,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          ticketId: true,
+          to: true,
+          subject: true,
+          status: true,
+          error: true,
+          attempts: true,
+          sentAt: true,
+          createdAt: true,
+          // heavy html is omitted to minimize egress
+        },
+      }),
+    ])
+
+    const totalPages = Math.ceil(totalCount / safePageSize)
+
+    return {
+      items: rawItems,
+      totalCount,
+      totalPages,
+      currentPage: safePage,
+    }
+  } catch (err: any) {
+    console.error("getMaintenanceOutboxPaginated error:", err)
+    return { items: [], totalCount: 0, totalPages: 0, currentPage: page }
+  }
+}
+
+export async function getMaintenanceOutboxItems(limit = 5) {
   const session = await auth()
   if (!session) return []
 
@@ -214,6 +266,17 @@ export async function getMaintenanceOutboxItems(limit = 50) {
   return prisma.maintenanceNotificationOutbox.findMany({
     take: limit,
     orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      ticketId: true,
+      to: true,
+      subject: true,
+      status: true,
+      error: true,
+      attempts: true,
+      sentAt: true,
+      createdAt: true,
+    },
   })
 }
 

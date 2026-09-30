@@ -231,10 +231,10 @@ enum MaintenanceTicketStatus {
   IN_PROGRESS
   AWAITING_VERIFICATION
   AWAITING_COSTING
+  COMPLETED
   CLOSED
   CANCELLED
   REJECTED
-  COMPLETED
 }
 
 enum MaintenanceTicketPriority {
@@ -1345,27 +1345,33 @@ model MaintenanceCleaning {
 }
 
 model MaintenanceItem {
-  id        String                @id @default(uuid())
-  name      String
-  location  String                @default("Pedas")
-  quantity  Int                   @default(0)
-  unit      String                @default("pcs")
-  createdAt DateTime              @default(now())
-  updatedAt DateTime              @updatedAt
-  logs      MaintenanceStockLog[]
+  id           String                @id @default(uuid())
+  name         String
+  location     String                @default("Pedas")
+  quantity     Int                   @default(0)
+  unit         String                @default("pcs")
+  pricePerUnit Float                 @default(0)
+  imageUrl     String?
+  department   String?               @default("BOS")
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  logs         MaintenanceStockLog[]
 
   @@unique([name, location])
 }
 
 model MaintenanceStockLog {
-  id        String          @id @default(uuid())
-  itemId    String
-  item      MaintenanceItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  type      String // IN | OUT
-  quantity  Int
-  handledBy String
-  remarks   String?
-  createdAt DateTime        @default(now())
+  id           String          @id @default(uuid())
+  itemId       String
+  item         MaintenanceItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  type         String // IN | OUT
+  quantity     Int
+  totalPrice   Float?
+  pricePerUnit Float?
+  department   String?         @default("BOS")
+  handledBy    String
+  remarks      String?
+  createdAt    DateTime        @default(now())
 }
 
 model MaintenanceEquipmentRecord {

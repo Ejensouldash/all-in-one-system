@@ -158,3 +158,22 @@ export async function getMaintenanceFileByExactKeyFromR2(objectKey: string): Pro
     throw error
   }
 }
+/**
+ * Uploads an inventory item photo to R2 with fallback to base64 data URI.
+ */
+export async function uploadMaintenanceItemPhoto(
+  fileBuffer: Buffer,
+  originalFilename: string,
+  contentType: string = "image/jpeg"
+): Promise<{ url: string }> {
+  try {
+    const res = await uploadMaintenancePhotoToR2(fileBuffer, originalFilename, contentType)
+    return { url: res.url }
+  } catch (error) {
+    console.warn("R2 upload unavailable, falling back to base64 data URL for maintenance item:", error)
+    const base64 = fileBuffer.toString("base64")
+    const dataUri = `data:${contentType};base64,${base64}`
+    return { url: dataUri }
+  }
+}
+

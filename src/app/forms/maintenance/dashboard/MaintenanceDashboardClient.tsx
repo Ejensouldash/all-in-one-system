@@ -4,21 +4,27 @@ import React, { useState } from "react"
 import { MaintenanceNavTabs } from "@/components/forms/MaintenanceNavTabs"
 import { 
   Plus, Minus, FileText, Search, PackageOpen, AlertCircle, 
-  Trash2, ArrowUpDown, RefreshCw, X, Calendar, Printer, User, MessageSquare
+  Trash2, ArrowUpDown, RefreshCw, X, Calendar, Printer, User, MessageSquare,
+  Image as ImageIcon, Upload, Tag
 } from "lucide-react"
 import { 
   addMaintenanceStock, 
   withdrawMaintenanceStock, 
   deleteMaintenanceItem, 
-  getMaintenanceStockReport 
+  getMaintenanceStockReport,
+  uploadMaintenanceItemPhotoAction
 } from "@/app/actions/maintenance-inventory"
+import { MaintenanceItemDetailModal, InventoryItem } from "@/components/forms/maintenance/MaintenanceItemDetailModal"
 
 type Item = {
   id: string
   name: string
   location: string
+  department?: string | null
   quantity: number
   unit: string
+  pricePerUnit: number
+  imageUrl?: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -28,6 +34,9 @@ type StockLog = {
   itemId: string
   type: string
   quantity: number
+  totalPrice?: number | null
+  pricePerUnit?: number | null
+  department?: string | null
   handledBy: string
   remarks: string | null
   createdAt: Date
@@ -35,6 +44,7 @@ type StockLog = {
     name: string
     unit: string
     location: string
+    department?: string | null
   }
 }
 
@@ -56,6 +66,7 @@ export function MaintenanceDashboardClient({
   const [items, setItems] = useState<Item[]>(initialItems)
   const [logs, setLogs] = useState<StockLog[]>(initialLogs as any)
   const [searchTerm, setSearchTerm] = useState("")
+  const [departmentFilter, setDepartmentFilter] = useState("ALL")
   
   // Add Stock Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -63,8 +74,12 @@ export function MaintenanceDashboardClient({
   const [selectedAddItemId, setSelectedAddItemId] = useState("")
   const [newItemName, setNewItemName] = useState("")
   const [addQty, setAddQty] = useState(1)
+  const [addTotalPrice, setAddTotalPrice] = useState("")
+  const [addPhotoFile, setAddPhotoFile] = useState<File | null>(null)
+  const [addPhotoPreview, setAddPhotoPreview] = useState<string | null>(null)
   const [addUnit, setAddUnit] = useState("pcs")
   const [addLocation, setAddLocation] = useState("Pedas")
+  const [addDepartment, setAddDepartment] = useState("BOS")
   const [addHandledBy, setAddHandledBy] = useState(userName)
   const [addRemarks, setAddRemarks] = useState("")
   
@@ -74,6 +89,10 @@ export function MaintenanceDashboardClient({
   const [withdrawQty, setWithdrawQty] = useState(1)
   const [withdrawHandledBy, setWithdrawHandledBy] = useState(userName)
   const [withdrawRemarks, setWithdrawRemarks] = useState("")
+
+  // Detail & Ledger Modal State
+  const [selectedDetailItem, setSelectedDetailItem] = useState<InventoryItem | null>(null)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   
   // Report State
   const [isReportSectionOpen, setIsReportSectionOpen] = useState(false)
@@ -86,10 +105,12 @@ export function MaintenanceDashboardClient({
   const [errorMsg, setErrorMsg] = useState("")
   const [successMsg, setSuccessMsg] = useState("")
 
-  // Sort & filter items
-  const filteredItems = items.filter(item => 
-    item.name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Sort & filter items by name and department
+  const filteredItems = items.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesDept = departmentFilter === "ALL" || (item.department || "BOS") === departmentFilter
+    return matchesSearch && matchesDept
+  })
 
   const totalUniqueItems = items.length
   const totalStockQty = items.reduce((sum, item) => sum + item.quantity, 0)
@@ -117,16 +138,6 @@ export function MaintenanceDashboardClient({
     setSubmitting(true)
     setErrorMsg("")
 
-    const payload = {
-      itemId: isNewItem ? null : selectedAddItemId,
-      name: isNewItem ? newItemName : "",
-      quantity: Number(addQty),
-      unit: isNewItem ? addUnit : "",
-      handledBy: addHandledBy,
-      remarks: addRemarks,
-      location: isNewItem ? addLocation : undefined
-    }
-
     if (!isNewItem && !selectedAddItemId) {
       setErrorMsg("Please select an item to restock.")
       setSubmitting(false)
@@ -137,6 +148,46 @@ export function MaintenanceDashboardClient({
       setErrorMsg("Please enter a name for the new item.")
       setSubmitting(false)
       return
+    }
+
+    const priceNum = parseFloat(addTotalPrice)
+    if (isNaN(priceNum) || priceNum <= 0) {
+      setErrorMsg("Total price is mandatory and must be greater than RM 0.00.")
+      setSubmitting(false)
+      return
+    }
+
+    const qtyNum = Number(addQty)
+    if (isNaN(qtyNum) || qtyNum <= 0) {
+      setErrorMsg("Quantity must be at least 1.")
+      setSubmitting(false)
+      return
+    }
+
+    // Upload photo if selected
+    let uploadedImageUrl: string | null = null
+    if (addPhotoFile) {
+      const photoFormData = new FormData()
+      photoFormData.append("photo", addPhotoFile)
+      const uploadRes = await uploadMaintenanceItemPhotoAction(photoFormData)
+      if (uploadRes.success && uploadRes.url) {
+        uploadedImageUrl = uploadRes.url
+      } else if (!uploadRes.success) {
+        console.warn("Photo upload warning:", uploadRes.error)
+      }
+    }
+
+    const payload = {
+      itemId: isNewItem ? null : selectedAddItemId,
+      name: isNewItem ? newItemName : "",
+      quantity: qtyNum,
+      totalPrice: priceNum,
+      unit: isNewItem ? addUnit : "",
+      handledBy: addHandledBy,
+      remarks: addRemarks,
+      location: isNewItem ? addLocation : undefined,
+      department: addDepartment,
+      imageUrl: uploadedImageUrl
     }
 
     const res = await addMaintenanceStock(payload)
@@ -363,7 +414,7 @@ export function MaintenanceDashboardClient({
         <div className="print:hidden space-y-6">
           
           {/* KPI Summary Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200/60 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
@@ -423,11 +474,12 @@ export function MaintenanceDashboardClient({
                 setNewItemName("")
                 setAddQty(1)
                 setAddLocation("Pedas")
+                setAddDepartment("BOS")
                 setAddRemarks("")
               }}
               className="flex items-center px-4 py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-sm font-black uppercase tracking-wider transition-colors shadow-md hover:shadow-lg"
             >
-              <Plus className="w-4 h-4 mr-2" /> Add Stock (Masuk)
+              <Plus className="w-4 h-4 mr-2" /> Add Stock (IN)
             </button>
             
             <button
@@ -439,7 +491,7 @@ export function MaintenanceDashboardClient({
               }}
               className="flex items-center px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-black uppercase tracking-wider transition-colors shadow-md hover:shadow-lg"
             >
-              <Minus className="w-4 h-4 mr-2" /> Withdraw Stock (Keluar)
+              <Minus className="w-4 h-4 mr-2" /> Withdraw Stock (OUT)
             </button>
 
             <button
@@ -565,31 +617,52 @@ export function MaintenanceDashboardClient({
 
           {/* Current Items Inventory Card List */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-200/60 overflow-hidden">
-            <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <h2 className="text-xl font-bold text-gray-900">Active Inventory Items</h2>
                 <p className="text-gray-500 text-sm font-medium mt-0.5">Manage and track live quantities</p>
               </div>
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search item name..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-xl text-sm font-semibold bg-white outline-none focus:border-blue-500"
-                />
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                {/* Department filter tabs */}
+                <div className="flex items-center bg-gray-100 p-1 rounded-xl text-xs font-black uppercase self-start sm:self-auto">
+                  {["ALL", "BOS", "BOM", "NRHO"].map((dept) => (
+                    <button
+                      key={dept}
+                      type="button"
+                      onClick={() => setDepartmentFilter(dept)}
+                      className={`px-3 py-1.5 rounded-lg transition-all ${
+                        departmentFilter === dept
+                          ? "bg-white text-gray-900 shadow-xs font-black"
+                          : "text-gray-500 hover:text-gray-900"
+                      }`}
+                    >
+                      {dept}
+                    </button>
+                  ))}
+                </div>
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search item name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-xl text-sm font-semibold bg-white outline-none focus:border-blue-500"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-[580px] overflow-y-auto">
               <table className="w-full text-sm text-left text-gray-700">
-                <thead className="bg-gray-50 border-b border-gray-100 text-xs font-black uppercase tracking-wider text-gray-500">
+                <thead className="bg-gray-50 border-b border-gray-100 text-xs font-black uppercase tracking-wider text-gray-500 sticky top-0 z-10 shadow-xs">
                   <tr>
                     <th className="px-6 py-3.5">Item Name</th>
+                    <th className="px-6 py-3.5 text-center">Department</th>
                     <th className="px-6 py-3.5">Location</th>
                     <th className="px-6 py-3.5 text-right">Current Stock</th>
                     <th className="px-6 py-3.5">Unit</th>
+                    <th className="px-6 py-3.5 text-right">Price / Unit</th>
                     <th className="px-6 py-3.5">Last Updated</th>
                     <th className="px-6 py-3.5 text-center">Actions</th>
                   </tr>
@@ -597,15 +670,44 @@ export function MaintenanceDashboardClient({
                 <tbody className="divide-y divide-gray-100 font-medium">
                   {filteredItems.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-10 text-center text-gray-500 font-medium bg-gray-50/20">
+                      <td colSpan={8} className="px-6 py-10 text-center text-gray-500 font-medium bg-gray-50/20">
                         No inventory items found. Add stock to register items.
                       </td>
                     </tr>
                   ) : (
                     filteredItems.map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50/20">
-                        <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900">
-                          {item.name}
+                      <tr 
+                        key={item.id} 
+                        onClick={() => {
+                          setSelectedDetailItem(item)
+                          setIsDetailModalOpen(true)
+                        }}
+                        className="hover:bg-blue-50/40 cursor-pointer transition-colors group"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900 flex items-center gap-3">
+                          {item.imageUrl ? (
+                            <img 
+                              src={item.imageUrl} 
+                              alt={item.name} 
+                              className="w-9 h-9 object-cover rounded-lg border border-gray-200 shadow-xs flex-shrink-0 group-hover:scale-105 transition-transform" 
+                            />
+                          ) : (
+                            <div className="w-9 h-9 rounded-lg bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center flex-shrink-0 text-gray-400 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                              <ImageIcon className="w-4 h-4" />
+                            </div>
+                          )}
+                          <span className="group-hover:text-blue-700 transition-colors">{item.name}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+                            (item.department || "BOS") === "NRHO"
+                              ? "bg-purple-100 text-purple-800 border border-purple-200"
+                              : (item.department || "BOS") === "BOM"
+                              ? "bg-teal-100 text-teal-800 border border-teal-200"
+                              : "bg-amber-100 text-amber-800 border border-amber-200"
+                          }`}>
+                            {item.department || "BOS"}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-gray-700 font-semibold">
                           {item.location}
@@ -618,12 +720,18 @@ export function MaintenanceDashboardClient({
                         <td className="px-6 py-4 whitespace-nowrap text-gray-500">
                           {item.unit}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right font-bold text-emerald-700">
+                          RM {(item.pricePerUnit || 0).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-gray-500 text-xs">
                           {new Date(item.updatedAt).toLocaleString("en-GB")}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           <button
-                            onClick={() => handleDeleteItem(item.id, item.name)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteItem(item.id, item.name)
+                            }}
                             className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
                             title="Delete Item"
                           >
@@ -645,7 +753,7 @@ export function MaintenanceDashboardClient({
             <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200">
               <div className="bg-blue-700 px-6 py-4 flex items-center justify-between text-white">
                 <h3 className="font-black uppercase tracking-wider text-sm flex items-center gap-2">
-                  <Plus className="w-5 h-5" /> Add Stock (Masuk)
+                  <Plus className="w-5 h-5" /> Add Stock (IN)
                 </h3>
                 <button onClick={() => setIsAddModalOpen(false)} className="text-white/80 hover:text-white">
                   <X className="w-5 h-5" />
@@ -678,7 +786,7 @@ export function MaintenanceDashboardClient({
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold outline-none focus:border-blue-500"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Unit</label>
                         <select
@@ -707,23 +815,56 @@ export function MaintenanceDashboardClient({
                           <option value="Gambang">Gambang</option>
                         </select>
                       </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Department</label>
+                        <select
+                          value={addDepartment}
+                          onChange={(e) => setAddDepartment(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold outline-none focus:border-blue-500"
+                        >
+                          <option value="BOS">BOS</option>
+                          <option value="BOM">BOM</option>
+                          <option value="NRHO">NRHO</option>
+                        </select>
+                      </div>
                     </div>
                   </>
                 ) : (
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Select Item</label>
-                    <select
-                      value={selectedAddItemId}
-                      onChange={(e) => setSelectedAddItemId(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold outline-none focus:border-blue-500"
-                    >
-                      <option value="">-- Choose Item --</option>
-                      {items.map(item => (
-                        <option key={item.id} value={item.id}>
-                          {item.name} ({item.location}) ({item.quantity} {item.unit} available)
-                        </option>
-                      ))}
-                    </select>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-2">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Select Item</label>
+                      <select
+                        value={selectedAddItemId}
+                        onChange={(e) => {
+                          const chosenId = e.target.value
+                          setSelectedAddItemId(chosenId)
+                          const found = items.find(i => i.id === chosenId)
+                          if (found?.department) {
+                            setAddDepartment(found.department)
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold outline-none focus:border-blue-500"
+                      >
+                        <option value="">-- Choose Item --</option>
+                        {items.map(item => (
+                          <option key={item.id} value={item.id}>
+                            {item.name} [{item.department || "BOS"}] ({item.location}) ({item.quantity} {item.unit} available)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Department</label>
+                      <select
+                        value={addDepartment}
+                        onChange={(e) => setAddDepartment(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold outline-none focus:border-blue-500"
+                      >
+                        <option value="BOS">BOS</option>
+                        <option value="BOM">BOM</option>
+                        <option value="NRHO">NRHO</option>
+                      </select>
+                    </div>
                   </div>
                 )}
 
@@ -752,6 +893,56 @@ export function MaintenanceDashboardClient({
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 gap-4 items-start">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Total Price (RM)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      placeholder="e.g. 150.00"
+                      value={addTotalPrice}
+                      onChange={(e) => setAddTotalPrice(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold outline-none focus:border-blue-500"
+                      required
+                    />
+                    {parseFloat(addTotalPrice) > 0 && addQty > 0 && (
+                      <p className="mt-1 text-xs font-bold text-emerald-600 flex items-center gap-1">
+                        <Tag className="w-3.5 h-3.5" />
+                        Calc: RM {(parseFloat(addTotalPrice) / addQty).toFixed(2)} / {isNewItem ? addUnit : (items.find(i => i.id === selectedAddItemId)?.unit || "unit")}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Item Photo (optional)</label>
+                    <div className="flex flex-col gap-1">
+                      <label className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-lg cursor-pointer border border-blue-200 transition-colors w-full text-center">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Choose File</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] ?? null;
+                            setAddPhotoFile(file);
+                            if (file) {
+                              setAddPhotoPreview(URL.createObjectURL(file));
+                            } else {
+                              setAddPhotoPreview(null);
+                            }
+                          }}
+                          className="sr-only"
+                        />
+                      </label>
+                      <p className="text-[11px] text-gray-500 truncate" title={addPhotoFile ? addPhotoFile.name : "No file chosen"}>
+                        {addPhotoFile ? addPhotoFile.name : "No file chosen"}
+                      </p>
+                    </div>
+                    {addPhotoPreview && (
+                      <img src={addPhotoPreview} alt="Preview" className="mt-2 h-16 w-16 object-cover rounded-lg border border-gray-200" />
+                    )}
+                  </div>
+                </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Remarks</label>
                   <div className="relative">
@@ -793,7 +984,7 @@ export function MaintenanceDashboardClient({
             <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200">
               <div className="bg-rose-600 px-6 py-4 flex items-center justify-between text-white">
                 <h3 className="font-black uppercase tracking-wider text-sm flex items-center gap-2">
-                  <Minus className="w-5 h-5" /> Withdraw Stock (Keluar)
+                  <Minus className="w-5 h-5" /> Withdraw Stock (OUT)
                 </h3>
                 <button onClick={() => setIsWithdrawModalOpen(false)} className="text-white/80 hover:text-white">
                   <X className="w-5 h-5" />
@@ -876,6 +1067,46 @@ export function MaintenanceDashboardClient({
             </div>
           </div>
         )}
+
+        {/* Item Detail & Ledger History Modal */}
+        <MaintenanceItemDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={() => {
+            setIsDetailModalOpen(false)
+            setSelectedDetailItem(null)
+          }}
+          item={selectedDetailItem}
+          onOpenAddStock={(item) => {
+            setIsDetailModalOpen(false)
+            setIsNewItem(false)
+            setSelectedAddItemId(item.id)
+            setAddQty(1)
+            setAddTotalPrice(item.pricePerUnit ? (item.pricePerUnit * 1).toFixed(2) : "")
+            setAddDepartment(item.department || "BOS")
+            setIsAddModalOpen(true)
+          }}
+          onOpenWithdrawStock={(item) => {
+            setIsDetailModalOpen(false)
+            setSelectedWithdrawItemId(item.id)
+            setWithdrawQty(1)
+            setIsWithdrawModalOpen(true)
+          }}
+          onItemUpdated={(updated) => {
+            setItems((prev) =>
+              prev.map((i) =>
+                i.id === updated.id
+                  ? {
+                      ...i,
+                      imageUrl: updated.imageUrl,
+                      pricePerUnit: updated.pricePerUnit,
+                      department: updated.department,
+                    }
+                  : i
+              )
+            )
+            setSelectedDetailItem((prev) => (prev ? { ...prev, ...updated } : null))
+          }}
+        />
 
       </div>
     </div>

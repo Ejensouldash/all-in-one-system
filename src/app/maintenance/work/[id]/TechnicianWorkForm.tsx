@@ -19,6 +19,68 @@ import {
   Info
 } from "lucide-react"
 
+/**
+ * Automatically compress photos on mobile before upload to prevent network timeouts
+ * and payload rejection, converting 15MB camera files into crisp ~500KB JPEG images.
+ */
+async function compressImageFile(file: File, maxDimension = 1600, quality = 0.82): Promise<File> {
+  if (!file.type.startsWith("image/") && !file.name.match(/\.(jpg|jpeg|png|webp|heic|heif)$/i)) {
+    return file
+  }
+  if (file.size < 400 * 1024 && (file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/webp")) {
+    return file
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onload = () => {
+        let width = img.width
+        let height = img.height
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width)
+            width = maxDimension
+          } else {
+            width = Math.round((width * maxDimension) / height)
+            height = maxDimension
+          }
+        }
+
+        const canvas = document.createElement("canvas")
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext("2d")
+        if (!ctx) {
+          resolve(file)
+          return
+        }
+
+        ctx.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file)
+              return
+            }
+            const cleanName = file.name.replace(/\.[^/.]+$/, "") + ".jpg"
+            const compressed = new File([blob], cleanName, { type: "image/jpeg" })
+            resolve(compressed)
+          },
+          "image/jpeg",
+          quality
+        )
+      }
+      img.onerror = () => resolve(file)
+      img.src = e.target?.result as string
+    }
+    reader.onerror = () => resolve(file)
+    reader.readAsDataURL(file)
+  })
+}
+
 export function TechnicianWorkForm({
   ticket,
   contractorToken,
@@ -28,6 +90,7 @@ export function TechnicianWorkForm({
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+  const [uploadStatusText, setUploadStatusText] = useState("Uploading photo...")
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
   
   const [started, setStarted] = useState(!!ticket.startedAt)
@@ -40,36 +103,55 @@ export function TechnicianWorkForm({
   const handleStartWork = async () => {
     setIsSubmitting(true)
     setStatusMsg(null)
-    const res = await technicianStartWork(ticket.id, contractorToken)
-    setIsSubmitting(false)
-    if (res.success) {
-      setStarted(true)
-      setStatusMsg({ type: "success", text: "Work officially started! Timer is running." })
-    } else {
-      setStatusMsg({ type: "error", text: res.error || "Failed to record start." })
+    try {
+      const res = await technicianStartWork(ticket.id, contractorToken)
+      if (res.success) {
+        setStarted(true)
+        setStatusMsg({ type: "success", text: "Work officially started! Timer is running." })
+      } else {
+        setStatusMsg({ type: "error", text: res.error || "Failed to record start." })
+      }
+    } catch (err: any) {
+      console.error("handleStartWork error:", err)
+      setStatusMsg({ type: "error", text: err?.message || "Failed to record start." })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const originalFile = e.target.files?.[0]
+    if (!originalFile) return
 
     setIsUploadingPhoto(true)
+    setUploadStatusText("Optimizing photo for mobile...")
     setStatusMsg(null)
 
-    const formData = new FormData()
-    formData.set("photo", file)
-    formData.set("caption", `${selectedCategory} photo`)
+    try {
+      const file = await compressImageFile(originalFile, 1600, 0.82)
+      setUploadStatusText("Uploading to Cloudflare R2...")
 
-    const res = await uploadTechnicianPhoto(ticket.id, selectedCategory, formData, contractorToken)
-    setIsUploadingPhoto(false)
+      const formData = new FormData()
+      formData.set("photo", file)
+      formData.set("caption", `${selectedCategory} photo`)
 
-    if (res.success && res.photo) {
-      setPhotos([...photos, res.photo])
-      setStatusMsg({ type: "success", text: `${selectedCategory} photo uploaded successfully!` })
+      const res = await uploadTechnicianPhoto(ticket.id, selectedCategory, formData, contractorToken)
+
+      if (res.success && res.photo) {
+        setPhotos((prev) => [...prev, res.photo])
+        setStatusMsg({ type: "success", text: `${selectedCategory} photo uploaded successfully!` })
+      } else {
+        setStatusMsg({ type: "error", text: res.error || "Failed to upload photo." })
+      }
+    } catch (err: any) {
+      console.error("handlePhotoUpload error:", err)
+      setStatusMsg({
+        type: "error",
+        text: err?.message || "Failed to upload photo. Please check your network connection and try again.",
+      })
+    } finally {
+      setIsUploadingPhoto(false)
       e.target.value = ""
-    } else {
-      setStatusMsg({ type: "error", text: res.error || "Failed to upload photo." })
     }
   }
 
@@ -78,23 +160,29 @@ export function TechnicianWorkForm({
     setIsSubmitting(true)
     setStatusMsg(null)
 
-    const formData = new FormData()
-    formData.set("rootCause", rootCause)
-    formData.set("resolution", resolution)
+    try {
+      const formData = new FormData()
+      formData.set("rootCause", rootCause)
+      formData.set("resolution", resolution)
 
-    const res = await technicianSubmitWork(ticket.id, formData, contractorToken)
-    setIsSubmitting(false)
+      const res = await technicianSubmitWork(ticket.id, formData, contractorToken)
 
-    if (res.success) {
-      setStatusMsg({
-        type: "success",
-        text: "Repair completed! The requester and supervisor have been notified to verify the work.",
-      })
-      setTimeout(() => {
-        window.location.reload()
-      }, 1500)
-    } else {
-      setStatusMsg({ type: "error", text: res.error || "Failed to submit work." })
+      if (res.success) {
+        setStatusMsg({
+          type: "success",
+          text: "Repair completed! The requester and supervisor have been notified to verify the work.",
+        })
+        setTimeout(() => {
+          window.location.reload()
+        }, 1500)
+      } else {
+        setStatusMsg({ type: "error", text: res.error || "Failed to submit work." })
+      }
+    } catch (err: any) {
+      console.error("handleSubmitWork error:", err)
+      setStatusMsg({ type: "error", text: err?.message || "Failed to submit work." })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -210,25 +298,44 @@ export function TechnicianWorkForm({
               ))}
             </div>
 
-            <label className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-colors bg-slate-50/50">
-              {isUploadingPhoto ? (
-                <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
-              ) : (
-                <Camera className="h-5 w-5 text-slate-400 mb-1" />
-              )}
-              <span className="text-xs font-bold text-slate-700">
-                {isUploadingPhoto ? "Uploading to Cloudflare R2..." : `Take / Upload ${selectedCategory} Photo`}
-              </span>
-              <span className="text-[10px] text-slate-400 mt-0.5">JPEG, PNG, WebP up to 10MB</span>
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                disabled={isUploadingPhoto}
-                className="hidden"
-                onChange={handlePhotoUpload}
-              />
-            </label>
+            {isUploadingPhoto ? (
+              <div className="border-2 border-blue-200 bg-blue-50/80 rounded-xl p-4 flex flex-col items-center justify-center gap-2 animate-pulse">
+                <Loader2 className="h-6 w-6 text-blue-600 animate-spin" />
+                <span className="text-xs font-bold text-blue-900">{uploadStatusText}</span>
+                <span className="text-[10px] text-blue-600">Please wait while the photo is optimized and uploaded...</span>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <label className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-3.5 flex items-center justify-center gap-2 cursor-pointer bg-slate-50/70 hover:bg-blue-50/40 transition-all">
+                    <Camera className="h-4 w-4 text-blue-600 shrink-0" />
+                    <span className="text-xs font-bold text-slate-700">Take Photo (Camera)</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      disabled={isUploadingPhoto}
+                      className="hidden"
+                      onChange={handlePhotoUpload}
+                    />
+                  </label>
+                  <label className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-3.5 flex items-center justify-center gap-2 cursor-pointer bg-slate-50/70 hover:bg-blue-50/40 transition-all">
+                    <ImageIcon className="h-4 w-4 text-slate-600 shrink-0" />
+                    <span className="text-xs font-bold text-slate-700">Choose from Gallery</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={isUploadingPhoto}
+                      className="hidden"
+                      onChange={handlePhotoUpload}
+                    />
+                  </label>
+                </div>
+                <p className="text-[10px] text-slate-400 text-center">
+                  Auto-compressed for mobile upload &bull; Supports direct camera or gallery selection
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>

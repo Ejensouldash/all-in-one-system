@@ -33,6 +33,61 @@ const LOCATIONS = [
   "Other / Luar Kawasan",
 ]
 
+async function compressImageFile(file: File, maxDimension = 1600, quality = 0.82): Promise<File> {
+  if (!file.type.startsWith("image/") || file.size < 400 * 1024) {
+    return file
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onload = () => {
+        let width = img.width
+        let height = img.height
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width)
+            width = maxDimension
+          } else {
+            width = Math.round((width * maxDimension) / height)
+            height = maxDimension
+          }
+        }
+
+        const canvas = document.createElement("canvas")
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext("2d")
+        if (!ctx) {
+          resolve(file)
+          return
+        }
+
+        ctx.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file)
+              return
+            }
+            const cleanName = file.name.replace(/\.[^/.]+$/, "") + ".jpg"
+            const compressed = new File([blob], cleanName, { type: "image/jpeg" })
+            resolve(compressed)
+          },
+          "image/jpeg",
+          quality
+        )
+      }
+      img.onerror = () => resolve(file)
+      img.src = e.target?.result as string
+    }
+    reader.onerror = () => resolve(file)
+    reader.readAsDataURL(file)
+  })
+}
+
 export function PublicWorkRequestForm() {
   const searchParams = useSearchParams()
   const prefilledLocation = searchParams?.get("location") || ""
@@ -69,17 +124,25 @@ export function PublicWorkRequestForm() {
   const [copied, setCopied] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null)
+  const [isCompressingImage, setIsCompressingImage] = useState(false)
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        setError("Image size exceeds 10MB limit.")
-        return
+      setIsCompressingImage(true)
+      try {
+        // Automatically optimize high-res phone camera photos
+        const processed = await compressImageFile(file)
+        setSelectedPhotoFile(processed)
+        setPreviewUrl(URL.createObjectURL(processed))
+        setError("")
+      } catch (err) {
+        console.warn("Image optimization error, using original file:", err)
+        setSelectedPhotoFile(file)
+        setPreviewUrl(URL.createObjectURL(file))
+      } finally {
+        setIsCompressingImage(false)
       }
-      setSelectedPhotoFile(file)
-      setPreviewUrl(URL.createObjectURL(file))
-      setError("")
     } else {
       setSelectedPhotoFile(null)
       setPreviewUrl(null)
@@ -185,6 +248,9 @@ export function PublicWorkRequestForm() {
       })
     } else {
       setError(res.error || "Failed to submit work request.")
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" })
+      }
     }
   }
 

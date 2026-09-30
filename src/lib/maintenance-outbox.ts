@@ -196,7 +196,7 @@ export function generateTicketCreatedEmailEn({
 
         <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0 16px 0;" />
         <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">
-          SOP BOSB-PFMD-850-001 (QR01 Plant Work Request) • Automated Notification
+          SOP BOSB-FMS-850-001 (QR01 Plant Work Request) • Automated Notification
         </p>
       </div>
     </div>

@@ -5,19 +5,11 @@ import { QRCodeSVG } from "qrcode.react"
 import { Printer, ArrowLeft, QrCode, Copy, Check, ExternalLink } from "lucide-react"
 import Link from "next/link"
 
+const OFFICIAL_PORTAL_URL = "https://bubbleso2-aio.vercel.app/public/maintenance/request"
+
 export function MaintenanceQRPosterClient() {
-  const [baseUrl, setBaseUrl] = useState("")
   const [copied, setCopied] = useState(false)
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setBaseUrl(window.location.origin)
-    }
-  }, [])
-
-  const qrLink = baseUrl
-    ? `${baseUrl}/public/maintenance/request`
-    : "/public/maintenance/request"
+  const qrLink = OFFICIAL_PORTAL_URL
 
   const handlePrint = () => {
     window.print()

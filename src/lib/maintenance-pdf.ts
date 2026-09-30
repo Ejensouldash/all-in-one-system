@@ -53,6 +53,7 @@ export async function generateAndSaveMaintenanceJobSheet(ticketId: string): Prom
   const jobSheetNumber = ticket.jobSheetNumber || `BO2-MJS-${ticket.ticketNumber.toString().padStart(4, "0")}`
 
   const beforePhoto = ticket.photos.find((p) => p.category === "BEFORE")
+  const progressPhoto = ticket.photos.find((p) => p.category === "PROGRESS")
   const afterPhoto = ticket.photos.find((p) => p.category === "AFTER")
 
   const totalCost = ticket.costs.reduce((sum, c) => sum + (c.amount || 0), 0)
@@ -80,6 +81,7 @@ export async function generateAndSaveMaintenanceJobSheet(ticketId: string): Prom
     resolution: ticket.resolution,
     noPhotoReason: ticket.noPhotoReason,
     beforePhotoUrl: beforePhoto?.fileUrl || null,
+    progressPhotoUrl: progressPhoto?.fileUrl || null,
     afterPhotoUrl: afterPhoto?.fileUrl || null,
     costs: ticket.costs.map((c) => ({
       category: c.category,

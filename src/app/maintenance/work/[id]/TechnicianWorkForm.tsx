@@ -36,8 +36,6 @@ export function TechnicianWorkForm({
   
   const [rootCause, setRootCause] = useState(ticket.rootCause || "")
   const [resolution, setResolution] = useState(ticket.resolution || "")
-  const [noPhotoExemption, setNoPhotoExemption] = useState(!!ticket.noPhotoReason)
-  const [noPhotoReason, setNoPhotoReason] = useState(ticket.noPhotoReason || "")
 
   const handleStartWork = async () => {
     setIsSubmitting(true)
@@ -83,10 +81,6 @@ export function TechnicianWorkForm({
     const formData = new FormData()
     formData.set("rootCause", rootCause)
     formData.set("resolution", resolution)
-    if (noPhotoExemption) {
-      formData.set("noPhotoExemption", "true")
-      formData.set("noPhotoReason", noPhotoReason)
-    }
 
     const res = await technicianSubmitWork(ticket.id, formData, contractorToken)
     setIsSubmitting(false)
@@ -235,32 +229,6 @@ export function TechnicianWorkForm({
                 onChange={handlePhotoUpload}
               />
             </label>
-
-            {/* Exemption checkbox */}
-            <div className="pt-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={noPhotoExemption}
-                  onChange={(e) => setNoPhotoExemption(e.target.checked)}
-                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
-                />
-                <span className="text-xs text-slate-700 font-semibold">
-                  No Physical Change Exemption (e.g. Electrical trip reset, parameter calibration)
-                </span>
-              </label>
-
-              {noPhotoExemption && (
-                <input
-                  type="text"
-                  required={noPhotoExemption}
-                  value={noPhotoReason}
-                  onChange={(e) => setNoPhotoReason(e.target.value)}
-                  placeholder="State reason why photos cannot be provided (mandatory)"
-                  className="mt-2 w-full text-xs px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                />
-              )}
-            </div>
           </div>
         )}
       </div>
@@ -295,9 +263,21 @@ export function TechnicianWorkForm({
             />
           </div>
 
+          {(!hasBefore || !hasAfter) && (
+            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
+              <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+              <div>
+                <p className="font-bold">Mandatory Photographic Evidence Required</p>
+                <p className="text-[11px] text-amber-700 mt-0.5">
+                  You must upload at least one <strong>BEFORE</strong> photo and one <strong>AFTER</strong> photo to submit this work order.
+                </p>
+              </div>
+            </div>
+          )}
+
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !hasBefore || !hasAfter || !resolution.trim()}
             className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {isSubmitting ? (

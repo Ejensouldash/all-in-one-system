@@ -58,6 +58,7 @@ export default async function PublicTicketTrackPage(props: {
   const hasValidToken = token && ticket.requesterToken === token
   const complaintPhoto = ticket.photos.find((p) => p.category === "INITIAL_COMPLAINT") || (ticket.photoUrl ? { fileUrl: ticket.photoUrl, caption: "Initial complaint photo" } : null)
   const beforePhoto = ticket.photos.find((p) => p.category === "BEFORE")
+  const progressPhotos = ticket.photos.filter((p) => p.category === "PROGRESS")
   const afterPhoto = ticket.photos.find((p) => p.category === "AFTER")
 
   return (
@@ -278,12 +279,12 @@ export default async function PublicTicketTrackPage(props: {
             )}
 
             {/* Photographic Evidence Gallery */}
-            {(complaintPhoto || beforePhoto || afterPhoto) && (
+            {(complaintPhoto || beforePhoto || progressPhotos.length > 0 || afterPhoto) && (
               <div className="space-y-3 pt-2 border-t border-slate-100">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
                   Photographic Evidence
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {beforePhoto && (
                     <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50 p-2">
                       <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
@@ -292,6 +293,18 @@ export default async function PublicTicketTrackPage(props: {
                       <img
                         src={beforePhoto.fileUrl}
                         alt="Before repair"
+                        className="w-full h-44 object-cover rounded-lg border border-slate-200"
+                      />
+                    </div>
+                  )}
+                  {progressPhotos.length > 0 && (
+                    <div className="border border-blue-200 rounded-xl overflow-hidden bg-blue-50/50 p-2">
+                      <span className="text-[10px] font-bold text-blue-800 uppercase block mb-1">
+                        In-Progress Repair ({progressPhotos.length})
+                      </span>
+                      <img
+                        src={progressPhotos[0].fileUrl}
+                        alt="During repair"
                         className="w-full h-44 object-cover rounded-lg border border-slate-200"
                       />
                     </div>

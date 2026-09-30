@@ -116,6 +116,10 @@ export function MaintenanceWorkspace({
       updated[index].itemId = item.id
       updated[index].itemName = `${item.name} (${item.location || 'Warehouse'})`
       updated[index].unit = item.unit || "PCS"
+      const unitPrice = typeof item.pricePerUnit === "number" ? item.pricePerUnit : parseFloat(item.pricePerUnit) || 0
+      updated[index].unitPrice = unitPrice
+      const qty = parseFloat(updated[index].quantity) || 1
+      updated[index].amount = Math.round(qty * unitPrice * 100) / 100
     } else {
       updated[index].itemId = ""
     }
@@ -231,6 +235,7 @@ export function MaintenanceWorkspace({
   const isAwaitingVerification = ticket.status === "AWAITING_VERIFICATION"
   const isAwaitingCosting = ticket.status === "AWAITING_COSTING"
   const beforePhoto = ticket.photos?.find((p: any) => p.category === "BEFORE")
+  const progressPhotos = ticket.photos?.filter((p: any) => p.category === "PROGRESS") || []
   const afterPhoto = ticket.photos?.find((p: any) => p.category === "AFTER")
   const complaintPhoto = ticket.photos?.find((p: any) => p.category === "INITIAL_COMPLAINT") || (ticket.photoUrl ? { fileUrl: ticket.photoUrl } : null)
 
@@ -589,7 +594,7 @@ export function MaintenanceWorkspace({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="border border-slate-200 rounded-2xl p-3 bg-slate-50/50 space-y-2">
             <span className="text-[10px] font-bold uppercase text-slate-500 block">1. Complaint Photo</span>
             {complaintPhoto ? (
@@ -602,7 +607,7 @@ export function MaintenanceWorkspace({
           </div>
 
           <div className="border border-slate-200 rounded-2xl p-3 bg-slate-50/50 space-y-2">
-            <span className="text-[10px] font-bold uppercase text-amber-700 block">2. Before Repair (Technician)</span>
+            <span className="text-[10px] font-bold uppercase text-amber-700 block">2. Before Repair</span>
             {beforePhoto ? (
               <img src={beforePhoto.fileUrl} alt="Before" className="w-full h-36 object-cover rounded-xl border border-slate-200" />
             ) : (
@@ -613,7 +618,25 @@ export function MaintenanceWorkspace({
           </div>
 
           <div className="border border-slate-200 rounded-2xl p-3 bg-slate-50/50 space-y-2">
-            <span className="text-[10px] font-bold uppercase text-emerald-700 block">3. After Repair (Restored)</span>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase text-blue-700 block">3. In-Progress Repair</span>
+              {progressPhotos.length > 0 && (
+                <span className="text-[9px] font-bold bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full">
+                  {progressPhotos.length} {progressPhotos.length === 1 ? "photo" : "photos"}
+                </span>
+              )}
+            </div>
+            {progressPhotos.length > 0 ? (
+              <img src={progressPhotos[0].fileUrl} alt="In-Progress" className="w-full h-36 object-cover rounded-xl border border-slate-200" />
+            ) : (
+              <div className="h-36 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-xs text-slate-400">
+                No progress photo
+              </div>
+            )}
+          </div>
+
+          <div className="border border-slate-200 rounded-2xl p-3 bg-slate-50/50 space-y-2">
+            <span className="text-[10px] font-bold uppercase text-emerald-700 block">4. After Repair / Restored</span>
             {afterPhoto ? (
               <img src={afterPhoto.fileUrl} alt="After" className="w-full h-36 object-cover rounded-xl border border-slate-200" />
             ) : (
@@ -623,6 +646,27 @@ export function MaintenanceWorkspace({
             )}
           </div>
         </div>
+
+        {/* If multiple progress photos exist, display additional snapshots */}
+        {progressPhotos.length > 1 && (
+          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block">
+              Additional In-Progress Snapshots ({progressPhotos.length} total):
+            </span>
+            <div className="flex flex-wrap gap-2.5">
+              {progressPhotos.slice(1).map((p: any, idx: number) => (
+                <div key={idx} className="relative w-20 h-20 rounded-xl overflow-hidden border border-slate-200 shrink-0">
+                  <img src={p.fileUrl} alt={`Progress ${idx + 2}`} className="w-full h-full object-cover" />
+                  {p.caption && (
+                    <span className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[8px] px-1 truncate text-center">
+                      {p.caption}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {ticket.noPhotoReason && (
           <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800">
@@ -715,7 +759,7 @@ export function MaintenanceWorkspace({
                               <option value="">-- Pick from Spare Parts Catalog --</option>
                               {catalogItems.map((item) => (
                                 <option key={item.id} value={item.id}>
-                                  {item.name} ({item.quantity} {item.unit} available)
+                                  {item.name} ({item.location || 'Pedas'}) — Stock: {item.quantity} {item.unit} @ RM {Number(item.pricePerUnit || 0).toFixed(2)}
                                 </option>
                               ))}
                             </select>

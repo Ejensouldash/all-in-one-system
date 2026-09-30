@@ -33,6 +33,7 @@ export interface MaintenanceJobSheetPdfData {
   resolution?: string | null
   noPhotoReason?: string | null
   beforePhotoUrl?: string | null
+  progressPhotoUrl?: string | null
   afterPhotoUrl?: string | null
   costs: JobSheetCostLine[]
   totalCost: number
@@ -164,6 +165,14 @@ const styles = StyleSheet.create({
   },
   photoBox: {
     width: "48%",
+    borderWidth: 0.5,
+    borderColor: "#cbd5e1",
+    borderRadius: 4,
+    padding: 4,
+    alignItems: "center",
+  },
+  photoBox3: {
+    width: "32%",
     borderWidth: 0.5,
     borderColor: "#cbd5e1",
     borderRadius: 4,
@@ -358,31 +367,52 @@ export function MaintenanceJobSheetDocument({ data }: { data: MaintenanceJobShee
         </View>
 
         {/* Section 3: Photo Evidence */}
-        <Text style={styles.sectionTitle}>3. Photographic Evidence (Before &amp; After)</Text>
-        {data.noPhotoReason ? (
-          <Text style={[styles.blockText, { fontStyle: "italic", color: "#475569" }]}>
-            Photo Exemption: {data.noPhotoReason}
-          </Text>
-        ) : (
-          <View style={styles.photoContainer}>
-            <View style={styles.photoBox}>
-              <Text style={styles.photoCaption}>BEFORE REPAIR</Text>
-              {data.beforePhotoUrl ? (
-                <Image src={data.beforePhotoUrl} style={styles.photoImg} />
-              ) : (
-                <Text style={{ fontSize: 7, color: "#94a3b8", marginTop: 35 }}>No before photo uploaded</Text>
-              )}
-            </View>
-            <View style={styles.photoBox}>
-              <Text style={styles.photoCaption}>AFTER REPAIR / RESTORATION</Text>
-              {data.afterPhotoUrl ? (
-                <Image src={data.afterPhotoUrl} style={styles.photoImg} />
-              ) : (
-                <Text style={{ fontSize: 7, color: "#94a3b8", marginTop: 35 }}>No after photo uploaded</Text>
-              )}
-            </View>
-          </View>
-        )}
+        <Text style={styles.sectionTitle}>3. Photographic Evidence (Before, Progress &amp; After)</Text>
+        <View style={styles.photoContainer}>
+          {data.progressPhotoUrl ? (
+            <>
+              <View style={styles.photoBox3}>
+                <Text style={styles.photoCaption}>BEFORE REPAIR</Text>
+                {data.beforePhotoUrl ? (
+                  <Image src={data.beforePhotoUrl} style={styles.photoImg} />
+                ) : (
+                  <Text style={{ fontSize: 7, color: "#94a3b8", marginTop: 35 }}>No before photo uploaded</Text>
+                )}
+              </View>
+              <View style={styles.photoBox3}>
+                <Text style={styles.photoCaption}>DURING PROGRESS</Text>
+                <Image src={data.progressPhotoUrl} style={styles.photoImg} />
+              </View>
+              <View style={styles.photoBox3}>
+                <Text style={styles.photoCaption}>AFTER RESTORATION</Text>
+                {data.afterPhotoUrl ? (
+                  <Image src={data.afterPhotoUrl} style={styles.photoImg} />
+                ) : (
+                  <Text style={{ fontSize: 7, color: "#94a3b8", marginTop: 35 }}>No after photo uploaded</Text>
+                )}
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.photoBox}>
+                <Text style={styles.photoCaption}>BEFORE REPAIR</Text>
+                {data.beforePhotoUrl ? (
+                  <Image src={data.beforePhotoUrl} style={styles.photoImg} />
+                ) : (
+                  <Text style={{ fontSize: 7, color: "#94a3b8", marginTop: 35 }}>No before photo uploaded</Text>
+                )}
+              </View>
+              <View style={styles.photoBox}>
+                <Text style={styles.photoCaption}>AFTER REPAIR / RESTORATION</Text>
+                {data.afterPhotoUrl ? (
+                  <Image src={data.afterPhotoUrl} style={styles.photoImg} />
+                ) : (
+                  <Text style={{ fontSize: 7, color: "#94a3b8", marginTop: 35 }}>No after photo uploaded</Text>
+                )}
+              </View>
+            </>
+          )}
+        </View>
 
         {/* Section 4: Parts, Labour & Cost Summary */}
         <Text style={styles.sectionTitle}>4. Spare Parts, Labour &amp; Maintenance Costing</Text>

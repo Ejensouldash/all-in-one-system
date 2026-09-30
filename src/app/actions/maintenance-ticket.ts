@@ -27,8 +27,9 @@ import { getActiveMaintenanceNotificationEmails } from "./maintenance-notificati
 import crypto from "node:crypto"
 
 function getBaseUrl(): string {
-  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL.replace(/\/$/, "")
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")
+  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, "")
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
   return "https://bubbleso2-aio.vercel.app"
 }
 
@@ -631,26 +632,20 @@ export async function technicianSubmitWork(id: string, formData: FormData, contr
 
   const rootCause = (formData.get("rootCause") as string)?.trim() || null
   const resolution = (formData.get("resolution") as string)?.trim()
-  const noPhotoExemption = formData.get("noPhotoExemption") === "true" || formData.get("noPhotoExemption") === "on"
-  const noPhotoReason = (formData.get("noPhotoReason") as string)?.trim() || null
 
   if (!resolution) {
     return { success: false, error: "Technical resolution summary is mandatory." }
   }
 
-  // Validate Photo Evidence: Must have BEFORE and AFTER or valid exemption reason
+  // Validate Photo Evidence: Must have BEFORE and AFTER photos
   const hasBefore = ticket.photos.some((p) => p.category === "BEFORE")
   const hasAfter = ticket.photos.some((p) => p.category === "AFTER")
 
-  if (!noPhotoExemption && (!hasBefore || !hasAfter)) {
+  if (!hasBefore || !hasAfter) {
     return {
       success: false,
-      error: `Evidence incomplete. You must upload at least one BEFORE photo and one AFTER photo (or check 'No Physical Change Exemption' with a valid reason).`,
+      error: "Mandatory photographic evidence missing. You must upload at least one BEFORE photo and one AFTER photo before submitting completion.",
     }
-  }
-
-  if (noPhotoExemption && !noPhotoReason) {
-    return { success: false, error: "Please provide an explanation for the photo exemption." }
   }
 
   const now = new Date()
@@ -671,7 +666,7 @@ export async function technicianSubmitWork(id: string, formData: FormData, contr
       data: {
         rootCause,
         resolution,
-        noPhotoReason: noPhotoExemption ? noPhotoReason : null,
+        noPhotoReason: null,
         workCompletedAt: now,
         completedAt: now,
         kpiRepairHours: repairHours,
@@ -799,12 +794,40 @@ export async function updateMaintenanceCosts(id: string, costsData: any[]) {
   }
 
   try {
+    const ticket = await prisma.maintenanceTicket.findUnique({
+      where: { id },
+      select: { id: true, ticketNumber: true, title: true },
+    })
+    if (!ticket) return { success: false, error: "Ticket not found." }
+
+    const formattedLog = `BO2-MT-${ticket.ticketNumber.toString().padStart(4, "0")}`
+
     await prisma.$transaction(async (tx) => {
-      // Clear existing costs
+      // 1. Revert any previously deducted spare parts from FMS Inventory for this ticket
+      const previousCosts = await tx.maintenanceTicketCost.findMany({
+        where: { ticketId: id },
+      })
+
+      for (const prev of previousCosts) {
+        if (prev.itemId && prev.category === "SPARE_PART") {
+          const qtyToRestore = Math.max(1, Math.round(prev.quantity))
+          try {
+            await tx.maintenanceItem.update({
+              where: { id: prev.itemId },
+              data: { quantity: { increment: qtyToRestore } },
+            })
+          } catch (e) {
+            console.warn(`Could not restore stock for item ${prev.itemId}:`, e)
+          }
+        }
+      }
+
+      // 2. Clear existing costs
       await tx.maintenanceTicketCost.deleteMany({ where: { ticketId: id } })
 
+      let rows: any[] = []
       if (Array.isArray(costsData) && costsData.length > 0) {
-        const rows = costsData.map((c: any) => {
+        rows = costsData.map((c: any) => {
           const qty = parseFloat(c.quantity) || 1
           const unitPrice = parseFloat(c.unitPrice) || 0
           const amount = parseFloat(c.amount) || qty * unitPrice
@@ -822,6 +845,33 @@ export async function updateMaintenanceCosts(id: string, costsData: any[]) {
         })
 
         await tx.maintenanceTicketCost.createMany({ data: rows })
+
+        // 3. Deduct stock from FMS Inventory and create MaintenanceStockLog for spare parts
+        for (const row of rows) {
+          if (row.itemId && row.category === "SPARE_PART") {
+            const qtyInt = Math.max(1, Math.round(row.quantity))
+            const item = await tx.maintenanceItem.findUnique({ where: { id: row.itemId } })
+            if (item) {
+              await tx.maintenanceItem.update({
+                where: { id: item.id },
+                data: { quantity: { decrement: qtyInt } },
+              })
+
+              const logTotal = Number(((item.pricePerUnit || row.unitPrice || 0) * qtyInt).toFixed(2))
+              await tx.maintenanceStockLog.create({
+                data: {
+                  itemId: item.id,
+                  type: "OUT",
+                  quantity: qtyInt,
+                  pricePerUnit: item.pricePerUnit || row.unitPrice || 0,
+                  totalPrice: logTotal,
+                  handledBy: session.user.name || "Maintenance PIC",
+                  remarks: `Used for FMS Work Order ${formattedLog}: ${ticket.title.substring(0, 50)}`,
+                },
+              })
+            }
+          }
+        }
       }
 
       await tx.maintenanceActivityLog.create({
@@ -830,13 +880,14 @@ export async function updateMaintenanceCosts(id: string, costsData: any[]) {
           actorName: session.user.name || "PIC",
           actorRole: "PIC",
           action: "COSTS_FINALIZED",
-          details: `Updated ${costsData.length} cost rows. Total: RM ${costsData.reduce((acc, c) => acc + (parseFloat(c.amount) || 0), 0).toFixed(2)}`,
+          details: `Updated ${rows.length} cost rows. Total: RM ${rows.reduce((acc, c) => acc + (parseFloat(c.amount) || 0), 0).toFixed(2)}. Inventory stock deducted accordingly.`,
           isPublic: false,
         },
       })
     })
 
     revalidatePath(`/forms/maintenance/tickets/${id}`)
+    revalidatePath("/forms/maintenance/dashboard")
     return { success: true }
   } catch (err: any) {
     console.error("updateMaintenanceCosts error:", err)
@@ -953,7 +1004,7 @@ export async function getMaintenanceWorkspaceData(ticketId: string) {
 
   // Fetch spare parts catalog items
   const catalogItems = await prisma.maintenanceItem.findMany({
-    select: { id: true, name: true, location: true, quantity: true, unit: true },
+    select: { id: true, name: true, location: true, quantity: true, unit: true, pricePerUnit: true },
     orderBy: { name: "asc" },
   })
 

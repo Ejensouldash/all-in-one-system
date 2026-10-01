@@ -12,6 +12,7 @@ import {
   Workflow, Factory, Building2, ShieldCheck,
   LayoutDashboard, FileSpreadsheet, BellRing,
   ShoppingCart, FileSearch, FileCheck, FilePenLine, Trash2, UserCheck, BookmarkCheck,
+  Briefcase, Headphones,
   type LucideIcon,
 } from "lucide-react"
 
@@ -44,6 +45,26 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "SALES_ORDERING_ORDERS", name: "Sales Orders Tab", description: "View Sales Orders and allow approved intake data to create a draft Sales Order.", icon: ShoppingCart },
       { id: "SALES_ORDERING_CUSTOMERS_MANAGE", name: "Customer Master Admin", description: "Import or update the Sage X3 customer master. Give Customers Tab too.", icon: FilePenLine },
       { id: "SALES_ORDERING_DOCUMENT_MANAGE", name: "Edit / Delete Documents", description: "Correct AI-extracted document data, save review changes, retry AI and delete an intake before an SO exists.", icon: Trash2 },
+    ],
+  },
+  {
+    id: "BUSINESS_DEVELOPMENT",
+    name: "Business Development",
+    icon: Briefcase,
+    iconClass: "bg-indigo-50 text-indigo-600 border-indigo-100",
+    modules: [
+      {
+        id: "CUSTOMER_CARE_VIEW",
+        name: "Customer Care (View Only)",
+        description: "View the customer complaints queue, case details, and export Batch Investigation Reports.",
+        icon: FileSearch,
+      },
+      {
+        id: "CUSTOMER_CARE_MANAGE",
+        name: "Customer Care (Full Management)",
+        description: "Intake new complaints, update case status, edit internal notes, and perform batch re-linking.",
+        icon: ShieldCheck,
+      },
     ],
   },
   {

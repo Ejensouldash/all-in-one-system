@@ -63,6 +63,7 @@ model User {
   createdPalletMovements     PalletMovement[]        @relation("PalletMovementCreator")
   recordedPhysicalPalletEvents PhysicalPalletEvent[]
   retentionSampleRecords     RetentionSampleRecord[] @relation("RetentionSamplePreparer")
+  customerComplaints         CustomerComplaint[]     @relation("CustomerComplaintCreator")
 }
 
 model Branch {
@@ -2365,5 +2366,82 @@ model RetentionSampleRecord {
   @@index([sku])
   @@index([preparedById])
   @@index([status, sampleDateTime])
+}
+
+// ---------------------------------------------------------------------------------------------
+// BUSINESS DEVELOPMENT & CUSTOMER CARE COMPLAINTS
+// ---------------------------------------------------------------------------------------------
+
+enum ComplaintCategory {
+  BOTTLE
+  BOTTLE_CAP
+  WATER
+  OTHER
+}
+
+enum ComplaintStatus {
+  NEW
+  UNDER_INVESTIGATION
+  PENDING_QC
+  RECALL_INITIATED
+  RESOLVED
+  CLOSED
+}
+
+enum BatchMatchStatus {
+  MATCHED
+  MULTI_MATCH
+  UNMATCHED
+  NOT_REPORTED
+  MANUAL_OVERRIDE
+}
+
+model CustomerComplaint {
+  id                    String              @id @default(uuid())
+  caseNumber            String              @unique // CC-YYYYMM-XXXX
+  companyName           String
+  outletName            String?
+  contactName           String
+  contactPhone          String
+  state                 String
+  goodsLocationAddress  String              @db.Text
+  categories            ComplaintCategory[]
+  otherIssueDescription String?             @db.Text
+  picDepartment         String              // e.g. "Customer Care", "BD Department", etc.
+  status                ComplaintStatus     @default(NEW)
+  internalNotes         String?             @db.Text
+  
+  idempotencyKey        String?             @unique
+  externalFormId        String?
+  rawPayload            Json?
+  
+  items                 ComplaintItem[]
+  
+  createdById           String?
+  createdBy             User?               @relation("CustomerComplaintCreator", fields: [createdById], references: [id])
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([status, createdAt])
+  @@index([companyName])
+  @@index([picDepartment])
+}
+
+model ComplaintItem {
+  id                    String              @id @default(uuid())
+  complaintId           String
+  productSize           String              // "425ml" or "800ml"
+  reportedQtyBottles    Int                 @default(0) // Customer-reported affected bottles (pcs)
+  reportedBatchNo       String?
+  cleanBatchNo          String?
+  
+  matchStatus           BatchMatchStatus    @default(UNMATCHED)
+  matchedProductionId   String?
+  matchRemarks          String?             @db.Text
+  
+  complaint             CustomerComplaint   @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  @@index([complaintId])
+  @@index([cleanBatchNo])
 }
 

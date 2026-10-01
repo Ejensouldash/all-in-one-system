@@ -22,7 +22,8 @@ import {
   Factory,
   Warehouse,
   Wrench,
-  ClipboardCheck
+  ClipboardCheck,
+  Briefcase
 } from "lucide-react"
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
@@ -109,6 +110,13 @@ const staffLinks: NavLink[] = [
       { name: "Pallet Ledger", href: "/forms/maintenance/pallet-transfer", module: "PALLET_LEDGER" },
     ],
   },
+  {
+    name: "Business Development",
+    icon: Briefcase,
+    subLinks: [
+      { name: "Customer Care", href: "/business-development/customer-care", modules: ["CUSTOMER_CARE_VIEW", "CUSTOMER_CARE_MANAGE"] },
+    ],
+  },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
   { name: "Reminders", href: "/reminders", icon: BellRing, module: "REMINDERS" },
   { name: "Assets", href: "/dashboard/assets", icon: Package, module: "ASSETS" },
@@ -152,6 +160,13 @@ const adminLinks: NavLink[] = [
       { name: "GMP Checklists", href: "/forms/maintenance?_cache=bust", module: "MAINTENANCE_FORMS" },
       { name: "GMP Reports", href: "/forms/maintenance/reports", module: "MAINTENANCE_REPORTS" },
       { name: "Pallet Ledger", href: "/forms/maintenance/pallet-transfer", module: "PALLET_LEDGER" },
+    ],
+  },
+  {
+    name: "Business Development",
+    icon: Briefcase,
+    subLinks: [
+      { name: "Customer Care", href: "/business-development/customer-care", modules: ["CUSTOMER_CARE_VIEW", "CUSTOMER_CARE_MANAGE"] },
     ],
   },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },

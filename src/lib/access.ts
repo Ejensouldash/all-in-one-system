@@ -91,3 +91,18 @@ export const getAccessInfo = cache(async (): Promise<AccessInfo | null> => {
 export function hasAnyModule(access: AccessInfo, required: string[]): boolean {
   return access.isSuperAdmin || required.some(m => access.modules.includes(m))
 }
+
+export const CUSTOMER_CARE_MODULES = [
+  "CUSTOMER_CARE_VIEW",
+  "CUSTOMER_CARE_MANAGE",
+]
+
+export function canViewCustomerCare(access: AccessInfo | null): boolean {
+  if (!access) return false
+  return access.isSuperAdmin || hasAnyModule(access, CUSTOMER_CARE_MODULES)
+}
+
+export function canManageCustomerCare(access: AccessInfo | null): boolean {
+  if (!access) return false
+  return access.isSuperAdmin || access.modules.includes("CUSTOMER_CARE_MANAGE")
+}

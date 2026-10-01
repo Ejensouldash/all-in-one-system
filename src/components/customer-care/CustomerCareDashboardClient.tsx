@@ -242,7 +242,7 @@ export function CustomerCareDashboardClient({
             </div>
             <div>
               <div className="text-xl font-black text-slate-900">{socialTotal}</div>
-              <div className="text-[11px] font-bold text-slate-500 uppercase">Threads Complaints</div>
+              <div className="text-[11px] font-bold text-slate-500 uppercase">Total Threads Items</div>
             </div>
           </div>
 

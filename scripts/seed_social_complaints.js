@@ -25,13 +25,14 @@ async function main() {
 
   console.log(`Loading ${items.length} items into database...`);
 
-  // Clear existing social media complaints if any
+  // Clear existing social media complaints
   const deleted = await prisma.socialMediaComplaint.deleteMany({});
   console.log(`Cleared ${deleted.count} existing records.`);
 
   // Prepare batch insert
   const data = items.map(c => ({
     complaintId: c.complaintId,
+    categoryGroup: c.categoryGroup || 'General Chatter',
     date: c.rawDate ? new Date(c.rawDate) : new Date(),
     takenAt: c.takenAt ? BigInt(c.takenAt) : null,
     username: c.username || 'anonymous',
@@ -43,7 +44,7 @@ async function main() {
     rawText: c.rawText,
     detectedBatchNo: c.detectedBatchNo || null,
     symptoms: c.symptoms || [],
-    priority: c.priority, // High, Medium, Low
+    priority: c.priority, // High, Medium, Low, Info
     status: c.status || 'Open',
     picHandling: c.picHandling || 'Unassigned',
     likeCount: c.likeCount || 0,

@@ -4,7 +4,7 @@ const path = require('path');
 const filePath = 'C:/Users/user/Downloads/dataset_threads-scraper-usage_2026-10-01_07-37-25-195.json';
 const rawData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
 
-// 1. High priority keywords (Health)
+// Keywords
 const healthKeywords = [
   'sakit tekak', 'tekak', 'cirit', 'birit', 'muntah', 'vomit', 'batuk',
   'demam', 'fever', 'sakit perut', 'stomach', 'keracunan', 'poisoning',
@@ -12,7 +12,6 @@ const healthKeywords = [
   'gastrik', 'diarrhea', 'diarrhoea', 'perut memulas', 'masuk wad', 'hospital', 'klinik', 'doktor'
 ];
 
-// 2. Medium priority keywords (Smell, taste, defect, recall)
 const defectKeywords = [
   'bau tanah', 'bau ubat', 'bau petai', 'bau busuk', 'bau semacam', 'bau hanyir', 'bau pelik',
   'bau', 'smell', 'odor', 'odour', 'busuk', 'stink', 'tanah', 'ubat', 'petai', 'hanyir', 'plastik', 'minyak', 'masam', 'basi', 'tengik',
@@ -23,43 +22,25 @@ const defectKeywords = [
   'rosak', 'terjejas'
 ];
 
-// 3. Low priority keywords (Inquiry, refund, confusion, price)
 const inquiryKeywords = [
   'batch', 'exp', 'expired', 'tarikh', 'date', 'refund', 'claim', 'tukar', 'duit', 'ganti', 'kedai mana',
-  'kenapa x boleh', 'kenapa tak boleh', 'kenapa takleh', 'sebab apa', 'isu apa', 'bermasalah', 'apa masalah'
+  'kenapa x boleh', 'kenapa tak boleh', 'kenapa takleh', 'sebab apa', 'isu apa', 'bermasalah', 'apa masalah',
+  'boleh tahu', 'boleh tau', 'mcm mana', 'macam mana', 'hubungi', 'dm'
 ];
-
-function isBrandOrBot(username) {
-  const u = (username || '').toLowerCase();
-  return u === 'bubbleso2' || u === 'meta.ai';
-}
-
-function isJunk(text) {
-  if (!text) return true;
-  const clean = text.trim();
-  if (clean.length < 5) return true;
-  if (/^(@[a-zA-Z0-9._]+\s*)+$/.test(clean)) return true;
-  if (/^(kenapa|knpe|napa|sbb ape|sbb apa|dah kenapa|follow up|aik|fuh|tudia|lahh|ye ke|yeke|laa|alamak|alamakk|betul2|tq|thanks|ok|tq info)\W*$/i.test(clean)) return true;
-  return false;
-}
 
 function extractBatch(text) {
   if (!text) return null;
-  // Match strict 6digit-2digit like 013526-01
   const m1 = text.match(/\b(\d{6}-\d{2})\b/);
   if (m1) return m1[1];
 
-  // Match 6 digits standalone
   const m1b = text.match(/\b(\d{6})\b/);
   if (m1b && !/^(202610|123456)$/.test(m1b[1])) return m1b[1];
 
-  // Match 'batch' followed by numbers or code
   const m2 = text.match(/\b(?:batch|b\/n|no batch)\s*[:#\-]?\s*([A-Za-z0-9\-\.\/]+)/i);
   if (m2 && !/^(apa|mana|ke|tu|ni|terbaru|lama|yg|yang|kt|kat|bila|kenapa|tahu|cek|check|sama|air|nombor|number)$/i.test(m2[1])) {
     return m2[1].replace(/[.,]+$/, '');
   }
 
-  // Match EXP
   const m3 = text.match(/\b(?:exp|bb|expiry)\s*[:#\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}|\d{4,8})/i);
   if (m3) return 'EXP ' + m3[1];
 
@@ -97,6 +78,58 @@ function extractSymptomsList(text) {
   return Array.from(new Set(symptoms));
 }
 
+function classifyItem(item) {
+  const username = (item.username || '').toLowerCase();
+  const text = (item.text || '').trim();
+  const lowerText = text.toLowerCase();
+
+  // 1. Brand Official
+  if (username === 'bubbleso2') {
+    return {
+      categoryGroup: 'Brand Official',
+      priority: 'Info',
+    };
+  }
+
+  // 2. Meta AI Bot
+  if (username === 'meta.ai') {
+    return {
+      categoryGroup: 'Meta AI Assistant',
+      priority: 'Info',
+    };
+  }
+
+  // 3. Health Issues
+  if (healthKeywords.some(kw => lowerText.includes(kw))) {
+    return {
+      categoryGroup: 'Health Issue',
+      priority: 'High',
+    };
+  }
+
+  // 4. Quality & Defect Issues
+  if (defectKeywords.some(kw => lowerText.includes(kw))) {
+    return {
+      categoryGroup: 'Quality Defect',
+      priority: 'Medium',
+    };
+  }
+
+  // 5. Inquiries & Refunds
+  if (inquiryKeywords.some(kw => lowerText.includes(kw))) {
+    return {
+      categoryGroup: 'Inquiry & Refund',
+      priority: 'Low',
+    };
+  }
+
+  // 6. General Social Chatter / Mentions / Discussion
+  return {
+    categoryGroup: 'General Chatter',
+    priority: 'Low',
+  };
+}
+
 function formatDate(timestamp) {
   if (!timestamp) return '';
   const d = new Date(timestamp * 1000);
@@ -106,29 +139,15 @@ function formatDate(timestamp) {
   return `${day}/${month}/${year}`;
 }
 
-const complaints = [];
-let idCounter = 1;
-
-// Sort rawData by taken_at asc or desc (let's sort asc so CMP-TH-001 starts from earliest or consistent order)
+// Sort descending by taken_at
 const sortedRaw = [...rawData].sort((a, b) => (b.taken_at || 0) - (a.taken_at || 0));
 
+const allRecords = [];
+let idCounter = 1;
+
 sortedRaw.forEach(item => {
-  if (isBrandOrBot(item.username)) return;
   const text = (item.text || '').trim();
-  if (isJunk(text)) return;
-
-  const lowerText = text.toLowerCase();
-  const hasHealth = healthKeywords.some(kw => lowerText.includes(kw));
-  const hasDefect = defectKeywords.some(kw => lowerText.includes(kw));
-  const hasInquiry = inquiryKeywords.some(kw => lowerText.includes(kw));
-
-  if (!hasHealth && !hasDefect && !hasInquiry) return;
-
-  let priority = 'Low';
-  if (hasHealth) priority = 'High';
-  else if (hasDefect) priority = 'Medium';
-  else priority = 'Low';
-
+  const { categoryGroup, priority } = classifyItem(item);
   const symptoms = extractSymptomsList(text);
   const batchNo = extractBatch(text);
 
@@ -139,7 +158,7 @@ sortedRaw.forEach(item => {
   const username = item.username ? `@${item.username}` : '@anonymous';
   const customerName = item.full_name ? `${username} (${item.full_name})` : username;
 
-  // Build compact main complaint with symptoms and batch
+  // Build compact main complaint with category, symptoms, and batch tags
   let summaryParts = [];
   if (symptoms.length > 0) {
     summaryParts.push(`[Simptom: ${symptoms.join(', ')}]`);
@@ -147,11 +166,12 @@ sortedRaw.forEach(item => {
   if (batchNo) {
     summaryParts.push(`[Batch No: ${batchNo}]`);
   }
-  summaryParts.push(text.replace(/\r?\n|\r/g, ' '));
+  summaryParts.push(text ? text.replace(/\r?\n|\r/g, ' ') : '[No Text / Media only]');
   const mainComplaint = summaryParts.join(' ');
 
-  complaints.push({
+  allRecords.push({
     complaintId,
+    categoryGroup,
     date: dateStr,
     takenAt: item.taken_at,
     rawDate: item.taken_at ? new Date(item.taken_at * 1000).toISOString() : null,
@@ -162,10 +182,10 @@ sortedRaw.forEach(item => {
     platform: 'Threads',
     postUrl: item.post_url || '',
     mainComplaint,
-    rawText: text,
+    rawText: text || '(No text)',
     symptoms,
     detectedBatchNo: batchNo,
-    priority, // High, Medium, Low
+    priority, // High, Medium, Low, Info
     status: 'Open',
     picHandling: 'Unassigned',
     likeCount: item.like_count || 0,
@@ -173,15 +193,18 @@ sortedRaw.forEach(item => {
   });
 });
 
-console.log('Total Processed Complaints:', complaints.length);
-console.log('Breakdown by Priority:');
-console.log('  High:', complaints.filter(c => c.priority === 'High').length);
-console.log('  Medium:', complaints.filter(c => c.priority === 'Medium').length);
-console.log('  Low:', complaints.filter(c => c.priority === 'Low').length);
+console.log('Total Records Processed:', allRecords.length);
+const groupCounts = {};
+allRecords.forEach(r => {
+  groupCounts[r.categoryGroup] = (groupCounts[r.categoryGroup] || 0) + 1;
+});
+console.log('Group Breakdown:');
+console.log(groupCounts);
 
-// Generate CSV
+// Generate CSV with CATEGORY / GROUP column
 const csvHeaders = [
   'COMPLAINT ID',
+  'CATEGORY / GROUP',
   'DATE',
   'CUSTOMER & NUMBER',
   'PLATFORM & SOCIALS',
@@ -191,8 +214,9 @@ const csvHeaders = [
   'PIC HANDLING'
 ];
 
-const csvRows = complaints.map(c => [
+const csvRows = allRecords.map(c => [
   `"${c.complaintId}"`,
+  `"${c.categoryGroup}"`,
   `"${c.date}"`,
   `"${c.customerName.replace(/"/g, '""')}"`,
   `"Threads - ${c.postUrl}"`,
@@ -204,15 +228,15 @@ const csvRows = complaints.map(c => [
 
 const csvContent = '\uFEFF' + [csvHeaders.join(','), ...csvRows.map(r => r.join(','))].join('\r\n');
 
-// Write CSV and JSON to both Downloads and public/data for the app
+// Output files
 const outCsvPath = 'C:/Users/user/Downloads/threads_complaints_structured.csv';
 const outJsonPath = 'C:/Users/user/Downloads/threads_complaints_structured.json';
 const appJsonPath = path.join(__dirname, '../src/data/threads_complaints.json');
 
 fs.mkdirSync(path.dirname(appJsonPath), { recursive: true });
 fs.writeFileSync(outCsvPath, csvContent, 'utf8');
-fs.writeFileSync(outJsonPath, JSON.stringify(complaints, null, 2), 'utf8');
-fs.writeFileSync(appJsonPath, JSON.stringify(complaints, null, 2), 'utf8');
+fs.writeFileSync(outJsonPath, JSON.stringify(allRecords, null, 2), 'utf8');
+fs.writeFileSync(appJsonPath, JSON.stringify(allRecords, null, 2), 'utf8');
 
 console.log('Files generated successfully:');
 console.log('  1. ' + outCsvPath);

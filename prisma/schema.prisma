@@ -2496,11 +2496,12 @@ model SocialMediaComplaint {
   customerNumber  String   @default("N/A (Threads)")
   platform        String   @default("Threads")
   postUrl         String?
+  categoryGroup   String   @default("General Chatter") // Health Issue, Quality Defect, Inquiry & Refund, General Chatter, Brand Official, Meta AI Assistant
   mainComplaint   String   @db.Text
   rawText         String   @db.Text
   detectedBatchNo String?
   symptoms        String[] @default([])
-  priority        String   @default("Medium") // High, Medium, Low
+  priority        String   @default("Medium") // High, Medium, Low, Info
   status          String   @default("Open")   // Open, Ongoing, Closed
   picHandling     String   @default("Unassigned")
   likeCount       Int      @default(0)
@@ -2508,6 +2509,7 @@ model SocialMediaComplaint {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  @@index([categoryGroup])
   @@index([priority, status])
   @@index([platform])
   @@index([detectedBatchNo])

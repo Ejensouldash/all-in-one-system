@@ -39,7 +39,7 @@ export default async function CustomerCarePage() {
   // Fetch social media complaints (scraped Threads tracking)
   const socialComplaintsRaw = await prisma.socialMediaComplaint.findMany({
     orderBy: { date: "desc" },
-    take: 600,
+    take: 2000,
   })
 
   const socialComplaints = socialComplaintsRaw.map((s) => ({

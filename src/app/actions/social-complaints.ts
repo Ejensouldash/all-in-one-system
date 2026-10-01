@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache"
 
 export type SocialComplaintFilterParams = {
   search?: string
+  categoryGroup?: string
   priority?: string
   status?: string
   picHandling?: string
@@ -24,6 +25,7 @@ export async function getSocialComplaints(params: SocialComplaintFilterParams = 
   try {
     const {
       search,
+      categoryGroup,
       priority,
       status,
       picHandling,
@@ -44,6 +46,10 @@ export async function getSocialComplaints(params: SocialComplaintFilterParams = 
         { mainComplaint: { contains: q, mode: "insensitive" } },
         { detectedBatchNo: { contains: q, mode: "insensitive" } },
       ]
+    }
+
+    if (categoryGroup && categoryGroup !== "ALL") {
+      where.categoryGroup = categoryGroup
     }
 
     if (priority && priority !== "ALL") {
@@ -99,6 +105,7 @@ export async function updateSocialComplaint(
     status?: string
     picHandling?: string
     priority?: string
+    categoryGroup?: string
   }
 ) {
   const access = await getAccessInfo()
@@ -113,6 +120,7 @@ export async function updateSocialComplaint(
         status: data.status !== undefined ? data.status : undefined,
         picHandling: data.picHandling !== undefined ? data.picHandling : undefined,
         priority: data.priority !== undefined ? data.priority : undefined,
+        categoryGroup: data.categoryGroup !== undefined ? data.categoryGroup : undefined,
       },
     })
 
@@ -144,6 +152,7 @@ export async function exportSocialComplaintsCsv() {
 
     const headers = [
       "COMPLAINT ID",
+      "CATEGORY / GROUP",
       "DATE",
       "CUSTOMER & NUMBER",
       "PLATFORM & SOCIALS",
@@ -161,6 +170,7 @@ export async function exportSocialComplaintsCsv() {
 
       return [
         `"${r.complaintId}"`,
+        `"${r.categoryGroup}"`,
         `"${dateStr}"`,
         `"${usernameStr.replace(/"/g, '""')}"`,
         `"${platformStr.replace(/"/g, '""')}"`,

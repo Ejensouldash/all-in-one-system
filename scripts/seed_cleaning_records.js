@@ -66,8 +66,8 @@ async function seed() {
           const is3xWeeklyDay = (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5) || isMonthEnd;
 
           const shifts = [
-            { shift: 'AM', staff: 'Ayu' },
-            { shift: 'PM', staff: 'Fasiha' }
+            { shift: 'AM', staff: 'AY' },
+            { shift: 'PM', staff: 'FH' }
           ];
 
           for (const s of SECTIONS) {
@@ -224,7 +224,7 @@ async function seed() {
                   machineCleaner,
                   shutterCleaner,
                   sh.staff,
-                  'Muhammad Iskandar Zulkarnain Bin Zulkifli',
+                  'IZ',
                   SAMPLE_SIGNATURE,
                   SAMPLE_SIGNATURE,
                   new Date(),

@@ -33,6 +33,16 @@ const getCleaningMetadata = (sec: string) => {
   }
 }
 
+const formatInitial = (name?: string | null): string => {
+  if (!name) return "-"
+  const trimmed = name.trim().toUpperCase()
+  if (trimmed === "AYU" || trimmed === "AY") return "AY"
+  if (trimmed.includes("FASIHA") || trimmed === "FH" || trimmed === "FS") return "FH"
+  if (trimmed.includes("ISKANDAR") || trimmed === "IZ" || trimmed === "MIZ") return "IZ"
+  if (trimmed.length <= 3) return trimmed
+  return trimmed.split(/\s+/).filter(w => !['BIN', 'BINTI', 'BT', 'B.'].includes(w)).map(w => w[0]).join('').slice(0, 3)
+}
+
 const getShiftRank = (shift?: string | null): number => {
   const s = (shift || "").trim().toLowerCase()
   if (s === "pagi" || s === "am" || s === "morning" || s === "siang") return 1
@@ -899,8 +909,8 @@ export default function MaintenanceMonthlyReportPage() {
                                     </React.Fragment>
                                   )
                                 })}
-                                <td className="border-2 border-black p-0.5 uppercase text-[8px]">{morningRec?.checkedBy || "-"}</td>
-                                <td className="border-2 border-black p-0.5 uppercase text-[8px]">{morningRec?.verifiedBy || "-"}</td>
+                                <td className="border-2 border-black p-0.5 uppercase text-[8px] font-bold">{formatInitial(morningRec?.checkedBy)}</td>
+                                <td className="border-2 border-black p-0.5 uppercase text-[8px] font-bold">{formatInitial(morningRec?.verifiedBy)}</td>
                               </tr>
                               <tr className="text-center h-5">
                                 <td className="border-2 border-black p-0.5 font-bold">Petang</td>
@@ -918,8 +928,8 @@ export default function MaintenanceMonthlyReportPage() {
                                     </React.Fragment>
                                   )
                                 })}
-                                <td className="border-2 border-black p-0.5 uppercase text-[8px]">{eveningRec?.checkedBy || "-"}</td>
-                                <td className="border-2 border-black p-0.5 uppercase text-[8px]">{eveningRec?.verifiedBy || "-"}</td>
+                                <td className="border-2 border-black p-0.5 uppercase text-[8px] font-bold">{formatInitial(eveningRec?.checkedBy)}</td>
+                                <td className="border-2 border-black p-0.5 uppercase text-[8px] font-bold">{formatInitial(eveningRec?.verifiedBy)}</td>
                               </tr>
                             </React.Fragment>
                           )

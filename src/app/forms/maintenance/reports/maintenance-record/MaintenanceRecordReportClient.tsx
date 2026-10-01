@@ -1,10 +1,12 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Printer, Calendar, FileSpreadsheet, ChevronLeft } from "lucide-react"
+import { Printer, Calendar, FileSpreadsheet, ChevronLeft, PenTool, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 import { MaintenanceHeader } from "@/components/forms/MaintenanceHeader"
 import { getMaintenanceEquipmentRecords } from "../../maintenance-record/actions"
+import { batchVerifyMaintenanceRecords } from "@/app/actions/maintenance-summary"
+import { GenericSignatureModal } from "@/components/forms/GenericSignatureModal"
 
 function formatSignatureDate(d: string | Date | null) {
   if (!d) return ""
@@ -12,11 +14,25 @@ function formatSignatureDate(d: string | Date | null) {
   return date.toLocaleDateString("en-GB")
 }
 
-export function MaintenanceRecordReportClient() {
+interface MaintenanceRecordReportClientProps {
+  userName?: string
+  userSignatureUrl?: string | null
+  canVerify?: boolean
+}
+
+export function MaintenanceRecordReportClient({
+  userName = "Supervisor",
+  userSignatureUrl = null,
+  canVerify = true,
+}: MaintenanceRecordReportClientProps) {
   const [month, setMonth] = useState(new Date().getMonth() + 1)
   const [year, setYear] = useState(new Date().getFullYear())
   const [records, setRecords] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [isBatchSignModalOpen, setIsBatchSignModalOpen] = useState(false)
+  const [isBatchSigning, setIsBatchSigning] = useState(false)
+  const [batchSuccessMsg, setBatchSuccessMsg] = useState("")
+  const [errorMsg, setErrorMsg] = useState("")
   const printRef = useRef<HTMLDivElement>(null)
 
   const monthNames = [
@@ -24,17 +40,51 @@ export function MaintenanceRecordReportClient() {
     "July", "August", "September", "October", "November", "December"
   ]
 
-  useEffect(() => {
-    async function fetchRecords() {
-      setLoading(true)
-      const res = await getMaintenanceEquipmentRecords(month, year)
-      if (res.success) {
-        setRecords(res.data || [])
-      }
-      setLoading(false)
+  async function fetchRecords() {
+    setLoading(true)
+    const res = await getMaintenanceEquipmentRecords(month, year)
+    if (res.success) {
+      setRecords(res.data || [])
     }
+    setLoading(false)
+  }
+
+  useEffect(() => {
     fetchRecords()
   }, [month, year])
+
+  // Count unverified records in the current month view
+  const unverifiedRecords = records.filter(
+    (r) =>
+      !r.verifiedBy &&
+      !r.verifiedSignature &&
+      !r.verifiedSig800M &&
+      !r.verifiedSig800N &&
+      !r.verifiedSig425M &&
+      !r.verifiedSig425N
+  )
+
+  async function handleBatchVerify(signature: string) {
+    if (unverifiedRecords.length === 0) return
+    setIsBatchSigning(true)
+    setErrorMsg("")
+    try {
+      const ids = unverifiedRecords.map((r) => r.id)
+      const res = await batchVerifyMaintenanceRecords("maintenance-record", ids, userName, signature)
+      if (res.success) {
+        setIsBatchSignModalOpen(false)
+        setBatchSuccessMsg(`Berjaya menandatangani & mengesahkan ${ids.length} rekod bagi ${monthNames[month - 1]} ${year}!`)
+        setTimeout(() => setBatchSuccessMsg(""), 6000)
+        await fetchRecords()
+      } else {
+        setErrorMsg(res.error || "Gagal mengesahkan rekod secara pukal.")
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Ralat semasa mengesahkan rekod.")
+    } finally {
+      setIsBatchSigning(false)
+    }
+  }
 
   function handlePrint() {
     const title = `MAINTENANCE RECORD ${monthNames[month-1].toUpperCase()} ${year}`
@@ -45,8 +95,21 @@ export function MaintenanceRecordReportClient() {
 
   return (
     <div className="max-w-7xl mx-auto">
+      {/* Alert Banners */}
+      {batchSuccessMsg && (
+        <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center space-x-3 text-emerald-800 font-bold print:hidden animate-in fade-in slide-in-from-top-2 duration-300">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+          <span>{batchSuccessMsg}</span>
+        </div>
+      )}
+      {errorMsg && (
+        <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center space-x-3 text-rose-800 font-bold print:hidden">
+          <span>{errorMsg}</span>
+        </div>
+      )}
+
       {/* Controls */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8 print:hidden flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8 print:hidden flex flex-col lg:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link href="/forms/maintenance/reports" className="p-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
             <ChevronLeft className="w-5 h-5 text-gray-700" />
@@ -62,7 +125,7 @@ export function MaintenanceRecordReportClient() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-end">
           <div className="flex items-center bg-gray-50 p-2 rounded-xl border border-gray-200">
             <Calendar className="w-4 h-4 text-gray-500 ml-2 mr-3" />
             <select 
@@ -86,6 +149,17 @@ export function MaintenanceRecordReportClient() {
             </select>
           </div>
 
+          {canVerify && unverifiedRecords.length > 0 && (
+            <button
+              onClick={() => setIsBatchSignModalOpen(true)}
+              disabled={isBatchSigning || loading}
+              className="flex items-center px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black uppercase tracking-wider text-sm transition-colors shadow-md disabled:opacity-50 cursor-pointer"
+            >
+              <PenTool className="w-4 h-4 mr-2" />
+              {isBatchSigning ? "Mengesahkan..." : `Sahkan Semua (${unverifiedRecords.length})`}
+            </button>
+          )}
+
           <button 
             onClick={handlePrint}
             disabled={records.length === 0}
@@ -105,8 +179,35 @@ export function MaintenanceRecordReportClient() {
           <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <FileSpreadsheet className="w-8 h-8 text-gray-300" />
           </div>
-          <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">No Records Found</h3>
-          <p className="text-gray-500 font-medium">There are no maintenance records submitted for {monthNames[month-1]} {year}.</p>
+          <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Tiada Rekod Dijumpai</h3>
+          <p className="text-gray-500 font-medium mb-6">
+            Tiada rekod penyelenggaraan dihantar untuk bulan <span className="font-bold text-gray-800">{monthNames[month-1]} {year}</span>.
+          </p>
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 max-w-lg mx-auto">
+            <p className="text-xs font-black text-blue-900 mb-3 uppercase tracking-wider">
+              Pintasan Pantas Ke Rekod Terdahulu (2026):
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <button 
+                onClick={() => { setMonth(9); setYear(2026); }}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+              >
+                September 2026 (20 Rekod)
+              </button>
+              <button 
+                onClick={() => { setMonth(8); setYear(2026); }}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+              >
+                Ogos 2026 (22 Rekod)
+              </button>
+              <button 
+                onClick={() => { setMonth(7); setYear(2026); }}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+              >
+                Julai 2026 (6 Rekod)
+              </button>
+            </div>
+          </div>
         </div>
       ) : (
         <div ref={printRef} className="print-layout">
@@ -288,7 +389,7 @@ export function MaintenanceRecordReportClient() {
                     {/* 800ML Morning Verifier */}
                     <td className="border border-black p-1 text-center align-bottom relative h-16 w-[19%]">
                       <div className="h-9 flex items-center justify-center mb-0.5">
-                        {(record.verifiedSig800M || (!record.verifiedSig800N && !record.verifiedSig425M && !record.verifiedSig425N && record.verifiedSignature)) ? (
+                        {(record.verifiedSig800M || (record.signature800M && record.verifiedSignature) || (!record.verifiedSig800N && !record.verifiedSig425M && !record.verifiedSig425N && record.verifiedSignature)) ? (
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img 
                             src={record.verifiedSig800M || record.verifiedSignature} 
@@ -300,16 +401,16 @@ export function MaintenanceRecordReportClient() {
                         )}
                       </div>
                       <span className="block text-[9px] font-bold text-gray-800 leading-tight uppercase truncate">
-                        {record.verifiedBy800M || (!record.verifiedBy800N && !record.verifiedBy425M && !record.verifiedBy425N ? (record.verifiedBy || "") : "") || "\u00A0"}
+                        {record.verifiedBy800M || (record.signature800M && record.verifiedBy) || (!record.verifiedBy800N && !record.verifiedBy425M && !record.verifiedBy425N ? (record.verifiedBy || "") : "") || "\u00A0"}
                       </span>
                     </td>
                     {/* 800ML Night Verifier */}
                     <td className="border border-black p-1 text-center align-bottom relative h-16 w-[19%]">
                       <div className="h-9 flex items-center justify-center mb-0.5">
-                        {record.verifiedSig800N ? (
+                        {(record.verifiedSig800N || (record.signature800N && record.verifiedSignature)) ? (
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img 
-                            src={record.verifiedSig800N} 
+                            src={record.verifiedSig800N || record.verifiedSignature} 
                             alt="Verified By Signature" 
                             className="max-h-9 max-w-full object-contain" 
                           />
@@ -318,16 +419,16 @@ export function MaintenanceRecordReportClient() {
                         )}
                       </div>
                       <span className="block text-[9px] font-bold text-gray-800 leading-tight uppercase truncate">
-                        {record.verifiedBy800N || "\u00A0"}
+                        {record.verifiedBy800N || (record.signature800N && record.verifiedBy ? record.verifiedBy : "") || "\u00A0"}
                       </span>
                     </td>
                     {/* 425ML Morning Verifier */}
                     <td className="border border-black p-1 text-center align-bottom relative h-16 w-[19%]">
                       <div className="h-9 flex items-center justify-center mb-0.5">
-                        {record.verifiedSig425M ? (
+                        {(record.verifiedSig425M || (record.signature425M && record.verifiedSignature)) ? (
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img 
-                            src={record.verifiedSig425M} 
+                            src={record.verifiedSig425M || record.verifiedSignature} 
                             alt="Verified By Signature" 
                             className="max-h-9 max-w-full object-contain" 
                           />
@@ -336,16 +437,16 @@ export function MaintenanceRecordReportClient() {
                         )}
                       </div>
                       <span className="block text-[9px] font-bold text-gray-800 leading-tight uppercase truncate">
-                        {record.verifiedBy425M || "\u00A0"}
+                        {record.verifiedBy425M || (record.signature425M && record.verifiedBy ? record.verifiedBy : "") || "\u00A0"}
                       </span>
                     </td>
                     {/* 425ML Night Verifier */}
                     <td className="border border-black p-1 text-center align-bottom relative h-16 w-[19%]">
                       <div className="h-9 flex items-center justify-center mb-0.5">
-                        {record.verifiedSig425N ? (
+                        {(record.verifiedSig425N || (record.signature425N && record.verifiedSignature)) ? (
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img 
-                            src={record.verifiedSig425N} 
+                            src={record.verifiedSig425N || record.verifiedSignature} 
                             alt="Verified By Signature" 
                             className="max-h-9 max-w-full object-contain" 
                           />
@@ -354,7 +455,7 @@ export function MaintenanceRecordReportClient() {
                         )}
                       </div>
                       <span className="block text-[9px] font-bold text-gray-800 leading-tight uppercase truncate">
-                        {record.verifiedBy425N || "\u00A0"}
+                        {record.verifiedBy425N || (record.signature425N && record.verifiedBy ? record.verifiedBy : "") || "\u00A0"}
                       </span>
                     </td>
                   </tr>
@@ -375,6 +476,18 @@ export function MaintenanceRecordReportClient() {
           ))}
         </div>
       )}
+
+      {/* Generic Signature Modal for Batch Verification */}
+      <GenericSignatureModal
+        isOpen={isBatchSignModalOpen}
+        onClose={() => setIsBatchSignModalOpen(false)}
+        onConfirm={handleBatchVerify}
+        userName={userName}
+        role="Supervisor"
+        title={`Sahkan Semua (${unverifiedRecords.length} Rekod)`}
+        description={`Tandatangan digital oleh ${userName} akan digunakan untuk mengesahkan kesemua ${unverifiedRecords.length} rekod penyelenggaraan bagi bulan ${monthNames[month - 1]} ${year} secara serentak.`}
+        defaultSignatureUrl={userSignatureUrl}
+      />
     </div>
   )
 }

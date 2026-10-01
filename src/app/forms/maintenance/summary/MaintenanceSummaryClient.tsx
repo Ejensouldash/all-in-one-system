@@ -2,12 +2,13 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { RefreshCw, Pencil, Trash2, PenTool, X, Save, ArrowLeft } from "lucide-react"
+import { RefreshCw, Pencil, Trash2, PenTool, X, Save, ArrowLeft, CheckCircle2 } from "lucide-react"
 import {
   getMaintenanceSummaryRecords,
   deleteMaintenanceRecord,
   updateMaintenanceRecord,
   verifyMaintenanceRecord,
+  batchVerifyMaintenanceRecords,
 } from "@/app/actions/maintenance-summary"
 import { GenericSignatureModal } from "@/components/forms/GenericSignatureModal"
 
@@ -20,34 +21,34 @@ type FieldConfig = {
 }
 
 const FORM_TYPES: { value: string; label: string }[] = [
-  { value: "lighting", label: "Lighting Inspection" },
-  { value: "finished-goods", label: "Finished Goods" },
-  { value: "waste-management", label: "Waste Management" },
-  { value: "waste-disposal", label: "Waste Disposal" },
-  { value: "food-handler", label: "Food Handler" },
-  { value: "chemical-control", label: "Chemical Control" },
-  { value: "cleaning", label: "Cleaning" },
-  { value: "maintenance-record", label: "Maintenance Equipment" },
-  { value: "pmir", label: "PMIR Checklist" },
-  { value: "pmr", label: "PMR Checklist" },
-  { value: "fbsr", label: "Filtration Backwash" },
-  { value: "mgl", label: "SGMP-12 MGL" },
-  { value: "mgb", label: "SGMP-12 MGB" },
-  { value: "mwl", label: "SGMP-13 MWL" },
-  { value: "mwb", label: "SGMP-13 MWB" },
-  { value: "mpl", label: "SGMP-13 MPL" },
-  { value: "mpb", label: "SGMP-13 MPB" },
-  { value: "lfcr", label: "SGMP-08 LFCR" },
-  { value: "ivvi", label: "SGMP-14 IVVI" },
-  { value: "vchif", label: "SGMP-14 VCHIF" },
-  { value: "dqip", label: "SGMP-18 DQIP" },
-  { value: "qcdr", label: "SGMP-18 QCDR" },
-  { value: "pcs", label: "SGMP-06 PCS" },
-  { value: "pcdm", label: "SGMP-06 PCDM" },
-  { value: "ftdm", label: "SGMP-06 FTDM" },
-  { value: "fpir", label: "SGMP-18 FPIR" },
-  { value: "wqtr", label: "SGMP-18 WQTR" },
+  { value: "lighting", label: "SGMP/02/LIR - Lighting Inspection" },
+  { value: "maintenance-record", label: "SGMP/04/MR - Maintenance Record" },
+  { value: "cleaning", label: "SGMP/05 - Cleaning & Sanitization" },
+  { value: "pcs", label: "SGMP-06 PCS - Pest Control Schedule" },
+  { value: "pcdm", label: "SGMP-06 PCDM - Pest Control Daily Monitoring" },
+  { value: "ftdm", label: "SGMP-06 FTDM - Fly Trap Daily Monitoring" },
+  { value: "waste-management", label: "SGMP/07/WMDR - Waste Management" },
+  { value: "waste-disposal", label: "SGMP/07/WDIR - Waste Disposal" },
+  { value: "lfcr", label: "SGMP-08 LFCR - Lighting Fixtures Cleaning" },
+  { value: "food-handler", label: "SGMP/09/FHDIR - Food Handler" },
+  { value: "mgl", label: "SGMP-12 MGL - Glass Log" },
+  { value: "mgb", label: "SGMP-12 MGB - Glass Breakage" },
+  { value: "mwl", label: "SGMP-13 MWL - Wood Log" },
+  { value: "mwb", label: "SGMP-13 MWB - Wood Breakage" },
+  { value: "mpl", label: "SGMP-13 MPL - Plastic Log" },
+  { value: "mpb", label: "SGMP-13 MPB - Plastic Breakage" },
+  { value: "ivvi", label: "SGMP-14 IVVI - Incoming Vehicle" },
+  { value: "vchif", label: "SGMP-14 VCHIF - Vehicle Cleaning" },
+  { value: "chemical-control", label: "SGMP/17/CCR - Chemical Control" },
+  { value: "pmir", label: "SGMP/03/PMIR - Preventive Maintenance Inspection" },
+  { value: "pmr", label: "SGMP/03/PMR - Preventive Maintenance Record" },
+  { value: "fbsr", label: "SGMP/19/FBSR - Filtration Backwash" },
+  { value: "dqip", label: "SGMP-18 DQIP - Daily Quality In-Process" },
+  { value: "qcdr", label: "SGMP-18 QCDR - QC Daily Report" },
+  { value: "fpir", label: "SGMP-18 FPIR - Finished Product Inspection" },
+  { value: "wqtr", label: "SGMP-18 WQTR - Water Quality Testing" },
   { value: "fuv", label: "SGMP-19 FUV (Hazard & Process Control)" },
+  { value: "finished-goods", label: "SGMP/21/FIR - Finished Goods" },
   { value: "retention-sample", label: "SGMP-21 RSR (Retention Sample)" },
 ]
 
@@ -262,6 +263,7 @@ export function MaintenanceSummaryClient({
   initialStartDate,
   initialEndDate,
   userName,
+  userSignatureUrl,
   targetRecordId,
   returnUrl,
 }: {
@@ -270,6 +272,7 @@ export function MaintenanceSummaryClient({
   initialStartDate: string
   initialEndDate: string
   userName: string
+  userSignatureUrl?: string | null
   targetRecordId?: string
   returnUrl?: string
 }) {
@@ -285,9 +288,12 @@ export function MaintenanceSummaryClient({
   const [savingEdit, setSavingEdit] = useState(false)
 
   const [signingRecord, setSigningRecord] = useState<any | null>(null)
+  const [isBatchSignModalOpen, setIsBatchSignModalOpen] = useState(false)
+  const [batchSuccessMsg, setBatchSuccessMsg] = useState("")
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const fields = FIELD_CONFIG[formType] || []
+  const pendingRecords = records.filter((r) => !r.verifiedBy && !r.isLocked)
 
   async function fetchRecords(nextFormType = formType, nextStart = startDate, nextEnd = endDate) {
     setLoading(true)
@@ -380,6 +386,13 @@ export function MaintenanceSummaryClient({
         </div>
       )}
 
+      {batchSuccessMsg && (
+        <div className="bg-emerald-50 text-emerald-800 p-4 rounded-xl border border-emerald-200 font-bold text-sm flex items-center gap-2">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          {batchSuccessMsg}
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
         <div className="flex flex-wrap items-end gap-4">
           <div className="space-y-1">
@@ -422,6 +435,16 @@ export function MaintenanceSummaryClient({
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} /> Refresh
           </button>
+
+          {pendingRecords.length > 0 && (
+            <button
+              onClick={() => setIsBatchSignModalOpen(true)}
+              disabled={loading}
+              className="flex items-center px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-black uppercase tracking-wider transition-colors shadow-md disabled:opacity-50"
+            >
+              <PenTool className="w-4 h-4 mr-2" /> Sahkan Semua ({pendingRecords.length})
+            </button>
+          )}
         </div>
       </div>
 
@@ -569,6 +592,31 @@ export function MaintenanceSummaryClient({
         userName={userName}
         role="Supervisor"
         title="Verify & Sign Record"
+        description={`Tandatangan digital oleh ${userName} untuk mengesahkan rekod ${FORM_TYPES.find(f => f.value === formType)?.label || formType}.`}
+        defaultSignatureUrl={userSignatureUrl}
+      />
+
+      <GenericSignatureModal
+        isOpen={isBatchSignModalOpen}
+        onClose={() => setIsBatchSignModalOpen(false)}
+        onConfirm={async (signature: string) => {
+          setError("")
+          const ids = pendingRecords.map(r => r.id)
+          const res = await batchVerifyMaintenanceRecords(formType, ids, userName, signature)
+          if (res.success) {
+            setIsBatchSignModalOpen(false)
+            setBatchSuccessMsg(`Berjaya mengesahkan ${ids.length} rekod serentak!`)
+            setTimeout(() => setBatchSuccessMsg(""), 5000)
+            await fetchRecords()
+          } else {
+            setError(res.error || "Gagal mengesahkan rekod secara pukal.")
+          }
+        }}
+        userName={userName}
+        role="Supervisor"
+        title={`Sahkan Semua (${pendingRecords.length} Rekod)`}
+        description={`Tandatangan digital oleh ${userName} akan digunakan untuk mengesahkan dan mengunci ${pendingRecords.length} rekod ${FORM_TYPES.find(f => f.value === formType)?.label || formType} yang belum disahkan.`}
+        defaultSignatureUrl={userSignatureUrl}
       />
     </div>
   )

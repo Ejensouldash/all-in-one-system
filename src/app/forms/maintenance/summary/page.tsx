@@ -73,6 +73,7 @@ export default async function MaintenanceSummaryPage({ searchParams }: Props) {
           initialStartDate={startDate}
           initialEndDate={endDate}
           userName={userName}
+          userSignatureUrl={access.signatureUrl}
           targetRecordId={recordId}
           returnUrl={returnUrl}
         />

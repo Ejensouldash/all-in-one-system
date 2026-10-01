@@ -404,9 +404,31 @@ export async function verifyMaintenanceRecord(
       case "cleaning":
         await prisma.maintenanceCleaning.update({ where: { id }, data })
         break
-      case "maintenance-record":
-        await prisma.maintenanceEquipmentRecord.update({ where: { id }, data })
+      case "maintenance-record": {
+        const rec = await prisma.maintenanceEquipmentRecord.findUnique({ where: { id } })
+        const updateData: any = { verifiedBy, verifiedSignature }
+        if (rec) {
+          if (rec.signature800M) {
+            updateData.verifiedBy800M = verifiedBy
+            updateData.verifiedSig800M = verifiedSignature
+          }
+          if (rec.signature800N) {
+            updateData.verifiedBy800N = verifiedBy
+            updateData.verifiedSig800N = verifiedSignature
+          }
+          if (rec.signature425M) {
+            updateData.verifiedBy425M = verifiedBy
+            updateData.verifiedSig425M = verifiedSignature
+          }
+          if (rec.signature425N) {
+            updateData.verifiedBy425N = verifiedBy
+            updateData.verifiedSig425N = verifiedSignature
+          }
+        }
+        await prisma.maintenanceEquipmentRecord.update({ where: { id }, data: updateData })
+        revalidatePath("/forms/maintenance/reports/maintenance-record")
         break
+      }
       case "pmir":
         await prisma.maintenancePreventiveInspection.update({ where: { id }, data })
         break
@@ -491,5 +513,156 @@ export async function verifyMaintenanceRecord(
   } catch (error: any) {
     console.error("Error verifying maintenance record:", error)
     return { success: false, error: error.message || "Failed to verify record." }
+  }
+}
+
+export async function batchVerifyMaintenanceRecords(
+  formType: string,
+  ids: string[],
+  verifiedBy: string,
+  verifiedSignature: string
+) {
+  try {
+    if (!ids || ids.length === 0) {
+      return { success: false, error: "Tiada rekod dipilih untuk disahkan." }
+    }
+
+    const data = { verifiedBy, verifiedSignature }
+
+    switch (formType) {
+      case "maintenance-record": {
+        const records = await prisma.maintenanceEquipmentRecord.findMany({
+          where: { id: { in: ids } },
+        })
+        for (const rec of records) {
+          const updateData: any = { verifiedBy, verifiedSignature }
+          if (rec.signature800M) {
+            updateData.verifiedBy800M = verifiedBy
+            updateData.verifiedSig800M = verifiedSignature
+          }
+          if (rec.signature800N) {
+            updateData.verifiedBy800N = verifiedBy
+            updateData.verifiedSig800N = verifiedSignature
+          }
+          if (rec.signature425M) {
+            updateData.verifiedBy425M = verifiedBy
+            updateData.verifiedSig425M = verifiedSignature
+          }
+          if (rec.signature425N) {
+            updateData.verifiedBy425N = verifiedBy
+            updateData.verifiedSig425N = verifiedSignature
+          }
+          await prisma.maintenanceEquipmentRecord.update({
+            where: { id: rec.id },
+            data: updateData,
+          })
+        }
+        revalidatePath("/forms/maintenance/reports/maintenance-record")
+        break
+      }
+      case "lighting":
+        await prisma.maintenanceLighting.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "finished-goods":
+        await prisma.maintenanceFinishedGoods.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "waste-management":
+        await prisma.maintenanceWasteManagement.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "waste-disposal":
+        await prisma.maintenanceWasteDisposal.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "food-handler":
+        await prisma.maintenanceFoodHandler.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "chemical-control":
+        await prisma.maintenanceChemical.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "cleaning":
+        await prisma.maintenanceCleaning.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "pmir":
+        await prisma.maintenancePreventiveInspection.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "pmr":
+        await prisma.maintenancePreventiveRecord.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "fbsr":
+        await prisma.maintenanceFiltrationBackwash.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "mgl":
+        await prisma.productionGlassLog.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "mgb":
+        await prisma.productionGlassBreakage.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "mwl":
+        await prisma.productionWoodLog.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "mwb":
+        await prisma.productionWoodBreakage.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "mpl":
+        await prisma.productionPlasticLog.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "mpb":
+        await prisma.productionPlasticBreakage.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "lfcr":
+        await prisma.productionLightingFixture.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "ivvi":
+        await prisma.securityIncomingVehicle.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "vchif":
+        await prisma.securityVehicleHygiene.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "dqip":
+        await prisma.maintenanceDQIP.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "qcdr":
+        await prisma.maintenanceQCDR.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "fpir":
+        await prisma.maintenanceFPIR.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "wqtr":
+        await prisma.maintenanceWQTR.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "pcs":
+        await prisma.maintenancePestControlSchedule.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "pcdm":
+        await prisma.maintenancePestControlDaily.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "ftdm":
+        await prisma.maintenanceFlyTrapDaily.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "fuv":
+        await prisma.maintenanceHazardProcessControl.updateMany({
+          where: { id: { in: ids }, isLocked: false },
+          data: { ...data, isLocked: true },
+        })
+        revalidatePath("/forms/maintenance/fuv")
+        revalidatePath("/forms/maintenance/reports/fuv")
+        break
+      case "retention-sample":
+        await prisma.retentionSampleRecord.updateMany({
+          where: { id: { in: ids } },
+          data: { verifiedBy, verifiedSignature, verifiedAt: new Date() },
+        })
+        revalidatePath("/forms/maintenance/reports/retention-sample")
+        break
+      default:
+        return { success: false, error: "Invalid form type" }
+    }
+
+    revalidatePath("/forms/maintenance/summary")
+    revalidatePath("/forms/maintenance/reports")
+    revalidatePath("/forms/maintenance/compliance")
+    return { success: true, count: ids.length }
+  } catch (error: any) {
+    console.error("Error batch verifying maintenance records:", error)
+    return { success: false, error: error.message || "Failed to batch verify records." }
   }
 }

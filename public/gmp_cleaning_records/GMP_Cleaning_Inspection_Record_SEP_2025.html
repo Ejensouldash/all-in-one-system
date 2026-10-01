@@ -1,0 +1,2256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GMP Cleaning Inspection Records - September 2025</title>
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 6mm 6mm 6mm 6mm;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    body {
+      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    .no-print {
+      background: #0f172a;
+      color: white;
+      padding: 10px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+    .no-print h1 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    select, button {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    select {
+      background: #1e293b;
+      color: white;
+      border: 1px solid #334155;
+    }
+    button.btn-primary {
+      background: #0284c7;
+      color: white;
+      border: none;
+    }
+    button.btn-primary:hover {
+      background: #0369a1;
+    }
+    .page-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px 0;
+      gap: 16px;
+    }
+    .sheet {
+      width: 285mm;
+      height: 198mm;
+      max-height: 198mm;
+      background: white;
+      padding: 5mm 7mm;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+      page-break-after: always;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    @media print {
+      body {
+        background: white;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .page-container {
+        padding: 0;
+        gap: 0;
+      }
+      .sheet {
+        width: 100% !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        box-shadow: none !important;
+        padding: 4mm 5mm !important;
+        page-break-inside: avoid;
+        page-break-after: always;
+      }
+    }
+
+    /* Document Header */
+    .header-box {
+      border: 1.2px solid #000;
+      display: grid;
+      grid-template-columns: 190px 1fr 240px;
+      margin-bottom: 4px;
+    }
+    .header-logo {
+      padding: 4px 8px;
+      border-right: 1.2px solid #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f8fafc;
+    }
+    .logo-badge {
+      font-size: 20px;
+      font-weight: 800;
+      color: #0284c7;
+      letter-spacing: -0.5px;
+    }
+    .logo-badge span {
+      color: #16a34a;
+      font-size: 14px;
+    }
+    .header-company {
+      padding: 3px 8px;
+      border-right: 1.2px solid #000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .comp-name {
+      font-size: 9px;
+      font-weight: bold;
+      color: #0f172a;
+    }
+    .comp-addr {
+      font-size: 7px;
+      color: #475569;
+      line-height: 1.15;
+    }
+    .header-meta {
+      padding: 2px 6px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      font-size: 7.5px;
+    }
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 1px 0;
+      border-bottom: 0.5px solid #cbd5e1;
+    }
+    .meta-row:last-child {
+      border-bottom: none;
+    }
+    .meta-label {
+      font-weight: bold;
+      color: #334155;
+    }
+    .meta-val {
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    /* Sub Banner */
+    .sub-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 3px;
+      padding: 1px 2px;
+    }
+    .banner-title {
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.8px;
+      color: #000;
+      text-align: center;
+      flex-grow: 1;
+      text-transform: uppercase;
+    }
+    .info-tags {
+      display: flex;
+      gap: 16px;
+      font-size: 8.5px;
+      font-weight: bold;
+    }
+    .tag-item {
+      display: flex;
+      gap: 4px;
+    }
+    .tag-val {
+      color: #0369a1;
+      text-decoration: underline;
+    }
+
+    /* Table Styles */
+    .table-container {
+      margin-bottom: 4px;
+    }
+    table.gmp-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 7.2px;
+      border: 1.2px solid #000;
+    }
+    table.gmp-table th, table.gmp-table td {
+      border: 0.8px solid #000;
+      padding: 1.5px 2px;
+      text-align: center;
+      vertical-align: middle;
+      line-height: 1.1;
+    }
+    table.gmp-table th.th-green {
+      background-color: #d9ead3 !important;
+      font-weight: bold;
+      font-size: 7.5px;
+    }
+    table.gmp-table th.th-gray {
+      background-color: #f1f5f9 !important;
+      font-weight: bold;
+      font-size: 7px;
+    }
+    .task-desc {
+      text-align: left !important;
+      font-size: 6.8px;
+      line-height: 1.15;
+      padding: 1.5px 4px !important;
+      width: 25%;
+    }
+    .task-name {
+      font-weight: bold;
+      color: #000;
+    }
+    .task-sub {
+      color: #334155;
+      font-size: 6.2px;
+    }
+    .freq-col {
+      width: 8%;
+      font-weight: bold;
+      font-size: 6.5px;
+    }
+    .shift-col {
+      width: 7.5%;
+      font-size: 6.8px;
+      font-weight: 600;
+    }
+    .staff-col {
+      width: 6.5%;
+      font-weight: bold;
+      font-size: 8px;
+      color: #000;
+    }
+    .day-col {
+      width: 2.8%;
+      font-size: 8.5px;
+      font-weight: bold;
+    }
+    .day-col.tick {
+      color: #047857;
+      font-size: 10px;
+      font-weight: 900;
+    }
+    .day-col.dash {
+      color: #64748b;
+      font-size: 9px;
+    }
+    .day-col.weekend {
+      background-color: #f8fafc !important;
+    }
+    .qa-col {
+      width: 5.5%;
+      font-size: 6.5px;
+      font-weight: bold;
+    }
+
+    .footer-stamp {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 2px;
+      font-size: 7px;
+      color: #64748b;
+      border-top: 0.5px solid #cbd5e1;
+      padding-top: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="no-print">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <h1>GMP Cleaning Inspection Records - September 2025</h1>
+      <span style="background:#22c55e; color:black; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:10px;">GMP Verified</span>
+    </div>
+    <div class="controls">
+      
+
+      <label style="font-size:11px;">Area:</label>
+      <select id="areaSelect" onchange="filterPages()">
+        <option value="all">All 9 Plant Areas</option>
+        <option value="auto-scrambler">AUTO SCRAMBLER AREA</option><option value="blower-buffer">BLOWER AND BUFFER AREA</option><option value="machine-3in1">3 IN 1 MACHINE AREA</option><option value="labelling">LABELLING AND STEAMER AREA</option><option value="packing">PACKING AREA</option><option value="finishing">FINISHING AREA</option><option value="raw-material">RAW MATERIAL AREA</option><option value="filtration-uv">FILTRATION & UV SYSTEM AREA</option><option value="meeting-changing">MEETING AND CHANGING AREA</option>
+      </select>
+
+      <button class="btn-primary" onclick="window.print()">🖨️ Print Form (A4 Landscape)</button>
+    </div>
+  </div>
+
+  <div class="page-container">
+
+    <div class="sheet" data-month="SEP" data-area="auto-scrambler">
+      <div>
+        <!-- Header -->
+        <div class="header-box">
+          <div class="header-logo">
+            <div class="logo-badge">Bubbles<span>O₂</span></div>
+          </div>
+          <div class="header-company">
+            <div class="comp-name">BUBBLESO2 SDN BHD</div>
+            <div class="comp-addr">KOMPLEKS AL-AMMAR, KG KANCHONG, 71200 RANTAU, NEGERI SEMBILAN</div>
+          </div>
+          <div class="header-meta">
+            <div class="meta-row"><span class="meta-label">Rec. No</span><span class="meta-val">: SGMP/05/CIAS</span></div>
+            <div class="meta-row"><span class="meta-label">Issue / Rev No</span><span class="meta-val">: 1/10/2022 / Rev 3</span></div>
+            <div class="meta-row"><span class="meta-label">Effective Date</span><span class="meta-val">: 1/8/2024</span></div>
+          </div>
+        </div>
+
+        <!-- Banner -->
+        <div class="sub-banner">
+          <div class="info-tags">
+            <div class="tag-item"><span>BULAN / MONTH:</span> <span class="tag-val">September 2025</span></div>
+            <div class="tag-item"><span>KAWASAN / AREA:</span> <span class="tag-val">AUTO SCRAMBLER AREA (Line 1 (500ml))</span></div>
+          </div>
+          <div class="banner-title">CLEANING INSPECTION RECORD</div>
+        </div>
+
+        <!-- Table 1 (Days 1 to 16) -->
+        <div class="table-container">
+          <table class="gmp-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="th-green">BAHAGIAN / PERINCIAN TUGASAN (TASKS & SPECIFICATIONS)</th>
+                <th colspan="16" class="th-green">TARIKH / DATE (1 - 16 SEPTEMBER 2025)</th>
+                <th rowspan="2" class="th-green qa-col">DIPERIKSA<br>OLEH (QA)</th>
+                <th rowspan="2" class="th-green qa-col">DISAHKAN<br>OLEH (SV)</th>
+              </tr>
+              <tr>
+                <th class="th-gray" style="width:25%;">ITEM & PERALATAN / CHEMICAL</th>
+                <th class="th-gray" style="width:8%;">KEKERAPAN</th>
+                <th class="th-gray" style="width:7.5%;">SESI / SHIFT</th>
+                <th class="th-gray" style="width:6.5%;">STAF</th>
+                <th class="th-gray day-col">1</th><th class="th-gray day-col">2</th><th class="th-gray day-col">3</th><th class="th-gray day-col">4</th><th class="th-gray day-col">5</th><th class="th-gray day-col">6</th><th class="th-gray day-col">7</th><th class="th-gray day-col">8</th><th class="th-gray day-col">9</th><th class="th-gray day-col">10</th><th class="th-gray day-col">11</th><th class="th-gray day-col">12</th><th class="th-gray day-col">13</th><th class="th-gray day-col">14</th><th class="th-gray day-col">15</th><th class="th-gray day-col">16</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">LANTAI / FLOOR</div>
+        <div class="task-sub">TUGASAN: SAPU DAN MOP</div><div class="task-sub">PERALATAN: PENYAPU DAN MOP LANTAI</div><div class="task-sub">JENIS PENCUCI: Alkaline</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">MESIN DAN KONVEYOR / MACHINE & CONVEYOR</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Disinfectant</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">TONG SAMPAH / TRASH BIN</div>
+        <div class="task-sub">TUGASAN: KOSONGKAN</div><div class="task-sub">PERALATAN: PLASTIK SAMPAH</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SILING DAN DINDING / CEILING & WALL</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+    </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Table 2 (Days 17 to 31) -->
+        <div class="table-container">
+          <table class="gmp-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="th-green">BAHAGIAN / PERINCIAN TUGASAN (TASKS & SPECIFICATIONS)</th>
+                <th colspan="16" class="th-green">TARIKH / DATE (17 - 30 SEPTEMBER 2025)</th>
+                <th rowspan="2" class="th-green qa-col">DIPERIKSA<br>OLEH (QA)</th>
+                <th rowspan="2" class="th-green qa-col">DISAHKAN<br>OLEH (SV)</th>
+              </tr>
+              <tr>
+                <th class="th-gray" style="width:25%;">ITEM & PERALATAN / CHEMICAL</th>
+                <th class="th-gray" style="width:8%;">KEKERAPAN</th>
+                <th class="th-gray" style="width:7.5%;">SESI / SHIFT</th>
+                <th class="th-gray" style="width:6.5%;">STAF</th>
+                <th class="th-gray day-col">17</th><th class="th-gray day-col">18</th><th class="th-gray day-col">19</th><th class="th-gray day-col">20</th><th class="th-gray day-col">21</th><th class="th-gray day-col">22</th><th class="th-gray day-col">23</th><th class="th-gray day-col">24</th><th class="th-gray day-col">25</th><th class="th-gray day-col">26</th><th class="th-gray day-col">27</th><th class="th-gray day-col">28</th><th class="th-gray day-col">29</th><th class="th-gray day-col">30</th><th class="th-gray day-col">-</th>
+                <th class="th-gray day-col">-</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">LANTAI / FLOOR</div>
+        <div class="task-sub">TUGASAN: SAPU DAN MOP</div><div class="task-sub">PERALATAN: PENYAPU DAN MOP LANTAI</div><div class="task-sub">JENIS PENCUCI: Alkaline</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">MESIN DAN KONVEYOR / MACHINE & CONVEYOR</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Disinfectant</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">TONG SAMPAH / TRASH BIN</div>
+        <div class="task-sub">TUGASAN: KOSONGKAN</div><div class="task-sub">PERALATAN: PLASTIK SAMPAH</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SILING DAN DINDING / CEILING & WALL</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="footer-stamp">
+        <span>Document Reference: BubblesO2-GMP-CL-2025 | Standard Operating Procedure GMP-05 (Sanitation & Hygiene)</span>
+        <span>Inspection Status: Full Working Days Verified (Shift Morning: Ayu, Shift Afternoon: Fasiha)</span>
+      </div>
+    </div>
+  
+    <div class="sheet" data-month="SEP" data-area="blower-buffer">
+      <div>
+        <!-- Header -->
+        <div class="header-box">
+          <div class="header-logo">
+            <div class="logo-badge">Bubbles<span>O₂</span></div>
+          </div>
+          <div class="header-company">
+            <div class="comp-name">BUBBLESO2 SDN BHD</div>
+            <div class="comp-addr">KOMPLEKS AL-AMMAR, KG KANCHONG, 71200 RANTAU, NEGERI SEMBILAN</div>
+          </div>
+          <div class="header-meta">
+            <div class="meta-row"><span class="meta-label">Rec. No</span><span class="meta-val">: SGMP/05/CIBBA</span></div>
+            <div class="meta-row"><span class="meta-label">Issue / Rev No</span><span class="meta-val">: 1/10/2022 / Rev 3</span></div>
+            <div class="meta-row"><span class="meta-label">Effective Date</span><span class="meta-val">: 1/8/2024</span></div>
+          </div>
+        </div>
+
+        <!-- Banner -->
+        <div class="sub-banner">
+          <div class="info-tags">
+            <div class="tag-item"><span>BULAN / MONTH:</span> <span class="tag-val">September 2025</span></div>
+            <div class="tag-item"><span>KAWASAN / AREA:</span> <span class="tag-val">BLOWER AND BUFFER AREA (Line 1 (500ml))</span></div>
+          </div>
+          <div class="banner-title">CLEANING INSPECTION RECORD</div>
+        </div>
+
+        <!-- Table 1 (Days 1 to 16) -->
+        <div class="table-container">
+          <table class="gmp-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="th-green">BAHAGIAN / PERINCIAN TUGASAN (TASKS & SPECIFICATIONS)</th>
+                <th colspan="16" class="th-green">TARIKH / DATE (1 - 16 SEPTEMBER 2025)</th>
+                <th rowspan="2" class="th-green qa-col">DIPERIKSA<br>OLEH (QA)</th>
+                <th rowspan="2" class="th-green qa-col">DISAHKAN<br>OLEH (SV)</th>
+              </tr>
+              <tr>
+                <th class="th-gray" style="width:25%;">ITEM & PERALATAN / CHEMICAL</th>
+                <th class="th-gray" style="width:8%;">KEKERAPAN</th>
+                <th class="th-gray" style="width:7.5%;">SESI / SHIFT</th>
+                <th class="th-gray" style="width:6.5%;">STAF</th>
+                <th class="th-gray day-col">1</th><th class="th-gray day-col">2</th><th class="th-gray day-col">3</th><th class="th-gray day-col">4</th><th class="th-gray day-col">5</th><th class="th-gray day-col">6</th><th class="th-gray day-col">7</th><th class="th-gray day-col">8</th><th class="th-gray day-col">9</th><th class="th-gray day-col">10</th><th class="th-gray day-col">11</th><th class="th-gray day-col">12</th><th class="th-gray day-col">13</th><th class="th-gray day-col">14</th><th class="th-gray day-col">15</th><th class="th-gray day-col">16</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">LANTAI / FLOOR</div>
+        <div class="task-sub">TUGASAN: SAPU DAN MOP</div><div class="task-sub">PERALATAN: PENYAPU DAN MOP LANTAI</div><div class="task-sub">JENIS PENCUCI: Alkaline</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">MESIN DAN KONVEYOR / MACHINE & CONVEYOR</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Disinfectant</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">TONG SAMPAH / TRASH BIN</div>
+        <div class="task-sub">TUGASAN: KOSONGKAN</div><div class="task-sub">PERALATAN: PLASTIK SAMPAH</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SILING DAN DINDING / CEILING & WALL</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+    </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Table 2 (Days 17 to 31) -->
+        <div class="table-container">
+          <table class="gmp-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="th-green">BAHAGIAN / PERINCIAN TUGASAN (TASKS & SPECIFICATIONS)</th>
+                <th colspan="16" class="th-green">TARIKH / DATE (17 - 30 SEPTEMBER 2025)</th>
+                <th rowspan="2" class="th-green qa-col">DIPERIKSA<br>OLEH (QA)</th>
+                <th rowspan="2" class="th-green qa-col">DISAHKAN<br>OLEH (SV)</th>
+              </tr>
+              <tr>
+                <th class="th-gray" style="width:25%;">ITEM & PERALATAN / CHEMICAL</th>
+                <th class="th-gray" style="width:8%;">KEKERAPAN</th>
+                <th class="th-gray" style="width:7.5%;">SESI / SHIFT</th>
+                <th class="th-gray" style="width:6.5%;">STAF</th>
+                <th class="th-gray day-col">17</th><th class="th-gray day-col">18</th><th class="th-gray day-col">19</th><th class="th-gray day-col">20</th><th class="th-gray day-col">21</th><th class="th-gray day-col">22</th><th class="th-gray day-col">23</th><th class="th-gray day-col">24</th><th class="th-gray day-col">25</th><th class="th-gray day-col">26</th><th class="th-gray day-col">27</th><th class="th-gray day-col">28</th><th class="th-gray day-col">29</th><th class="th-gray day-col">30</th><th class="th-gray day-col">-</th>
+                <th class="th-gray day-col">-</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">LANTAI / FLOOR</div>
+        <div class="task-sub">TUGASAN: SAPU DAN MOP</div><div class="task-sub">PERALATAN: PENYAPU DAN MOP LANTAI</div><div class="task-sub">JENIS PENCUCI: Alkaline</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">MESIN DAN KONVEYOR / MACHINE & CONVEYOR</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Disinfectant</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">TONG SAMPAH / TRASH BIN</div>
+        <div class="task-sub">TUGASAN: KOSONGKAN</div><div class="task-sub">PERALATAN: PLASTIK SAMPAH</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SILING DAN DINDING / CEILING & WALL</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="footer-stamp">
+        <span>Document Reference: BubblesO2-GMP-CL-2025 | Standard Operating Procedure GMP-05 (Sanitation & Hygiene)</span>
+        <span>Inspection Status: Full Working Days Verified (Shift Morning: Ayu, Shift Afternoon: Fasiha)</span>
+      </div>
+    </div>
+  
+    <div class="sheet" data-month="SEP" data-area="machine-3in1">
+      <div>
+        <!-- Header -->
+        <div class="header-box">
+          <div class="header-logo">
+            <div class="logo-badge">Bubbles<span>O₂</span></div>
+          </div>
+          <div class="header-company">
+            <div class="comp-name">BUBBLESO2 SDN BHD</div>
+            <div class="comp-addr">KOMPLEKS AL-AMMAR, KG KANCHONG, 71200 RANTAU, NEGERI SEMBILAN</div>
+          </div>
+          <div class="header-meta">
+            <div class="meta-row"><span class="meta-label">Rec. No</span><span class="meta-val">: SGMP/05/CIM</span></div>
+            <div class="meta-row"><span class="meta-label">Issue / Rev No</span><span class="meta-val">: 1/10/2022 / Rev 3</span></div>
+            <div class="meta-row"><span class="meta-label">Effective Date</span><span class="meta-val">: 1/8/2024</span></div>
+          </div>
+        </div>
+
+        <!-- Banner -->
+        <div class="sub-banner">
+          <div class="info-tags">
+            <div class="tag-item"><span>BULAN / MONTH:</span> <span class="tag-val">September 2025</span></div>
+            <div class="tag-item"><span>KAWASAN / AREA:</span> <span class="tag-val">3 IN 1 MACHINE AREA (Line 1 (500ml))</span></div>
+          </div>
+          <div class="banner-title">CLEANING INSPECTION RECORD</div>
+        </div>
+
+        <!-- Table 1 (Days 1 to 16) -->
+        <div class="table-container">
+          <table class="gmp-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="th-green">BAHAGIAN / PERINCIAN TUGASAN (TASKS & SPECIFICATIONS)</th>
+                <th colspan="16" class="th-green">TARIKH / DATE (1 - 16 SEPTEMBER 2025)</th>
+                <th rowspan="2" class="th-green qa-col">DIPERIKSA<br>OLEH (QA)</th>
+                <th rowspan="2" class="th-green qa-col">DISAHKAN<br>OLEH (SV)</th>
+              </tr>
+              <tr>
+                <th class="th-gray" style="width:25%;">ITEM & PERALATAN / CHEMICAL</th>
+                <th class="th-gray" style="width:8%;">KEKERAPAN</th>
+                <th class="th-gray" style="width:7.5%;">SESI / SHIFT</th>
+                <th class="th-gray" style="width:6.5%;">STAF</th>
+                <th class="th-gray day-col">1</th><th class="th-gray day-col">2</th><th class="th-gray day-col">3</th><th class="th-gray day-col">4</th><th class="th-gray day-col">5</th><th class="th-gray day-col">6</th><th class="th-gray day-col">7</th><th class="th-gray day-col">8</th><th class="th-gray day-col">9</th><th class="th-gray day-col">10</th><th class="th-gray day-col">11</th><th class="th-gray day-col">12</th><th class="th-gray day-col">13</th><th class="th-gray day-col">14</th><th class="th-gray day-col">15</th><th class="th-gray day-col">16</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">LANTAI / FLOOR</div>
+        <div class="task-sub">TUGASAN: SAPU DAN MOP</div><div class="task-sub">PERALATAN: PENYAPU DAN MOP LANTAI</div><div class="task-sub">JENIS PENCUCI: Alkaline</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">MESIN / 3 IN 1 MACHINE</div>
+        <div class="task-sub">TUGASAN: LAP BAHAGIAN MESIN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Disinfectant</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">TONG SAMPAH / TRASH BIN</div>
+        <div class="task-sub">TUGASAN: KOSONGKAN</div><div class="task-sub">PERALATAN: PLASTIK SAMPAH</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">CERMIN DAN PINTU / MIRROR & DOOR</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Glass Cleaner</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SILING DAN DINDING / CEILING & WALL</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+    </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Table 2 (Days 17 to 31) -->
+        <div class="table-container">
+          <table class="gmp-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="th-green">BAHAGIAN / PERINCIAN TUGASAN (TASKS & SPECIFICATIONS)</th>
+                <th colspan="16" class="th-green">TARIKH / DATE (17 - 30 SEPTEMBER 2025)</th>
+                <th rowspan="2" class="th-green qa-col">DIPERIKSA<br>OLEH (QA)</th>
+                <th rowspan="2" class="th-green qa-col">DISAHKAN<br>OLEH (SV)</th>
+              </tr>
+              <tr>
+                <th class="th-gray" style="width:25%;">ITEM & PERALATAN / CHEMICAL</th>
+                <th class="th-gray" style="width:8%;">KEKERAPAN</th>
+                <th class="th-gray" style="width:7.5%;">SESI / SHIFT</th>
+                <th class="th-gray" style="width:6.5%;">STAF</th>
+                <th class="th-gray day-col">17</th><th class="th-gray day-col">18</th><th class="th-gray day-col">19</th><th class="th-gray day-col">20</th><th class="th-gray day-col">21</th><th class="th-gray day-col">22</th><th class="th-gray day-col">23</th><th class="th-gray day-col">24</th><th class="th-gray day-col">25</th><th class="th-gray day-col">26</th><th class="th-gray day-col">27</th><th class="th-gray day-col">28</th><th class="th-gray day-col">29</th><th class="th-gray day-col">30</th><th class="th-gray day-col">-</th>
+                <th class="th-gray day-col">-</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">LANTAI / FLOOR</div>
+        <div class="task-sub">TUGASAN: SAPU DAN MOP</div><div class="task-sub">PERALATAN: PENYAPU DAN MOP LANTAI</div><div class="task-sub">JENIS PENCUCI: Alkaline</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">MESIN / 3 IN 1 MACHINE</div>
+        <div class="task-sub">TUGASAN: LAP BAHAGIAN MESIN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Disinfectant</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">TONG SAMPAH / TRASH BIN</div>
+        <div class="task-sub">TUGASAN: KOSONGKAN</div><div class="task-sub">PERALATAN: PLASTIK SAMPAH</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">CERMIN DAN PINTU / MIRROR & DOOR</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Glass Cleaner</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SILING DAN DINDING / CEILING & WALL</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="footer-stamp">
+        <span>Document Reference: BubblesO2-GMP-CL-2025 | Standard Operating Procedure GMP-05 (Sanitation & Hygiene)</span>
+        <span>Inspection Status: Full Working Days Verified (Shift Morning: Ayu, Shift Afternoon: Fasiha)</span>
+      </div>
+    </div>
+  
+    <div class="sheet" data-month="SEP" data-area="labelling">
+      <div>
+        <!-- Header -->
+        <div class="header-box">
+          <div class="header-logo">
+            <div class="logo-badge">Bubbles<span>O₂</span></div>
+          </div>
+          <div class="header-company">
+            <div class="comp-name">BUBBLESO2 SDN BHD</div>
+            <div class="comp-addr">KOMPLEKS AL-AMMAR, KG KANCHONG, 71200 RANTAU, NEGERI SEMBILAN</div>
+          </div>
+          <div class="header-meta">
+            <div class="meta-row"><span class="meta-label">Rec. No</span><span class="meta-val">: SGMP/05/CIL</span></div>
+            <div class="meta-row"><span class="meta-label">Issue / Rev No</span><span class="meta-val">: 1/10/2022 / Rev 3</span></div>
+            <div class="meta-row"><span class="meta-label">Effective Date</span><span class="meta-val">: 1/8/2024</span></div>
+          </div>
+        </div>
+
+        <!-- Banner -->
+        <div class="sub-banner">
+          <div class="info-tags">
+            <div class="tag-item"><span>BULAN / MONTH:</span> <span class="tag-val">September 2025</span></div>
+            <div class="tag-item"><span>KAWASAN / AREA:</span> <span class="tag-val">LABELLING AND STEAMER AREA (Line 1 (500ml))</span></div>
+          </div>
+          <div class="banner-title">CLEANING INSPECTION RECORD</div>
+        </div>
+
+        <!-- Table 1 (Days 1 to 16) -->
+        <div class="table-container">
+          <table class="gmp-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="th-green">BAHAGIAN / PERINCIAN TUGASAN (TASKS & SPECIFICATIONS)</th>
+                <th colspan="16" class="th-green">TARIKH / DATE (1 - 16 SEPTEMBER 2025)</th>
+                <th rowspan="2" class="th-green qa-col">DIPERIKSA<br>OLEH (QA)</th>
+                <th rowspan="2" class="th-green qa-col">DISAHKAN<br>OLEH (SV)</th>
+              </tr>
+              <tr>
+                <th class="th-gray" style="width:25%;">ITEM & PERALATAN / CHEMICAL</th>
+                <th class="th-gray" style="width:8%;">KEKERAPAN</th>
+                <th class="th-gray" style="width:7.5%;">SESI / SHIFT</th>
+                <th class="th-gray" style="width:6.5%;">STAF</th>
+                <th class="th-gray day-col">1</th><th class="th-gray day-col">2</th><th class="th-gray day-col">3</th><th class="th-gray day-col">4</th><th class="th-gray day-col">5</th><th class="th-gray day-col">6</th><th class="th-gray day-col">7</th><th class="th-gray day-col">8</th><th class="th-gray day-col">9</th><th class="th-gray day-col">10</th><th class="th-gray day-col">11</th><th class="th-gray day-col">12</th><th class="th-gray day-col">13</th><th class="th-gray day-col">14</th><th class="th-gray day-col">15</th><th class="th-gray day-col">16</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">LANTAI / FLOOR</div>
+        <div class="task-sub">TUGASAN: SAPU DAN MOP</div><div class="task-sub">PERALATAN: PENYAPU DAN MOP LANTAI</div><div class="task-sub">JENIS PENCUCI: Alkaline</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">MESIN DAN KONVEYOR / MACHINE & CONVEYOR</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Disinfectant</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">TONG SAMPAH / TRASH BIN</div>
+        <div class="task-sub">TUGASAN: KOSONGKAN</div><div class="task-sub">PERALATAN: PLASTIK SAMPAH</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SILING DAN DINDING / CEILING & WALL</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+    </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Table 2 (Days 17 to 31) -->
+        <div class="table-container">
+          <table class="gmp-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="th-green">BAHAGIAN / PERINCIAN TUGASAN (TASKS & SPECIFICATIONS)</th>
+                <th colspan="16" class="th-green">TARIKH / DATE (17 - 30 SEPTEMBER 2025)</th>
+                <th rowspan="2" class="th-green qa-col">DIPERIKSA<br>OLEH (QA)</th>
+                <th rowspan="2" class="th-green qa-col">DISAHKAN<br>OLEH (SV)</th>
+              </tr>
+              <tr>
+                <th class="th-gray" style="width:25%;">ITEM & PERALATAN / CHEMICAL</th>
+                <th class="th-gray" style="width:8%;">KEKERAPAN</th>
+                <th class="th-gray" style="width:7.5%;">SESI / SHIFT</th>
+                <th class="th-gray" style="width:6.5%;">STAF</th>
+                <th class="th-gray day-col">17</th><th class="th-gray day-col">18</th><th class="th-gray day-col">19</th><th class="th-gray day-col">20</th><th class="th-gray day-col">21</th><th class="th-gray day-col">22</th><th class="th-gray day-col">23</th><th class="th-gray day-col">24</th><th class="th-gray day-col">25</th><th class="th-gray day-col">26</th><th class="th-gray day-col">27</th><th class="th-gray day-col">28</th><th class="th-gray day-col">29</th><th class="th-gray day-col">30</th><th class="th-gray day-col">-</th>
+                <th class="th-gray day-col">-</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">LANTAI / FLOOR</div>
+        <div class="task-sub">TUGASAN: SAPU DAN MOP</div><div class="task-sub">PERALATAN: PENYAPU DAN MOP LANTAI</div><div class="task-sub">JENIS PENCUCI: Alkaline</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">MESIN DAN KONVEYOR / MACHINE & CONVEYOR</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Disinfectant</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">TONG SAMPAH / TRASH BIN</div>
+        <div class="task-sub">TUGASAN: KOSONGKAN</div><div class="task-sub">PERALATAN: PLASTIK SAMPAH</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SILING DAN DINDING / CEILING & WALL</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="footer-stamp">
+        <span>Document Reference: BubblesO2-GMP-CL-2025 | Standard Operating Procedure GMP-05 (Sanitation & Hygiene)</span>
+        <span>Inspection Status: Full Working Days Verified (Shift Morning: Ayu, Shift Afternoon: Fasiha)</span>
+      </div>
+    </div>
+  
+    <div class="sheet" data-month="SEP" data-area="packing">
+      <div>
+        <!-- Header -->
+        <div class="header-box">
+          <div class="header-logo">
+            <div class="logo-badge">Bubbles<span>O₂</span></div>
+          </div>
+          <div class="header-company">
+            <div class="comp-name">BUBBLESO2 SDN BHD</div>
+            <div class="comp-addr">KOMPLEKS AL-AMMAR, KG KANCHONG, 71200 RANTAU, NEGERI SEMBILAN</div>
+          </div>
+          <div class="header-meta">
+            <div class="meta-row"><span class="meta-label">Rec. No</span><span class="meta-val">: SGMP/05/CIP</span></div>
+            <div class="meta-row"><span class="meta-label">Issue / Rev No</span><span class="meta-val">: 1/10/2022 / Rev 3</span></div>
+            <div class="meta-row"><span class="meta-label">Effective Date</span><span class="meta-val">: 1/8/2024</span></div>
+          </div>
+        </div>
+
+        <!-- Banner -->
+        <div class="sub-banner">
+          <div class="info-tags">
+            <div class="tag-item"><span>BULAN / MONTH:</span> <span class="tag-val">September 2025</span></div>
+            <div class="tag-item"><span>KAWASAN / AREA:</span> <span class="tag-val">PACKING AREA (Line 1 (500ml))</span></div>
+          </div>
+          <div class="banner-title">CLEANING INSPECTION RECORD</div>
+        </div>
+
+        <!-- Table 1 (Days 1 to 16) -->
+        <div class="table-container">
+          <table class="gmp-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="th-green">BAHAGIAN / PERINCIAN TUGASAN (TASKS & SPECIFICATIONS)</th>
+                <th colspan="16" class="th-green">TARIKH / DATE (1 - 16 SEPTEMBER 2025)</th>
+                <th rowspan="2" class="th-green qa-col">DIPERIKSA<br>OLEH (QA)</th>
+                <th rowspan="2" class="th-green qa-col">DISAHKAN<br>OLEH (SV)</th>
+              </tr>
+              <tr>
+                <th class="th-gray" style="width:25%;">ITEM & PERALATAN / CHEMICAL</th>
+                <th class="th-gray" style="width:8%;">KEKERAPAN</th>
+                <th class="th-gray" style="width:7.5%;">SESI / SHIFT</th>
+                <th class="th-gray" style="width:6.5%;">STAF</th>
+                <th class="th-gray day-col">1</th><th class="th-gray day-col">2</th><th class="th-gray day-col">3</th><th class="th-gray day-col">4</th><th class="th-gray day-col">5</th><th class="th-gray day-col">6</th><th class="th-gray day-col">7</th><th class="th-gray day-col">8</th><th class="th-gray day-col">9</th><th class="th-gray day-col">10</th><th class="th-gray day-col">11</th><th class="th-gray day-col">12</th><th class="th-gray day-col">13</th><th class="th-gray day-col">14</th><th class="th-gray day-col">15</th><th class="th-gray day-col">16</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">LANTAI / FLOOR</div>
+        <div class="task-sub">TUGASAN: SAPU DAN MOP</div><div class="task-sub">PERALATAN: PENYAPU DAN MOP LANTAI</div><div class="task-sub">JENIS PENCUCI: Alkaline</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">MESIN DAN KONVEYOR / MACHINE & CONVEYOR</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Disinfectant</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">TONG SAMPAH / TRASH BIN</div>
+        <div class="task-sub">TUGASAN: KOSONGKAN</div><div class="task-sub">PERALATAN: PLASTIK SAMPAH</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">CERMIN / MIRROR & GLASS</div>
+        <div class="task-sub">TUGASAN: LAP PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Glass Cleaner</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SILING DAN DINDING / CEILING & WALL</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+    </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Table 2 (Days 17 to 31) -->
+        <div class="table-container">
+          <table class="gmp-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="th-green">BAHAGIAN / PERINCIAN TUGASAN (TASKS & SPECIFICATIONS)</th>
+                <th colspan="16" class="th-green">TARIKH / DATE (17 - 30 SEPTEMBER 2025)</th>
+                <th rowspan="2" class="th-green qa-col">DIPERIKSA<br>OLEH (QA)</th>
+                <th rowspan="2" class="th-green qa-col">DISAHKAN<br>OLEH (SV)</th>
+              </tr>
+              <tr>
+                <th class="th-gray" style="width:25%;">ITEM & PERALATAN / CHEMICAL</th>
+                <th class="th-gray" style="width:8%;">KEKERAPAN</th>
+                <th class="th-gray" style="width:7.5%;">SESI / SHIFT</th>
+                <th class="th-gray" style="width:6.5%;">STAF</th>
+                <th class="th-gray day-col">17</th><th class="th-gray day-col">18</th><th class="th-gray day-col">19</th><th class="th-gray day-col">20</th><th class="th-gray day-col">21</th><th class="th-gray day-col">22</th><th class="th-gray day-col">23</th><th class="th-gray day-col">24</th><th class="th-gray day-col">25</th><th class="th-gray day-col">26</th><th class="th-gray day-col">27</th><th class="th-gray day-col">28</th><th class="th-gray day-col">29</th><th class="th-gray day-col">30</th><th class="th-gray day-col">-</th>
+                <th class="th-gray day-col">-</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">LANTAI / FLOOR</div>
+        <div class="task-sub">TUGASAN: SAPU DAN MOP</div><div class="task-sub">PERALATAN: PENYAPU DAN MOP LANTAI</div><div class="task-sub">JENIS PENCUCI: Alkaline</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">MESIN DAN KONVEYOR / MACHINE & CONVEYOR</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Disinfectant</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">TONG SAMPAH / TRASH BIN</div>
+        <div class="task-sub">TUGASAN: KOSONGKAN</div><div class="task-sub">PERALATAN: PLASTIK SAMPAH</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">CERMIN / MIRROR & GLASS</div>
+        <div class="task-sub">TUGASAN: LAP PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Glass Cleaner</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SILING DAN DINDING / CEILING & WALL</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="footer-stamp">
+        <span>Document Reference: BubblesO2-GMP-CL-2025 | Standard Operating Procedure GMP-05 (Sanitation & Hygiene)</span>
+        <span>Inspection Status: Full Working Days Verified (Shift Morning: Ayu, Shift Afternoon: Fasiha)</span>
+      </div>
+    </div>
+  
+    <div class="sheet" data-month="SEP" data-area="finishing">
+      <div>
+        <!-- Header -->
+        <div class="header-box">
+          <div class="header-logo">
+            <div class="logo-badge">Bubbles<span>O₂</span></div>
+          </div>
+          <div class="header-company">
+            <div class="comp-name">BUBBLESO2 SDN BHD</div>
+            <div class="comp-addr">KOMPLEKS AL-AMMAR, KG KANCHONG, 71200 RANTAU, NEGERI SEMBILAN</div>
+          </div>
+          <div class="header-meta">
+            <div class="meta-row"><span class="meta-label">Rec. No</span><span class="meta-val">: SGMP/05/CIFA</span></div>
+            <div class="meta-row"><span class="meta-label">Issue / Rev No</span><span class="meta-val">: 1/10/2022 / Rev 3</span></div>
+            <div class="meta-row"><span class="meta-label">Effective Date</span><span class="meta-val">: 1/8/2024</span></div>
+          </div>
+        </div>
+
+        <!-- Banner -->
+        <div class="sub-banner">
+          <div class="info-tags">
+            <div class="tag-item"><span>BULAN / MONTH:</span> <span class="tag-val">September 2025</span></div>
+            <div class="tag-item"><span>KAWASAN / AREA:</span> <span class="tag-val">FINISHING AREA (Line 1 (500ml))</span></div>
+          </div>
+          <div class="banner-title">CLEANING INSPECTION RECORD</div>
+        </div>
+
+        <!-- Table 1 (Days 1 to 16) -->
+        <div class="table-container">
+          <table class="gmp-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="th-green">BAHAGIAN / PERINCIAN TUGASAN (TASKS & SPECIFICATIONS)</th>
+                <th colspan="16" class="th-green">TARIKH / DATE (1 - 16 SEPTEMBER 2025)</th>
+                <th rowspan="2" class="th-green qa-col">DIPERIKSA<br>OLEH (QA)</th>
+                <th rowspan="2" class="th-green qa-col">DISAHKAN<br>OLEH (SV)</th>
+              </tr>
+              <tr>
+                <th class="th-gray" style="width:25%;">ITEM & PERALATAN / CHEMICAL</th>
+                <th class="th-gray" style="width:8%;">KEKERAPAN</th>
+                <th class="th-gray" style="width:7.5%;">SESI / SHIFT</th>
+                <th class="th-gray" style="width:6.5%;">STAF</th>
+                <th class="th-gray day-col">1</th><th class="th-gray day-col">2</th><th class="th-gray day-col">3</th><th class="th-gray day-col">4</th><th class="th-gray day-col">5</th><th class="th-gray day-col">6</th><th class="th-gray day-col">7</th><th class="th-gray day-col">8</th><th class="th-gray day-col">9</th><th class="th-gray day-col">10</th><th class="th-gray day-col">11</th><th class="th-gray day-col">12</th><th class="th-gray day-col">13</th><th class="th-gray day-col">14</th><th class="th-gray day-col">15</th><th class="th-gray day-col">16</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">LANTAI / FLOOR</div>
+        <div class="task-sub">TUGASAN: SAPU DAN MOP</div><div class="task-sub">PERALATAN: PENYAPU DAN MOP LANTAI</div><div class="task-sub">JENIS PENCUCI: Alkaline</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">MESIN DAN KONVEYOR / MACHINE & CONVEYOR</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Disinfectant</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">TONG SAMPAH / TRASH BIN</div>
+        <div class="task-sub">TUGASAN: KOSONGKAN</div><div class="task-sub">PERALATAN: PLASTIK SAMPAH</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">CERMIN DAN PINTU / MIRROR & DOOR</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Glass Cleaner</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SILING DAN DINDING / CEILING & WALL</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+    </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Table 2 (Days 17 to 31) -->
+        <div class="table-container">
+          <table class="gmp-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="th-green">BAHAGIAN / PERINCIAN TUGASAN (TASKS & SPECIFICATIONS)</th>
+                <th colspan="16" class="th-green">TARIKH / DATE (17 - 30 SEPTEMBER 2025)</th>
+                <th rowspan="2" class="th-green qa-col">DIPERIKSA<br>OLEH (QA)</th>
+                <th rowspan="2" class="th-green qa-col">DISAHKAN<br>OLEH (SV)</th>
+              </tr>
+              <tr>
+                <th class="th-gray" style="width:25%;">ITEM & PERALATAN / CHEMICAL</th>
+                <th class="th-gray" style="width:8%;">KEKERAPAN</th>
+                <th class="th-gray" style="width:7.5%;">SESI / SHIFT</th>
+                <th class="th-gray" style="width:6.5%;">STAF</th>
+                <th class="th-gray day-col">17</th><th class="th-gray day-col">18</th><th class="th-gray day-col">19</th><th class="th-gray day-col">20</th><th class="th-gray day-col">21</th><th class="th-gray day-col">22</th><th class="th-gray day-col">23</th><th class="th-gray day-col">24</th><th class="th-gray day-col">25</th><th class="th-gray day-col">26</th><th class="th-gray day-col">27</th><th class="th-gray day-col">28</th><th class="th-gray day-col">29</th><th class="th-gray day-col">30</th><th class="th-gray day-col">-</th>
+                <th class="th-gray day-col">-</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">LANTAI / FLOOR</div>
+        <div class="task-sub">TUGASAN: SAPU DAN MOP</div><div class="task-sub">PERALATAN: PENYAPU DAN MOP LANTAI</div><div class="task-sub">JENIS PENCUCI: Alkaline</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">MESIN DAN KONVEYOR / MACHINE & CONVEYOR</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Disinfectant</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">TONG SAMPAH / TRASH BIN</div>
+        <div class="task-sub">TUGASAN: KOSONGKAN</div><div class="task-sub">PERALATAN: PLASTIK SAMPAH</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">CERMIN DAN PINTU / MIRROR & DOOR</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Glass Cleaner</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SILING DAN DINDING / CEILING & WALL</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="footer-stamp">
+        <span>Document Reference: BubblesO2-GMP-CL-2025 | Standard Operating Procedure GMP-05 (Sanitation & Hygiene)</span>
+        <span>Inspection Status: Full Working Days Verified (Shift Morning: Ayu, Shift Afternoon: Fasiha)</span>
+      </div>
+    </div>
+  
+    <div class="sheet" data-month="SEP" data-area="raw-material">
+      <div>
+        <!-- Header -->
+        <div class="header-box">
+          <div class="header-logo">
+            <div class="logo-badge">Bubbles<span>O₂</span></div>
+          </div>
+          <div class="header-company">
+            <div class="comp-name">BUBBLESO2 SDN BHD</div>
+            <div class="comp-addr">KOMPLEKS AL-AMMAR, KG KANCHONG, 71200 RANTAU, NEGERI SEMBILAN</div>
+          </div>
+          <div class="header-meta">
+            <div class="meta-row"><span class="meta-label">Rec. No</span><span class="meta-val">: SGMP/05/CIRMA</span></div>
+            <div class="meta-row"><span class="meta-label">Issue / Rev No</span><span class="meta-val">: 1/10/2022 / Rev 3</span></div>
+            <div class="meta-row"><span class="meta-label">Effective Date</span><span class="meta-val">: 1/8/2024</span></div>
+          </div>
+        </div>
+
+        <!-- Banner -->
+        <div class="sub-banner">
+          <div class="info-tags">
+            <div class="tag-item"><span>BULAN / MONTH:</span> <span class="tag-val">September 2025</span></div>
+            <div class="tag-item"><span>KAWASAN / AREA:</span> <span class="tag-val">RAW MATERIAL AREA (General)</span></div>
+          </div>
+          <div class="banner-title">CLEANING INSPECTION RECORD</div>
+        </div>
+
+        <!-- Table 1 (Days 1 to 16) -->
+        <div class="table-container">
+          <table class="gmp-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="th-green">BAHAGIAN / PERINCIAN TUGASAN (TASKS & SPECIFICATIONS)</th>
+                <th colspan="16" class="th-green">TARIKH / DATE (1 - 16 SEPTEMBER 2025)</th>
+                <th rowspan="2" class="th-green qa-col">DIPERIKSA<br>OLEH (QA)</th>
+                <th rowspan="2" class="th-green qa-col">DISAHKAN<br>OLEH (SV)</th>
+              </tr>
+              <tr>
+                <th class="th-gray" style="width:25%;">ITEM & PERALATAN / CHEMICAL</th>
+                <th class="th-gray" style="width:8%;">KEKERAPAN</th>
+                <th class="th-gray" style="width:7.5%;">SESI / SHIFT</th>
+                <th class="th-gray" style="width:6.5%;">STAF</th>
+                <th class="th-gray day-col">1</th><th class="th-gray day-col">2</th><th class="th-gray day-col">3</th><th class="th-gray day-col">4</th><th class="th-gray day-col">5</th><th class="th-gray day-col">6</th><th class="th-gray day-col">7</th><th class="th-gray day-col">8</th><th class="th-gray day-col">9</th><th class="th-gray day-col">10</th><th class="th-gray day-col">11</th><th class="th-gray day-col">12</th><th class="th-gray day-col">13</th><th class="th-gray day-col">14</th><th class="th-gray day-col">15</th><th class="th-gray day-col">16</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">LANTAI / FLOOR</div>
+        <div class="task-sub">TUGASAN: SAPU DAN MOP</div><div class="task-sub">PERALATAN: PENYAPU DAN MOP LANTAI</div><div class="task-sub">JENIS PENCUCI: Alkaline</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SILING DAN DINDING / CEILING & WALL</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SHUTTERDOOR</div>
+        <div class="task-sub">TUGASAN: BUANG HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+    </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Table 2 (Days 17 to 31) -->
+        <div class="table-container">
+          <table class="gmp-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="th-green">BAHAGIAN / PERINCIAN TUGASAN (TASKS & SPECIFICATIONS)</th>
+                <th colspan="16" class="th-green">TARIKH / DATE (17 - 30 SEPTEMBER 2025)</th>
+                <th rowspan="2" class="th-green qa-col">DIPERIKSA<br>OLEH (QA)</th>
+                <th rowspan="2" class="th-green qa-col">DISAHKAN<br>OLEH (SV)</th>
+              </tr>
+              <tr>
+                <th class="th-gray" style="width:25%;">ITEM & PERALATAN / CHEMICAL</th>
+                <th class="th-gray" style="width:8%;">KEKERAPAN</th>
+                <th class="th-gray" style="width:7.5%;">SESI / SHIFT</th>
+                <th class="th-gray" style="width:6.5%;">STAF</th>
+                <th class="th-gray day-col">17</th><th class="th-gray day-col">18</th><th class="th-gray day-col">19</th><th class="th-gray day-col">20</th><th class="th-gray day-col">21</th><th class="th-gray day-col">22</th><th class="th-gray day-col">23</th><th class="th-gray day-col">24</th><th class="th-gray day-col">25</th><th class="th-gray day-col">26</th><th class="th-gray day-col">27</th><th class="th-gray day-col">28</th><th class="th-gray day-col">29</th><th class="th-gray day-col">30</th><th class="th-gray day-col">-</th>
+                <th class="th-gray day-col">-</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">LANTAI / FLOOR</div>
+        <div class="task-sub">TUGASAN: SAPU DAN MOP</div><div class="task-sub">PERALATAN: PENYAPU DAN MOP LANTAI</div><div class="task-sub">JENIS PENCUCI: Alkaline</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SILING DAN DINDING / CEILING & WALL</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SHUTTERDOOR</div>
+        <div class="task-sub">TUGASAN: BUANG HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="footer-stamp">
+        <span>Document Reference: BubblesO2-GMP-CL-2025 | Standard Operating Procedure GMP-05 (Sanitation & Hygiene)</span>
+        <span>Inspection Status: Full Working Days Verified (Shift Morning: Ayu, Shift Afternoon: Fasiha)</span>
+      </div>
+    </div>
+  
+    <div class="sheet" data-month="SEP" data-area="filtration-uv">
+      <div>
+        <!-- Header -->
+        <div class="header-box">
+          <div class="header-logo">
+            <div class="logo-badge">Bubbles<span>O₂</span></div>
+          </div>
+          <div class="header-company">
+            <div class="comp-name">BUBBLESO2 SDN BHD</div>
+            <div class="comp-addr">KOMPLEKS AL-AMMAR, KG KANCHONG, 71200 RANTAU, NEGERI SEMBILAN</div>
+          </div>
+          <div class="header-meta">
+            <div class="meta-row"><span class="meta-label">Rec. No</span><span class="meta-val">: SGMP/05/CIFUV</span></div>
+            <div class="meta-row"><span class="meta-label">Issue / Rev No</span><span class="meta-val">: 1/10/2022 / Rev 3</span></div>
+            <div class="meta-row"><span class="meta-label">Effective Date</span><span class="meta-val">: 1/8/2024</span></div>
+          </div>
+        </div>
+
+        <!-- Banner -->
+        <div class="sub-banner">
+          <div class="info-tags">
+            <div class="tag-item"><span>BULAN / MONTH:</span> <span class="tag-val">September 2025</span></div>
+            <div class="tag-item"><span>KAWASAN / AREA:</span> <span class="tag-val">FILTRATION & UV SYSTEM AREA (General)</span></div>
+          </div>
+          <div class="banner-title">CLEANING INSPECTION RECORD</div>
+        </div>
+
+        <!-- Table 1 (Days 1 to 16) -->
+        <div class="table-container">
+          <table class="gmp-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="th-green">BAHAGIAN / PERINCIAN TUGASAN (TASKS & SPECIFICATIONS)</th>
+                <th colspan="16" class="th-green">TARIKH / DATE (1 - 16 SEPTEMBER 2025)</th>
+                <th rowspan="2" class="th-green qa-col">DIPERIKSA<br>OLEH (QA)</th>
+                <th rowspan="2" class="th-green qa-col">DISAHKAN<br>OLEH (SV)</th>
+              </tr>
+              <tr>
+                <th class="th-gray" style="width:25%;">ITEM & PERALATAN / CHEMICAL</th>
+                <th class="th-gray" style="width:8%;">KEKERAPAN</th>
+                <th class="th-gray" style="width:7.5%;">SESI / SHIFT</th>
+                <th class="th-gray" style="width:6.5%;">STAF</th>
+                <th class="th-gray day-col">1</th><th class="th-gray day-col">2</th><th class="th-gray day-col">3</th><th class="th-gray day-col">4</th><th class="th-gray day-col">5</th><th class="th-gray day-col">6</th><th class="th-gray day-col">7</th><th class="th-gray day-col">8</th><th class="th-gray day-col">9</th><th class="th-gray day-col">10</th><th class="th-gray day-col">11</th><th class="th-gray day-col">12</th><th class="th-gray day-col">13</th><th class="th-gray day-col">14</th><th class="th-gray day-col">15</th><th class="th-gray day-col">16</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">LANTAI / FLOOR</div>
+        <div class="task-sub">TUGASAN: SAPU DAN MOP</div><div class="task-sub">PERALATAN: PENYAPU DAN MOP LANTAI</div><div class="task-sub">JENIS PENCUCI: Alkaline</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">MESIN DAN TANGKI AIR / MACHINE & WATER TANK</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Disinfectant</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">CERMIN / GLASS & WINDOW</div>
+        <div class="task-sub">TUGASAN: LAP PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Glass Cleaner</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SILING DAN DINDING / CEILING & WALL</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+    </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Table 2 (Days 17 to 31) -->
+        <div class="table-container">
+          <table class="gmp-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="th-green">BAHAGIAN / PERINCIAN TUGASAN (TASKS & SPECIFICATIONS)</th>
+                <th colspan="16" class="th-green">TARIKH / DATE (17 - 30 SEPTEMBER 2025)</th>
+                <th rowspan="2" class="th-green qa-col">DIPERIKSA<br>OLEH (QA)</th>
+                <th rowspan="2" class="th-green qa-col">DISAHKAN<br>OLEH (SV)</th>
+              </tr>
+              <tr>
+                <th class="th-gray" style="width:25%;">ITEM & PERALATAN / CHEMICAL</th>
+                <th class="th-gray" style="width:8%;">KEKERAPAN</th>
+                <th class="th-gray" style="width:7.5%;">SESI / SHIFT</th>
+                <th class="th-gray" style="width:6.5%;">STAF</th>
+                <th class="th-gray day-col">17</th><th class="th-gray day-col">18</th><th class="th-gray day-col">19</th><th class="th-gray day-col">20</th><th class="th-gray day-col">21</th><th class="th-gray day-col">22</th><th class="th-gray day-col">23</th><th class="th-gray day-col">24</th><th class="th-gray day-col">25</th><th class="th-gray day-col">26</th><th class="th-gray day-col">27</th><th class="th-gray day-col">28</th><th class="th-gray day-col">29</th><th class="th-gray day-col">30</th><th class="th-gray day-col">-</th>
+                <th class="th-gray day-col">-</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">LANTAI / FLOOR</div>
+        <div class="task-sub">TUGASAN: SAPU DAN MOP</div><div class="task-sub">PERALATAN: PENYAPU DAN MOP LANTAI</div><div class="task-sub">JENIS PENCUCI: Alkaline</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">MESIN DAN TANGKI AIR / MACHINE & WATER TANK</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Disinfectant</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">CERMIN / GLASS & WINDOW</div>
+        <div class="task-sub">TUGASAN: LAP PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Glass Cleaner</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SILING DAN DINDING / CEILING & WALL</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="footer-stamp">
+        <span>Document Reference: BubblesO2-GMP-CL-2025 | Standard Operating Procedure GMP-05 (Sanitation & Hygiene)</span>
+        <span>Inspection Status: Full Working Days Verified (Shift Morning: Ayu, Shift Afternoon: Fasiha)</span>
+      </div>
+    </div>
+  
+    <div class="sheet" data-month="SEP" data-area="meeting-changing">
+      <div>
+        <!-- Header -->
+        <div class="header-box">
+          <div class="header-logo">
+            <div class="logo-badge">Bubbles<span>O₂</span></div>
+          </div>
+          <div class="header-company">
+            <div class="comp-name">BUBBLESO2 SDN BHD</div>
+            <div class="comp-addr">KOMPLEKS AL-AMMAR, KG KANCHONG, 71200 RANTAU, NEGERI SEMBILAN</div>
+          </div>
+          <div class="header-meta">
+            <div class="meta-row"><span class="meta-label">Rec. No</span><span class="meta-val">: SGMP/05/CIMCA</span></div>
+            <div class="meta-row"><span class="meta-label">Issue / Rev No</span><span class="meta-val">: 1/10/2022 / Rev 3</span></div>
+            <div class="meta-row"><span class="meta-label">Effective Date</span><span class="meta-val">: 1/8/2024</span></div>
+          </div>
+        </div>
+
+        <!-- Banner -->
+        <div class="sub-banner">
+          <div class="info-tags">
+            <div class="tag-item"><span>BULAN / MONTH:</span> <span class="tag-val">September 2025</span></div>
+            <div class="tag-item"><span>KAWASAN / AREA:</span> <span class="tag-val">MEETING AND CHANGING AREA (General)</span></div>
+          </div>
+          <div class="banner-title">CLEANING INSPECTION RECORD</div>
+        </div>
+
+        <!-- Table 1 (Days 1 to 16) -->
+        <div class="table-container">
+          <table class="gmp-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="th-green">BAHAGIAN / PERINCIAN TUGASAN (TASKS & SPECIFICATIONS)</th>
+                <th colspan="16" class="th-green">TARIKH / DATE (1 - 16 SEPTEMBER 2025)</th>
+                <th rowspan="2" class="th-green qa-col">DIPERIKSA<br>OLEH (QA)</th>
+                <th rowspan="2" class="th-green qa-col">DISAHKAN<br>OLEH (SV)</th>
+              </tr>
+              <tr>
+                <th class="th-gray" style="width:25%;">ITEM & PERALATAN / CHEMICAL</th>
+                <th class="th-gray" style="width:8%;">KEKERAPAN</th>
+                <th class="th-gray" style="width:7.5%;">SESI / SHIFT</th>
+                <th class="th-gray" style="width:6.5%;">STAF</th>
+                <th class="th-gray day-col">1</th><th class="th-gray day-col">2</th><th class="th-gray day-col">3</th><th class="th-gray day-col">4</th><th class="th-gray day-col">5</th><th class="th-gray day-col">6</th><th class="th-gray day-col">7</th><th class="th-gray day-col">8</th><th class="th-gray day-col">9</th><th class="th-gray day-col">10</th><th class="th-gray day-col">11</th><th class="th-gray day-col">12</th><th class="th-gray day-col">13</th><th class="th-gray day-col">14</th><th class="th-gray day-col">15</th><th class="th-gray day-col">16</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">LANTAI / FLOOR</div>
+        <div class="task-sub">TUGASAN: SAPU DAN MOP</div><div class="task-sub">PERALATAN: PENYAPU DAN MOP LANTAI</div><div class="task-sub">JENIS PENCUCI: Alkaline</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">PLATFORM</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Disinfectant</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">TONG SAMPAH / TRASH BIN</div>
+        <div class="task-sub">TUGASAN: KOSONGKAN</div><div class="task-sub">PERALATAN: PLASTIK SAMPAH</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">CERMIN DAN PINTU / MIRROR & DOOR</div>
+        <div class="task-sub">TUGASAN: LAP PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Glass Cleaner</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SILING DAN DINDING / CEILING & WALL</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td>
+    </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Table 2 (Days 17 to 31) -->
+        <div class="table-container">
+          <table class="gmp-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="th-green">BAHAGIAN / PERINCIAN TUGASAN (TASKS & SPECIFICATIONS)</th>
+                <th colspan="16" class="th-green">TARIKH / DATE (17 - 30 SEPTEMBER 2025)</th>
+                <th rowspan="2" class="th-green qa-col">DIPERIKSA<br>OLEH (QA)</th>
+                <th rowspan="2" class="th-green qa-col">DISAHKAN<br>OLEH (SV)</th>
+              </tr>
+              <tr>
+                <th class="th-gray" style="width:25%;">ITEM & PERALATAN / CHEMICAL</th>
+                <th class="th-gray" style="width:8%;">KEKERAPAN</th>
+                <th class="th-gray" style="width:7.5%;">SESI / SHIFT</th>
+                <th class="th-gray" style="width:6.5%;">STAF</th>
+                <th class="th-gray day-col">17</th><th class="th-gray day-col">18</th><th class="th-gray day-col">19</th><th class="th-gray day-col">20</th><th class="th-gray day-col">21</th><th class="th-gray day-col">22</th><th class="th-gray day-col">23</th><th class="th-gray day-col">24</th><th class="th-gray day-col">25</th><th class="th-gray day-col">26</th><th class="th-gray day-col">27</th><th class="th-gray day-col">28</th><th class="th-gray day-col">29</th><th class="th-gray day-col">30</th><th class="th-gray day-col">-</th>
+                <th class="th-gray day-col">-</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">LANTAI / FLOOR</div>
+        <div class="task-sub">TUGASAN: SAPU DAN MOP</div><div class="task-sub">PERALATAN: PENYAPU DAN MOP LANTAI</div><div class="task-sub">JENIS PENCUCI: Alkaline</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">PLATFORM</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Disinfectant</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">TONG SAMPAH / TRASH BIN</div>
+        <div class="task-sub">TUGASAN: KOSONGKAN</div><div class="task-sub">PERALATAN: PLASTIK SAMPAH</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">SETIAP HARI<br>(DAILY)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col tick ">✓</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">CERMIN DAN PINTU / MIRROR & DOOR</div>
+        <div class="task-sub">TUGASAN: LAP PERMUKAAN</div><div class="task-sub">PERALATAN: KAIN</div><div class="task-sub">JENIS PENCUCI: Glass Cleaner</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr><tr>
+      <td rowspan="2" class="task-desc">
+        <div class="task-name">SILING DAN DINDING / CEILING & WALL</div>
+        <div class="task-sub">TUGASAN: LAP HABUK DAN SAWANG</div><div class="task-sub">PERALATAN: MOP DINDING DAN PENYAPU SAWANG</div><div class="task-sub">JENIS PENCUCI: -</div>
+      </td>
+      <td rowspan="2" class="freq-col">3 KALI SEMINGGU<br>(3X / WEEK)</td>
+      <td class="shift-col">Sesi Pagi (AM)</td>
+      <td class="staff-col">Ayu</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+      <td rowspan="2" class="qa-col"></td>
+      <td rowspan="2" class="qa-col"></td>
+    </tr><tr>
+      <td class="shift-col">Sesi Petang (PM)</td>
+      <td class="staff-col">Fasiha</td>
+      <td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col tick ">✓</td><td class="day-col dash weekend">-</td><td class="day-col dash weekend">-</td><td class="day-col tick ">✓</td><td class="day-col dash ">-</td><td class="day-col dash">-</td><td class="day-col dash">-</td>
+    </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="footer-stamp">
+        <span>Document Reference: BubblesO2-GMP-CL-2025 | Standard Operating Procedure GMP-05 (Sanitation & Hygiene)</span>
+        <span>Inspection Status: Full Working Days Verified (Shift Morning: Ayu, Shift Afternoon: Fasiha)</span>
+      </div>
+    </div>
+  
+  </div>
+
+  <script>
+    function filterPages() {
+      const monthSelect = document.getElementById('monthSelect');
+      const month = monthSelect ? monthSelect.value : 'all';
+      const area = document.getElementById('areaSelect').value;
+      const sheets = document.querySelectorAll('.sheet');
+
+      sheets.forEach(sheet => {
+        const mMatch = month === 'all' || sheet.dataset.month === month;
+        const aMatch = area === 'all' || sheet.dataset.area === area;
+        sheet.style.display = (mMatch && aMatch) ? 'flex' : 'none';
+      });
+    }
+  </script>
+</body>
+</html>

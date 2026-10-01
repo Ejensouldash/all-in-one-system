@@ -46,6 +46,7 @@ export type AccessInfo = {
   unitId: string | null
   unitName: string | null
   name: string | null
+  signatureUrl: string | null
 }
 
 // Module access MUST be read live from the DB, never from the session JWT:
@@ -66,6 +67,7 @@ export const getAccessInfo = cache(async (): Promise<AccessInfo | null> => {
       role: true,
       modules: true,
       unitId: true,
+      signatureUrl: true,
       branch: { select: { name: true } },
       unit: { select: { name: true } },
     },
@@ -85,6 +87,7 @@ export const getAccessInfo = cache(async (): Promise<AccessInfo | null> => {
     unitId: dbUser?.unitId || null,
     unitName: dbUser?.unit?.name || (session.user as any).unitName || null,
     name: dbUser?.name || session.user.name || null,
+    signatureUrl: dbUser?.signatureUrl || null,
   }
 })
 

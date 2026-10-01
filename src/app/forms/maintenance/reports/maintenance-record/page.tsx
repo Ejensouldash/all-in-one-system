@@ -13,7 +13,7 @@ export default async function MaintenanceRecordReportsPage() {
 
   const dbUser = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { role: true, modules: true }
+    select: { role: true, modules: true, name: true, signatureUrl: true }
   })
   const role = dbUser?.role || session.user.role
   const userModules = dbUser?.modules || []
@@ -23,10 +23,16 @@ export default async function MaintenanceRecordReportsPage() {
     redirect("/dashboard")
   }
 
+  const canVerify = isSuperAdmin || userModules.includes("MAINTENANCE_SUMMARY") || userModules.includes("MAINTENANCE_REPORTS") || role === "SUPERVISOR"
+
   return (
     <div className="bg-gray-50 min-h-screen pt-8 pb-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <MaintenanceRecordReportClient />
+        <MaintenanceRecordReportClient
+          userName={dbUser?.name || session.user?.name || "Supervisor"}
+          userSignatureUrl={dbUser?.signatureUrl || null}
+          canVerify={canVerify}
+        />
       </div>
     </div>
   )

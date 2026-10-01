@@ -68,9 +68,17 @@ export async function lookupProductionBatches(
     }
   }
 
-  // 1. Search for DailyReports where this Bottle Batch was recorded in InventoryLog (sectionKey containing BOTTLE)
+  const is425 = productSize.includes("425")
+  const targetSize = is425 ? "425" : "800"
+  const targetLineName = is425 ? "LINE 2" : "LINE 1"
+
+  // 1. Search for DailyReports where this Bottle Batch was recorded in InventoryLog strictly for the specific Line / Size
   const matchingReports = await prisma.dailyReport.findMany({
     where: {
+      OR: [
+        { line: { contains: targetSize, mode: "insensitive" } },
+        { line: { contains: targetLineName, mode: "insensitive" } },
+      ],
       inventory: {
         some: {
           sectionKey: { contains: "BOTTLE", mode: "insensitive" },
@@ -86,6 +94,9 @@ export async function lookupProductionBatches(
         },
       },
       productions: {
+        where: {
+          productType: { contains: targetSize, mode: "insensitive" },
+        },
         include: {
           batches: true,
         },
@@ -96,20 +107,15 @@ export async function lookupProductionBatches(
     },
   })
 
-  const sizeDigit = productSize.includes("425") ? "425" : "800"
   const candidates: MatchedProductionRecord[] = []
 
   for (const report of matchingReports) {
-    // Filter productions matching the line or product size (425ml vs 800ml)
-    const relevantProductions = report.productions.filter(
-      (p) =>
-        p.productType.toLowerCase().includes(sizeDigit) ||
-        report.line.toLowerCase().includes(sizeDigit)
+    // Strictly filter productions to only those matching target product size (never fall back to other sizes)
+    const relevantProductions = report.productions.filter((p) =>
+      p.productType.toLowerCase().includes(targetSize)
     )
 
-    const prods = relevantProductions.length > 0 ? relevantProductions : report.productions
-
-    for (const prod of prods) {
+    for (const prod of relevantProductions) {
       for (const batch of prod.batches) {
         candidates.push({
           batchId: batch.id,
@@ -139,7 +145,7 @@ export async function lookupProductionBatches(
       matchStatus: "UNMATCHED",
       cleanBatchNo: clean,
       matches: [],
-      remarks: `No Daily Production Report found using Bottle Batch "${clean}". Please verify with Storeroom / Daily Reports.`,
+      remarks: `No Daily Production Report found using Bottle Batch "${clean}" for ${productSize}. Please verify with Storeroom / Daily Reports.`,
     }
   }
 

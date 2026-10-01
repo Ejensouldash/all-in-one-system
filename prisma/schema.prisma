@@ -64,6 +64,7 @@ model User {
   recordedPhysicalPalletEvents PhysicalPalletEvent[]
   retentionSampleRecords     RetentionSampleRecord[] @relation("RetentionSamplePreparer")
   customerComplaints         CustomerComplaint[]     @relation("CustomerComplaintCreator")
+  manualComplaints           ManualComplaintLog[]    @relation("ManualComplaintCreator")
 }
 
 model Branch {
@@ -2445,3 +2446,42 @@ model ComplaintItem {
   @@index([cleanBatchNo])
 }
 
+enum ManualComplaintPriority {
+  GREEN
+  YELLOW
+  RED
+}
+
+enum ManualComplaintStatus {
+  OPEN
+  ONGOING
+  ESCALATED_E3
+  CLOSED
+}
+
+model ManualComplaintLog {
+  id               String                  @id @default(uuid())
+  complaintNumber  String                  @unique // CMP-YYYYMM-XXXX
+  customerName     String
+  customerNumber   String
+  customerSocials  String?
+  customerPlatform String                  // WhatsApp, TikTok Shop, Shopee, Instagram, Facebook, Call, Website, Other
+  
+  mainComplaint    String                  @db.Text
+  priority         ManualComplaintPriority @default(YELLOW)
+  status           ManualComplaintStatus   @default(OPEN)
+  picHandling      String
+  
+  resolutionNotes  String?                 @db.Text
+  resolvedAt       DateTime?
+  
+  createdById      String?
+  createdBy        User?                   @relation("ManualComplaintCreator", fields: [createdById], references: [id])
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@index([status, priority])
+  @@index([customerPlatform])
+  @@index([picHandling])
+  @@index([createdAt])
+}

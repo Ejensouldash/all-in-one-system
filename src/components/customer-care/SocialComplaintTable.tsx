@@ -541,16 +541,16 @@ export function SocialComplaintTable({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-black uppercase text-slate-500 tracking-wider">
-                <th className="py-3.5 px-4">Complaint ID</th>
-                <th className="py-3.5 px-4">Category / Group</th>
-                <th className="py-3.5 px-4">Date</th>
-                <th className="py-3.5 px-4">Customer & Username</th>
-                <th className="py-3.5 px-4">Platform & Post</th>
-                <th className="py-3.5 px-4">Main Content & Symptoms</th>
-                <th className="py-3.5 px-4">Priority</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4">PIC Handling</th>
-                <th className="py-3.5 px-4 text-right">Action</th>
+                <th className="py-3.5 px-4 w-28 whitespace-nowrap">Complaint ID</th>
+                <th className="py-3.5 px-4 w-36 whitespace-nowrap">Category / Group</th>
+                <th className="py-3.5 px-4 w-28 whitespace-nowrap">Date</th>
+                <th className="py-3.5 px-4 w-44">Customer</th>
+                <th className="py-3.5 px-4 w-28 whitespace-nowrap">Platform</th>
+                <th className="py-3.5 px-4 min-w-[380px] max-w-xl">Main Content & Symptoms</th>
+                <th className="py-3.5 px-4 w-24 whitespace-nowrap">Priority</th>
+                <th className="py-3.5 px-4 w-28 whitespace-nowrap">Status</th>
+                <th className="py-3.5 px-4 w-40 whitespace-nowrap">PIC Handling</th>
+                <th className="py-3.5 px-4 w-24 whitespace-nowrap text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
@@ -600,17 +600,17 @@ export function SocialComplaintTable({
                       </td>
 
                       {/* Customer & Number */}
-                      <td className="py-3.5 px-4">
-                        <div className="font-bold text-slate-900">
+                      <td className="py-3.5 px-4 w-44">
+                        <div className="font-bold text-slate-900 truncate max-w-[160px]">
                           {item.fullName || `@${item.username}`}
                         </div>
-                        <div className="text-[11px] text-slate-500 font-mono">
+                        <div className="text-[11px] text-slate-500 font-mono truncate max-w-[160px]">
                           @{item.username}
                         </div>
                       </td>
 
                       {/* Platform & Socials */}
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         <div className="space-y-1">
                           <span className="inline-block px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-neutral-900 text-white border border-neutral-800">
                             Threads
@@ -631,13 +631,13 @@ export function SocialComplaintTable({
                       </td>
 
                       {/* Main Complaint */}
-                      <td className="py-3.5 px-4 max-w-md">
+                      <td className="py-3.5 px-4 min-w-[380px] max-w-xl">
                         <div className="space-y-1.5">
                           {/* Badges for Detected Symptoms & Batch */}
                           {(item.detectedBatchNo || item.symptoms.length > 0) && (
                             <div className="flex flex-wrap items-center gap-1.5">
                               {item.detectedBatchNo && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 font-mono font-bold text-[10px]">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 font-mono font-bold text-[10px] whitespace-nowrap">
                                   <Tag className="w-2.5 h-2.5" />
                                   Batch: {item.detectedBatchNo}
                                 </span>
@@ -645,7 +645,7 @@ export function SocialComplaintTable({
                               {item.symptoms.map((s, idx) => (
                                 <span
                                   key={idx}
-                                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border whitespace-nowrap ${
                                     s.includes("Sakit") || s.includes("Cirit") || s.includes("Muntah") || s.includes("Demam")
                                       ? "bg-rose-50 text-rose-700 border-rose-200"
                                       : s.includes("Bau") || s.includes("Rasa") || s.includes("Buncit")
@@ -662,24 +662,24 @@ export function SocialComplaintTable({
                           {/* Raw text */}
                           <p
                             className={`text-slate-800 leading-relaxed ${
-                              isExpanded ? "whitespace-pre-wrap" : "line-clamp-2"
+                              item.rawText.length > 180 && !isExpanded ? "line-clamp-3" : "whitespace-pre-wrap"
                             }`}
                           >
                             {item.rawText}
                           </p>
-                          {item.rawText.length > 90 && (
+                          {item.rawText.length > 180 && (
                             <button
                               type="button"
                               onClick={() => toggleRow(item.id)}
-                              className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 inline-flex items-center gap-0.5 cursor-pointer"
+                              className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 inline-flex items-center gap-0.5 cursor-pointer mt-0.5"
                             >
                               {isExpanded ? (
                                 <>
-                                  Less <ChevronUp className="w-2.5 h-2.5" />
+                                  Show less <ChevronUp className="w-3 h-3" />
                                 </>
                               ) : (
                                 <>
-                                  Read more <ChevronDown className="w-2.5 h-2.5" />
+                                  Read more <ChevronDown className="w-3 h-3" />
                                 </>
                               )}
                             </button>

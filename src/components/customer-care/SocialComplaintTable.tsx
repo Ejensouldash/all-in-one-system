@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import {
   Search,
   Download,
@@ -12,6 +12,10 @@ import {
   ShieldAlert,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Tag,
   CheckCircle2,
   Share2,
@@ -96,6 +100,10 @@ export function SocialComplaintTable({
   const [isExporting, setIsExporting] = useState(false)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
+  // Pagination states - Default 5 rows as requested
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(5)
+
   // Expandable row state
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
 
@@ -138,6 +146,39 @@ export function SocialComplaintTable({
       return true
     })
   }, [records, search, selectedCategory, selectedPriority, selectedStatus, selectedPic, selectedSymptom, onlyBatch])
+
+  // Reset to page 1 whenever any filter or search changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, selectedCategory, selectedPriority, selectedStatus, selectedPic, selectedSymptom, onlyBatch, pageSize])
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filtered.length / pageSize) || 1
+  const startIndex = filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1
+  const endIndex = Math.min(currentPage * pageSize, filtered.length)
+
+  const paginatedRecords = useMemo(() => {
+    const start = (currentPage - 1) * pageSize
+    return filtered.slice(start, start + pageSize)
+  }, [filtered, currentPage, pageSize])
+
+  // Generate pagination range numbers
+  const paginationRange = useMemo(() => {
+    const delta = 1
+    const range: (number | string)[] = []
+    const left = Math.max(2, currentPage - delta)
+    const right = Math.min(totalPages - 1, currentPage + delta)
+
+    range.push(1)
+    if (left > 2) range.push("...")
+    for (let i = left; i <= right; i++) {
+      range.push(i)
+    }
+    if (right < totalPages - 1) range.push("...")
+    if (totalPages > 1) range.push(totalPages)
+
+    return range
+  }, [currentPage, totalPages])
 
   // Handle inline PIC change
   const handlePicChange = async (id: string, newPic: string) => {
@@ -494,7 +535,7 @@ export function SocialComplaintTable({
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table Container */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -513,7 +554,7 @@ export function SocialComplaintTable({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
-              {filtered.length === 0 ? (
+              {paginatedRecords.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="py-16 text-center text-slate-400">
                     <div className="max-w-sm mx-auto space-y-2">
@@ -528,7 +569,7 @@ export function SocialComplaintTable({
                   </td>
                 </tr>
               ) : (
-                filtered.map((item) => {
+                paginatedRecords.map((item) => {
                   const isExpanded = !!expandedRows[item.id]
                   const formattedDate =
                     typeof item.date === "string" && item.date.includes("T")
@@ -714,6 +755,117 @@ export function SocialComplaintTable({
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="px-4 py-3.5 border-t border-slate-100 bg-slate-50/70 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+          {/* Entries summary & Rows per page selector */}
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+            <span className="font-medium">
+              Showing <span className="font-bold text-slate-900">{startIndex}</span> to{" "}
+              <span className="font-bold text-slate-900">{endIndex}</span> of{" "}
+              <span className="font-bold text-slate-900">{filtered.length}</span> records
+            </span>
+
+            <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200">
+              <span className="text-[11px] text-slate-500 font-medium">Rows:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="px-2 py-1 text-xs rounded-lg border border-slate-200 bg-white font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Page Navigation Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              {/* First Page */}
+              <button
+                type="button"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                title="First Page"
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              >
+                <ChevronsLeft className="w-4 h-4 text-slate-600" />
+              </button>
+
+              {/* Prev Page */}
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                title="Previous Page"
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none transition-colors inline-flex items-center gap-1 font-bold text-xs"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span>Prev</span>
+              </button>
+
+              {/* Page Number Buttons */}
+              <div className="hidden sm:flex items-center gap-1 mx-1">
+                {paginationRange.map((page, idx) => {
+                  if (page === "...") {
+                    return (
+                      <span key={`ellipsis-${idx}`} className="px-1.5 text-slate-400 font-bold">
+                        ...
+                      </span>
+                    )
+                  }
+                  const pNum = Number(page)
+                  const isActive = currentPage === pNum
+                  return (
+                    <button
+                      key={pNum}
+                      type="button"
+                      onClick={() => setCurrentPage(pNum)}
+                      className={`min-w-[28px] h-7 px-1.5 rounded-lg text-xs font-bold transition-all ${
+                        isActive
+                          ? "bg-indigo-600 text-white shadow-sm"
+                          : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      {pNum}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Mobile current page indicator */}
+              <span className="sm:hidden px-2 font-bold text-slate-700 text-xs">
+                {currentPage} / {totalPages}
+              </span>
+
+              {/* Next Page */}
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                title="Next Page"
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none transition-colors inline-flex items-center gap-1 font-bold text-xs"
+              >
+                <span>Next</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Last Page */}
+              <button
+                type="button"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                title="Last Page"
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              >
+                <ChevronsRight className="w-4 h-4 text-slate-600" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -90,11 +90,11 @@ export async function createManualComplaint(input: CreateManualComplaintInput) {
         customerName: cleanName,
         customerNumber: cleanNumber,
         customerSocials: input.customerSocials?.trim() || null,
-        customerPlatform: input.customerPlatform?.trim() || "WhatsApp",
+        customerPlatform: input.customerPlatform?.trim() || "Customer Careline",
         mainComplaint: cleanComplaint,
         priority: input.priority || ManualComplaintPriority.YELLOW,
         status: input.status || ManualComplaintStatus.OPEN,
-        picHandling: input.picHandling?.trim() || "Customer Care",
+        picHandling: input.picHandling?.trim() || "Zara - Customer Careline",
         resolutionNotes: input.resolutionNotes?.trim() || null,
         createdById: session?.user?.id || null,
         resolvedAt: input.status === ManualComplaintStatus.CLOSED ? new Date() : null,
@@ -191,6 +191,7 @@ export async function updateManualComplaint(
     resolutionNotes?: string
     mainComplaint?: string
     customerSocials?: string
+    customerPlatform?: string
   }
 ) {
   const access = await getAccessInfo()
@@ -216,6 +217,7 @@ export async function updateManualComplaint(
         status: data.status !== undefined ? data.status : existing.status,
         priority: data.priority !== undefined ? data.priority : existing.priority,
         picHandling: data.picHandling !== undefined ? data.picHandling : existing.picHandling,
+        customerPlatform: data.customerPlatform !== undefined ? data.customerPlatform : existing.customerPlatform,
         resolutionNotes: data.resolutionNotes !== undefined ? data.resolutionNotes : existing.resolutionNotes,
         mainComplaint: data.mainComplaint !== undefined ? data.mainComplaint : existing.mainComplaint,
         customerSocials: data.customerSocials !== undefined ? data.customerSocials : existing.customerSocials,

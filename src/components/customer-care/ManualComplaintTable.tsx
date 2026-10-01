@@ -23,6 +23,10 @@ import {
   ManualComplaintItem,
   ManualComplaintEditModal,
 } from "@/components/customer-care/ManualComplaintEditModal"
+import {
+  MANUAL_PLATFORM_OPTIONS,
+  MANUAL_PIC_OPTIONS,
+} from "@/components/customer-care/ManualComplaintModal"
 import { exportManualComplaintsCsv } from "@/app/actions/manual-complaints"
 
 interface ManualComplaintTableProps {
@@ -54,9 +58,9 @@ export function ManualComplaintTable({
     setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
-  // Derive unique platforms & PICs for filter options
+  // Derive unique platforms & PICs for filter options including presets
   const platforms = useMemo(() => {
-    const set = new Set<string>()
+    const set = new Set<string>(MANUAL_PLATFORM_OPTIONS.filter((p) => p !== "Other (Please Specify)"))
     initialRecords.forEach((r) => {
       if (r.customerPlatform) set.add(r.customerPlatform)
     })
@@ -64,7 +68,7 @@ export function ManualComplaintTable({
   }, [initialRecords])
 
   const pics = useMemo(() => {
-    const set = new Set<string>()
+    const set = new Set<string>(MANUAL_PIC_OPTIONS)
     initialRecords.forEach((r) => {
       if (r.picHandling) set.add(r.picHandling)
     })
@@ -203,16 +207,17 @@ export function ManualComplaintTable({
   const renderPlatformBadge = (platform: string) => {
     const p = platform.toLowerCase()
     let bg = "bg-slate-100 text-slate-700 border-slate-200"
-    if (p.includes("whatsapp")) bg = "bg-emerald-50 text-emerald-800 border-emerald-200"
+    if (p.includes("threads")) bg = "bg-neutral-900 text-white border-neutral-800"
     else if (p.includes("tiktok")) bg = "bg-slate-900 text-white border-slate-800"
-    else if (p.includes("shopee")) bg = "bg-orange-50 text-orange-700 border-orange-200"
-    else if (p.includes("lazada")) bg = "bg-blue-50 text-blue-700 border-blue-200"
     else if (p.includes("instagram")) bg = "bg-pink-50 text-pink-700 border-pink-200"
-    else if (p.includes("facebook")) bg = "bg-sky-50 text-sky-700 border-sky-200"
-    else if (p.includes("call")) bg = "bg-teal-50 text-teal-700 border-teal-200"
+    else if (p.includes("careline") || p.includes("call")) bg = "bg-emerald-50 text-emerald-800 border-emerald-200"
+    else if (p.includes("ms forms") || p.includes("forms")) bg = "bg-sky-50 text-sky-800 border-sky-200"
+    else if (p.includes("email")) bg = "bg-indigo-50 text-indigo-700 border-indigo-200"
+    else if (p === "x" || p.includes("twitter")) bg = "bg-black text-white border-black"
+    else if (p.includes("whatsapp")) bg = "bg-emerald-50 text-emerald-800 border-emerald-200"
 
     return (
-      <span className={`inline-block px-2 py-0.5 rounded-md text-[11px] font-bold border ${bg}`}>
+      <span className={`inline-block px-2.5 py-0.5 rounded-lg text-[11px] font-bold border ${bg}`}>
         {platform}
       </span>
     )

@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { ManualComplaintPriority, ManualComplaintStatus } from "@prisma/client"
 import { updateManualComplaint, deleteManualComplaint } from "@/app/actions/manual-complaints"
+import { MANUAL_PLATFORM_OPTIONS, MANUAL_PIC_OPTIONS } from "@/components/customer-care/ManualComplaintModal"
 import { useRouter } from "next/navigation"
 
 export interface ManualComplaintItem {
@@ -65,7 +66,10 @@ export function ManualComplaintEditModal({
   // Editable fields
   const [status, setStatus] = useState<ManualComplaintStatus>(ManualComplaintStatus.OPEN)
   const [priority, setPriority] = useState<ManualComplaintPriority>(ManualComplaintPriority.YELLOW)
-  const [picHandling, setPicHandling] = useState("")
+  const [customerPlatform, setCustomerPlatform] = useState("Threads")
+  const [customPlatform, setCustomPlatform] = useState("")
+  const [picHandling, setPicHandling] = useState("Zara - Customer Careline")
+  const [customPic, setCustomPic] = useState("")
   const [customerSocials, setCustomerSocials] = useState("")
   const [mainComplaint, setMainComplaint] = useState("")
   const [resolutionNotes, setResolutionNotes] = useState("")
@@ -74,7 +78,25 @@ export function ManualComplaintEditModal({
     if (complaint) {
       setStatus(complaint.status)
       setPriority(complaint.priority)
-      setPicHandling(complaint.picHandling || "")
+
+      // Handle platform
+      if (MANUAL_PLATFORM_OPTIONS.includes(complaint.customerPlatform) && complaint.customerPlatform !== "Other (Please Specify)") {
+        setCustomerPlatform(complaint.customerPlatform)
+        setCustomPlatform("")
+      } else {
+        setCustomerPlatform("Other (Please Specify)")
+        setCustomPlatform(complaint.customerPlatform || "")
+      }
+
+      // Handle PIC
+      if (MANUAL_PIC_OPTIONS.includes(complaint.picHandling)) {
+        setPicHandling(complaint.picHandling)
+        setCustomPic("")
+      } else {
+        setPicHandling("Other")
+        setCustomPic(complaint.picHandling || "")
+      }
+
       setCustomerSocials(complaint.customerSocials || "")
       setMainComplaint(complaint.mainComplaint || "")
       setResolutionNotes(complaint.resolutionNotes || "")
@@ -89,13 +111,30 @@ export function ManualComplaintEditModal({
     e.preventDefault()
     if (!canManage) return
     setError(null)
+
+    if (customerPlatform === "Other (Please Specify)" && !customPlatform.trim()) {
+      setError("Please specify the Customer Platform.")
+      return
+    }
+
+    const platformToSave =
+      customerPlatform === "Other (Please Specify)"
+        ? customPlatform.trim() || "Other"
+        : customerPlatform
+
+    const picToSave =
+      picHandling === "Other"
+        ? customPic.trim() || "Customer Care"
+        : picHandling
+
     setIsSaving(true)
 
     try {
       const res = await updateManualComplaint(complaint.id, {
         status,
         priority,
-        picHandling: picHandling.trim() || undefined,
+        customerPlatform: platformToSave,
+        picHandling: picToSave,
         customerSocials: customerSocials.trim() || undefined,
         mainComplaint: mainComplaint.trim() || undefined,
         resolutionNotes: resolutionNotes.trim() || undefined,
@@ -188,7 +227,7 @@ export function ManualComplaintEditModal({
             </div>
           )}
 
-          {/* Readonly Customer Overview */}
+          {/* Customer Overview */}
           <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <div>
               <div className="text-[10px] font-bold text-slate-400 uppercase">Customer</div>
@@ -213,6 +252,54 @@ export function ManualComplaintEditModal({
               <div className="text-[10px] font-bold text-slate-400 uppercase">Logged By</div>
               <div className="font-medium text-slate-600 truncate mt-0.5">
                 {complaint.createdBy?.name || "System"}
+              </div>
+            </div>
+          </div>
+
+          {/* Platform & Socials Update */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Customer Platform
+              </label>
+              <select
+                value={customerPlatform}
+                onChange={(e) => setCustomerPlatform(e.target.value)}
+                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              >
+                {MANUAL_PLATFORM_OPTIONS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+              {customerPlatform === "Other (Please Specify)" && (
+                <div className="mt-2 animate-in fade-in slide-in-from-top-1">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Please specify platform..."
+                    value={customPlatform}
+                    onChange={(e) => setCustomPlatform(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-indigo-300 bg-indigo-50/30 font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Customer Socials / Handle / Link
+              </label>
+              <div className="relative">
+                <AtSign className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={customerSocials}
+                  onChange={(e) => setCustomerSocials(e.target.value)}
+                  placeholder="@username or customer link"
+                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                />
               </div>
             </div>
           </div>
@@ -292,30 +379,30 @@ export function ManualComplaintEditModal({
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 PIC Handling
               </label>
-              <input
-                type="text"
+              <select
                 value={picHandling}
                 onChange={(e) => setPicHandling(e.target.value)}
-                placeholder="PIC name or team..."
                 className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-              />
-            </div>
-          </div>
-
-          {/* Socials / Handle */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Customer Socials / Handle / Link
-            </label>
-            <div className="relative">
-              <AtSign className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={customerSocials}
-                onChange={(e) => setCustomerSocials(e.target.value)}
-                placeholder="@username or customer link"
-                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-              />
+              >
+                {MANUAL_PIC_OPTIONS.map((pic) => (
+                  <option key={pic} value={pic}>
+                    {pic}
+                  </option>
+                ))}
+                <option value="Other">Other</option>
+              </select>
+              {picHandling === "Other" && (
+                <div className="mt-2 animate-in fade-in slide-in-from-top-1">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Enter PIC name..."
+                    value={customPic}
+                    onChange={(e) => setCustomPic(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-indigo-300 bg-indigo-50/30 font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  />
+                </div>
+              )}
             </div>
           </div>
 

@@ -24,27 +24,22 @@ interface ManualComplaintModalProps {
   onSuccess?: () => void
 }
 
-const PLATFORM_OPTIONS = [
-  "WhatsApp",
-  "TikTok Shop",
-  "Shopee",
-  "Lazada",
+export const MANUAL_PLATFORM_OPTIONS = [
+  "Threads",
   "Instagram",
-  "Facebook",
-  "Direct Call",
-  "Email / Website",
-  "Walk-in / Event",
-  "Other",
+  "Tiktok",
+  "Customer Careline",
+  "MS Forms",
+  "Email",
+  "X",
+  "Other (Please Specify)",
 ]
 
-const PIC_SUGGESTIONS = [
-  "Nana (BD)",
-  "Customer Care",
-  "BD Department",
-  "Marketing Team",
-  "Online Sales",
-  "Corporate Team",
-  "QC Department",
+export const MANUAL_PIC_OPTIONS = [
+  "Zara - Customer Careline",
+  "Azizan - Threads",
+  "Faiz - Threads",
+  "Jiha - Tiktok",
 ]
 
 export function ManualComplaintModal({
@@ -60,11 +55,12 @@ export function ManualComplaintModal({
   const [customerName, setCustomerName] = useState("")
   const [customerNumber, setCustomerNumber] = useState("")
   const [customerSocials, setCustomerSocials] = useState("")
-  const [customerPlatform, setCustomerPlatform] = useState("WhatsApp")
+  const [customerPlatform, setCustomerPlatform] = useState("Threads")
   const [customPlatform, setCustomPlatform] = useState("")
   const [priority, setPriority] = useState<ManualComplaintPriority>(ManualComplaintPriority.YELLOW)
   const [status, setStatus] = useState<ManualComplaintStatus>(ManualComplaintStatus.OPEN)
-  const [picHandling, setPicHandling] = useState("Nana (BD)")
+  const [picHandling, setPicHandling] = useState("Zara - Customer Careline")
+  const [customPic, setCustomPic] = useState("")
   const [mainComplaint, setMainComplaint] = useState("")
   const [resolutionNotes, setResolutionNotes] = useState("")
 
@@ -87,10 +83,20 @@ export function ManualComplaintModal({
       return
     }
 
+    if (customerPlatform === "Other (Please Specify)" && !customPlatform.trim()) {
+      setError("Please specify the Customer Platform.")
+      return
+    }
+
     const platformToSave =
-      customerPlatform === "Other" && customPlatform.trim()
+      customerPlatform === "Other (Please Specify)"
         ? customPlatform.trim()
         : customerPlatform
+
+    const picToSave =
+      picHandling === "Other" && customPic.trim()
+        ? customPic.trim()
+        : picHandling
 
     setIsSubmitting(true)
 
@@ -103,7 +109,7 @@ export function ManualComplaintModal({
         mainComplaint: mainComplaint.trim(),
         priority,
         status,
-        picHandling: picHandling.trim() || "Customer Care",
+        picHandling: picToSave,
         resolutionNotes: resolutionNotes.trim() || undefined,
       })
 
@@ -117,11 +123,12 @@ export function ManualComplaintModal({
       setCustomerName("")
       setCustomerNumber("")
       setCustomerSocials("")
-      setCustomerPlatform("WhatsApp")
+      setCustomerPlatform("Threads")
       setCustomPlatform("")
       setPriority(ManualComplaintPriority.YELLOW)
       setStatus(ManualComplaintStatus.OPEN)
-      setPicHandling("Nana (BD)")
+      setPicHandling("Zara - Customer Careline")
+      setCustomPic("")
       setMainComplaint("")
       setResolutionNotes("")
 
@@ -153,7 +160,7 @@ export function ManualComplaintModal({
                 Log Manual Complaint
               </h2>
               <p className="text-xs text-slate-500">
-                Quick intake tracking for customer feedback, social channels & e-commerce.
+                Quick intake tracking for customer feedback, social channels & careline.
               </p>
             </div>
           </div>
@@ -230,21 +237,25 @@ export function ManualComplaintModal({
                     onChange={(e) => setCustomerPlatform(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   >
-                    {PLATFORM_OPTIONS.map((p) => (
+                    {MANUAL_PLATFORM_OPTIONS.map((p) => (
                       <option key={p} value={p}>
                         {p}
                       </option>
                     ))}
                   </select>
                 </div>
-                {customerPlatform === "Other" && (
-                  <input
-                    type="text"
-                    placeholder="Specify platform..."
-                    value={customPlatform}
-                    onChange={(e) => setCustomPlatform(e.target.value)}
-                    className="mt-2 w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  />
+                {/* Kalau Others tu baru keluar kolum untuk isi tempat kosong */}
+                {customerPlatform === "Other (Please Specify)" && (
+                  <div className="mt-2 animate-in fade-in slide-in-from-top-1">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Please specify platform..."
+                      value={customPlatform}
+                      onChange={(e) => setCustomPlatform(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-indigo-300 bg-indigo-50/30 font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    />
+                  </div>
                 )}
               </div>
 
@@ -354,21 +365,32 @@ export function ManualComplaintModal({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  PIC Handling
+                  PIC Handling <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  list="pic-suggestions-modal"
+                <select
                   value={picHandling}
                   onChange={(e) => setPicHandling(e.target.value)}
-                  placeholder="e.g. Nana (BD)"
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                />
-                <datalist id="pic-suggestions-modal">
-                  {PIC_SUGGESTIONS.map((pic) => (
-                    <option key={pic} value={pic} />
+                >
+                  {MANUAL_PIC_OPTIONS.map((pic) => (
+                    <option key={pic} value={pic}>
+                      {pic}
+                    </option>
                   ))}
-                </datalist>
+                  <option value="Other">Other</option>
+                </select>
+                {picHandling === "Other" && (
+                  <div className="mt-2 animate-in fade-in slide-in-from-top-1">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter PIC name..."
+                      value={customPic}
+                      onChange={(e) => setCustomPic(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-indigo-300 bg-indigo-50/30 font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>

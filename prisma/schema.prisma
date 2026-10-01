@@ -2485,3 +2485,31 @@ model ManualComplaintLog {
   @@index([picHandling])
   @@index([createdAt])
 }
+
+model SocialMediaComplaint {
+  id              String   @id @default(uuid())
+  complaintId     String   @unique // CMP-TH-001
+  date            DateTime
+  takenAt         BigInt?
+  username        String
+  fullName        String?
+  customerNumber  String   @default("N/A (Threads)")
+  platform        String   @default("Threads")
+  postUrl         String?
+  mainComplaint   String   @db.Text
+  rawText         String   @db.Text
+  detectedBatchNo String?
+  symptoms        String[] @default([])
+  priority        String   @default("Medium") // High, Medium, Low
+  status          String   @default("Open")   // Open, Ongoing, Closed
+  picHandling     String   @default("Unassigned")
+  likeCount       Int      @default(0)
+  replyCount      Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([priority, status])
+  @@index([platform])
+  @@index([detectedBatchNo])
+  @@index([date])
+}

@@ -21,7 +21,7 @@ export default async function CustomerCarePage() {
     take: 100,
   })
 
-  // Fetch manual complaint logs (Nana's fast intake / tracking sheet)
+  // Fetch manual complaint logs (Nana / BD direct intake)
   const manualComplaints = await prisma.manualComplaintLog.findMany({
     include: {
       createdBy: {
@@ -36,11 +36,23 @@ export default async function CustomerCarePage() {
     take: 200,
   })
 
+  // Fetch social media complaints (scraped Threads tracking)
+  const socialComplaintsRaw = await prisma.socialMediaComplaint.findMany({
+    orderBy: { date: "desc" },
+    take: 600,
+  })
+
+  const socialComplaints = socialComplaintsRaw.map((s) => ({
+    ...s,
+    takenAt: s.takenAt ? Number(s.takenAt) : null,
+  }))
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16">
       <CustomerCareDashboardClient
         initialCases={cases as any}
         initialManualComplaints={manualComplaints as any}
+        initialSocialComplaints={socialComplaints as any}
         canManage={canManage}
       />
     </div>

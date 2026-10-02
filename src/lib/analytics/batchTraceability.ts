@@ -24,6 +24,7 @@ export interface BottleBoxTraceItem {
 
 export interface BottleBatchSummaryItem {
   bottleBatchNo: string
+  machine: string // "BM1", "BM2", "BM1, BM2", or "-"
   skus: string
   lines: string
   totalBags: number
@@ -339,6 +340,7 @@ export async function getBottleToBoxTraceReport(
     string,
     {
       bottleBatchNo: string
+      machinesSet: Set<string>
       skusSet: Set<string>
       linesSet: Set<string>
       datesSet: Set<string>
@@ -353,6 +355,7 @@ export async function getBottleToBoxTraceReport(
     if (!entry) {
       entry = {
         bottleBatchNo: row.bottleBatchNo,
+        machinesSet: new Set(),
         skusSet: new Set(),
         linesSet: new Set(),
         datesSet: new Set(),
@@ -361,6 +364,13 @@ export async function getBottleToBoxTraceReport(
         boxBatchesMap: new Map(),
       }
       summaryMap.set(row.bottleBatchNo, entry)
+    }
+
+    // Determine machine: 425ML Bag 181 = BM1, 425ML Bag 162 = BM2
+    if (row.bottleMult === 181 || row.bottleBatchNo.toUpperCase().startsWith("BM1")) {
+      entry.machinesSet.add("BM1")
+    } else if (row.bottleMult === 162 || row.bottleBatchNo.toUpperCase().startsWith("BM2")) {
+      entry.machinesSet.add("BM2")
     }
 
     if (row.skuLabel && row.skuLabel !== "N/A") entry.skusSet.add(row.skuLabel)
@@ -396,8 +406,13 @@ export async function getBottleToBoxTraceReport(
       linkedBoxBatchesList.push(`${bNo} (${q.toLocaleString()} boxes)`)
     }
 
+    const machine = entry.machinesSet.size > 0
+      ? Array.from(entry.machinesSet).sort().join(", ")
+      : "-"
+
     return {
       bottleBatchNo: entry.bottleBatchNo,
+      machine,
       skus: Array.from(entry.skusSet).join(", ") || "-",
       lines: Array.from(entry.linesSet).join(", ") || "-",
       totalBags: Math.round(totalBags * 100) / 100,

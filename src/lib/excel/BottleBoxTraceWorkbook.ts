@@ -256,11 +256,12 @@ export async function buildBottleBoxTraceWorkbook(
     pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   })
 
-  writeSheetHeader(ws2, "J", "BUBBLESO2 AGGREGATED SUMMARY BY BOTTLE BATCH", subText)
+  writeSheetHeader(ws2, "K", "BUBBLESO2 AGGREGATED SUMMARY BY BOTTLE BATCH", subText)
 
   const summaryHeaders = [
     "No.",
     "Bottle Batch No",
+    "Machine",
     "Products / SKUs Involved",
     "Production Lines",
     "Total Bags Used",
@@ -286,33 +287,36 @@ export async function buildBottleBoxTraceWorkbook(
 
     r.getCell(1).value = idx + 1
     r.getCell(2).value = s.bottleBatchNo
-    r.getCell(3).value = s.skus
-    r.getCell(4).value = s.lines
-    r.getCell(5).value = s.totalBags
-    r.getCell(6).value = s.totalPcs
-    r.getCell(7).value = s.linkedBoxBatches
-    r.getCell(8).value = s.totalBoxesProduced
-    r.getCell(9).value = s.shiftCount
-    r.getCell(10).value = s.dates
+    r.getCell(3).value = s.machine
+    r.getCell(4).value = s.skus
+    r.getCell(5).value = s.lines
+    r.getCell(6).value = s.totalBags
+    r.getCell(7).value = s.totalPcs
+    r.getCell(8).value = s.linkedBoxBatches
+    r.getCell(9).value = s.totalBoxesProduced
+    r.getCell(10).value = s.shiftCount
+    r.getCell(11).value = s.dates
 
     r.getCell(1).alignment = { horizontal: "center", vertical: "middle" }
     r.getCell(2).alignment = { horizontal: "center", vertical: "middle" }
     r.getCell(2).font = { bold: true, color: { argb: "FF047857" } }
-    r.getCell(3).alignment = { horizontal: "left", vertical: "middle" }
+    r.getCell(3).alignment = { horizontal: "center", vertical: "middle" }
+    r.getCell(3).font = { bold: true, color: { argb: "FF4338CA" } }
     r.getCell(4).alignment = { horizontal: "left", vertical: "middle" }
-    r.getCell(5).alignment = { horizontal: "right", vertical: "middle" }
-    r.getCell(5).numFmt = NUM_DEC
+    r.getCell(5).alignment = { horizontal: "left", vertical: "middle" }
     r.getCell(6).alignment = { horizontal: "right", vertical: "middle" }
-    r.getCell(6).numFmt = NUM
-    r.getCell(7).alignment = { horizontal: "left", vertical: "middle", wrapText: true }
-    r.getCell(8).alignment = { horizontal: "right", vertical: "middle" }
-    r.getCell(8).numFmt = NUM
-    r.getCell(8).font = { bold: true, color: { argb: "FF1D4ED8" } }
-    r.getCell(9).alignment = { horizontal: "center", vertical: "middle" }
-    r.getCell(10).alignment = { horizontal: "left", vertical: "middle" }
+    r.getCell(6).numFmt = NUM_DEC
+    r.getCell(7).alignment = { horizontal: "right", vertical: "middle" }
+    r.getCell(7).numFmt = NUM
+    r.getCell(8).alignment = { horizontal: "left", vertical: "middle", wrapText: true }
+    r.getCell(9).alignment = { horizontal: "right", vertical: "middle" }
+    r.getCell(9).numFmt = NUM
+    r.getCell(9).font = { bold: true, color: { argb: "FF1D4ED8" } }
+    r.getCell(10).alignment = { horizontal: "center", vertical: "middle" }
+    r.getCell(11).alignment = { horizontal: "left", vertical: "middle" }
 
     const isEven = idx % 2 === 0
-    for (let c = 1; c <= 10; c++) {
+    for (let c = 1; c <= 11; c++) {
       const cell = r.getCell(c)
       cell.border = allBorders
       if (isEven) {
@@ -331,27 +335,27 @@ export async function buildBottleBoxTraceWorkbook(
     sTotalRow.getCell(1).font = { bold: true }
     sTotalRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" }
 
-    ws2.mergeCells(`A${sRowIdx}:D${sRowIdx}`)
+    ws2.mergeCells(`A${sRowIdx}:E${sRowIdx}`)
 
-    const bagsCell = sTotalRow.getCell(5)
-    bagsCell.value = { formula: `SUBTOTAL(9, E6:E${sRowIdx - 1})` }
+    const bagsCell = sTotalRow.getCell(6)
+    bagsCell.value = { formula: `SUBTOTAL(9, F6:F${sRowIdx - 1})` }
     bagsCell.numFmt = NUM_DEC
     bagsCell.font = { bold: true }
     bagsCell.alignment = { horizontal: "right", vertical: "middle" }
 
-    const pcsCell = sTotalRow.getCell(6)
-    pcsCell.value = { formula: `SUBTOTAL(9, F6:F${sRowIdx - 1})` }
+    const pcsCell = sTotalRow.getCell(7)
+    pcsCell.value = { formula: `SUBTOTAL(9, G6:G${sRowIdx - 1})` }
     pcsCell.numFmt = NUM
     pcsCell.font = { bold: true }
     pcsCell.alignment = { horizontal: "right", vertical: "middle" }
 
-    const boxesCell = sTotalRow.getCell(8)
-    boxesCell.value = { formula: `SUBTOTAL(9, H6:H${sRowIdx - 1})` }
+    const boxesCell = sTotalRow.getCell(9)
+    boxesCell.value = { formula: `SUBTOTAL(9, I6:I${sRowIdx - 1})` }
     boxesCell.numFmt = NUM
     boxesCell.font = { bold: true }
     boxesCell.alignment = { horizontal: "right", vertical: "middle" }
 
-    for (let c = 1; c <= 10; c++) {
+    for (let c = 1; c <= 11; c++) {
       const cell = sTotalRow.getCell(c)
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: TOTAL_BG } }
       cell.border = totalBorders

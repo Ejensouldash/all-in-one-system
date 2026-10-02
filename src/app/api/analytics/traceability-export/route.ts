@@ -6,20 +6,34 @@ import { buildBottleBoxTraceWorkbook } from "@/lib/excel/BottleBoxTraceWorkbook"
 export const runtime = "nodejs"
 export const maxDuration = 60
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
 export async function POST(request: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   try {
     const body = await request.json().catch(() => ({}))
+    const dateMode = body.dateMode === "CUSTOM" || (body.from && body.to) ? "CUSTOM" : "ISO_WEEK"
     const currentYear = new Date().getFullYear()
     const year = Number(body.year) || currentYear
     const week = Number(body.week) || 1
+    const from = typeof body.from === "string" && ISO_DATE.test(body.from) ? body.from : ""
+    const to = typeof body.to === "string" && ISO_DATE.test(body.to) ? body.to : ""
     const line = typeof body.line === "string" ? body.line : "ALL"
     const batchNo = typeof body.batchNo === "string" ? body.batchNo.trim() : ""
 
-    if (year < 2020 || year > 2050 || week < 1 || week > 53) {
-      return NextResponse.json({ error: "Invalid Year or ISO Week number." }, { status: 400 })
+    if (dateMode === "CUSTOM") {
+      if (!from || !to) {
+        return NextResponse.json(
+          { error: "Both From and To dates are required and must be in YYYY-MM-DD format." },
+          { status: 400 }
+        )
+      }
+    } else {
+      if (year < 2020 || year > 2050 || week < 1 || week > 53) {
+        return NextResponse.json({ error: "Invalid Year or ISO Week number." }, { status: 400 })
+      }
     }
 
     const user = session.user as any
@@ -31,12 +45,24 @@ export async function POST(request: Request) {
       timeZone: "Asia/Kuala_Lumpur",
     }).format(new Date())
 
-    const report = await getBottleToBoxTraceReport({ year, week, line, batchNo })
+    const report = await getBottleToBoxTraceReport({
+      dateMode,
+      year,
+      week,
+      from,
+      to,
+      line,
+      batchNo,
+    })
     const buffer = await buildBottleBoxTraceWorkbook(report, preparedBy, generatedAt)
 
     const lineSlug = line !== "ALL" ? `_${line.replace(/\s+/g, "_")}` : ""
     const batchSlug = batchNo ? `_Batch_${batchNo.replace(/[^a-zA-Z0-9_-]/g, "")}` : ""
-    const fileName = `BubblesO2_Batch_Traceability_${year}_W${String(week).padStart(2, "0")}${lineSlug}${batchSlug}.xlsx`
+
+    const fileName =
+      dateMode === "CUSTOM"
+        ? `BubblesO2_Batch_Traceability_${from}_to_${to}${lineSlug}${batchSlug}.xlsx`
+        : `BubblesO2_Batch_Traceability_${year}_W${String(week).padStart(2, "0")}${lineSlug}${batchSlug}.xlsx`
 
     return new NextResponse(new Uint8Array(buffer), {
       headers: {

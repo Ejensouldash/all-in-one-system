@@ -11,6 +11,10 @@ const ZEBRA = "FFF8FAFC" // Slate 50
 const CARD_BG = "FFF0FDF4" // Emerald 50
 const TOTAL_BG = "FFE2E8F0" // Slate 200
 
+// Ice Blue style matching Gambar 2
+const ICE_BLUE_BG = "FFD9E1F2" // Soft Ice Blue
+const ICE_BLUE_FG = "FF000000" // Black
+
 const NUM = "#,##0"
 const NUM_DEC = "#,##0.00"
 
@@ -19,8 +23,8 @@ const doubleBottomBorder = { style: "double" as const, color: { argb: INK } }
 const allBorders = { top: thinBorder, left: thinBorder, bottom: thinBorder, right: thinBorder }
 const totalBorders = { top: thinBorder, left: thinBorder, bottom: doubleBottomBorder, right: thinBorder }
 
-function styleHeaderCell(cell: ExcelJS.Cell, bgColor = HEADER_BG) {
-  cell.font = { bold: true, size: 10, color: { argb: HEADER_FG } }
+function styleHeaderCell(cell: ExcelJS.Cell, bgColor = HEADER_BG, fgColor = HEADER_FG) {
+  cell.font = { bold: true, size: 10, color: { argb: fgColor } }
   cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bgColor } }
   cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true }
   cell.border = allBorders
@@ -73,7 +77,7 @@ export async function buildBottleBoxTraceWorkbook(
   wb.creator = "BubblesO2 AIO System"
   wb.created = new Date()
 
-  const subText = `ISO Week: ${report.isoWeekString}   •   Date Range: ${report.dateRange.startDate} to ${report.dateRange.endDate} (${report.dateRange.shortRange})   •   Line: ${report.filterLine}   •   Filter: ${report.filterBatchNo || "All Batches"}   •   Generated: ${generatedAt}   •   Prepared By: ${preparedBy}`
+  const subText = `${report.dateMode === "CUSTOM" ? "Date Range: " : "ISO Week: "}${report.isoWeekString}   •   Line: ${report.filterLine}   •   Filter: ${report.filterBatchNo || "All Batches"}   •   Generated: ${generatedAt}   •   Prepared By: ${preparedBy}`
 
   // ===============================================================================================
   // SHEET 1: Bottle-to-Box Traceability (Detailed)
@@ -111,7 +115,6 @@ export async function buildBottleBoxTraceWorkbook(
     valCell.numFmt = NUM
     valCell.alignment = { horizontal: "center", vertical: "middle" }
 
-    // Card border
     const startColIndex = card.colStart.charCodeAt(0) - 64
     const endColIndex = card.colEnd.charCodeAt(0) - 64
     for (let r = 4; r <= 5; r++) {
@@ -128,7 +131,7 @@ export async function buildBottleBoxTraceWorkbook(
   // TABLE HEADERS (Row 8)
   const headers = [
     "No.",
-    "ISO Week",
+    "ISO Week / Range",
     "Date",
     "Shift",
     "Production Line",
@@ -174,7 +177,6 @@ export async function buildBottleBoxTraceWorkbook(
     r.getCell(14).value = row.reportStatus
     r.getCell(15).value = row.preparedBy
 
-    // Alignments & Number Formats
     r.getCell(1).alignment = { horizontal: "center", vertical: "middle" }
     r.getCell(2).alignment = { horizontal: "center", vertical: "middle" }
     r.getCell(3).alignment = { horizontal: "center", vertical: "middle" }
@@ -182,7 +184,7 @@ export async function buildBottleBoxTraceWorkbook(
     r.getCell(5).alignment = { horizontal: "left", vertical: "middle" }
     r.getCell(6).alignment = { horizontal: "left", vertical: "middle" }
     r.getCell(7).alignment = { horizontal: "center", vertical: "middle" }
-    r.getCell(7).font = { bold: true, color: { argb: "FF047857" } } // Emerald 700
+    r.getCell(7).font = { bold: true, color: { argb: "FF047857" } }
     r.getCell(8).alignment = { horizontal: "right", vertical: "middle" }
     r.getCell(8).numFmt = NUM_DEC
     r.getCell(9).alignment = { horizontal: "right", vertical: "middle" }
@@ -190,14 +192,13 @@ export async function buildBottleBoxTraceWorkbook(
     r.getCell(10).alignment = { horizontal: "right", vertical: "middle" }
     r.getCell(10).numFmt = NUM
     r.getCell(11).alignment = { horizontal: "center", vertical: "middle" }
-    r.getCell(11).font = { bold: true, color: { argb: "FF1D4ED8" } } // Blue 700
+    r.getCell(11).font = { bold: true, color: { argb: "FF1D4ED8" } }
     r.getCell(12).alignment = { horizontal: "right", vertical: "middle" }
     r.getCell(12).numFmt = NUM
     r.getCell(13).alignment = { horizontal: "center", vertical: "middle" }
     r.getCell(14).alignment = { horizontal: "center", vertical: "middle" }
     r.getCell(15).alignment = { horizontal: "left", vertical: "middle" }
 
-    // Zebra striping
     const isEven = idx % 2 === 0
     for (let c = 1; c <= 15; c++) {
       const cell = r.getCell(c)
@@ -220,21 +221,18 @@ export async function buildBottleBoxTraceWorkbook(
 
     ws1.mergeCells(`A${currentRow}:G${currentRow}`)
 
-    // Formula for Bottle Bags (Col H)
     const bagsCell = totalRow.getCell(8)
     bagsCell.value = { formula: `SUBTOTAL(9, H9:H${currentRow - 1})` }
     bagsCell.numFmt = NUM_DEC
     bagsCell.font = { bold: true }
     bagsCell.alignment = { horizontal: "right", vertical: "middle" }
 
-    // Formula for Total Bottles (Col J)
     const pcsCell = totalRow.getCell(10)
     pcsCell.value = { formula: `SUBTOTAL(9, J9:J${currentRow - 1})` }
     pcsCell.numFmt = NUM
     pcsCell.font = { bold: true }
     pcsCell.alignment = { horizontal: "right", vertical: "middle" }
 
-    // Formula for Output Boxes (Col L)
     const boxesCell = totalRow.getCell(12)
     boxesCell.value = { formula: `SUBTOTAL(9, L9:L${currentRow - 1})` }
     boxesCell.numFmt = NUM
@@ -361,6 +359,177 @@ export async function buildBottleBoxTraceWorkbook(
   }
 
   autoFitColumns(ws2, 12, 45)
+
+  // ===============================================================================================
+  // SHEET 3: Production & Distribution (Gambar 2 format)
+  // ===============================================================================================
+  const ws3 = wb.addWorksheet("Production & Distribution", {
+    views: [{ state: "frozen", ySplit: 2 }],
+    pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+  })
+
+  // Calculate Month & Year label (e.g. "MONTH: OCT 26" or date range)
+  const dStart = new Date(report.dateRange.startDate)
+  const monthNamesUpper = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+  const monthYearLabel = `MONTH: ${monthNamesUpper[dStart.getMonth()]} ${String(dStart.getFullYear()).slice(-2)}`
+
+  let currentDistRow = 1
+
+  const distHeaders = [
+    "Production Date",
+    "Batch Number",
+    "Total Production",
+    "Distribution Date",
+    "Destination",
+    "Quantity",
+    "Total Quantity",
+    "Balance",
+    "Remarks",
+  ]
+
+  // If there are no distribution groups, output standard blank headers
+  if (report.distributionGroups.length === 0) {
+    // Row 1: Month & Title
+    const r1 = ws3.getRow(currentDistRow)
+    r1.height = 24
+    r1.getCell(1).value = monthYearLabel
+    r1.getCell(1).font = { bold: true, size: 11, color: { argb: INK } }
+    r1.getCell(9).value = report.filterLine !== "ALL" ? report.filterLine : "All Lines"
+    r1.getCell(9).font = { bold: true, size: 11, color: { argb: INK } }
+    r1.getCell(9).alignment = { horizontal: "right" }
+    currentDistRow++
+
+    // Row 2: Headers
+    const r2 = ws3.getRow(currentDistRow)
+    r2.height = 24
+    distHeaders.forEach((h, idx) => {
+      const cell = r2.getCell(idx + 1)
+      cell.value = h
+      styleHeaderCell(cell, ICE_BLUE_BG, ICE_BLUE_FG)
+    })
+  } else {
+    // Render each SKU group
+    report.distributionGroups.forEach((skuGroup, groupIdx) => {
+      // Top header banner for this SKU
+      const bannerRow = ws3.getRow(currentDistRow)
+      bannerRow.height = 22
+      bannerRow.getCell(1).value = monthYearLabel
+      bannerRow.getCell(1).font = { bold: true, size: 10, color: { argb: INK } }
+      bannerRow.getCell(1).alignment = { vertical: "middle" }
+
+      bannerRow.getCell(9).value = skuGroup.skuLabel
+      bannerRow.getCell(9).font = { bold: true, size: 11, color: { argb: INK } }
+      bannerRow.getCell(9).alignment = { horizontal: "right", vertical: "middle" }
+      currentDistRow++
+
+      // Table Header Row
+      const tableHeaderRow = ws3.getRow(currentDistRow)
+      tableHeaderRow.height = 24
+      distHeaders.forEach((h, idx) => {
+        const cell = tableHeaderRow.getCell(idx + 1)
+        cell.value = h
+        styleHeaderCell(cell, ICE_BLUE_BG, ICE_BLUE_FG)
+      })
+      currentDistRow++
+
+      // Render batches for this SKU
+      skuGroup.batches.forEach(b => {
+        const batchStartRow = currentDistRow
+        const lineCount = Math.max(b.distributions.length, 1)
+        const batchEndRow = batchStartRow + lineCount - 1
+
+        b.distributions.forEach((dist, dIdx) => {
+          const r = ws3.getRow(currentDistRow)
+          r.height = 20
+
+          // Fill distribution specific columns
+          r.getCell(4).value = dist.distributionDate || ""
+          r.getCell(4).alignment = { horizontal: "center", vertical: "middle" }
+
+          r.getCell(5).value = dist.destination || ""
+          r.getCell(5).alignment = { horizontal: "left", vertical: "middle" }
+
+          if (dist.quantity !== null && dist.quantity !== undefined) {
+            r.getCell(6).value = dist.quantity
+            r.getCell(6).numFmt = NUM
+          } else {
+            r.getCell(6).value = ""
+          }
+          r.getCell(6).alignment = { horizontal: "right", vertical: "middle" }
+
+          r.getCell(9).value = dist.remarks || b.remarks || ""
+          r.getCell(9).alignment = { horizontal: "left", vertical: "middle" }
+
+          // Borders for distribution row cells
+          for (let c = 1; c <= 9; c++) {
+            r.getCell(c).border = allBorders
+          }
+
+          currentDistRow++
+        })
+
+        // Production Date (Col A)
+        const cellA = ws3.getCell(`A${batchStartRow}`)
+        cellA.value = b.productionDateFormatted
+        cellA.alignment = { horizontal: "center", vertical: "middle" }
+        if (lineCount > 1) {
+          ws3.mergeCells(`A${batchStartRow}:A${batchEndRow}`)
+        }
+
+        // Batch Number (Col B)
+        const cellB = ws3.getCell(`B${batchStartRow}`)
+        cellB.value = b.batchNumber
+        cellB.font = { bold: true }
+        cellB.alignment = { horizontal: "center", vertical: "middle" }
+        if (lineCount > 1) {
+          ws3.mergeCells(`B${batchStartRow}:B${batchEndRow}`)
+        }
+
+        // Total Production (Col C)
+        const cellC = ws3.getCell(`C${batchStartRow}`)
+        cellC.value = b.totalProduction
+        cellC.font = { bold: true }
+        cellC.numFmt = NUM
+        cellC.alignment = { horizontal: "center", vertical: "middle" }
+        if (lineCount > 1) {
+          ws3.mergeCells(`C${batchStartRow}:C${batchEndRow}`)
+        }
+
+        // Total Quantity (Col G) — Excel Formula
+        const cellG = ws3.getCell(`G${batchStartRow}`)
+        if (lineCount > 1) {
+          cellG.value = { formula: `SUM(F${batchStartRow}:F${batchEndRow})` }
+          ws3.mergeCells(`G${batchStartRow}:G${batchEndRow}`)
+        } else {
+          cellG.value = { formula: `IF(F${batchStartRow}="","",F${batchStartRow})` }
+        }
+        cellG.font = { bold: true, color: { argb: "FF15803D" } } // Green color matching Gambar 2
+        cellG.numFmt = NUM
+        cellG.alignment = { horizontal: "center", vertical: "middle" }
+
+        // Balance (Col H) — Excel Formula (Total Production - Total Quantity)
+        const cellH = ws3.getCell(`H${batchStartRow}`)
+        cellH.value = { formula: `C${batchStartRow}-IF(G${batchStartRow}="",0,G${batchStartRow})` }
+        cellH.font = { bold: true }
+        cellH.numFmt = NUM
+        cellH.alignment = { horizontal: "center", vertical: "middle" }
+        if (lineCount > 1) {
+          ws3.mergeCells(`H${batchStartRow}:H${batchEndRow}`)
+        }
+      })
+
+      // Spacing between SKU groups if not the last
+      if (groupIdx < report.distributionGroups.length - 1) {
+        currentDistRow += 2
+      }
+    })
+  }
+
+  // Adjust column widths for Sheet 3
+  const colWidths = [16, 18, 16, 16, 22, 14, 16, 14, 25]
+  colWidths.forEach((w, idx) => {
+    ws3.getColumn(idx + 1).width = w
+  })
 
   const arrayBuffer = await wb.xlsx.writeBuffer()
   return Buffer.from(arrayBuffer)

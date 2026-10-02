@@ -1,11 +1,10 @@
 "use client"
 
-import { Printer, ArrowLeft, Calendar, FileText, CheckCircle2 } from "lucide-react"
+import { Printer, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
 interface BatchPrintToolbarProps {
-  year: number
-  week: number
+  title: string
   dateRangeStr: string
   line: string
   batchNo?: string
@@ -13,8 +12,7 @@ interface BatchPrintToolbarProps {
 }
 
 export function BatchPrintToolbar({
-  year,
-  week,
+  title,
   dateRangeStr,
   line,
   batchNo,
@@ -37,7 +35,7 @@ export function BatchPrintToolbar({
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
               <span className="text-sm font-black uppercase text-emerald-400">
-                Batch Print DPR — Week {String(week).padStart(2, "0")}, {year}
+                {title}
               </span>
               <span className="bg-emerald-950 text-emerald-300 border border-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full">
                 {totalReports} {totalReports === 1 ? "Report" : "Reports"} Found

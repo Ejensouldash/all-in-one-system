@@ -5,10 +5,17 @@ import { prisma } from "@/lib/prisma"
 import { getISOWeekDateRange } from "@/lib/analytics/isoWeek"
 import { DailyReportPrintView } from "@/components/forms/DailyReportPrintView"
 import { BatchPrintToolbar } from "@/components/forms/BatchPrintToolbar"
-import { AlertCircle, FileX } from "lucide-react"
+import { FileX } from "lucide-react"
 import Link from "next/link"
 
 export const runtime = "nodejs"
+
+function formatDateDMY(isoDate: string): string {
+  if (!isoDate) return "-"
+  const parts = isoDate.split("T")[0].split("-")
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`
+  return isoDate
+}
 
 export async function generateMetadata({
   searchParams,
@@ -16,6 +23,13 @@ export async function generateMetadata({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
   const params = await searchParams
+  const from = typeof params.from === "string" ? params.from : ""
+  const to = typeof params.to === "string" ? params.to : ""
+  if (from && to) {
+    return {
+      title: `Batch Print DPR — ${formatDateDMY(from)} to ${formatDateDMY(to)}`,
+    }
+  }
   const year = Number(params.year) || new Date().getFullYear()
   const week = Number(params.week) || 1
   return {
@@ -32,15 +46,43 @@ export default async function BatchPrintDailyReportsPage({
   if (!session) redirect("/login")
 
   const params = await searchParams
+  const from = typeof params.from === "string" ? params.from.trim() : ""
+  const to = typeof params.to === "string" ? params.to.trim() : ""
+  const isCustom = Boolean(from && to)
+
   const currentYear = new Date().getFullYear()
   const year = Number(params.year) || currentYear
   const week = Number(params.week) || 1
   const line = typeof params.line === "string" ? params.line : "ALL"
   const batchNo = typeof params.batchNo === "string" ? params.batchNo.trim() : ""
 
-  const range = getISOWeekDateRange(year, week)
-  const start = new Date(`${range.startDate}T00:00:00.000Z`)
-  const end = new Date(`${range.endDate}T23:59:59.999Z`)
+  let startDate: string
+  let endDate: string
+  let dateRangeStr: string
+  let toolbarTitle: string
+
+  if (isCustom) {
+    let cleanFrom = from
+    let cleanTo = to
+    if (cleanFrom > cleanTo) {
+      const temp = cleanFrom
+      cleanFrom = cleanTo
+      cleanTo = temp
+    }
+    startDate = cleanFrom
+    endDate = cleanTo
+    dateRangeStr = `${formatDateDMY(startDate)} - ${formatDateDMY(endDate)}`
+    toolbarTitle = `Batch Print DPR — ${dateRangeStr}`
+  } else {
+    const range = getISOWeekDateRange(year, week)
+    startDate = range.startDate
+    endDate = range.endDate
+    dateRangeStr = range.shortRange
+    toolbarTitle = `Batch Print DPR — Week ${String(week).padStart(2, "0")}, ${year}`
+  }
+
+  const start = new Date(`${startDate}T00:00:00.000Z`)
+  const end = new Date(`${endDate}T23:59:59.999Z`)
 
   const whereClause: any = {
     date: { gte: start, lte: end },
@@ -51,7 +93,7 @@ export default async function BatchPrintDailyReportsPage({
     whereClause.line = { contains: line, mode: "insensitive" }
   }
 
-  // Fetch reports for the week
+  // Fetch reports for the selected range
   let reports = await prisma.dailyReport.findMany({
     where: whereClause,
     include: {
@@ -80,7 +122,7 @@ export default async function BatchPrintDailyReportsPage({
     })
   }
 
-  // Fetch TransferIns within a 48h padding around the week to ensure accurate mapping
+  // Fetch TransferIns within a 48h padding around the range
   const startPadding = new Date(start.getTime() - 24 * 60 * 60 * 1000)
   const endPadding = new Date(end.getTime() + 24 * 60 * 60 * 1000)
 
@@ -124,9 +166,8 @@ export default async function BatchPrintDailyReportsPage({
 
       {/* Interactive Toolbar (hidden on print) */}
       <BatchPrintToolbar
-        year={year}
-        week={week}
-        dateRangeStr={range.shortRange}
+        title={toolbarTitle}
+        dateRangeStr={dateRangeStr}
         line={line}
         batchNo={batchNo}
         totalReports={reports.length}
@@ -141,7 +182,7 @@ export default async function BatchPrintDailyReportsPage({
               No Production Reports Found
             </h2>
             <p className="text-sm text-slate-600 mt-2 max-w-md mx-auto">
-              No Daily Production Reports matched Week {String(week).padStart(2, "0")}, {year} ({range.shortRange})
+              No Daily Production Reports matched {dateRangeStr}
               {line !== "ALL" ? ` for ${line}` : ""}.
             </p>
             <div className="mt-6 flex justify-center gap-3">

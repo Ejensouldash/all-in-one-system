@@ -5,12 +5,12 @@ import {
   FileSpreadsheet,
   Printer,
   Calendar,
-  Filter,
   X,
   Loader2,
   AlertCircle,
   CheckCircle2,
-  Sparkles,
+  CalendarDays,
+  Clock,
 } from "lucide-react"
 import { getISOWeeksForYear, getCurrentISOWeek } from "@/lib/analytics/isoWeek"
 
@@ -21,8 +21,24 @@ interface BatchTraceModalProps {
 
 export function BatchTraceModal({ isOpen, onClose }: BatchTraceModalProps) {
   const current = useMemo(() => getCurrentISOWeek(), [])
+  const todayStr = useMemo(() => new Date().toISOString().split("T")[0], [])
+
+  // Mode: "ISO_WEEK" or "CUSTOM"
+  const [dateMode, setDateMode] = useState<"ISO_WEEK" | "CUSTOM">("ISO_WEEK")
+
+  // ISO Week States
   const [selectedYear, setSelectedYear] = useState<number>(current.year)
   const [selectedWeek, setSelectedWeek] = useState<number>(current.week)
+
+  // Custom Date States
+  const [customFrom, setCustomFrom] = useState<string>(() => {
+    const d = new Date()
+    d.setDate(d.getDate() - 6)
+    return d.toISOString().split("T")[0]
+  })
+  const [customTo, setCustomTo] = useState<string>(todayStr)
+
+  // Common Filters
   const [selectedLine, setSelectedLine] = useState<string>("ALL")
   const [batchNoFilter, setBatchNoFilter] = useState<string>("")
 
@@ -75,6 +91,29 @@ export function BatchTraceModal({ isOpen, onClose }: BatchTraceModalProps) {
     }
   }
 
+  const handleApplyPreset = (preset: "TODAY" | "LAST_7" | "THIS_MONTH" | "LAST_30") => {
+    const now = new Date()
+    const today = now.toISOString().split("T")[0]
+    if (preset === "TODAY") {
+      setCustomFrom(today)
+      setCustomTo(today)
+    } else if (preset === "LAST_7") {
+      const d = new Date()
+      d.setDate(d.getDate() - 6)
+      setCustomFrom(d.toISOString().split("T")[0])
+      setCustomTo(today)
+    } else if (preset === "THIS_MONTH") {
+      const first = new Date(now.getFullYear(), now.getMonth(), 1)
+      setCustomFrom(first.toISOString().split("T")[0])
+      setCustomTo(today)
+    } else if (preset === "LAST_30") {
+      const d = new Date()
+      d.setDate(d.getDate() - 29)
+      setCustomFrom(d.toISOString().split("T")[0])
+      setCustomTo(today)
+    }
+  }
+
   const handleExportExcel = async () => {
     if (isExportingExcel) return
     setIsExportingExcel(true)
@@ -82,33 +121,50 @@ export function BatchTraceModal({ isOpen, onClose }: BatchTraceModalProps) {
     setSuccess(null)
 
     try {
+      const payload: any = {
+        dateMode,
+        line: selectedLine,
+        batchNo: batchNoFilter.trim(),
+      }
+
+      if (dateMode === "CUSTOM") {
+        if (!customFrom || !customTo) {
+          throw new Error("Please specify both From and To dates.")
+        }
+        payload.from = customFrom
+        payload.to = customTo
+      } else {
+        payload.year = selectedYear
+        payload.week = selectedWeek
+      }
+
       const res = await fetch("/api/analytics/traceability-export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          year: selectedYear,
-          week: selectedWeek,
-          line: selectedLine,
-          batchNo: batchNoFilter.trim(),
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (!res.ok) {
-        const payload = await res.json().catch(() => ({}))
-        throw new Error(payload.error || `Failed to export Excel (${res.status})`)
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || `Failed to export Excel (${res.status})`)
       }
 
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = `BubblesO2_Batch_Traceability_${selectedYear}_W${String(selectedWeek).padStart(2, "0")}.xlsx`
+      const fileName =
+        dateMode === "CUSTOM"
+          ? `BubblesO2_Batch_Traceability_${customFrom}_to_${customTo}.xlsx`
+          : `BubblesO2_Batch_Traceability_${selectedYear}_W${String(selectedWeek).padStart(2, "0")}.xlsx`
+
+      a.download = fileName
       document.body.appendChild(a)
       a.click()
       a.remove()
       URL.revokeObjectURL(url)
 
-      setSuccess("Batch Traceability Excel downloaded successfully.")
+      setSuccess("Batch Traceability Excel downloaded successfully (3 Sheets).")
       setTimeout(() => {
         onClose()
       }, 1500)
@@ -121,13 +177,21 @@ export function BatchTraceModal({ isOpen, onClose }: BatchTraceModalProps) {
 
   const handleBatchPrintPDF = () => {
     const params = new URLSearchParams({
-      year: String(selectedYear),
-      week: String(selectedWeek),
       line: selectedLine,
     })
+
+    if (dateMode === "CUSTOM") {
+      params.set("from", customFrom)
+      params.set("to", customTo)
+    } else {
+      params.set("year", String(selectedYear))
+      params.set("week", String(selectedWeek))
+    }
+
     if (batchNoFilter.trim()) {
       params.set("batchNo", batchNoFilter.trim())
     }
+
     window.open(`/forms/production/daily-report/batch-print?${params.toString()}`, "_blank")
     onClose()
   }
@@ -151,7 +215,7 @@ export function BatchTraceModal({ isOpen, onClose }: BatchTraceModalProps) {
                 Batch Traceability &amp; DPR Export
               </h2>
               <p className="text-[11px] text-emerald-200 font-medium">
-                Bottle-to-box traceability Excel &amp; batch print Daily Production Reports
+                Bottle-to-box Excel (3 Sheets) &amp; batch print Daily Production Reports
               </p>
             </div>
           </div>
@@ -165,8 +229,39 @@ export function BatchTraceModal({ isOpen, onClose }: BatchTraceModalProps) {
           </button>
         </div>
 
+        {/* Tab Switcher: ISO Week vs Custom Date */}
+        <div className="bg-slate-100 p-1.5 border-b border-slate-200 flex gap-1">
+          <button
+            type="button"
+            onClick={() => setDateMode("ISO_WEEK")}
+            disabled={isExportingExcel}
+            className={`flex-1 text-xs font-bold uppercase tracking-wider py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              dateMode === "ISO_WEEK"
+                ? "bg-white text-emerald-800 shadow-xs border border-slate-200"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5 text-emerald-600" />
+            <span>By ISO Week</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setDateMode("CUSTOM")}
+            disabled={isExportingExcel}
+            className={`flex-1 text-xs font-bold uppercase tracking-wider py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              dateMode === "CUSTOM"
+                ? "bg-white text-emerald-800 shadow-xs border border-slate-200"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <CalendarDays className="w-3.5 h-3.5 text-emerald-600" />
+            <span>By Custom Date</span>
+          </button>
+        </div>
+
         {/* Body Content */}
-        <div className="p-6 space-y-5 text-slate-800">
+        <div className="p-6 space-y-5 text-slate-800 max-h-[75vh] overflow-y-auto">
           {error && (
             <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold">
               <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
@@ -181,74 +276,134 @@ export function BatchTraceModal({ isOpen, onClose }: BatchTraceModalProps) {
             </div>
           )}
 
-          {/* Year and Quick Actions */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                Year
-              </label>
-              <select
-                value={selectedYear}
-                onChange={e => setSelectedYear(Number(e.target.value))}
-                disabled={isExportingExcel}
-                className="w-full text-xs font-bold bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                {[2024, 2025, 2026, 2027, 2028].map(y => (
-                  <option key={y} value={y}>
-                    {y} {y === current.year ? "(Current Year)" : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* 1. Date Selector based on mode */}
+          {dateMode === "ISO_WEEK" ? (
+            <div className="space-y-3">
+              {/* Year and Quick Actions */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    Year
+                  </label>
+                  <select
+                    value={selectedYear}
+                    onChange={e => setSelectedYear(Number(e.target.value))}
+                    disabled={isExportingExcel}
+                    className="w-full text-xs font-bold bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    {[2024, 2025, 2026, 2027, 2028].map(y => (
+                      <option key={y} value={y}>
+                        {y} {y === current.year ? "(Current Year)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleSelectThisWeek}
-                disabled={isExportingExcel}
-                className="flex-1 text-[11px] font-bold uppercase py-2 px-2.5 rounded-lg border border-slate-300 hover:bg-emerald-50 hover:border-emerald-500 hover:text-emerald-800 transition-colors text-center text-slate-700 cursor-pointer"
-              >
-                This Week
-              </button>
-              <button
-                type="button"
-                onClick={handleSelectLastWeek}
-                disabled={isExportingExcel}
-                className="flex-1 text-[11px] font-bold uppercase py-2 px-2.5 rounded-lg border border-slate-300 hover:bg-emerald-50 hover:border-emerald-500 hover:text-emerald-800 transition-colors text-center text-slate-700 cursor-pointer"
-              >
-                Last Week
-              </button>
-            </div>
-          </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSelectThisWeek}
+                    disabled={isExportingExcel}
+                    className="flex-1 text-[11px] font-bold uppercase py-2 px-2.5 rounded-lg border border-slate-300 hover:bg-emerald-50 hover:border-emerald-500 hover:text-emerald-800 transition-colors text-center text-slate-700 cursor-pointer"
+                  >
+                    This Week
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSelectLastWeek}
+                    disabled={isExportingExcel}
+                    className="flex-1 text-[11px] font-bold uppercase py-2 px-2.5 rounded-lg border border-slate-300 hover:bg-emerald-50 hover:border-emerald-500 hover:text-emerald-800 transition-colors text-center text-slate-700 cursor-pointer"
+                  >
+                    Last Week
+                  </button>
+                </div>
+              </div>
 
-          {/* ISO 8601 Week Selector */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-                <span>ISO 8601 Week</span>
-              </label>
-              {selectedWeekObj && (
-                <span className="text-[11px] font-semibold text-emerald-700">
-                  {selectedWeekObj.rangeLabel}
-                </span>
-              )}
+              {/* ISO 8601 Week Selector */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>ISO 8601 Week</span>
+                  </label>
+                  {selectedWeekObj && (
+                    <span className="text-[11px] font-semibold text-emerald-700">
+                      {selectedWeekObj.rangeLabel}
+                    </span>
+                  )}
+                </div>
+                <select
+                  value={selectedWeek}
+                  onChange={e => setSelectedWeek(Number(e.target.value))}
+                  disabled={isExportingExcel}
+                  className="w-full text-xs font-medium bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  {availableWeeks.map(w => (
+                    <option key={w.week} value={w.week}>
+                      {w.label} ({w.rangeLabel}) {w.isCurrent ? "★ This Week" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <select
-              value={selectedWeek}
-              onChange={e => setSelectedWeek(Number(e.target.value))}
-              disabled={isExportingExcel}
-              className="w-full text-xs font-medium bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              {availableWeeks.map(w => (
-                <option key={w.week} value={w.week}>
-                  {w.label} ({w.rangeLabel}) {w.isCurrent ? "★ This Week" : ""}
-                </option>
-              ))}
-            </select>
-          </div>
+          ) : (
+            <div className="space-y-3">
+              {/* Date From and Date To */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    From Date
+                  </label>
+                  <input
+                    type="date"
+                    value={customFrom}
+                    onChange={e => setCustomFrom(e.target.value)}
+                    disabled={isExportingExcel}
+                    className="w-full text-xs font-medium bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    To Date
+                  </label>
+                  <input
+                    type="date"
+                    value={customTo}
+                    onChange={e => setCustomTo(e.target.value)}
+                    disabled={isExportingExcel}
+                    className="w-full text-xs font-medium bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
 
-          {/* Production Line Selector */}
+              {/* Quick Presets */}
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  Quick Presets
+                </label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { id: "TODAY", label: "Today" },
+                    { id: "LAST_7", label: "Last 7D" },
+                    { id: "THIS_MONTH", label: "This Month" },
+                    { id: "LAST_30", label: "Last 30D" },
+                  ].map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => handleApplyPreset(p.id as any)}
+                      disabled={isExportingExcel}
+                      className="text-[10px] font-bold uppercase py-1.5 px-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-400 hover:text-emerald-800 transition-colors text-center text-slate-700 cursor-pointer"
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 2. Production Line Selector */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
               Production Line
@@ -276,7 +431,7 @@ export function BatchTraceModal({ isOpen, onClose }: BatchTraceModalProps) {
             </div>
           </div>
 
-          {/* Batch Number Search (Optional) */}
+          {/* 3. Batch Number Search (Optional) */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
               Batch Number Filter{" "}
@@ -324,7 +479,7 @@ export function BatchTraceModal({ isOpen, onClose }: BatchTraceModalProps) {
               type="button"
               onClick={handleBatchPrintPDF}
               disabled={isExportingExcel}
-              title="Open all Daily Production Reports for this week in a printable view with page breaks"
+              title="Open all Daily Production Reports for this date selection in a printable view with page breaks"
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-xs font-black uppercase tracking-wider rounded-lg shadow-sm transition-all cursor-pointer"
             >
               <Printer className="w-4 h-4 shrink-0" />

@@ -16,6 +16,8 @@ const nextConfig: NextConfig = {
         '192.168.0.188:3000',
         'bubbleso2-aio.vercel.app',
         '*.vercel.app',
+        '*.up.railway.app',
+        '*.railway.app',
       ],
     },
     optimizePackageImports: ['recharts', 'lucide-react', 'date-fns', 'framer-motion', 'exceljs'],

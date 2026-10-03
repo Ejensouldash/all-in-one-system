@@ -25,6 +25,8 @@ export interface BottleBoxTraceItem {
 export interface BottleBatchSummaryItem {
   bottleBatchNo: string
   machine: string // "BM1", "BM2", "BM1, BM2", or "-"
+  sku?: string
+  skuLabel?: string
   skus: string
   lines: string
   totalBags: number
@@ -96,6 +98,21 @@ const SKU_LABELS: Record<string, string> = {
   p800_12: "800 ML x 12",
   p425_24: "425 ML x 24",
   p425_6: "425 ML x 6",
+}
+
+const SKU_BOTTLE_PER_BOX: Record<string, number> = {
+  p800_20: 20,
+  p800_12: 12,
+  p425_24: 24,
+  p425_6: 6,
+}
+
+function getBottlesPerBox(sku: string, skuLabel?: string): number {
+  if (SKU_BOTTLE_PER_BOX[sku]) return SKU_BOTTLE_PER_BOX[sku]
+  const str = `${sku} ${skuLabel || ""}`
+  const match = str.match(/x\s*(\d+)/i)
+  if (match) return parseInt(match[1], 10)
+  return 1
 }
 
 function formatDateDMY(isoDate: string): string {
@@ -335,13 +352,40 @@ export async function getBottleToBoxTraceReport(
       )
     : rawRows
 
-  // 5. Generate Sheet 2 Aggregated Summaries by Bottle Batch
+  // 5. Generate Sheet 2 Aggregated Summaries by Bottle Batch & SKU
+  // Precompute output bottle ratio per SKU for proportional bottle allocation across multi-SKU shifts
+  const reportSkuRatioMap = new Map<string, number>()
+  for (const report of reports) {
+    let totalOutputBottles = 0
+    const skuBottlesMap = new Map<string, number>()
+
+    for (const prod of report.productions) {
+      const bpb = getBottlesPerBox(prod.productType, SKU_LABELS[prod.productType])
+      const bottles = (Number(prod.totalBox) || 0) * bpb
+      skuBottlesMap.set(prod.productType, (skuBottlesMap.get(prod.productType) || 0) + bottles)
+      totalOutputBottles += bottles
+    }
+
+    if (totalOutputBottles > 0) {
+      for (const [sku, bottles] of skuBottlesMap.entries()) {
+        reportSkuRatioMap.set(`${report.id}|${sku}`, bottles / totalOutputBottles)
+      }
+    } else {
+      const count = report.productions.length || 1
+      for (const prod of report.productions) {
+        reportSkuRatioMap.set(`${report.id}|${prod.productType}`, 1 / count)
+      }
+    }
+  }
+
+  // Key: `${row.bottleBatchNo}|${row.skuLabel}`
   const summaryMap = new Map<
     string,
     {
       bottleBatchNo: string
+      sku: string
+      skuLabel: string
       machinesSet: Set<string>
-      skusSet: Set<string>
       linesSet: Set<string>
       datesSet: Set<string>
       shiftReportsSet: Set<string>
@@ -351,19 +395,21 @@ export async function getBottleToBoxTraceReport(
   >()
 
   for (const row of detailedRows) {
-    let entry = summaryMap.get(row.bottleBatchNo)
+    const groupKey = `${row.bottleBatchNo}|${row.skuLabel}`
+    let entry = summaryMap.get(groupKey)
     if (!entry) {
       entry = {
         bottleBatchNo: row.bottleBatchNo,
+        sku: row.sku,
+        skuLabel: row.skuLabel,
         machinesSet: new Set(),
-        skusSet: new Set(),
         linesSet: new Set(),
         datesSet: new Set(),
         shiftReportsSet: new Set(),
         shiftBottleUsage: new Map(),
         boxBatchesMap: new Map(),
       }
-      summaryMap.set(row.bottleBatchNo, entry)
+      summaryMap.set(groupKey, entry)
     }
 
     // Determine machine: 425ML Bag 181 = BM1, 425ML Bag 162 = BM2
@@ -373,18 +419,19 @@ export async function getBottleToBoxTraceReport(
       entry.machinesSet.add("BM2")
     }
 
-    if (row.skuLabel && row.skuLabel !== "N/A") entry.skusSet.add(row.skuLabel)
     if (row.line) entry.linesSet.add(row.line)
     if (row.dateFormatted) entry.datesSet.add(row.dateFormatted)
     entry.shiftReportsSet.add(row.reportId)
 
     if (!entry.shiftBottleUsage.has(row.reportId)) {
+      const ratio = reportSkuRatioMap.get(`${row.reportId}|${row.sku}`) ?? 1
       entry.shiftBottleUsage.set(row.reportId, {
-        bags: row.bottleBags,
-        pcs: row.bottlePcs,
+        bags: row.bottleBags * ratio,
+        pcs: row.bottlePcs * ratio,
       })
     }
 
+    // Box batches specifically produced for this SKU
     if (row.boxBatchNo && row.boxBatchNo !== "N/A — No Batch") {
       const existing = entry.boxBatchesMap.get(row.boxBatchNo) || 0
       entry.boxBatchesMap.set(row.boxBatchNo, Math.max(existing, row.boxQty))
@@ -413,7 +460,9 @@ export async function getBottleToBoxTraceReport(
     return {
       bottleBatchNo: entry.bottleBatchNo,
       machine,
-      skus: Array.from(entry.skusSet).join(", ") || "-",
+      sku: entry.sku,
+      skuLabel: entry.skuLabel,
+      skus: entry.skuLabel,
       lines: Array.from(entry.linesSet).join(", ") || "-",
       totalBags: Math.round(totalBags * 100) / 100,
       totalPcs: Math.round(totalPcs),
@@ -422,6 +471,14 @@ export async function getBottleToBoxTraceReport(
       shiftCount: entry.shiftReportsSet.size,
       dates: Array.from(entry.datesSet).join(", ") || "-",
     }
+  })
+
+  // Sort summaries: primary by bottleBatchNo, secondary by skuLabel
+  summaries.sort((a, b) => {
+    if (a.bottleBatchNo !== b.bottleBatchNo) {
+      return a.bottleBatchNo.localeCompare(b.bottleBatchNo)
+    }
+    return (a.skuLabel || a.skus).localeCompare(b.skuLabel || b.skus)
   })
 
   // 6. Generate Sheet 3: Production & Distribution Groups (Gambar 2 format)

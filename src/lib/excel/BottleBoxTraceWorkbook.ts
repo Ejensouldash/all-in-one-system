@@ -256,14 +256,14 @@ export async function buildBottleBoxTraceWorkbook(
     pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   })
 
-  writeSheetHeader(ws2, "K", "BUBBLESO2 AGGREGATED SUMMARY BY BOTTLE BATCH", subText)
+  writeSheetHeader(ws2, "K", "BUBBLESO2 AGGREGATED SUMMARY BY BOTTLE BATCH & SKU", subText)
 
   const summaryHeaders = [
     "No.",
     "Bottle Batch No",
     "Machine",
-    "Products / SKUs Involved",
-    "Production Lines",
+    "Product / SKU",
+    "Production Line",
     "Total Bags Used",
     "Total Bottles Used (Pcs)",
     "Linked Box Batches (Output)",

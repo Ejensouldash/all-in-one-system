@@ -489,13 +489,24 @@ export async function getBottleToBoxTraceReport(
           batchNumber: { in: Array.from(boxBatchesSet) },
         },
         include: {
-          distributionOrder: true,
-        },
-        orderBy: {
-          distributionOrder: { distributionDate: "asc" },
+          distributionOrder: {
+            select: {
+              distributionDate: true,
+              destination: true,
+            },
+          },
         },
       })
     : []
+
+  // Sort DO items in memory by distributionDate
+  if (doItems.length > 0) {
+    doItems.sort((a, b) => {
+      const timeA = a.distributionOrder?.distributionDate ? new Date(a.distributionOrder.distributionDate).getTime() : 0
+      const timeB = b.distributionOrder?.distributionDate ? new Date(b.distributionOrder.distributionDate).getTime() : 0
+      return timeA - timeB
+    })
+  }
 
   // Group DO items by batchNumber
   const doByBatchMap = new Map<string, DistributionLineItem[]>()

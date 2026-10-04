@@ -22,6 +22,12 @@ export interface BottleBoxTraceItem {
   preparedBy: string
 }
 
+export interface LinkedBoxDetail {
+  batchNo: string
+  date: string
+  qty: number
+}
+
 export interface BottleBatchSummaryItem {
   bottleBatchNo: string
   machine: string // "BM1", "BM2", "BM1, BM2", or "-"
@@ -32,6 +38,7 @@ export interface BottleBatchSummaryItem {
   totalBags: number
   totalPcs: number
   linkedBoxBatches: string
+  linkedBoxes?: LinkedBoxDetail[]
   totalBoxesProduced: number
   shiftCount: number
   dates: string
@@ -390,7 +397,7 @@ export async function getBottleToBoxTraceReport(
       datesSet: Set<string>
       shiftReportsSet: Set<string>
       shiftBottleUsage: Map<string, { bags: number; pcs: number }>
-      boxBatchesMap: Map<string, number>
+      boxBatchesMap: Map<string, { qty: number; date: string }>
     }
   >()
 
@@ -433,8 +440,12 @@ export async function getBottleToBoxTraceReport(
 
     // Box batches specifically produced for this SKU
     if (row.boxBatchNo && row.boxBatchNo !== "N/A — No Batch") {
-      const existing = entry.boxBatchesMap.get(row.boxBatchNo) || 0
-      entry.boxBatchesMap.set(row.boxBatchNo, Math.max(existing, row.boxQty))
+      const existing = entry.boxBatchesMap.get(row.boxBatchNo)
+      const maxQty = existing ? Math.max(existing.qty, row.boxQty) : row.boxQty
+      entry.boxBatchesMap.set(row.boxBatchNo, {
+        qty: maxQty,
+        date: row.dateFormatted || "-",
+      })
     }
   }
 
@@ -448,10 +459,19 @@ export async function getBottleToBoxTraceReport(
 
     let totalBoxesProduced = 0
     const linkedBoxBatchesList: string[] = []
-    for (const [bNo, q] of entry.boxBatchesMap.entries()) {
-      totalBoxesProduced += q
-      linkedBoxBatchesList.push(`${bNo} (${q.toLocaleString()} boxes)`)
+    const linkedBoxes: LinkedBoxDetail[] = []
+    for (const [bNo, info] of entry.boxBatchesMap.entries()) {
+      totalBoxesProduced += info.qty
+      linkedBoxBatchesList.push(`${bNo} (${info.qty.toLocaleString()} boxes)`)
+      linkedBoxes.push({
+        batchNo: bNo,
+        date: info.date,
+        qty: info.qty,
+      })
     }
+
+    // Sort linked boxes by date, then batchNo
+    linkedBoxes.sort((a, b) => a.date.localeCompare(b.date) || a.batchNo.localeCompare(b.batchNo))
 
     const machine = entry.machinesSet.size > 0
       ? Array.from(entry.machinesSet).sort().join(", ")
@@ -467,6 +487,7 @@ export async function getBottleToBoxTraceReport(
       totalBags: Math.round(totalBags * 100) / 100,
       totalPcs: Math.round(totalPcs),
       linkedBoxBatches: linkedBoxBatchesList.join("; ") || "None",
+      linkedBoxes,
       totalBoxesProduced,
       shiftCount: entry.shiftReportsSet.size,
       dates: Array.from(entry.datesSet).join(", ") || "-",

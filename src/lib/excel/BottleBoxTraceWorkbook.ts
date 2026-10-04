@@ -249,31 +249,33 @@ export async function buildBottleBoxTraceWorkbook(
   autoFitColumns(ws1, 10, 36)
 
   // ===============================================================================================
-  // SHEET 2: Batch Summary (Aggregated by Bottle Batch)
+  // SHEET 2: Batch Summary (Aggregated by Bottle Batch & Finished Goods Box Level)
   // ===============================================================================================
   const ws2 = wb.addWorksheet("Batch Summary", {
     views: [{ state: "frozen", ySplit: 5 }],
     pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   })
 
-  writeSheetHeader(ws2, "K", "BUBBLESO2 AGGREGATED SUMMARY BY BOTTLE BATCH & SKU", subText)
+  writeSheetHeader(ws2, "M", "BUBBLESO2 BATCH TRACEABILITY REPORT — FG BOX LEVEL SUMMARY", subText)
 
   const summaryHeaders = [
     "No.",
-    "Bottle Batch No",
+    "Batch No Bottle",
     "Machine",
-    "Product / SKU",
-    "Production Line",
+    "Production Date",
+    "SKU",
+    "Batch Number FG",
+    "Quantity (box)",
     "Total Bags Used",
     "Total Bottles Used (Pcs)",
-    "Linked Box Batches (Output)",
-    "Total Boxes Produced",
-    "Shifts Involved",
-    "Production Dates",
+    "Batch No Preform 31.0G",
+    "Batch No Resin",
+    "Batch No Preform 18.5G",
+    "Batch No Resin",
   ]
 
   const sHeaderRow = ws2.getRow(5)
-  sHeaderRow.height = 26
+  sHeaderRow.height = 28
   summaryHeaders.forEach((h, idx) => {
     const cell = sHeaderRow.getCell(idx + 1)
     cell.value = h
@@ -282,87 +284,120 @@ export async function buildBottleBoxTraceWorkbook(
 
   let sRowIdx = 6
   report.summaries.forEach((s, idx) => {
-    const r = ws2.getRow(sRowIdx)
-    r.height = 22
+    const boxList = (s.linkedBoxes && s.linkedBoxes.length > 0)
+      ? s.linkedBoxes
+      : [{ batchNo: "-", date: s.dates ? s.dates.split(",")[0].trim() : "-", qty: 0 }]
 
-    r.getCell(1).value = idx + 1
-    r.getCell(2).value = s.bottleBatchNo
-    r.getCell(3).value = s.machine
-    r.getCell(4).value = s.skus
-    r.getCell(5).value = s.lines
-    r.getCell(6).value = s.totalBags
-    r.getCell(7).value = s.totalPcs
-    r.getCell(8).value = s.linkedBoxBatches
-    r.getCell(9).value = s.totalBoxesProduced
-    r.getCell(10).value = s.shiftCount
-    r.getCell(11).value = s.dates
-
-    r.getCell(1).alignment = { horizontal: "center", vertical: "middle" }
-    r.getCell(2).alignment = { horizontal: "center", vertical: "middle" }
-    r.getCell(2).font = { bold: true, color: { argb: "FF047857" } }
-    r.getCell(3).alignment = { horizontal: "center", vertical: "middle" }
-    r.getCell(3).font = { bold: true, color: { argb: "FF4338CA" } }
-    r.getCell(4).alignment = { horizontal: "left", vertical: "middle" }
-    r.getCell(5).alignment = { horizontal: "left", vertical: "middle" }
-    r.getCell(6).alignment = { horizontal: "right", vertical: "middle" }
-    r.getCell(6).numFmt = NUM_DEC
-    r.getCell(7).alignment = { horizontal: "right", vertical: "middle" }
-    r.getCell(7).numFmt = NUM
-    r.getCell(8).alignment = { horizontal: "left", vertical: "middle", wrapText: true }
-    r.getCell(9).alignment = { horizontal: "right", vertical: "middle" }
-    r.getCell(9).numFmt = NUM
-    r.getCell(9).font = { bold: true, color: { argb: "FF1D4ED8" } }
-    r.getCell(10).alignment = { horizontal: "center", vertical: "middle" }
-    r.getCell(11).alignment = { horizontal: "left", vertical: "middle" }
-
+    const startRow = sRowIdx
     const isEven = idx % 2 === 0
-    for (let c = 1; c <= 11; c++) {
-      const cell = r.getCell(c)
-      cell.border = allBorders
-      if (isEven) {
-        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ZEBRA } }
-      }
-    }
 
-    sRowIdx++
+    boxList.forEach((box, k) => {
+      const r = ws2.getRow(sRowIdx)
+      r.height = 22
+
+      if (k === 0) {
+        r.getCell(1).value = idx + 1
+        r.getCell(2).value = s.bottleBatchNo
+        r.getCell(3).value = s.machine
+        r.getCell(5).value = s.skuLabel || s.skus
+        r.getCell(8).value = s.totalBags
+        r.getCell(9).value = s.totalPcs
+        r.getCell(10).value = ""
+        r.getCell(11).value = ""
+        r.getCell(12).value = ""
+        r.getCell(13).value = ""
+      }
+
+      r.getCell(4).value = box.date
+      r.getCell(6).value = box.batchNo
+      r.getCell(7).value = box.qty
+
+      r.getCell(1).alignment = { horizontal: "center", vertical: "middle" }
+      r.getCell(2).alignment = { horizontal: "center", vertical: "middle" }
+      r.getCell(2).font = { bold: true, color: { argb: "FF047857" } }
+      r.getCell(3).alignment = { horizontal: "center", vertical: "middle" }
+      r.getCell(3).font = { bold: true, color: { argb: "FF4338CA" } }
+      r.getCell(4).alignment = { horizontal: "center", vertical: "middle" }
+      r.getCell(5).alignment = { horizontal: "center", vertical: "middle" }
+      r.getCell(6).alignment = { horizontal: "center", vertical: "middle" }
+      r.getCell(6).font = { bold: true }
+      r.getCell(7).alignment = { horizontal: "right", vertical: "middle" }
+      r.getCell(7).numFmt = NUM
+      r.getCell(7).font = { bold: true, color: { argb: "FF1D4ED8" } }
+      r.getCell(8).alignment = { horizontal: "right", vertical: "middle" }
+      r.getCell(8).numFmt = NUM_DEC
+      r.getCell(9).alignment = { horizontal: "right", vertical: "middle" }
+      r.getCell(9).numFmt = NUM
+      r.getCell(10).alignment = { horizontal: "center", vertical: "middle", wrapText: true }
+      r.getCell(11).alignment = { horizontal: "center", vertical: "middle", wrapText: true }
+      r.getCell(12).alignment = { horizontal: "center", vertical: "middle", wrapText: true }
+      r.getCell(13).alignment = { horizontal: "center", vertical: "middle", wrapText: true }
+
+      for (let c = 1; c <= 13; c++) {
+        const cell = r.getCell(c)
+        cell.border = allBorders
+        if (isEven) {
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ZEBRA } }
+        }
+      }
+
+      sRowIdx++
+    })
+
+    const endRow = sRowIdx - 1
+    if (boxList.length > 1) {
+      ws2.mergeCells(startRow, 1, endRow, 1)
+      ws2.mergeCells(startRow, 2, endRow, 2)
+      ws2.mergeCells(startRow, 3, endRow, 3)
+      ws2.mergeCells(startRow, 5, endRow, 5)
+      ws2.mergeCells(startRow, 8, endRow, 8)
+      ws2.mergeCells(startRow, 9, endRow, 9)
+      ws2.mergeCells(startRow, 10, endRow, 10)
+      ws2.mergeCells(startRow, 11, endRow, 11)
+      ws2.mergeCells(startRow, 12, endRow, 12)
+      ws2.mergeCells(startRow, 13, endRow, 13)
+    }
   })
 
   // Summary Sheet Total Row
   if (report.summaries.length > 0) {
     const sTotalRow = ws2.getRow(sRowIdx)
-    sTotalRow.height = 22
+    sTotalRow.height = 24
     sTotalRow.getCell(1).value = "TOTAL"
     sTotalRow.getCell(1).font = { bold: true }
     sTotalRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" }
 
-    ws2.mergeCells(`A${sRowIdx}:E${sRowIdx}`)
+    ws2.mergeCells(`A${sRowIdx}:F${sRowIdx}`)
 
-    const bagsCell = sTotalRow.getCell(6)
-    bagsCell.value = { formula: `SUBTOTAL(9, F6:F${sRowIdx - 1})` }
+    const boxesCell = sTotalRow.getCell(7)
+    boxesCell.value = { formula: `SUBTOTAL(9, G6:G${sRowIdx - 1})` }
+    boxesCell.numFmt = NUM
+    boxesCell.font = { bold: true, color: { argb: "FF1D4ED8" } }
+    boxesCell.alignment = { horizontal: "right", vertical: "middle" }
+
+    const bagsCell = sTotalRow.getCell(8)
+    bagsCell.value = { formula: `SUBTOTAL(9, H6:H${sRowIdx - 1})` }
     bagsCell.numFmt = NUM_DEC
     bagsCell.font = { bold: true }
     bagsCell.alignment = { horizontal: "right", vertical: "middle" }
 
-    const pcsCell = sTotalRow.getCell(7)
-    pcsCell.value = { formula: `SUBTOTAL(9, G6:G${sRowIdx - 1})` }
+    const pcsCell = sTotalRow.getCell(9)
+    pcsCell.value = { formula: `SUBTOTAL(9, I6:I${sRowIdx - 1})` }
     pcsCell.numFmt = NUM
     pcsCell.font = { bold: true }
     pcsCell.alignment = { horizontal: "right", vertical: "middle" }
 
-    const boxesCell = sTotalRow.getCell(9)
-    boxesCell.value = { formula: `SUBTOTAL(9, I6:I${sRowIdx - 1})` }
-    boxesCell.numFmt = NUM
-    boxesCell.font = { bold: true }
-    boxesCell.alignment = { horizontal: "right", vertical: "middle" }
-
-    for (let c = 1; c <= 11; c++) {
+    for (let c = 1; c <= 13; c++) {
       const cell = sTotalRow.getCell(c)
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: TOTAL_BG } }
       cell.border = totalBorders
     }
   }
 
-  autoFitColumns(ws2, 12, 45)
+  const colWidthsSheet2 = [8, 16, 12, 16, 16, 18, 16, 16, 22, 22, 22, 22, 22]
+  colWidthsSheet2.forEach((w, idx) => {
+    ws2.getColumn(idx + 1).width = w
+  })
 
   // ===============================================================================================
   // SHEET 3: Production & Distribution (Gambar 2 format)

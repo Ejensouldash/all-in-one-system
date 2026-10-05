@@ -693,17 +693,55 @@ export function MaintenanceWorkspace({
               Record inventory spare parts used, labor hours, and contractor billing.
             </p>
           </div>
-          {!isClosed && (
-            <button
-              type="button"
-              onClick={handleAddCostRow}
-              className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link
+              href={`/forms/maintenance/purchase-requests?create=true&ticketId=${ticket.id}`}
+              className="px-3.5 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+              title="Raise Purchase Requisition for new parts or external contractor"
             >
-              <Plus className="h-3.5 w-3.5" />
-              <span>Add Cost Item</span>
-            </button>
-          )}
+              <FileText className="h-3.5 w-3.5" />
+              <span>Raise PR</span>
+            </Link>
+            {!isClosed && (
+              <button
+                type="button"
+                onClick={handleAddCostRow}
+                className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Add Cost Item</span>
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Linked PRs Banner if any */}
+        {ticket.purchaseRequests && ticket.purchaseRequests.length > 0 && (
+          <div className="p-3 bg-blue-50/70 rounded-2xl border border-blue-200/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-blue-900">Linked Purchase Requests:</span>
+              <div className="flex flex-wrap gap-1.5">
+                {ticket.purchaseRequests.map((pr: any) => (
+                  <Link
+                    key={pr.id}
+                    href={`/forms/maintenance/purchase-requests?search=${pr.prNumber}`}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-blue-100 rounded-lg border border-blue-300 text-blue-800 font-bold transition-colors"
+                  >
+                    <span>{pr.prNumber}</span>
+                    <span className="text-[10px] font-semibold text-slate-500">({pr.status})</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <Link
+              href="/forms/maintenance/purchase-requests"
+              className="text-blue-700 hover:underline font-bold text-[11px] flex items-center gap-1"
+            >
+              <span>View PR Ledger</span>
+              <ExternalLink className="w-3 h-3" />
+            </Link>
+          </div>
+        )}
 
         {/* Cost Table */}
         <div className="border border-slate-200 rounded-2xl overflow-hidden">

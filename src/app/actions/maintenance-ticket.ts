@@ -991,6 +991,9 @@ export async function getMaintenanceWorkspaceData(ticketId: string) {
       activityLogs: {
         orderBy: { createdAt: "desc" },
       },
+      purchaseRequests: {
+        orderBy: { createdAt: "desc" },
+      },
     },
   })
 

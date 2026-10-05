@@ -334,6 +334,7 @@ model MaintenanceTicket {
   costs           MaintenanceTicketCost[]
   photos          MaintenanceTicketPhoto[]
   activityLogs    MaintenanceActivityLog[]
+  purchaseRequests MaintenancePurchaseRequest[]
 
   @@index([status])
   @@index([ticketType])
@@ -1349,6 +1350,7 @@ model MaintenanceCleaning {
 model MaintenanceItem {
   id           String                @id @default(uuid())
   name         String
+  brand        String?
   location     String                @default("Pedas")
   quantity     Int                   @default(0)
   unit         String                @default("pcs")
@@ -1358,6 +1360,7 @@ model MaintenanceItem {
   createdAt    DateTime              @default(now())
   updatedAt    DateTime              @updatedAt
   logs         MaintenanceStockLog[]
+  prItems      MaintenancePurchaseRequestItem[]
 
   @@unique([name, location])
 }
@@ -1374,6 +1377,86 @@ model MaintenanceStockLog {
   handledBy    String
   remarks      String?
   createdAt    DateTime        @default(now())
+}
+
+model MaintenancePurchaseRequest {
+  id                    String                           @id @default(uuid())
+  prNumber              String                           @unique // PR-YYYY-XXXX
+  company               String                           @default("BUBBLES O2 SDN BHD")
+  department            String                           @default("MAINTENANCE / ENGINEERING")
+  dateRequired          DateTime
+  status                String                           @default("PENDING_APPROVAL") // PENDING_APPROVAL, APPROVED, REJECTED, ORDERED, RECEIVED, DAMAGED_OR_WRONG_ITEM, CANCELLED
+  ticketId              String?
+  ticket                MaintenanceTicket?               @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  
+  // Box 1: Requester Details & Signature
+  requesterName         String
+  requesterDepartment   String                           @default("MAINTENANCE")
+  requesterSignature    String?                          @db.Text
+  requesterSignedAt     DateTime?                        @default(now())
+  
+  // Box 2: Approval Details & Signature
+  approvedByName        String?
+  approverDepartment    String?
+  approverSignature     String?                          @db.Text
+  approvedAt            DateTime?
+  approvalRemarks       String?
+  
+  // Delivery Tracking (Requirement 1 & 2)
+  estimatedDeliveryDate DateTime?
+  deliveryRemarks       String?                          @db.Text
+  deliveryUpdatedByName String?
+  deliveryUpdatedAt     DateTime?
+  
+  // Box 3: Receiving Details & Photo Proof (Requirement 8 & 9)
+  receivedByName        String?
+  receiverDepartment    String?
+  receiverSignature     String?                          @db.Text
+  receivedAt            DateTime?
+  receivedPhotoUrl      String?
+  
+  // Damage / Discrepancy Reporting
+  damageReportReason    String?                          @db.Text
+  damageReportPhotoUrl  String?
+  damageReportedByName  String?
+  damageReportedAt      DateTime?
+  
+  createdAt             DateTime                         @default(now())
+  updatedAt             DateTime                         @updatedAt
+
+  items                 MaintenancePurchaseRequestItem[]
+  activityLogs          MaintenancePurchaseRequestLog[]
+
+  @@index([status])
+  @@index([prNumber])
+  @@index([ticketId])
+}
+
+model MaintenancePurchaseRequestItem {
+  id              String                     @id @default(uuid())
+  prId            String
+  pr              MaintenancePurchaseRequest @relation(fields: [prId], references: [id], onDelete: Cascade)
+  itemId          String?
+  item            MaintenanceItem?           @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  itemRequested   String
+  brand           String?
+  stockBalance    Int                        @default(0)
+  quantityRequest Int
+  projectMachine  String
+
+  @@index([prId])
+}
+
+model MaintenancePurchaseRequestLog {
+  id        String                     @id @default(uuid())
+  prId      String
+  pr        MaintenancePurchaseRequest @relation(fields: [prId], references: [id], onDelete: Cascade)
+  action    String                     // CREATED, APPROVED, REJECTED, ETA_UPDATED, RECEIVED, DAMAGE_REPORTED, EDITED
+  actorName String
+  details   String                     @db.Text
+  createdAt DateTime                   @default(now())
+
+  @@index([prId])
 }
 
 model MaintenanceEquipmentRecord {

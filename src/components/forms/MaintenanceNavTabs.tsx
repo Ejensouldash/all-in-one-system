@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Wrench, ClipboardList, PackageOpen, Bell } from "lucide-react"
+import { Wrench, ClipboardList, PackageOpen, Bell, FileText } from "lucide-react"
 
 export function MaintenanceNavTabs({ 
   userModules = [],
@@ -15,7 +15,8 @@ export function MaintenanceNavTabs({
 
   const isNotifications = pathname.startsWith("/forms/maintenance/tickets/notifications")
   const isRequests = pathname.startsWith("/forms/maintenance/tickets/service-requests")
-  const isTickets = pathname.startsWith("/forms/maintenance/tickets") && !isNotifications && !isRequests
+  const isPurchaseRequests = pathname.startsWith("/forms/maintenance/purchase-requests")
+  const isTickets = pathname.startsWith("/forms/maintenance/tickets") && !isNotifications && !isRequests && !isPurchaseRequests
   const isDashboard = pathname.startsWith("/forms/maintenance/dashboard")
 
   // 1st tier: Can manage work orders, assign PIC, track KPI & costing
@@ -36,6 +37,8 @@ export function MaintenanceNavTabs({
     userModules.includes("MAINTENANCE_DASHBOARD") ||
     userModules.includes("MAINTENANCE_FORMS") ||
     userModules.includes("MAINTENANCE_TICKETS_MANAGE")
+
+  const hasPurchaseRequests = hasDashboard || canManage || userModules.includes("MAINTENANCE_PR_APPROVE")
 
   const hasNotifications = canManage
 
@@ -87,7 +90,22 @@ export function MaintenanceNavTabs({
           </Link>
         )}
 
-        {/* Tab 4: Email Alerts (Management) */}
+        {/* Tab 4: Purchase Requisition */}
+        {hasPurchaseRequests && (
+          <Link 
+            href="/forms/maintenance/purchase-requests"
+            className={`flex items-center pb-4 text-sm font-black uppercase tracking-wider border-b-4 transition-colors ${
+              isPurchaseRequests
+                ? "border-blue-700 text-blue-700" 
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            <FileText className="w-5 h-5 mr-2" />
+            Purchase Requisition
+          </Link>
+        )}
+
+        {/* Tab 5: Email Alerts (Management) */}
         {hasNotifications && (
           <Link 
             href="/forms/maintenance/tickets/notifications"

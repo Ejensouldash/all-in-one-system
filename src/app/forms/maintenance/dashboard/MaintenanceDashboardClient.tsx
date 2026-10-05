@@ -5,20 +5,22 @@ import { MaintenanceNavTabs } from "@/components/forms/MaintenanceNavTabs"
 import { 
   Plus, Minus, FileText, Search, PackageOpen, AlertCircle, 
   Trash2, ArrowUpDown, RefreshCw, X, Calendar, Printer, User, MessageSquare,
-  Image as ImageIcon, Upload, Tag
+  Image as ImageIcon, Upload, Tag, Pencil
 } from "lucide-react"
 import { 
   addMaintenanceStock, 
   withdrawMaintenanceStock, 
   deleteMaintenanceItem, 
   getMaintenanceStockReport,
-  uploadMaintenanceItemPhotoAction
+  uploadMaintenanceItemPhotoAction,
+  editMaintenanceItemMaster
 } from "@/app/actions/maintenance-inventory"
 import { MaintenanceItemDetailModal, InventoryItem } from "@/components/forms/maintenance/MaintenanceItemDetailModal"
 
 type Item = {
   id: string
   name: string
+  brand?: string | null
   location: string
   department?: string | null
   quantity: number
@@ -63,6 +65,7 @@ export function MaintenanceDashboardClient({
   userModules = [],
   isSuperAdmin = false,
 }: Props) {
+  const canEditItem = isSuperAdmin || userModules.includes("MAINTENANCE_INVENTORY_EDIT")
   const [items, setItems] = useState<Item[]>(initialItems)
   const [logs, setLogs] = useState<StockLog[]>(initialLogs as any)
   const [searchTerm, setSearchTerm] = useState("")
@@ -73,6 +76,7 @@ export function MaintenanceDashboardClient({
   const [isNewItem, setIsNewItem] = useState(false)
   const [selectedAddItemId, setSelectedAddItemId] = useState("")
   const [newItemName, setNewItemName] = useState("")
+  const [addBrand, setAddBrand] = useState("")
   const [addQty, setAddQty] = useState(1)
   const [addTotalPrice, setAddTotalPrice] = useState("")
   const [addPhotoFile, setAddPhotoFile] = useState<File | null>(null)
@@ -82,6 +86,16 @@ export function MaintenanceDashboardClient({
   const [addDepartment, setAddDepartment] = useState("BOS")
   const [addHandledBy, setAddHandledBy] = useState(userName)
   const [addRemarks, setAddRemarks] = useState("")
+
+  // Edit Item Master Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editingItem, setEditingItem] = useState<Item | null>(null)
+  const [editName, setEditName] = useState("")
+  const [editBrand, setEditBrand] = useState("")
+  const [editLocation, setEditLocation] = useState("Pedas")
+  const [editUnit, setEditUnit] = useState("pcs")
+  const [editDepartment, setEditDepartment] = useState("BOS")
+  const [editSubmitting, setEditSubmitting] = useState(false)
   
   // Withdraw Stock Modal State
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false)
@@ -179,12 +193,13 @@ export function MaintenanceDashboardClient({
 
     const payload = {
       itemId: isNewItem ? null : selectedAddItemId,
-      name: isNewItem ? newItemName : "",
+      name: isNewItem ? newItemName.trim().toUpperCase() : "",
+      brand: isNewItem ? (addBrand.trim().toUpperCase() || null) : undefined,
       quantity: qtyNum,
       totalPrice: priceNum,
       unit: isNewItem ? addUnit : "",
       handledBy: addHandledBy,
-      remarks: addRemarks,
+      remarks: addRemarks.trim().toUpperCase(),
       location: isNewItem ? addLocation : undefined,
       department: addDepartment,
       imageUrl: uploadedImageUrl
@@ -199,6 +214,55 @@ export function MaintenanceDashboardClient({
       setErrorMsg(res.error || "Failed to add stock.")
     }
     setSubmitting(false)
+  }
+
+  // Handle Edit Master Details
+  const handleOpenEditModal = (item: Item) => {
+    setEditingItem(item)
+    setEditName(item.name)
+    setEditBrand(item.brand || "")
+    setEditLocation(item.location || "Pedas")
+    setEditUnit(item.unit || "pcs")
+    setEditDepartment(item.department || "BOS")
+    setIsEditModalOpen(true)
+  }
+
+  const handleSaveEditMaster = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingItem) return
+    setEditSubmitting(true)
+    setErrorMsg("")
+
+    const res = await editMaintenanceItemMaster(editingItem.id, {
+      name: editName.trim().toUpperCase(),
+      brand: editBrand.trim().toUpperCase() || null,
+      location: editLocation,
+      unit: editUnit.toLowerCase(),
+      department: editDepartment.toUpperCase(),
+    })
+
+    if (res.success && res.data) {
+      triggerMessage("success", `Item master details updated successfully!`)
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === editingItem.id
+            ? {
+                ...i,
+                name: res.data!.name,
+                brand: res.data!.brand,
+                location: res.data!.location,
+                unit: res.data!.unit,
+                department: res.data!.department,
+              }
+            : i
+        )
+      )
+      setIsEditModalOpen(false)
+      setEditingItem(null)
+    } else {
+      setErrorMsg(res.error || "Failed to update item master details.")
+    }
+    setEditSubmitting(false)
   }
 
   // Handle Withdraw Stock (OUT)
@@ -224,7 +288,7 @@ export function MaintenanceDashboardClient({
       itemId: selectedWithdrawItemId,
       quantity: Number(withdrawQty),
       handledBy: withdrawHandledBy,
-      remarks: withdrawRemarks
+      remarks: withdrawRemarks.trim().toUpperCase()
     })
 
     if (res.success) {
@@ -658,6 +722,7 @@ export function MaintenanceDashboardClient({
                 <thead className="bg-gray-50 border-b border-gray-100 text-xs font-black uppercase tracking-wider text-gray-500 sticky top-0 z-10 shadow-xs">
                   <tr>
                     <th className="px-6 py-3.5">Item Name</th>
+                    <th className="px-6 py-3.5 text-center">Brand</th>
                     <th className="px-6 py-3.5 text-center">Department</th>
                     <th className="px-6 py-3.5">Location</th>
                     <th className="px-6 py-3.5 text-right">Current Stock</th>
@@ -670,7 +735,7 @@ export function MaintenanceDashboardClient({
                 <tbody className="divide-y divide-gray-100 font-medium">
                   {filteredItems.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-10 text-center text-gray-500 font-medium bg-gray-50/20">
+                      <td colSpan={9} className="px-6 py-10 text-center text-gray-500 font-medium bg-gray-50/20">
                         No inventory items found. Add stock to register items.
                       </td>
                     </tr>
@@ -697,6 +762,15 @@ export function MaintenanceDashboardClient({
                             </div>
                           )}
                           <span className="group-hover:text-blue-700 transition-colors">{item.name}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          {item.brand ? (
+                            <span className="px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+                              {item.brand}
+                            </span>
+                          ) : (
+                            <span className="text-gray-300 text-xs font-bold">—</span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
@@ -727,16 +801,30 @@ export function MaintenanceDashboardClient({
                           {new Date(item.updatedAt).toLocaleString("en-GB")}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleDeleteItem(item.id, item.name)
-                            }}
-                            className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                            title="Delete Item"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center justify-center gap-1">
+                            {canEditItem && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleOpenEditModal(item)
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                                title="Edit Item Master Details"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteItem(item.id, item.name)
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                              title="Delete Item"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -776,15 +864,27 @@ export function MaintenanceDashboardClient({
 
                 {isNewItem ? (
                   <>
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Item Name</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. LED Light Bulb 12W"
-                        value={newItemName}
-                        onChange={(e) => setNewItemName(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold outline-none focus:border-blue-500"
-                      />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Item Name *</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. LED LIGHT BULB 12W"
+                          value={newItemName}
+                          onChange={(e) => setNewItemName(e.target.value.toUpperCase())}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold uppercase outline-none focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Brand / Manufacturer</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. PHILIPS, SCHNEIDER"
+                          value={addBrand}
+                          onChange={(e) => setAddBrand(e.target.value.toUpperCase())}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold uppercase outline-none focus:border-blue-500"
+                        />
+                      </div>
                     </div>
                     <div className="grid grid-cols-3 gap-3">
                       <div>
@@ -1076,6 +1176,11 @@ export function MaintenanceDashboardClient({
             setSelectedDetailItem(null)
           }}
           item={selectedDetailItem}
+          canEditMaster={canEditItem}
+          onOpenEditMaster={(item) => {
+            setIsDetailModalOpen(false)
+            handleOpenEditModal(item as any)
+          }}
           onOpenAddStock={(item) => {
             setIsDetailModalOpen(false)
             setIsNewItem(false)
@@ -1097,9 +1202,13 @@ export function MaintenanceDashboardClient({
                 i.id === updated.id
                   ? {
                       ...i,
+                      name: updated.name,
+                      brand: updated.brand,
                       imageUrl: updated.imageUrl,
                       pricePerUnit: updated.pricePerUnit,
                       department: updated.department,
+                      location: updated.location,
+                      unit: updated.unit,
                     }
                   : i
               )
@@ -1107,6 +1216,138 @@ export function MaintenanceDashboardClient({
             setSelectedDetailItem((prev) => (prev ? { ...prev, ...updated } : null))
           }}
         />
+
+        {/* Edit Item Master Details Modal */}
+        {isEditModalOpen && editingItem && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200">
+              <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Pencil className="w-5 h-5 text-blue-400" />
+                  <h3 className="font-black uppercase tracking-wider text-sm">
+                    Edit Master Item Details
+                  </h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setIsEditModalOpen(false)
+                    setEditingItem(null)
+                  }}
+                  className="text-white/70 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEditMaster} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                    Item Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value.toUpperCase())}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold uppercase outline-none focus:border-blue-500"
+                    placeholder="e.g. MOTOR BEARING 6204-2Z"
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Standardized in capital letters. Rename carefully as it affects inventory records.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                    Brand / Manufacturer
+                  </label>
+                  <input
+                    type="text"
+                    value={editBrand}
+                    onChange={(e) => setEditBrand(e.target.value.toUpperCase())}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold uppercase outline-none focus:border-blue-500"
+                    placeholder="e.g. SKF, NSK, SCHNEIDER, MITSUBISHI"
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Dedicated brand slot for spare parts specification.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                      Unit
+                    </label>
+                    <select
+                      value={editUnit}
+                      onChange={(e) => setEditUnit(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold outline-none focus:border-blue-500"
+                    >
+                      <option value="pcs">pcs</option>
+                      <option value="set">set</option>
+                      <option value="pack">pack</option>
+                      <option value="bottle">bottle</option>
+                      <option value="kg">kg</option>
+                      <option value="litre">litre</option>
+                      <option value="roll">roll</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                      Location
+                    </label>
+                    <select
+                      value={editLocation}
+                      onChange={(e) => setEditLocation(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold outline-none focus:border-blue-500"
+                    >
+                      <option value="Pedas">Pedas</option>
+                      <option value="Rantau">Rantau</option>
+                      <option value="Gambang">Gambang</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                      Department
+                    </label>
+                    <select
+                      value={editDepartment}
+                      onChange={(e) => setEditDepartment(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold outline-none focus:border-blue-500"
+                    >
+                      <option value="BOS">BOS</option>
+                      <option value="BOM">BOM</option>
+                      <option value="NRHO">NRHO</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-3 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditModalOpen(false)
+                      setEditingItem(null)
+                    }}
+                    className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-xs font-black uppercase tracking-wider transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editSubmitting}
+                    className="flex-1 px-4 py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    {editSubmitting && <RefreshCw className="w-4 h-4 animate-spin" />}
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

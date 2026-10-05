@@ -2,6 +2,8 @@
 
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { auth } from "@/auth"
+import { getAccessInfo, hasAnyModule } from "@/lib/access"
 import { logUserAction } from "./audit"
 import { uploadMaintenanceItemPhoto } from "@/lib/maintenance-r2"
 
@@ -20,6 +22,7 @@ export async function getMaintenanceItems() {
 export async function addMaintenanceStock(data: {
   itemId: string | null
   name: string
+  brand?: string | null
   quantity: number
   totalPrice: number
   unit: string
@@ -39,20 +42,24 @@ export async function addMaintenanceStock(data: {
     }
 
     const calculatedUnitPrice = Number((data.totalPrice / data.quantity).toFixed(4))
-    const departmentVal = data.department || "BOS"
+    const departmentVal = (data.department || "BOS").trim().toUpperCase()
+    const brandUpper = data.brand?.trim().toUpperCase() || null
 
     const result = await prisma.$transaction(async (tx) => {
       let item;
       let isNew = false;
 
       if (data.itemId) {
-        // Increment existing item and update unit price (and image/department if provided)
+        // Increment existing item and update unit price (and image/department/brand if provided)
         const updateData: any = {
           quantity: { increment: data.quantity },
           pricePerUnit: calculatedUnitPrice,
         }
         if (data.department) {
-          updateData.department = data.department
+          updateData.department = departmentVal
+        }
+        if (brandUpper) {
+          updateData.brand = brandUpper
         }
         if (data.imageUrl) {
           updateData.imageUrl = data.imageUrl
@@ -63,8 +70,8 @@ export async function addMaintenanceStock(data: {
           data: updateData
         })
       } else {
-        // Create new item (check uniqueness first)
-        const normalizedName = data.name.trim()
+        // Create new item (check uniqueness first) - standardizing to UPPERCASE
+        const normalizedName = data.name.trim().toUpperCase()
         const locationVal = data.location || "Pedas"
         const existing = await tx.maintenanceItem.findUnique({
           where: {
@@ -82,6 +89,7 @@ export async function addMaintenanceStock(data: {
         item = await tx.maintenanceItem.create({
           data: {
             name: normalizedName,
+            brand: brandUpper,
             location: locationVal,
             department: departmentVal,
             quantity: data.quantity,
@@ -333,6 +341,84 @@ export async function uploadMaintenanceItemPhotoAction(formData: FormData) {
   } catch (error: any) {
     console.error("Failed to upload item photo:", error)
     return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Edit item master details (Name, Brand, Location, Unit, Department).
+ * Restricted to SuperAdmin or users with MAINTENANCE_INVENTORY_EDIT module.
+ * Auto-capitalizes all text fields (Requirement 5, 6, 7).
+ */
+export async function editMaintenanceItemMaster(
+  itemId: string,
+  data: {
+    name: string
+    brand?: string | null
+    location?: string
+    unit?: string
+    department?: string
+  }
+) {
+  const session = await auth()
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" }
+
+  const access = await getAccessInfo()
+  if (!access || (!access.isSuperAdmin && !hasAnyModule(access, ["MAINTENANCE_INVENTORY_EDIT"]))) {
+    return { success: false, error: "Unauthorized. Permission MAINTENANCE_INVENTORY_EDIT required to rename or edit master items." }
+  }
+
+  const nameUpper = data.name.trim().toUpperCase()
+  if (!nameUpper) return { success: false, error: "Item name cannot be empty." }
+
+  const locationVal = (data.location || "Pedas").trim()
+  const brandUpper = data.brand?.trim().toUpperCase() || null
+  const unitVal = (data.unit || "pcs").trim().toLowerCase()
+  const deptUpper = (data.department || "BOS").trim().toUpperCase()
+
+  try {
+    const existing = await prisma.maintenanceItem.findUnique({
+      where: { id: itemId }
+    })
+
+    if (!existing) return { success: false, error: "Item not found." }
+
+    // Check unique constraint if name or location is changing
+    if (existing.name !== nameUpper || existing.location !== locationVal) {
+      const duplicate = await prisma.maintenanceItem.findUnique({
+        where: {
+          name_location: {
+            name: nameUpper,
+            location: locationVal,
+          }
+        }
+      })
+      if (duplicate && duplicate.id !== itemId) {
+        return { success: false, error: `An item named "${nameUpper}" already exists in location "${locationVal}".` }
+      }
+    }
+
+    const updated = await prisma.maintenanceItem.update({
+      where: { id: itemId },
+      data: {
+        name: nameUpper,
+        brand: brandUpper,
+        location: locationVal,
+        unit: unitVal,
+        department: deptUpper,
+      }
+    })
+
+    revalidatePath("/forms/maintenance/dashboard")
+
+    await logUserAction(
+      "Edited Maintenance Item Master",
+      `Renamed/updated item ID ${itemId}: previous "${existing.name}" -> "${nameUpper}" (Brand: ${brandUpper || "-"}). Handled by: ${session.user.name || access.name}.`
+    )
+
+    return { success: true, data: updated }
+  } catch (error: any) {
+    console.error("editMaintenanceItemMaster error:", error)
+    return { success: false, error: error.message || "Failed to update item master details." }
   }
 }
 

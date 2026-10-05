@@ -79,6 +79,8 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "MAINTENANCE_SUMMARY", name: "Maintenance Summary", description: "Access to view, edit, delete, and sign all submitted maintenance checklists.", icon: FileSpreadsheet },
       { id: "RETENTION_SAMPLE_MANAGE", name: "Retention Sample Management", description: "Access to edit, correct, and void retention sample records (SGMP/21/RSR) with GMP audit trail.", icon: BookmarkCheck },
       { id: "MAINTENANCE_TICKETS_MANAGE", name: "FMS Work Requests & Management", description: "Access to manage, assign PIC, update status, and track KPI for facilities work requests (BOSB-FMS-850-001-QR01).", icon: Wrench },
+      { id: "MAINTENANCE_PR_APPROVE", name: "Purchase Requisition Approval", description: "Authority to review, approve, or reject FMS Purchase Requisitions (BOSB-PR).", icon: CheckCircle2 },
+      { id: "MAINTENANCE_INVENTORY_EDIT", name: "FMS Inventory Master Edit", description: "Authority to edit, rename, or update master item names and brand details in FMS Inventory.", icon: FilePenLine },
     ],
   },
   {

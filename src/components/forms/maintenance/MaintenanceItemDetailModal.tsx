@@ -5,13 +5,14 @@ import {
   X, Upload, Image as ImageIcon, ZoomIn, Package,
   ArrowDownRight, ArrowUpRight, Calendar, User,
   Clock, FileText, AlertCircle, RefreshCw, Plus, Minus, Tag,
-  CheckCircle2, DollarSign
+  CheckCircle2, DollarSign, Pencil
 } from "lucide-react"
 import { getMaintenanceItemHistory, updateMaintenanceItemImage } from "@/app/actions/maintenance-inventory"
 
 export type InventoryItem = {
   id: string
   name: string
+  brand?: string | null
   location: string
   department?: string | null
   quantity: number
@@ -29,6 +30,8 @@ type Props = {
   onOpenAddStock?: (item: InventoryItem) => void
   onOpenWithdrawStock?: (item: InventoryItem) => void
   onItemUpdated?: (updated: InventoryItem) => void
+  onOpenEditMaster?: (item: InventoryItem) => void
+  canEditMaster?: boolean
 }
 
 export function MaintenanceItemDetailModal({
@@ -38,6 +41,8 @@ export function MaintenanceItemDetailModal({
   onOpenAddStock,
   onOpenWithdrawStock,
   onItemUpdated,
+  onOpenEditMaster,
+  canEditMaster = false,
 }: Props) {
   const [logs, setLogs] = useState<any[]>([])
   const [loadingLogs, setLoadingLogs] = useState(false)
@@ -124,6 +129,11 @@ export function MaintenanceItemDetailModal({
                 <h3 className="text-lg sm:text-xl font-black uppercase tracking-tight truncate">
                   {item.name}
                 </h3>
+                {item.brand && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wide bg-indigo-500/20 border border-indigo-400/30 text-indigo-200">
+                    BRAND: {item.brand}
+                  </span>
+                )}
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wide border ${
                   (item.department || "BOS") === "NRHO"
                     ? "bg-purple-500/20 border-purple-400/30 text-purple-200"
@@ -255,9 +265,14 @@ export function MaintenanceItemDetailModal({
                     <span className="text-2xl font-black text-gray-900">{item.quantity}</span>
                     <span className="text-xs font-bold text-gray-500 uppercase">{item.unit}</span>
                   </div>
-                  <div className="flex items-center justify-between text-[10px] text-gray-400 mt-1">
-                    <span>Location: <strong className="text-gray-700">{item.location}</strong></span>
-                    <span>Dept: <strong className="text-amber-700 font-black">{item.department || "BOS"}</strong></span>
+                  <div className="flex flex-col text-[10px] text-gray-500 mt-1 gap-0.5">
+                    <div className="flex items-center justify-between">
+                      <span>Location: <strong className="text-gray-700">{item.location}</strong></span>
+                      <span>Dept: <strong className="text-amber-700 font-black">{item.department || "BOS"}</strong></span>
+                    </div>
+                    {item.brand && (
+                      <span className="truncate">Brand: <strong className="text-indigo-700 font-bold uppercase">{item.brand}</strong></span>
+                    )}
                   </div>
                 </div>
 
@@ -314,15 +329,27 @@ export function MaintenanceItemDetailModal({
 
               </div>
 
-              {/* Quick Restock / Withdraw Buttons */}
+              {/* Quick Restock / Withdraw / Edit Master Buttons */}
               <div className="pt-2 flex flex-wrap gap-2.5">
+                {canEditMaster && onOpenEditMaster && (
+                  <button
+                    onClick={() => {
+                      onClose()
+                      onOpenEditMaster(item)
+                    }}
+                    className="flex-1 min-w-[130px] flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-black uppercase tracking-wider transition-colors shadow-sm"
+                  >
+                    <Pencil className="w-4 h-4" /> Edit Master
+                  </button>
+                )}
+
                 {onOpenAddStock && (
                   <button
                     onClick={() => {
                       onClose()
                       onOpenAddStock(item)
                     }}
-                    className="flex-1 min-w-[140px] flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-colors shadow-sm"
+                    className="flex-1 min-w-[130px] flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-colors shadow-sm"
                   >
                     <Plus className="w-4 h-4" /> Add Stock (IN)
                   </button>
@@ -335,7 +362,7 @@ export function MaintenanceItemDetailModal({
                       onOpenWithdrawStock(item)
                     }}
                     disabled={item.quantity === 0}
-                    className="flex-1 min-w-[140px] flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-colors shadow-sm disabled:opacity-50"
+                    className="flex-1 min-w-[130px] flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-colors shadow-sm disabled:opacity-50"
                   >
                     <Minus className="w-4 h-4" /> Withdraw (OUT)
                   </button>

@@ -99,6 +99,7 @@ const staffLinks: NavLink[] = [
       { name: "FMS Work Request", href: "/forms/maintenance/tickets", module: "MAINTENANCE_TICKETS_MANAGE" },
       { name: "Service Request", href: "/forms/maintenance/tickets/service-requests", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS", "MAINTENANCE_SUMMARY", "FORMS"] },
       { name: "FMS Inventory", href: "/forms/maintenance/dashboard", module: "MAINTENANCE_DASHBOARD" },
+      { name: "Purchase Requisition", href: "/forms/maintenance/purchase-requests", modules: ["MAINTENANCE_DASHBOARD", "MAINTENANCE_TICKETS_MANAGE", "MAINTENANCE_PR_APPROVE", "MAINTENANCE_FORMS"] },
     ],
   },
   {
@@ -151,6 +152,7 @@ const adminLinks: NavLink[] = [
       { name: "FMS Work Request", href: "/forms/maintenance/tickets", module: "MAINTENANCE_TICKETS_MANAGE" },
       { name: "Service Request", href: "/forms/maintenance/tickets/service-requests", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS", "MAINTENANCE_SUMMARY", "FORMS"] },
       { name: "FMS Inventory", href: "/forms/maintenance/dashboard", module: "MAINTENANCE_DASHBOARD" },
+      { name: "Purchase Requisition", href: "/forms/maintenance/purchase-requests", modules: ["MAINTENANCE_DASHBOARD", "MAINTENANCE_TICKETS_MANAGE", "MAINTENANCE_PR_APPROVE", "MAINTENANCE_FORMS"] },
     ],
   },
   {

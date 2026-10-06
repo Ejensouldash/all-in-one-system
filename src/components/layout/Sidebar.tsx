@@ -23,7 +23,8 @@ import {
   Warehouse,
   Wrench,
   ClipboardCheck,
-  Briefcase
+  Briefcase,
+  Megaphone
 } from "lucide-react"
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
@@ -47,6 +48,7 @@ type SubLink = {
   module?: string
   modules?: string[]
   restrictToWarehouseUnit?: boolean
+  sectionHeader?: string
 }
 
 type NavLink = {
@@ -119,6 +121,13 @@ const staffLinks: NavLink[] = [
       { name: "Customer Care", href: "/business-development/customer-care", modules: ["CUSTOMER_CARE_VIEW", "CUSTOMER_CARE_MANAGE"] },
     ],
   },
+  {
+    name: "Marketing",
+    icon: Megaphone,
+    subLinks: [
+      { name: "Assets & Inventory", href: "/business-development/marketing/inventory" },
+    ],
+  },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
   { name: "Reminders", href: "/reminders", icon: BellRing, module: "REMINDERS" },
   { name: "Assets", href: "/dashboard/assets", icon: Package, module: "ASSETS" },
@@ -173,6 +182,13 @@ const adminLinks: NavLink[] = [
       { name: "Customer Care", href: "/business-development/customer-care", modules: ["CUSTOMER_CARE_VIEW", "CUSTOMER_CARE_MANAGE"] },
     ],
   },
+  {
+    name: "Marketing",
+    icon: Megaphone,
+    subLinks: [
+      { name: "Assets & Inventory", href: "/business-development/marketing/inventory" },
+    ],
+  },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
   { name: "Reminders", href: "/reminders", icon: BellRing, module: "REMINDERS" },
   { name: "Assets", href: "/dashboard/assets", icon: Package, module: "ASSETS" },
@@ -219,11 +235,13 @@ export function Sidebar({
         pathname.startsWith("/forms/maintenance/purchase-requests")
       ) {
         next["Facilities Maintenance"] = true;
-      } else if (pathname.startsWith("/forms/maintenance")) {
-        next["GMP & Quality"] = true;
+      }
+      if (pathname.startsWith("/business-development/marketing") || pathname.startsWith("/marketing")) {
+        next["Marketing"] = true;
       }
       if (pathname.startsWith("/organization")) next["Organization"] = true;
       return next;
+  
     });
   }, [pathname])
 

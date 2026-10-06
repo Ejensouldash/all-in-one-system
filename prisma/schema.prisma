@@ -1380,6 +1380,38 @@ model MaintenanceStockLog {
   createdAt    DateTime        @default(now())
 }
 
+model MarketingItem {
+  id           String              @id @default(uuid())
+  name         String
+  brand        String?
+  category     String?             @default("MERCHANDISE") // MERCHANDISE, POSM, EVENT_ASSET, PROMO, APPAREL
+  location     String              @default("HQ Store")
+  quantity     Int                 @default(0)
+  unit         String              @default("pcs")
+  pricePerUnit Float               @default(0)
+  imageUrl     String?
+  department   String?             @default("MARKETING")
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  logs         MarketingStockLog[]
+
+  @@unique([name, location])
+}
+
+model MarketingStockLog {
+  id           String        @id @default(uuid())
+  itemId       String
+  item         MarketingItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  type         String        // IN | OUT
+  quantity     Int
+  totalPrice   Float?
+  pricePerUnit Float?
+  department   String?       @default("MARKETING")
+  handledBy    String
+  remarks      String?
+  createdAt    DateTime      @default(now())
+}
+
 model MaintenancePurchaseRequest {
   id                    String                           @id @default(uuid())
   prNumber              String                           @unique // PR-YYYY-XXXX

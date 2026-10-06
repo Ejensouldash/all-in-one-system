@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import Link from "next/link"
 import { 
   Plus, Minus, FileText, Search, PackageOpen, AlertCircle, 
@@ -110,6 +110,10 @@ export function MarketingInventoryClient({
   const [editCategory, setEditCategory] = useState("MERCHANDISE")
   const [editLocation, setEditLocation] = useState("HQ Store")
   const [editUnit, setEditUnit] = useState("pcs")
+  const [editPricePerUnit, setEditPricePerUnit] = useState("0")
+  const [editPhotoFile, setEditPhotoFile] = useState<File | null>(null)
+  const [editPhotoPreview, setEditPhotoPreview] = useState<string | null>(null)
+  const [editPhotoRemoved, setEditPhotoRemoved] = useState(false)
   const [editSubmitting, setEditSubmitting] = useState(false)
   
   // Withdraw Stock Modal State
@@ -134,6 +138,16 @@ export function MarketingInventoryClient({
   const [errorMsg, setErrorMsg] = useState("")
   const [successMsg, setSuccessMsg] = useState("")
 
+  useEffect(() => {
+    if (!addPhotoPreview) return
+    return () => URL.revokeObjectURL(addPhotoPreview)
+  }, [addPhotoPreview])
+
+  useEffect(() => {
+    if (!editPhotoPreview) return
+    return () => URL.revokeObjectURL(editPhotoPreview)
+  }, [editPhotoPreview])
+
   // Filter items
   const filteredItems = items.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -146,6 +160,8 @@ export function MarketingInventoryClient({
   const totalStockQty = items.reduce((sum, item) => sum + item.quantity, 0)
   const recentInCount = logs.filter(l => l.type === "IN").reduce((sum, l) => sum + l.quantity, 0)
   const recentOutCount = logs.filter(l => l.type === "OUT").reduce((sum, l) => sum + l.quantity, 0)
+  const selectedAddItem = items.find(item => item.id === selectedAddItemId)
+  const addPhotoDisplayUrl = addPhotoPreview || (!isNewItem ? selectedAddItem?.imageUrl || null : null)
 
   const triggerMessage = (type: "success" | "error", msg: string) => {
     if (type === "success") {
@@ -159,6 +175,31 @@ export function MarketingInventoryClient({
       setSuccessMsg("")
       setErrorMsg("")
     }, 4000)
+  }
+
+  const handleAddPhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null
+    if (!file) return
+
+    if (!file.type.startsWith("image/")) {
+      setAddPhotoFile(null)
+      setAddPhotoPreview(null)
+      setErrorMsg("Please select an image file.")
+      event.target.value = ""
+      return
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setAddPhotoFile(null)
+      setAddPhotoPreview(null)
+      setErrorMsg("Image size must be less than 10MB.")
+      event.target.value = ""
+      return
+    }
+
+    setErrorMsg("")
+    setAddPhotoFile(file)
+    setAddPhotoPreview(URL.createObjectURL(file))
   }
 
   // Handle Add Stock (IN)
@@ -200,6 +241,10 @@ export function MarketingInventoryClient({
       const uploadRes = await uploadMarketingItemPhotoAction(photoFormData)
       if (uploadRes.success && uploadRes.url) {
         uploadedImageUrl = uploadRes.url
+      } else {
+        setErrorMsg(uploadRes.error || "Failed to upload item image.")
+        setSubmitting(false)
+        return
       }
     }
 
@@ -354,7 +399,37 @@ export function MarketingInventoryClient({
     setEditCategory(item.category || "MERCHANDISE")
     setEditLocation(item.location || "HQ Store")
     setEditUnit(item.unit || "pcs")
+    setEditPricePerUnit(String(item.pricePerUnit ?? 0))
+    setEditPhotoFile(null)
+    setEditPhotoPreview(null)
+    setEditPhotoRemoved(false)
     setIsEditModalOpen(true)
+  }
+
+  const handleEditPhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null
+    if (!file) return
+
+    if (!file.type.startsWith("image/")) {
+      setEditPhotoFile(null)
+      setEditPhotoPreview(null)
+      setErrorMsg("Please select an image file.")
+      event.target.value = ""
+      return
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setEditPhotoFile(null)
+      setEditPhotoPreview(null)
+      setErrorMsg("Image size must be less than 10MB.")
+      event.target.value = ""
+      return
+    }
+
+    setErrorMsg("")
+    setEditPhotoFile(file)
+    setEditPhotoPreview(URL.createObjectURL(file))
+    setEditPhotoRemoved(false)
   }
 
   const handleSaveEditMaster = async (e: React.FormEvent) => {
@@ -364,12 +439,36 @@ export function MarketingInventoryClient({
     setEditSubmitting(true)
     setErrorMsg("")
 
+    const pricePerUnit = Number(editPricePerUnit)
+    if (!Number.isFinite(pricePerUnit) || pricePerUnit < 0) {
+      setErrorMsg("Price per unit must be zero or greater.")
+      setEditSubmitting(false)
+      return
+    }
+
+    let imageUrl: string | null | undefined
+    if (editPhotoFile) {
+      const photoFormData = new FormData()
+      photoFormData.append("photo", editPhotoFile)
+      const uploadRes = await uploadMarketingItemPhotoAction(photoFormData)
+      if (!uploadRes.success || !uploadRes.url) {
+        setErrorMsg(uploadRes.error || "Failed to upload item image.")
+        setEditSubmitting(false)
+        return
+      }
+      imageUrl = uploadRes.url
+    } else if (editPhotoRemoved) {
+      imageUrl = null
+    }
+
     const res = await editMarketingItemMaster(editingItem.id, {
       name: editName,
       brand: editBrand,
       category: editCategory,
       location: editLocation,
       unit: editUnit,
+      pricePerUnit,
+      ...(imageUrl !== undefined ? { imageUrl } : {}),
     })
 
     setEditSubmitting(false)
@@ -379,6 +478,9 @@ export function MarketingInventoryClient({
       setIsEditModalOpen(false)
 
       setItems(prev => prev.map(i => i.id === res.data!.id ? res.data! : i))
+      setEditPhotoFile(null)
+      setEditPhotoPreview(null)
+      setEditPhotoRemoved(false)
     } else {
       setErrorMsg(res.error || "Failed to update item master.")
     }
@@ -422,13 +524,6 @@ export function MarketingInventoryClient({
         {/* Nav Header Tabs */}
         <div className="mb-8 border-b border-slate-200 overflow-x-auto">
           <div className="flex space-x-8 min-w-max px-2">
-            <Link 
-              href="/business-development/customer-care"
-              className="flex items-center pb-4 text-sm font-black uppercase tracking-wider border-b-4 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-colors"
-            >
-              <HeartHandshake className="w-5 h-5 mr-2 text-rose-500" />
-              Customer Care
-            </Link>
 
             <Link 
               href="/business-development/marketing/inventory"
@@ -529,7 +624,7 @@ export function MarketingInventoryClient({
               className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-2 uppercase tracking-wider"
             >
               <Plus className="h-4 w-4" />
-              <span>+ ADD STOCK (IN)</span>
+              <span>ADD STOCK (IN)</span>
             </button>
 
             <button
@@ -537,7 +632,7 @@ export function MarketingInventoryClient({
               className="px-5 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-2 uppercase tracking-wider"
             >
               <Minus className="h-4 w-4" />
-              <span>— WITHDRAW STOCK (OUT)</span>
+              <span>WITHDRAW STOCK (OUT)</span>
             </button>
 
             <button
@@ -928,6 +1023,41 @@ export function MarketingInventoryClient({
                 </div>
               )}
 
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Item Image (Optional)</label>
+                <div className="flex items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3">
+                  {addPhotoDisplayUrl ? (
+                    <img src={addPhotoDisplayUrl} alt="Marketing item preview" className="h-16 w-16 rounded-lg border border-slate-200 object-cover" />
+                  ) : (
+                    <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
+                      <ImageIcon className="h-6 w-6" aria-hidden="true" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                      <Upload className="h-4 w-4" aria-hidden="true" />
+                      {addPhotoFile ? "Change image" : !isNewItem && selectedAddItem?.imageUrl ? "Replace image" : "Choose image"}
+                      <input type="file" accept="image/*" onChange={handleAddPhotoChange} className="sr-only" />
+                    </label>
+                    <p className="mt-1 truncate text-[10px] text-slate-500">
+                      {addPhotoFile?.name || (!isNewItem && selectedAddItem?.imageUrl ? "Current image" : "Image files up to 10 MB")}
+                    </p>
+                  </div>
+                  {addPhotoFile && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddPhotoFile(null)
+                        setAddPhotoPreview(null)
+                      }}
+                      className="text-xs font-semibold text-rose-600 hover:text-rose-700"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* Quantity & Total Price */}
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <div>
@@ -1111,6 +1241,46 @@ export function MarketingInventoryClient({
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Item Image</label>
+                <div className="flex items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3">
+                  {editPhotoPreview || (!editPhotoRemoved && editingItem.imageUrl) ? (
+                    <img
+                      src={editPhotoPreview || editingItem.imageUrl || ""}
+                      alt={editingItem.name}
+                      className="h-16 w-16 shrink-0 rounded-lg border border-slate-200 object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
+                      <ImageIcon className="h-6 w-6" aria-hidden="true" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                      <Upload className="h-4 w-4" aria-hidden="true" />
+                      {editPhotoFile ? "Change image" : editingItem.imageUrl && !editPhotoRemoved ? "Replace image" : "Choose image"}
+                      <input type="file" accept="image/*" onChange={handleEditPhotoChange} className="sr-only" />
+                    </label>
+                    <p className="mt-1 truncate text-[10px] text-slate-500">
+                      {editPhotoFile?.name || (!editPhotoRemoved && editingItem.imageUrl ? "Current image" : "Image files up to 10 MB")}
+                    </p>
+                  </div>
+                  {(editPhotoFile || (editingItem.imageUrl && !editPhotoRemoved)) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditPhotoFile(null)
+                        setEditPhotoPreview(null)
+                        setEditPhotoRemoved(true)
+                      }}
+                      className="text-xs font-semibold text-rose-600 hover:text-rose-700"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Brand</label>
@@ -1159,6 +1329,19 @@ export function MarketingInventoryClient({
                     className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Price / Unit (RM)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.0001"
+                    required
+                    value={editPricePerUnit}
+                    onChange={(e) => setEditPricePerUnit(e.target.value)}
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200"
+                  />
+                </div>
               </div>
 
               <div className="pt-4 flex gap-3">
@@ -1187,12 +1370,25 @@ export function MarketingInventoryClient({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto space-y-6">
             <div className="flex items-start justify-between border-b pb-4">
-              <div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 uppercase">
-                  {selectedDetailItem.category || "MERCHANDISE"}
-                </span>
-                <h3 className="text-xl font-black text-slate-900 mt-1">{selectedDetailItem.name}</h3>
-                <p className="text-xs text-slate-500">Location: {selectedDetailItem.location} • Brand: {selectedDetailItem.brand || "N/A"}</p>
+              <div className="flex min-w-0 items-center gap-4">
+                {selectedDetailItem.imageUrl ? (
+                  <img
+                    src={selectedDetailItem.imageUrl}
+                    alt={selectedDetailItem.name}
+                    className="h-20 w-20 shrink-0 rounded-xl border border-slate-200 object-cover sm:h-24 sm:w-24"
+                  />
+                ) : (
+                  <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-400 sm:h-24 sm:w-24">
+                    <ImageIcon className="h-8 w-8" aria-hidden="true" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 uppercase">
+                    {selectedDetailItem.category || "MERCHANDISE"}
+                  </span>
+                  <h3 className="mt-1 break-words text-xl font-black text-slate-900">{selectedDetailItem.name}</h3>
+                  <p className="text-xs text-slate-500">Location: {selectedDetailItem.location} • Brand: {selectedDetailItem.brand || "N/A"}</p>
+                </div>
               </div>
               <button onClick={() => setIsDetailModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="h-5 w-5" />

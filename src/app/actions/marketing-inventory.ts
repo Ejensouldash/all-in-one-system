@@ -317,6 +317,8 @@ export async function editMarketingItemMaster(
     category?: string | null
     location?: string
     unit?: string
+    pricePerUnit: number
+    imageUrl?: string | null
   }
 ) {
   const session = await auth()
@@ -324,6 +326,9 @@ export async function editMarketingItemMaster(
 
   const nameUpper = data.name.trim().toUpperCase()
   if (!nameUpper) return { success: false, error: "Item name cannot be empty." }
+  if (!Number.isFinite(data.pricePerUnit) || data.pricePerUnit < 0) {
+    return { success: false, error: "Price per unit must be zero or greater." }
+  }
 
   const locationVal = (data.location || "HQ Store").trim()
   const brandUpper = data.brand?.trim().toUpperCase() || null
@@ -359,6 +364,8 @@ export async function editMarketingItemMaster(
         category: categoryUpper,
         location: locationVal,
         unit: unitVal,
+        pricePerUnit: data.pricePerUnit,
+        ...(data.imageUrl !== undefined ? { imageUrl: data.imageUrl } : {}),
       },
     })
 
@@ -367,7 +374,7 @@ export async function editMarketingItemMaster(
 
     await logUserAction(
       "Edited Marketing Item Master",
-      `Renamed/updated marketing item ID ${itemId}: previous "${existing.name}" -> "${nameUpper}". Handled by: ${session.user.name || "User"}.`
+      `Renamed/updated marketing item ID ${itemId}: previous "${existing.name}" -> "${nameUpper}". Price/unit: RM ${existing.pricePerUnit.toFixed(4)} -> RM ${data.pricePerUnit.toFixed(4)}.${data.imageUrl === undefined ? "" : data.imageUrl ? " Image updated." : " Image removed."} Handled by: ${session.user.name || "User"}.`
     )
 
     return { success: true, data: updated }

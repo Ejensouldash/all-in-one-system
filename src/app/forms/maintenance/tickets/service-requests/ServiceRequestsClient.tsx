@@ -457,7 +457,7 @@ export function ServiceRequestsClient({
                       <td className="px-5 py-3.5 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
                           {getTypeIcon(ticket.ticketType)}
-                          {ticket.ticketType}
+                          {ticket.ticketType === "CIVIL" ? "CIV" : ticket.ticketType === "ELECTRICAL" ? "ELT" : ticket.ticketType === "MECHANICAL" ? "MEC" : ticket.ticketType}
                         </span>
                       </td>
 
@@ -486,8 +486,14 @@ export function ServiceRequestsClient({
 
                       {/* Requester */}
                       <td className="px-5 py-3.5 whitespace-nowrap">
-                        <p className="font-semibold text-slate-800">{ticket.requesterName}</p>
-                        <p className="text-[10px] text-slate-400 font-mono">{ticket.requesterPhone}</p>
+                        <p className="font-semibold text-slate-800 truncate max-w-[95px]" title={ticket.requesterName}>
+                          {ticket.requesterName}
+                        </p>
+                        {ticket.requesterPhone && ticket.requesterPhone !== "-" && (
+                          <p className="text-[10px] text-slate-400 font-mono truncate max-w-[95px]" title={ticket.requesterPhone}>
+                            {ticket.requesterPhone}
+                          </p>
+                        )}
                       </td>
 
                       {/* Status */}

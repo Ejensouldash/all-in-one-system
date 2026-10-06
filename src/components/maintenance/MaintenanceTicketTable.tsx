@@ -302,7 +302,7 @@ export function MaintenanceTicketTable({
                           {ticket.ticketType === "MECHANICAL" && <Cog className="h-3 w-3 mr-1" />}
                           {ticket.ticketType === "CIVIL" && <Building className="h-3 w-3 mr-1" />}
                           {ticket.ticketType === "ELECTRICAL" && <Zap className="h-3 w-3 mr-1" />}
-                          {ticket.ticketType}
+                          {ticket.ticketType === "CIVIL" ? "CIV" : ticket.ticketType === "ELECTRICAL" ? "ELT" : ticket.ticketType === "MECHANICAL" ? "MEC" : ticket.ticketType}
                         </span>
                       </td>
 
@@ -387,9 +387,13 @@ export function MaintenanceTicketTable({
 
                       {/* Requester */}
                       <td className="px-5 py-3.5 whitespace-nowrap">
-                        <div className="font-semibold text-slate-800">{ticket.requesterName}</div>
+                        <div className="font-semibold text-slate-800 truncate max-w-[95px]" title={ticket.requesterName}>
+                          {ticket.requesterName}
+                        </div>
                         {ticket.requesterPhone && ticket.requesterPhone !== "-" && (
-                          <div className="text-[10px] text-slate-400">{ticket.requesterPhone}</div>
+                          <div className="text-[10px] text-slate-400 truncate max-w-[95px]" title={ticket.requesterPhone}>
+                            {ticket.requesterPhone}
+                          </div>
                         )}
                       </td>
 

@@ -210,7 +210,11 @@ export function Sidebar({
       let next = { ...prev };
       if (pathname.startsWith("/forms/production") || pathname.startsWith("/kbp")) next["Production"] = true;
       if (pathname.startsWith("/forms/warehouse")) next["Warehouse & Logistics"] = true;
-      if (pathname.startsWith("/forms/maintenance/tickets") || pathname.startsWith("/forms/maintenance/dashboard")) {
+      if (
+        pathname.startsWith("/forms/maintenance/tickets") || 
+        pathname.startsWith("/forms/maintenance/dashboard") ||
+        pathname.startsWith("/forms/maintenance/purchase-requests")
+      ) {
         next["Facilities Maintenance"] = true;
       } else if (pathname.startsWith("/forms/maintenance")) {
         next["GMP & Quality"] = true;

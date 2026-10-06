@@ -175,35 +175,35 @@ export function MaintenancePMRReportClient() {
               effectiveDate="1/7/2026"
             />
 
-            <div className="flex justify-between items-center mb-4 text-xs font-bold text-black font-sans uppercase">
+            <div className="flex justify-between items-center mb-4 text-sm font-bold text-black font-sans uppercase">
               <div>MONTH: <span className="underline ml-1 px-4">{monthNames[month - 1]}</span></div>
               <div>YEAR: <span className="underline ml-1 px-4">{year}</span></div>
             </div>
 
             {/* Data Table */}
-            <table className="w-full text-[8px] border-collapse border border-black text-center print-compact-table">
+            <table className="w-full text-[9px] border-collapse border border-black text-center print-compact-table">
               <thead>
                 <tr className="bg-gray-200 print:bg-gray-200">
-                  <th rowSpan={2} className="border border-black p-0.5 w-9 align-middle text-[8px] font-bold">DATE</th>
-                  <th rowSpan={2} className="border border-black p-0.5 w-8 align-middle text-[8px] font-bold">LINE</th>
-                  <th colSpan={MACHINE_KEYS.length} className="border border-black p-0.5 text-[8.5px] font-bold">MAINTENANCE ACTIVITY</th>
-                  <th colSpan={2} className="border border-black p-0.5 text-[8.5px] font-bold">VERIFICATION</th>
+                  <th rowSpan={2} className="border border-black p-0.5 w-11 align-middle text-[9px] font-bold">DATE</th>
+                  <th rowSpan={2} className="border border-black p-0.5 w-9 align-middle text-[9px] font-bold">LINE</th>
+                  <th colSpan={MACHINE_KEYS.length} className="border border-black p-1 text-[10px] font-bold tracking-wider">MAINTENANCE ACTIVITY</th>
+                  <th colSpan={2} className="border border-black p-1 text-[10px] font-bold tracking-wider">VERIFICATION</th>
                 </tr>
                 <tr className="bg-gray-200 print:bg-gray-200 h-36">
                   {MACHINE_KEYS.map((m, i) => (
                     <th key={i} className="border border-black p-0.5 font-bold align-bottom">
-                      <div className="mx-auto whitespace-nowrap text-[7.5px] font-bold tracking-tighter leading-none" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+                      <div className="mx-auto whitespace-nowrap text-[9px] font-bold tracking-tight leading-none" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
                         {m.label}
                       </div>
                     </th>
                   ))}
-                  <th className="border border-black p-0.5 font-bold align-bottom min-w-[34px]">
-                      <div className="mx-auto whitespace-nowrap text-[7.5px] font-bold tracking-tighter leading-none" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+                  <th className="border border-black p-0.5 font-bold align-bottom min-w-[36px]">
+                      <div className="mx-auto whitespace-nowrap text-[9px] font-bold tracking-tight leading-none" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
                         CHECKED BY
                       </div>
                   </th>
-                  <th className="border border-black p-0.5 font-bold align-bottom min-w-[34px]">
-                      <div className="mx-auto whitespace-nowrap text-[7.5px] font-bold tracking-tighter leading-none" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+                  <th className="border border-black p-0.5 font-bold align-bottom min-w-[36px]">
+                      <div className="mx-auto whitespace-nowrap text-[9px] font-bold tracking-tight leading-none" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
                         VERIFIED BY
                       </div>
                   </th>
@@ -211,40 +211,40 @@ export function MaintenancePMRReportClient() {
               </thead>
               <tbody>
                 {records.map((record, index) => (
-                  <tr key={record.id} className="h-7">
-                    <td className="border border-black p-0.5 font-bold text-[7.5px]">{formatSignatureDate(record.date)}</td>
-                    <td className="border border-black p-0.5 font-bold text-[7.5px]">{record.line}</td>
+                  <tr key={record.id} className="h-8">
+                    <td className="border border-black p-0.5 font-bold text-[8.5px] whitespace-nowrap">{formatSignatureDate(record.date)}</td>
+                    <td className="border border-black p-0.5 font-bold text-[8.5px]">{record.line}</td>
                     
                     {MACHINE_KEYS.map((m, i) => (
-                      <td key={i} className="border border-black p-0.5 font-black text-gray-800 text-[9px]">
+                      <td key={i} className="border border-black p-0.5 font-black text-black text-[12px] leading-none">
                         {record[m.key] ? "✓" : "\u00A0"}
                       </td>
                     ))}
 
-                    <td className="border border-black p-0 relative min-w-[34px]">
+                    <td className="border border-black p-0 relative min-w-[36px]">
                       {record.performedSignature && (
-                        <div className="absolute top-0.5 left-0.5 w-8 h-4">
+                        <div className="absolute top-0.5 left-0.5 right-0.5 h-4 flex items-center justify-center">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={record.performedSignature} alt="Sig" className="w-full h-full object-contain" />
+                          <img src={record.performedSignature} alt="Sig" className="max-w-full max-h-full object-contain" />
                         </div>
                       )}
-                      <span className="absolute bottom-0 left-0.5 text-[6.5px] text-gray-600 font-bold w-full truncate pr-0.5 text-left">{record.checkedBy}</span>
+                      <span className="absolute bottom-0.5 left-0.5 right-0.5 text-[7.5px] text-black font-bold truncate block text-center">{record.checkedBy}</span>
                     </td>
-                    <td className="border border-black p-0 relative min-w-[34px]">
+                    <td className="border border-black p-0 relative min-w-[36px]">
                       {record.verifiedSignature && (
-                        <div className="absolute top-0.5 left-0.5 w-8 h-4">
+                        <div className="absolute top-0.5 left-0.5 right-0.5 h-4 flex items-center justify-center">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={record.verifiedSignature} alt="Sig" className="w-full h-full object-contain" />
+                          <img src={record.verifiedSignature} alt="Sig" className="max-w-full max-h-full object-contain" />
                         </div>
                       )}
-                      <span className="absolute bottom-0 left-0.5 text-[6.5px] text-gray-600 font-bold w-full truncate pr-0.5 text-left">{record.verifiedBy || "\u00A0"}</span>
+                      <span className="absolute bottom-0.5 left-0.5 right-0.5 text-[7.5px] text-black font-bold truncate block text-center">{record.verifiedBy || "\u00A0"}</span>
                     </td>
                   </tr>
                 ))}
                 
                 {/* Fill empty rows to make it look like a full page if there are few records */}
                 {Array.from({ length: Math.max(0, 15 - records.length) }).map((_, idx) => (
-                  <tr key={`empty-${idx}`} className="h-7">
+                  <tr key={`empty-${idx}`} className="h-8">
                     <td className="border border-black p-0.5">&nbsp;</td>
                     <td className="border border-black p-0.5">&nbsp;</td>
                     {MACHINE_KEYS.map((_, i) => <td key={i} className="border border-black p-0.5">&nbsp;</td>)}

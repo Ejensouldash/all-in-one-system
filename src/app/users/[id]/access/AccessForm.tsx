@@ -82,6 +82,7 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "MAINTENANCE_PR_APPROVE", name: "Purchase Requisition Approval", description: "Authority to review, approve, or reject FMS Purchase Requisitions (BOSB-PR).", icon: CheckCircle2 },
       { id: "MAINTENANCE_INVENTORY_EDIT", name: "FMS Inventory Master Edit", description: "Authority to edit, rename, or update master item names and brand details in FMS Inventory.", icon: FilePenLine },
       { id: "MAINTENANCE_ASSETS", name: "FMS Asset (NRHO)", description: "Access to view, check-in, withdraw, and audit NRHO FMS asset ledger.", icon: Boxes },
+      { id: "MAINTENANCE_TECHNICIAN", name: "FMS Technician Assignment", description: "Designate user as an internal technician eligible for work request assignments.", icon: UserCheck },
     ],
   },
   {

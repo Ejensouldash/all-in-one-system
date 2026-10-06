@@ -12,7 +12,30 @@ export async function GET(
     }
 
     const key = getMaintenanceJobSheetKey(jobSheetNumber)
-    const file = await getMaintenanceFileByExactKeyFromR2(key)
+    const refresh = request.nextUrl.searchParams.get("refresh") === "true"
+    let file = refresh ? null : await getMaintenanceFileByExactKeyFromR2(key)
+
+    if (!file) {
+      // Dynamic on-demand regeneration: find ticket and recompile with latest format & photos
+      const { prisma } = await import("@/lib/prisma")
+      const { generateAndSaveMaintenanceJobSheet } = await import("@/lib/maintenance-pdf")
+      
+      const ticket = await prisma.maintenanceTicket.findFirst({
+        where: {
+          OR: [
+            { jobSheetNumber },
+            { id: jobSheetNumber },
+          ],
+        },
+        select: { id: true, jobSheetNumber: true },
+      })
+
+      if (ticket) {
+        await generateAndSaveMaintenanceJobSheet(ticket.id)
+        file = await getMaintenanceFileByExactKeyFromR2(key)
+      }
+    }
+
     if (!file) {
       return new NextResponse("Job sheet PDF not found", { status: 404 })
     }
@@ -20,7 +43,7 @@ export async function GET(
     const headers = new Headers()
     headers.set("Content-Type", "application/pdf")
     headers.set("Content-Disposition", `inline; filename="${jobSheetNumber}.pdf"`)
-    headers.set("Cache-Control", "public, max-age=3600")
+    headers.set("Cache-Control", refresh ? "no-cache" : "public, max-age=3600")
 
     return new NextResponse(file.buffer as any, {
       status: 200,

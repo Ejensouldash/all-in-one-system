@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { 
   acknowledgeMaintenanceTicket,
   assignMaintenanceTicket,
+  resendTechnicianNotification,
   updateMaintenanceCosts,
   closeMaintenanceTicket
 } from "@/app/actions/maintenance-ticket"
@@ -65,7 +66,38 @@ export function MaintenanceWorkspace({
   const [selectedStaffId, setSelectedStaffId] = useState(ticket.assigneeId || "")
   const [contractorName, setContractorName] = useState(ticket.assigneeName || "")
   const [contractorPhone, setContractorPhone] = useState(ticket.contractorPhone || "")
+  const [contractorEmail, setContractorEmail] = useState(ticket.contractorEmail || "")
   const [reassignmentReason, setReassignmentReason] = useState("")
+  const [isSendingTechEmail, setIsSendingTechEmail] = useState(false)
+
+  const handleResendTechNotification = async () => {
+    setIsSendingTechEmail(true)
+    setStatusMsg(null)
+    const res = await resendTechnicianNotification(ticket.id)
+    setIsSendingTechEmail(false)
+    if (res.success) {
+      setStatusMsg({ type: "success", text: "Notification email dispatched to assigned technician/contractor!" })
+    } else {
+      setStatusMsg({ type: "error", text: res.error || "Failed to dispatch email." })
+    }
+  }
+
+  const handleAddPrItemToCost = (prItem: any) => {
+    setCosts(prev => [
+      ...prev,
+      {
+        category: "SPARE_PART",
+        itemId: prItem.itemId || "",
+        itemName: prItem.itemRequested,
+        quantity: prItem.quantityRequest || 1,
+        unit: "PCS",
+        unitPrice: 0,
+        amount: 0,
+        remarks: `Received via PR (${prItem.projectMachine || 'PR Part'})`,
+      }
+    ])
+    setStatusMsg({ type: "success", text: `Added "${prItem.itemRequested}" to maintenance costing table.` })
+  }
 
   // Costs State
   const [costs, setCosts] = useState<any[]>(
@@ -177,6 +209,7 @@ export function MaintenanceWorkspace({
     } else {
       formData.set("assigneeName", contractorName)
       formData.set("contractorPhone", contractorPhone)
+      if (contractorEmail) formData.set("contractorEmail", contractorEmail)
     }
     if (reassignmentReason) formData.set("reassignmentReason", reassignmentReason)
 
@@ -474,6 +507,20 @@ export function MaintenanceWorkspace({
             {ticket.contractorPhone && (
               <span className="text-slate-500 block text-[11px]">Phone: {ticket.contractorPhone}</span>
             )}
+            {(ticket.contractorEmail || ticket.assignee?.email) && (
+              <span className="text-slate-500 block text-[11px]">Email: {ticket.contractorEmail || ticket.assignee?.email}</span>
+            )}
+            {(ticket.contractorEmail || ticket.assignee?.email) && !isClosed && (
+              <button
+                type="button"
+                onClick={handleResendTechNotification}
+                disabled={isSendingTechEmail}
+                className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50"
+              >
+                {isSendingTechEmail ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                <span>Resend Notification Email</span>
+              </button>
+            )}
           </div>
           {ticket.acknowledgedBy && (
             <div className="text-left sm:text-right">
@@ -526,25 +573,35 @@ export function MaintenanceWorkspace({
                 </select>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Contractor / Firm Name</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Contractor / Firm Name *</label>
                   <input
                     type="text"
                     required
                     value={contractorName}
                     onChange={(e) => setContractorName(e.target.value)}
-                    placeholder="e.g. Pro-Chill Engineering / Akmal Vendor"
+                    placeholder="e.g. Pro-Chill Engineering / Vendor"
                     className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Contractor Phone (For Magic Link)</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Contractor Phone</label>
                   <input
                     type="tel"
                     value={contractorPhone}
                     onChange={(e) => setContractorPhone(e.target.value)}
                     placeholder="e.g. 019-8765432"
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Contractor Email (For Alerts)</label>
+                  <input
+                    type="email"
+                    value={contractorEmail}
+                    onChange={(e) => setContractorEmail(e.target.value)}
+                    placeholder="e.g. vendor@contractor.com"
                     className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white"
                   />
                 </div>
@@ -740,6 +797,32 @@ export function MaintenanceWorkspace({
               <span>View PR Ledger</span>
               <ExternalLink className="w-3 h-3" />
             </Link>
+          </div>
+        )}
+
+        {/* Received PR Items Available for Costing */}
+        {ticket.purchaseRequests && ticket.purchaseRequests.some((pr: any) => pr.status === "RECEIVED" && pr.items && pr.items.length > 0) && !isClosed && (
+          <div className="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-200 space-y-2 text-xs">
+            <span className="font-bold text-emerald-900 flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              Goods Received via PR — Ready to Add to Costing:
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {ticket.purchaseRequests
+                .filter((pr: any) => pr.status === "RECEIVED")
+                .flatMap((pr: any) => pr.items || [])
+                .map((prItem: any) => (
+                  <button
+                    key={prItem.id}
+                    type="button"
+                    onClick={() => handleAddPrItemToCost(prItem)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-emerald-100 text-emerald-800 rounded-xl border border-emerald-300 font-semibold shadow-xs transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5 text-emerald-600" />
+                    <span>+ Add {prItem.itemRequested} ({prItem.quantityRequest} pcs)</span>
+                  </button>
+                ))}
+            </div>
           </div>
         )}
 

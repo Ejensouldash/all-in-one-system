@@ -7,6 +7,8 @@ import { getAccessInfo, hasAnyModule } from "@/lib/access"
 import { 
   queueMaintenanceEmailNotification,
   generateTicketCreatedEmailEn,
+  generateTicketRequesterCreatedEmailEn,
+  generateTechnicianAssignedEmailEn,
   generateTicketAcknowledgedEmailEn,
   generateTicketWorkCompletedEmailEn
 } from "@/lib/maintenance-outbox"
@@ -182,13 +184,23 @@ export async function publicCreateMaintenanceTicket(formData: FormData) {
         })
       }
 
-      // Confirmation to Requester
+      // Confirmation to Requester (Strictly without workspace login button)
       if (requesterEmail) {
+        const requesterEmailHtml = generateTicketRequesterCreatedEmailEn({
+          logNumber: formattedLog,
+          title,
+          ticketType,
+          priority,
+          location,
+          specificArea,
+          requesterName,
+          trackUrl,
+        })
         await queueMaintenanceEmailNotification({
           ticketId: ticket.id,
           to: requesterEmail,
           subject: `[Work Request Received] ${formattedLog}: ${title}`,
-          html: picEmailHtml,
+          html: requesterEmailHtml,
         })
       }
     } catch (notifErr) {
@@ -314,6 +326,26 @@ export async function createMaintenanceTicket(formData: FormData) {
           to: email,
           subject: `[Work Request Logged] ${formattedLog} (${ticketType}): ${title}`,
           html: picEmailHtml,
+        })
+      }
+
+      // Confirmation to Requester (Track Request Status only)
+      if (requesterEmail) {
+        const requesterEmailHtml = generateTicketRequesterCreatedEmailEn({
+          logNumber: formattedLog,
+          title,
+          ticketType,
+          priority,
+          location,
+          specificArea,
+          requesterName,
+          trackUrl,
+        })
+        await queueMaintenanceEmailNotification({
+          ticketId: ticket.id,
+          to: requesterEmail,
+          subject: `[Work Request Received] ${formattedLog}: ${title}`,
+          html: requesterEmailHtml,
         })
       }
     } catch (notifErr) {
@@ -449,11 +481,12 @@ export async function assignMaintenanceTicket(id: string, formData: FormData) {
   const assigneeId = (formData.get("assigneeId") as string)?.trim() || null
   const assigneeName = (formData.get("assigneeName") as string)?.trim() || null
   const contractorPhone = (formData.get("contractorPhone") as string)?.trim() || null
+  const contractorEmail = (formData.get("contractorEmail") as string)?.trim() || null
   const reassignmentReason = (formData.get("reassignmentReason") as string)?.trim() || null
 
   const ticket = await prisma.maintenanceTicket.findUnique({
     where: { id },
-    include: { assignee: { select: { id: true, name: true } } },
+    include: { assignee: { select: { id: true, name: true, email: true } } },
   })
 
   if (!ticket) return { success: false, error: "Ticket not found." }
@@ -465,17 +498,20 @@ export async function assignMaintenanceTicket(id: string, formData: FormData) {
 
   let finalAssigneeId = assigneeId
   let finalAssigneeName = assigneeName
+  let assignedTargetEmail: string | null = null
 
   if (assigneeType === "INTERNAL") {
     if (!assigneeId) return { success: false, error: "Please select an internal technician." }
     const assignedUser = await prisma.user.findUnique({
       where: { id: assigneeId },
-      select: { name: true },
+      select: { name: true, email: true },
     })
     finalAssigneeName = assignedUser?.name || null
+    assignedTargetEmail = assignedUser?.email || null
   } else {
     if (!assigneeName) return { success: false, error: "Please provide the external contractor/vendor name." }
     finalAssigneeId = null
+    assignedTargetEmail = contractorEmail
   }
 
   try {
@@ -485,6 +521,7 @@ export async function assignMaintenanceTicket(id: string, formData: FormData) {
         assigneeId: finalAssigneeId,
         assigneeName: finalAssigneeName,
         contractorPhone: assigneeType === "CONTRACTOR" ? contractorPhone : null,
+        contractorEmail: assigneeType === "CONTRACTOR" ? contractorEmail : null,
         contractorToken,
         status: ticket.status === "OPEN" || ticket.status === "ACKNOWLEDGED" 
           ? MaintenanceTicketStatus.IN_PROGRESS 
@@ -501,12 +538,91 @@ export async function assignMaintenanceTicket(id: string, formData: FormData) {
       },
     })
 
+    // Notify assigned technician/contractor via email if email address is available
+    if (assignedTargetEmail) {
+      try {
+        const formattedLog = `BO2-MT-${ticket.ticketNumber.toString().padStart(4, "0")}`
+        const baseUrl = getBaseUrl()
+        const workSheetUrl = `${baseUrl}/maintenance/work/${ticket.id}?token=${contractorToken || ''}`
+        const techEmailHtml = generateTechnicianAssignedEmailEn({
+          logNumber: formattedLog,
+          title: ticket.title,
+          ticketType: ticket.ticketType,
+          priority: ticket.priority,
+          location: ticket.location,
+          specificArea: ticket.specificArea,
+          technicianName: finalAssigneeName || "Technician",
+          assignedByName: session.user.name || "PIC / Supervisor",
+          reassignmentReason,
+          targetDateline: ticket.targetDateline,
+          workSheetUrl,
+        })
+        await queueMaintenanceEmailNotification({
+          ticketId: ticket.id,
+          to: assignedTargetEmail,
+          subject: `[Work Order Assignment] ${formattedLog}: ${ticket.title}`,
+          html: techEmailHtml,
+        })
+      } catch (mailErr) {
+        console.warn("Technician assignment email notification error:", mailErr)
+      }
+    }
+
     revalidatePath(`/forms/maintenance/tickets/${id}`)
     revalidatePath("/forms/maintenance/tickets")
     return { success: true }
   } catch (err: any) {
     console.error("assignMaintenanceTicket error:", err)
     return { success: false, error: err.message || "Failed to assign ticket." }
+  }
+}
+
+/**
+ * Resend Work Order Assignment Notification to Assigned Technician / Contractor
+ */
+export async function resendTechnicianNotification(ticketId: string) {
+  const session = await auth()
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" }
+
+  const ticket = await prisma.maintenanceTicket.findUnique({
+    where: { id: ticketId },
+    include: { assignee: { select: { email: true, name: true } } },
+  })
+  if (!ticket) return { success: false, error: "Ticket not found." }
+
+  const targetEmail = ticket.contractorEmail || ticket.assignee?.email
+  if (!targetEmail) {
+    return { success: false, error: "No email address found for the assigned technician or contractor." }
+  }
+
+  try {
+    const formattedLog = `BO2-MT-${ticket.ticketNumber.toString().padStart(4, "0")}`
+    const baseUrl = getBaseUrl()
+    const workSheetUrl = `${baseUrl}/maintenance/work/${ticket.id}?token=${ticket.contractorToken || ''}`
+    const emailHtml = generateTechnicianAssignedEmailEn({
+      logNumber: formattedLog,
+      title: ticket.title,
+      ticketType: ticket.ticketType,
+      priority: ticket.priority,
+      location: ticket.location,
+      specificArea: ticket.specificArea,
+      technicianName: ticket.assignee?.name || ticket.assigneeName || "Technician",
+      assignedByName: session.user.name || "Supervisor / PIC",
+      targetDateline: ticket.targetDateline,
+      workSheetUrl,
+    })
+
+    await queueMaintenanceEmailNotification({
+      ticketId: ticket.id,
+      to: targetEmail,
+      subject: `[Work Order Assignment] ${formattedLog}: ${ticket.title}`,
+      html: emailHtml,
+    })
+
+    return { success: true }
+  } catch (err: any) {
+    console.error("resendTechnicianNotification error:", err)
+    return { success: false, error: err.message || "Failed to resend notification." }
   }
 }
 
@@ -992,6 +1108,7 @@ export async function getMaintenanceWorkspaceData(ticketId: string) {
         orderBy: { createdAt: "desc" },
       },
       purchaseRequests: {
+        include: { items: true },
         orderBy: { createdAt: "desc" },
       },
     },
@@ -999,11 +1116,32 @@ export async function getMaintenanceWorkspaceData(ticketId: string) {
 
   if (!ticket) return null
 
-  // Fetch list of technicians
-  const staffList = await prisma.user.findMany({
+  // Fetch list of technicians (scoped to users with MAINTENANCE_TECHNICIAN module or Superadmin)
+  let staffList = await prisma.user.findMany({
+    where: {
+      OR: [
+        { modules: { has: "MAINTENANCE_TECHNICIAN" } },
+        { role: "SUPERADMIN" },
+      ],
+    },
     select: { id: true, name: true, email: true, unit: { select: { name: true } } },
     orderBy: { name: "asc" },
   })
+
+  // Fallback: If no users have the module yet, include users with MAINTENANCE_TICKETS_MANAGE or Maintenance unit
+  if (staffList.length === 0) {
+    staffList = await prisma.user.findMany({
+      where: {
+        OR: [
+          { modules: { has: "MAINTENANCE_TICKETS_MANAGE" } },
+          { unit: { name: { contains: "Maintenance", mode: "insensitive" } } },
+          { role: "SUPERADMIN" },
+        ],
+      },
+      select: { id: true, name: true, email: true, unit: { select: { name: true } } },
+      orderBy: { name: "asc" },
+    })
+  }
 
   // Fetch spare parts catalog items (exclude NRHO)
   const catalogItems = await prisma.maintenanceItem.findMany({

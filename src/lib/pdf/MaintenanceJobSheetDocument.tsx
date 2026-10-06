@@ -281,7 +281,7 @@ export function MaintenanceJobSheetDocument({ data }: { data: MaintenanceJobShee
           </View>
           <View style={styles.headerCenter}>
             <Text style={styles.companyName}>Bubbles O2 Sdn. Bhd.</Text>
-            <Text style={styles.docTitle}>Plant Maintenance Job Sheet &amp; Billing Memo</Text>
+            <Text style={styles.docTitle}>FMS Job Sheet &amp; Billing Memo</Text>
             <Text style={styles.docSubtitle}>SOP: BOSB-PFMD-850-001 (QR01 Work Request)</Text>
           </View>
           <View style={styles.headerRight}>

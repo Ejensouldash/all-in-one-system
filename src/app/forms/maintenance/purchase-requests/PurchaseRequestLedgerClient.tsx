@@ -125,7 +125,7 @@ export function PurchaseRequestLedgerClient({
   const [detailTab, setDetailTab] = useState<"ITEMS" | "LOGS">("ITEMS")
 
   // Create Form State
-  const [company, setCompany] = useState("BUBBLES O2 SDN BHD")
+  const [company, setCompany] = useState("BOS")
   const [department, setDepartment] = useState(userDepartment || "MAINTENANCE / ENGINEERING")
   const [dateRequired, setDateRequired] = useState("")
   const [requesterSignature, setRequesterSignature] = useState<string | null>(null)
@@ -646,13 +646,16 @@ export function PurchaseRequestLedgerClient({
             <form onSubmit={handleCreateSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Company</label>
-                  <input
-                    type="text"
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Company / Entity *</label>
+                  <select
                     value={company}
-                    onChange={(e) => setCompany(e.target.value.toUpperCase())}
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-semibold"
-                  />
+                    onChange={(e) => setCompany(e.target.value)}
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 font-semibold"
+                  >
+                    <option value="BOS">BOS (Bubbles O2 Sdn Bhd)</option>
+                    <option value="BOM">BOM (Bubbles O2 Marketing)</option>
+                    <option value="NRHO">NRHO (Nature Rich Holding)</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Department</label>

@@ -474,12 +474,20 @@ export async function receiveMaintenancePurchaseRequest(formData: FormData) {
           },
         })
 
-        // Auto-increment inventory for each linked item
+        // Auto-increment inventory or auto-register new item into FMS Inventory / FMS Asset
+        const entityDept = pr.company?.includes("NRHO") 
+          ? "NRHO" 
+          : pr.company?.includes("BOM") 
+            ? "BOM" 
+            : "BOS"
+
         for (const line of pr.items) {
-          if (line.itemId) {
-            // Update quantity
+          let targetItemId = line.itemId
+
+          if (targetItemId) {
+            // Existing item in inventory: update quantity and brand
             await tx.maintenanceItem.update({
-              where: { id: line.itemId },
+              where: { id: targetItemId },
               data: {
                 quantity: { increment: line.quantityRequest },
                 ...(line.brand ? { brand: line.brand } : {}),
@@ -489,12 +497,65 @@ export async function receiveMaintenancePurchaseRequest(formData: FormData) {
             // Create Stock Log (IN)
             await tx.maintenanceStockLog.create({
               data: {
-                itemId: line.itemId,
+                itemId: targetItemId,
                 type: "IN",
                 quantity: line.quantityRequest,
                 handledBy: receiverName,
-                department: receiverDepartment,
+                department: entityDept,
                 remarks: `RESTOCKED VIA PR ${pr.prNumber} (${line.projectMachine})`,
+              },
+            })
+          } else {
+            // New item not previously linked to inventory: check if item with same name exists
+            const existingByName = await tx.maintenanceItem.findFirst({
+              where: {
+                name: { equals: line.itemRequested.trim(), mode: "insensitive" },
+                department: entityDept,
+              },
+            })
+
+            if (existingByName) {
+              targetItemId = existingByName.id
+              await tx.maintenanceItem.update({
+                where: { id: targetItemId },
+                data: {
+                  quantity: { increment: line.quantityRequest },
+                  ...(line.brand ? { brand: line.brand } : {}),
+                },
+              })
+              await tx.maintenancePurchaseRequestItem.update({
+                where: { id: line.id },
+                data: { itemId: targetItemId },
+              })
+            } else {
+              // Create brand new MaintenanceItem in selected entity (BOS/BOM for Inventory, NRHO for Asset)
+              const newItem = await tx.maintenanceItem.create({
+                data: {
+                  name: line.itemRequested.trim().toUpperCase(),
+                  brand: line.brand ? line.brand.trim().toUpperCase() : null,
+                  location: "Pedas",
+                  department: entityDept,
+                  quantity: line.quantityRequest,
+                  unit: "pcs",
+                  pricePerUnit: 0,
+                },
+              })
+              targetItemId = newItem.id
+              await tx.maintenancePurchaseRequestItem.update({
+                where: { id: line.id },
+                data: { itemId: newItem.id },
+              })
+            }
+
+            // Create Stock Log (IN)
+            await tx.maintenanceStockLog.create({
+              data: {
+                itemId: targetItemId,
+                type: "IN",
+                quantity: line.quantityRequest,
+                handledBy: receiverName,
+                department: entityDept,
+                remarks: `NEW ITEM RECEIVED VIA PR ${pr.prNumber} (${line.projectMachine})`,
               },
             })
           }
@@ -505,6 +566,7 @@ export async function receiveMaintenancePurchaseRequest(formData: FormData) {
 
       revalidatePath("/forms/maintenance/purchase-requests")
       revalidatePath("/forms/maintenance/dashboard")
+      revalidatePath("/forms/maintenance/assets")
       return { success: true, data: updated, isDamaged: false }
     }
   } catch (error: any) {

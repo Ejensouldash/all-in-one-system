@@ -293,6 +293,7 @@ model MaintenanceTicket {
   assigneeName    String?                   // Text fallback for external contractors / legacy PICs (e.g. Ridzuan, Akmal)
   contractorToken String?                   @unique
   contractorPhone String?
+  contractorEmail String?
   
   // High-precision Scheduling
   targetStartDate DateTime?

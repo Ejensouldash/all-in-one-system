@@ -346,8 +346,7 @@ export function PublicWorkRequestForm() {
               type="button"
               onClick={() => {
                 setTicketResult(null)
-                setPreviewUrl(null)
-                setSelectedPhotoFile(null)
+                setPhotoItems([])
                 setTitle("")
                 setReasonOfWork("")
                 setSpecificArea("")

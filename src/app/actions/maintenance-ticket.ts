@@ -97,22 +97,30 @@ export async function publicCreateMaintenanceTicket(formData: FormData) {
   // Secure token for private requester status & acceptance
   const requesterToken = crypto.randomBytes(16).toString("hex")
 
-  // Handle Photo Upload if present
+  // Handle Photo Uploads (Support multiple images)
   let photoUrl: string | null = null
-  let photoUploadInfo: { key: string; url: string; size: number; name: string } | null = null
-  const photoFile = formData.get("photo") as File | null
-  if (photoFile && photoFile.size > 0 && photoFile.size <= 10 * 1024 * 1024) {
-    try {
-      const buffer = Buffer.from(await photoFile.arrayBuffer())
-      const { key, url } = await uploadMaintenancePhotoToR2(
-        buffer,
-        photoFile.name,
-        photoFile.type || "image/jpeg"
-      )
-      photoUrl = url
-      photoUploadInfo = { key, url, size: photoFile.size, name: photoFile.name }
-    } catch (e: any) {
-      console.error("Failed to upload photo to R2:", e)
+  const photoUploadInfos: { key: string; url: string; size: number; name: string }[] = []
+  
+  const rawPhotos = formData.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0)
+  const singlePhoto = formData.get("photo") as File | null
+  if (rawPhotos.length === 0 && singlePhoto && singlePhoto.size > 0) {
+    rawPhotos.push(singlePhoto)
+  }
+
+  for (const photoFile of rawPhotos) {
+    if (photoFile.size <= 10 * 1024 * 1024) {
+      try {
+        const buffer = Buffer.from(await photoFile.arrayBuffer())
+        const { key, url } = await uploadMaintenancePhotoToR2(
+          buffer,
+          photoFile.name,
+          photoFile.type || "image/jpeg"
+        )
+        if (!photoUrl) photoUrl = url
+        photoUploadInfos.push({ key, url, size: photoFile.size, name: photoFile.name })
+      } catch (e: any) {
+        console.error("Failed to upload photo to R2:", e)
+      }
     }
   }
 
@@ -141,16 +149,16 @@ export async function publicCreateMaintenanceTicket(formData: FormData) {
             isPublic: true,
           },
         },
-        photos: photoUploadInfo ? {
-          create: {
+        photos: photoUploadInfos.length > 0 ? {
+          create: photoUploadInfos.map((info, idx) => ({
             category: MaintenancePhotoCategory.INITIAL_COMPLAINT,
-            objectKey: photoUploadInfo.key,
-            fileUrl: photoUploadInfo.url,
-            fileName: photoUploadInfo.name,
-            fileSize: photoUploadInfo.size,
+            objectKey: info.key,
+            fileUrl: info.url,
+            fileName: info.name,
+            fileSize: info.size,
             uploadedByName: requesterName,
-            caption: "Initial complaint photo submitted by requester",
-          },
+            caption: `Initial complaint photo ${idx + 1}`,
+          })),
         } : undefined,
       },
     })
@@ -244,21 +252,30 @@ export async function createMaintenanceTicket(formData: FormData) {
 
   const requesterToken = crypto.randomBytes(16).toString("hex")
 
+  // Handle Photo Uploads (Support multiple images)
   let photoUrl: string | null = null
-  let photoUploadInfo: { key: string; url: string; size: number; name: string } | null = null
-  const photoFile = formData.get("photo") as File | null
-  if (photoFile && photoFile.size > 0 && photoFile.size <= 10 * 1024 * 1024) {
-    try {
-      const buffer = Buffer.from(await photoFile.arrayBuffer())
-      const { key, url } = await uploadMaintenancePhotoToR2(
-        buffer,
-        photoFile.name,
-        photoFile.type || "image/jpeg"
-      )
-      photoUrl = url
-      photoUploadInfo = { key, url, size: photoFile.size, name: photoFile.name }
-    } catch (e: any) {
-      console.error("Failed to upload photo to R2:", e)
+  const photoUploadInfos: { key: string; url: string; size: number; name: string }[] = []
+  
+  const rawPhotos = formData.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0)
+  const singlePhoto = formData.get("photo") as File | null
+  if (rawPhotos.length === 0 && singlePhoto && singlePhoto.size > 0) {
+    rawPhotos.push(singlePhoto)
+  }
+
+  for (const photoFile of rawPhotos) {
+    if (photoFile.size <= 10 * 1024 * 1024) {
+      try {
+        const buffer = Buffer.from(await photoFile.arrayBuffer())
+        const { key, url } = await uploadMaintenancePhotoToR2(
+          buffer,
+          photoFile.name,
+          photoFile.type || "image/jpeg"
+        )
+        if (!photoUrl) photoUrl = url
+        photoUploadInfos.push({ key, url, size: photoFile.size, name: photoFile.name })
+      } catch (e: any) {
+        console.error("Failed to upload photo to R2:", e)
+      }
     }
   }
 
@@ -287,16 +304,16 @@ export async function createMaintenanceTicket(formData: FormData) {
             isPublic: true,
           },
         },
-        photos: photoUploadInfo ? {
-          create: {
+        photos: photoUploadInfos.length > 0 ? {
+          create: photoUploadInfos.map((info, idx) => ({
             category: MaintenancePhotoCategory.INITIAL_COMPLAINT,
-            objectKey: photoUploadInfo.key,
-            fileUrl: photoUploadInfo.url,
-            fileName: photoUploadInfo.name,
-            fileSize: photoUploadInfo.size,
+            objectKey: info.key,
+            fileUrl: info.url,
+            fileName: info.name,
+            fileSize: info.size,
             uploadedByName: session.user.name || "Staff",
-            caption: "Initial complaint photo",
-          },
+            caption: `Initial complaint photo ${idx + 1}`,
+          })),
         } : undefined,
       },
     })

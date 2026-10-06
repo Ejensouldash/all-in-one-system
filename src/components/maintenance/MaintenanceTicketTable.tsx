@@ -227,7 +227,7 @@ export function MaintenanceTicketTable({
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50 text-slate-600 text-left text-xs font-bold uppercase tracking-wider">
               <tr>
-                <th className="px-5 py-3.5">Log No.</th>
+                <th className="px-5 py-3.5">Actions</th>
                 <th className="px-5 py-3.5">Type</th>
                 <th className="px-5 py-3.5">Work Description</th>
                 <th className="px-5 py-3.5">Location</th>
@@ -236,7 +236,7 @@ export function MaintenanceTicketTable({
                 <th className="px-5 py-3.5">Assigned To</th>
                 <th className="px-5 py-3.5">Requester</th>
                 <th className="px-5 py-3.5">Date</th>
-                <th className="px-5 py-3.5 text-right">Actions</th>
+                <th className="px-5 py-3.5 text-right">Log No.</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-slate-100 text-xs">
@@ -253,21 +253,35 @@ export function MaintenanceTicketTable({
 
                   return (
                     <tr key={ticket.id} className="hover:bg-slate-50/80 transition-colors">
-                      {/* Log No */}
+                      {/* Actions */}
                       <td className="px-5 py-3.5 whitespace-nowrap">
-                        <div className="flex flex-col items-start gap-1">
-                          <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                            {logNumber}
-                          </span>
-                          {ticket.legacyProjectId && (
-                            <span className="text-[10px] text-amber-700 font-mono bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
-                              {ticket.legacyProjectId}
-                            </span>
-                          )}
+                        <div className="flex items-center gap-1.5">
                           {ticket.jobSheetNumber && (
-                            <span className="text-[10px] text-blue-700 font-mono bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">
-                              {ticket.jobSheetNumber}
-                            </span>
+                            <a
+                              href={`/api/public/maintenance/jobsheet/${ticket.jobSheetNumber}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-1.5 rounded-lg text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 transition-colors"
+                              title="Download Job Sheet & Billing Memo PDF"
+                            >
+                              <FileText className="h-4 w-4" />
+                            </a>
+                          )}
+                          <button
+                            onClick={() => setSelectedTicket(ticket)}
+                            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 transition-colors"
+                            title="Quick View Details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          {canManage && (
+                            <Link
+                              href={`/forms/maintenance/tickets/${ticket.id}`}
+                              className="p-1.5 rounded-lg text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                              title="Open Maintenance Workspace"
+                            >
+                              <Wrench className="h-4 w-4" />
+                            </Link>
                           )}
                         </div>
                       </td>
@@ -308,10 +322,10 @@ export function MaintenanceTicketTable({
                       <td className="px-5 py-3.5 whitespace-nowrap text-slate-600">
                         <div className="flex items-center gap-1 font-medium">
                           <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                          <span className="truncate max-w-[130px]">{ticket.location}</span>
+                          <span className="truncate max-w-[65px]" title={ticket.location}>{ticket.location}</span>
                         </div>
                         {ticket.specificArea && (
-                          <span className="text-[10px] text-slate-400 block truncate max-w-[130px]">
+                          <span className="text-[10px] text-slate-400 block truncate max-w-[65px]" title={ticket.specificArea}>
                             {ticket.specificArea}
                           </span>
                         )}
@@ -384,35 +398,21 @@ export function MaintenanceTicketTable({
                         {new Date(ticket.createdAt).toLocaleDateString("en-GB")}
                       </td>
 
-                      {/* Actions */}
+                      {/* Log No */}
                       <td className="px-5 py-3.5 whitespace-nowrap text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {ticket.jobSheetNumber && (
-                            <a
-                              href={`/api/public/maintenance/jobsheet/${ticket.jobSheetNumber}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="p-1.5 rounded-lg text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 transition-colors"
-                              title="Download Job Sheet & Billing Memo PDF"
-                            >
-                              <FileText className="h-4 w-4" />
-                            </a>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                            {logNumber}
+                          </span>
+                          {ticket.legacyProjectId && (
+                            <span className="text-[10px] text-amber-700 font-mono bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                              {ticket.legacyProjectId}
+                            </span>
                           )}
-                          <button
-                            onClick={() => setSelectedTicket(ticket)}
-                            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 transition-colors"
-                            title="Quick View Details"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                          {canManage && (
-                            <Link
-                              href={`/forms/maintenance/tickets/${ticket.id}`}
-                              className="p-1.5 rounded-lg text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 transition-colors"
-                              title="Open Maintenance Workspace"
-                            >
-                              <Wrench className="h-4 w-4" />
-                            </Link>
+                          {ticket.jobSheetNumber && (
+                            <span className="text-[10px] text-blue-700 font-mono bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">
+                              {ticket.jobSheetNumber}
+                            </span>
                           )}
                         </div>
                       </td>

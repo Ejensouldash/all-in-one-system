@@ -17,7 +17,10 @@ import {
   Sparkles,
   FileText,
   Info,
-  HelpCircle
+  HelpCircle,
+  X,
+  Plus,
+  ImageIcon
 } from "lucide-react"
 import Link from "next/link"
 
@@ -29,6 +32,11 @@ const LOCATIONS = [
   "Kilang Botol Pedas (KBP) Block D",
   "Other / Luar Kawasan",
 ]
+
+interface PhotoItem {
+  file: File
+  previewUrl: string
+}
 
 export function MaintenanceTicketCreateForm({
   defaultName = "",
@@ -57,23 +65,42 @@ export function MaintenanceTicketCreateForm({
   const [location, setLocation] = useState<string>(LOCATIONS[0])
   const [customLocation, setCustomLocation] = useState<string>("")
   
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null)
+  const [photoItems, setPhotoItems] = useState<PhotoItem[]>([])
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+
+    const validNewItems: PhotoItem[] = []
+    let hasExceededSize = false
+
+    for (const file of files) {
       if (file.size > 10 * 1024 * 1024) {
-        setError("Image size exceeds 10MB limit.")
-        return
+        hasExceededSize = true
+        continue
       }
-      setSelectedPhotoFile(file)
-      setPreviewUrl(URL.createObjectURL(file))
-      setError("")
-    } else {
-      setSelectedPhotoFile(null)
-      setPreviewUrl(null)
+      validNewItems.push({
+        file,
+        previewUrl: URL.createObjectURL(file),
+      })
     }
+
+    if (hasExceededSize) {
+      setError("Some photos exceed the 10MB limit and were skipped.")
+    } else {
+      setError("")
+    }
+
+    setPhotoItems((prev) => [...prev, ...validNewItems].slice(0, 10))
+    e.target.value = ""
+  }
+
+  const handleRemovePhoto = (index: number) => {
+    setPhotoItems((prev) => {
+      const target = prev[index]
+      if (target) URL.revokeObjectURL(target.previewUrl)
+      return prev.filter((_, i) => i !== index)
+    })
   }
 
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,8 +168,11 @@ export function MaintenanceTicketCreateForm({
       : location
     formData.set("location", finalLoc)
 
-    if (selectedPhotoFile) {
-      formData.set("photo", selectedPhotoFile)
+    photoItems.forEach((item) => {
+      formData.append("photos", item.file)
+    })
+    if (photoItems.length > 0) {
+      formData.set("photo", photoItems[0].file)
     }
 
     const res = await createMaintenanceTicket(formData)
@@ -402,28 +432,74 @@ export function MaintenanceTicketCreateForm({
           </div>
         </div>
 
-        {/* Damage Photo */}
+        {/* Damage Photos */}
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-            Damage Photo <span className="text-slate-400 text-[10px] font-normal">(Optional, Max 10MB)</span>
-          </label>
-          <div className="flex items-center gap-4">
-            <label className="flex-1 border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition-colors bg-slate-50/50">
-              <Upload className="h-5 w-5 text-slate-400 mb-1" />
-              <span className="text-xs font-semibold text-slate-600">Select damage photo</span>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+              Damage Photos <span className="text-slate-400 text-[10px] font-normal">(Optional, Max 10MB each)</span>
+            </label>
+            {photoItems.length > 0 && (
+              <span className="text-xs font-bold text-blue-600">
+                {photoItems.length} {photoItems.length === 1 ? "photo" : "photos"} selected
+              </span>
+            )}
+          </div>
+
+          {photoItems.length === 0 ? (
+            <label className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-colors bg-slate-50/50 text-center group">
+              <div className="h-10 w-10 rounded-full bg-slate-100 group-hover:bg-blue-50 flex items-center justify-center text-slate-400 group-hover:text-blue-600 transition-colors mb-2">
+                <Upload className="h-5 w-5" />
+              </div>
+              <span className="text-xs font-bold text-slate-700 group-hover:text-blue-600 transition-colors">Select damage photo(s)</span>
+              <span className="text-[10px] text-slate-400 mt-0.5">Select single or multiple photos (JPEG, PNG, WebP)</span>
               <input
                 type="file"
                 accept="image/*"
+                multiple
                 className="hidden"
                 onChange={handleImageChange}
               />
             </label>
-            {previewUrl && (
-              <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-slate-200 shrink-0">
-                <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                {photoItems.map((item, idx) => (
+                  <div key={idx} className="relative group aspect-square rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 shadow-sm">
+                    <img
+                      src={item.previewUrl}
+                      alt={`Damage preview ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePhoto(idx)}
+                      className="absolute top-1.5 right-1.5 p-1 rounded-full bg-slate-900/75 hover:bg-red-600 text-white transition-colors shadow-md"
+                      title="Remove photo"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                    <div className="absolute bottom-1 left-1.5 text-[9px] font-bold text-white bg-slate-900/60 px-1.5 py-0.5 rounded backdrop-blur-xs">
+                      #{idx + 1}
+                    </div>
+                  </div>
+                ))}
+
+                {photoItems.length < 10 && (
+                  <label className="aspect-square border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-colors bg-slate-50/50 text-center p-2 group">
+                    <Plus className="h-5 w-5 text-slate-400 group-hover:text-blue-600 transition-colors mb-0.5" />
+                    <span className="text-[10px] font-bold text-slate-600 group-hover:text-blue-600 transition-colors">Add More</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleImageChange}
+                    />
+                  </label>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Requester Info */}

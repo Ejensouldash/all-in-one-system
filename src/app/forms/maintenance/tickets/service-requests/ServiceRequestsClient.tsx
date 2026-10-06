@@ -398,14 +398,14 @@ export function ServiceRequestsClient({
           <table className="w-full text-left text-xs text-slate-600">
             <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200/80">
               <tr>
-                <th className="px-5 py-3.5">Log No.</th>
+                <th className="px-5 py-3.5">Actions</th>
                 <th className="px-5 py-3.5">Type</th>
                 <th className="px-5 py-3.5">Work Description</th>
                 <th className="px-5 py-3.5">Location &amp; Area</th>
                 <th className="px-5 py-3.5">Requester</th>
                 <th className="px-5 py-3.5">Status</th>
                 <th className="px-5 py-3.5">Date</th>
-                <th className="px-5 py-3.5 text-right">Actions</th>
+                <th className="px-5 py-3.5 text-right">Log No.</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -426,16 +426,31 @@ export function ServiceRequestsClient({
                       className="hover:bg-blue-50/30 transition-colors group cursor-pointer"
                       onClick={() => setSelectedTicket(ticket)}
                     >
-                      {/* Ref */}
-                      <td className="px-5 py-3.5 whitespace-nowrap">
-                        <span className="font-mono font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                          {formattedLog}
-                        </span>
-                        {ticket.legacyProjectId && (
-                          <span className="block text-[10px] font-mono text-slate-400 mt-0.5">
-                            {ticket.legacyProjectId}
-                          </span>
-                        )}
+                      {/* Actions */}
+                      <td 
+                        className="px-5 py-3.5 whitespace-nowrap"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          {ticket.jobSheetNumber && (
+                            <a
+                              href={`/api/public/maintenance/jobsheet/${ticket.jobSheetNumber}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-1.5 rounded-lg text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 transition-colors"
+                              title="Download Verified Job Sheet PDF"
+                            >
+                              <FileText className="h-4 w-4" />
+                            </a>
+                          )}
+                          <button
+                            onClick={() => setSelectedTicket(ticket)}
+                            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 transition-colors"
+                            title="View Request Details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
 
                       {/* Type */}
@@ -459,11 +474,11 @@ export function ServiceRequestsClient({
                       {/* Location */}
                       <td className="px-5 py-3.5 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1 text-slate-700 font-medium">
-                          <MapPin className="h-3 w-3 text-slate-400" />
-                          {ticket.location}
+                          <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+                          <span className="truncate max-w-[65px]" title={ticket.location}>{ticket.location}</span>
                         </span>
                         {ticket.specificArea && (
-                          <span className="block text-[10px] text-slate-400 ml-4 mt-0.5">
+                          <span className="block text-[10px] text-slate-400 ml-4 mt-0.5 truncate max-w-[65px]" title={ticket.specificArea}>
                             {ticket.specificArea}
                           </span>
                         )}
@@ -485,31 +500,16 @@ export function ServiceRequestsClient({
                         {new Date(ticket.createdAt).toLocaleDateString("en-GB")}
                       </td>
 
-                      {/* Actions */}
-                      <td 
-                        className="px-5 py-3.5 whitespace-nowrap text-right"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="flex items-center justify-end gap-1.5">
-                          {ticket.jobSheetNumber && (
-                            <a
-                              href={`/api/public/maintenance/jobsheet/${ticket.jobSheetNumber}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="p-1.5 rounded-lg text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 transition-colors"
-                              title="Download Verified Job Sheet PDF"
-                            >
-                              <FileText className="h-4 w-4" />
-                            </a>
-                          )}
-                          <button
-                            onClick={() => setSelectedTicket(ticket)}
-                            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 transition-colors"
-                            title="View Request Details"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                        </div>
+                      {/* Ref / Log No */}
+                      <td className="px-5 py-3.5 whitespace-nowrap text-right">
+                        <span className="font-mono font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                          {formattedLog}
+                        </span>
+                        {ticket.legacyProjectId && (
+                          <span className="block text-[10px] font-mono text-slate-400 mt-0.5">
+                            {ticket.legacyProjectId}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   )

@@ -1005,8 +1005,14 @@ export async function getMaintenanceWorkspaceData(ticketId: string) {
     orderBy: { name: "asc" },
   })
 
-  // Fetch spare parts catalog items
+  // Fetch spare parts catalog items (exclude NRHO)
   const catalogItems = await prisma.maintenanceItem.findMany({
+    where: {
+      OR: [
+        { department: { in: ["BOS", "BOM"] } },
+        { department: null },
+      ],
+    },
     select: { id: true, name: true, location: true, quantity: true, unit: true, pricePerUnit: true },
     orderBy: { name: "asc" },
   })

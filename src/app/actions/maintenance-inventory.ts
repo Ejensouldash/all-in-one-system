@@ -207,6 +207,8 @@ export async function withdrawMaintenanceStock(data: {
 export async function getMaintenanceStockReport(filters: {
   startDate?: string
   endDate?: string
+  department?: string
+  departments?: string[]
 }) {
   try {
     const where: any = {}
@@ -222,6 +224,15 @@ export async function getMaintenanceStockReport(filters: {
         end.setHours(23, 59, 59, 999)
         where.createdAt.lte = end
       }
+    }
+
+    if (filters.departments && filters.departments.length > 0) {
+      where.OR = [
+        { department: { in: filters.departments } },
+        { department: null }
+      ]
+    } else if (filters.department) {
+      where.department = filters.department
     }
 
     const logs = await prisma.maintenanceStockLog.findMany({

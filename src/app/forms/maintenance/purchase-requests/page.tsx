@@ -42,8 +42,14 @@ export default async function PurchaseRequestsPage(props: {
     search: searchParams.pr,
   })
 
-  // Fetch inventory catalog items so PR creation can auto-complete name, brand, and stock balance
+  // Fetch inventory catalog items so PR creation can auto-complete name, brand, and stock balance (BOS/BOM only)
   const inventoryCatalog = await prisma.maintenanceItem.findMany({
+    where: {
+      OR: [
+        { department: { in: ["BOS", "BOM"] } },
+        { department: null },
+      ],
+    },
     select: {
       id: true,
       name: true,

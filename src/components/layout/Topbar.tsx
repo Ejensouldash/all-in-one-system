@@ -21,6 +21,7 @@ export function Topbar({
   if (
     pathname.startsWith("/forms/maintenance/tickets") || 
     pathname.startsWith("/forms/maintenance/dashboard") ||
+    pathname.startsWith("/forms/maintenance/assets") ||
     pathname.startsWith("/forms/maintenance/purchase-requests")
   ) title = "Facilities Maintenance"
   else if (pathname.includes("/forms/maintenance/pallet-transfer")) title = "Pallet Ledger"

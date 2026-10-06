@@ -27,21 +27,31 @@ export default async function Page() {
   }
 
   const items = await prisma.maintenanceItem.findMany({
-    orderBy: { name: "asc" }
+    where: {
+      OR: [
+        { department: { in: ["BOS", "BOM"] } },
+        { department: null },
+      ],
+    },
+    orderBy: { name: "asc" },
   })
 
-  // Get recent stock logs
+  // Get recent stock logs (BOS and BOM only)
   const thirtyDaysAgo = new Date()
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
   const recentLogs = await prisma.maintenanceStockLog.findMany({
     where: {
-      createdAt: { gte: thirtyDaysAgo }
+      createdAt: { gte: thirtyDaysAgo },
+      OR: [
+        { department: { in: ["BOS", "BOM"] } },
+        { department: null },
+      ],
     },
     include: {
-      item: true
+      item: true,
     },
-    orderBy: { createdAt: "desc" }
+    orderBy: { createdAt: "desc" },
   })
 
   return (

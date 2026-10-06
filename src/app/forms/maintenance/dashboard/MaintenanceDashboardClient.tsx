@@ -320,7 +320,8 @@ export function MaintenanceDashboardClient({
     setErrorMsg("")
     const res = await getMaintenanceStockReport({
       startDate: reportStartDate || undefined,
-      endDate: reportEndDate || undefined
+      endDate: reportEndDate || undefined,
+      departments: ["BOS", "BOM"]
     })
 
     if (res.success && res.data) {
@@ -689,7 +690,7 @@ export function MaintenanceDashboardClient({
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
                 {/* Department filter tabs */}
                 <div className="flex items-center bg-gray-100 p-1 rounded-xl text-xs font-black uppercase self-start sm:self-auto">
-                  {["ALL", "BOS", "BOM", "NRHO"].map((dept) => (
+                  {["ALL", "BOS", "BOM"].map((dept) => (
                     <button
                       key={dept}
                       type="button"
@@ -924,7 +925,6 @@ export function MaintenanceDashboardClient({
                         >
                           <option value="BOS">BOS</option>
                           <option value="BOM">BOM</option>
-                          <option value="NRHO">NRHO</option>
                         </select>
                       </div>
                     </div>
@@ -962,7 +962,6 @@ export function MaintenanceDashboardClient({
                       >
                         <option value="BOS">BOS</option>
                         <option value="BOM">BOM</option>
-                        <option value="NRHO">NRHO</option>
                       </select>
                     </div>
                   </div>
@@ -1319,7 +1318,6 @@ export function MaintenanceDashboardClient({
                     >
                       <option value="BOS">BOS</option>
                       <option value="BOM">BOM</option>
-                      <option value="NRHO">NRHO</option>
                     </select>
                   </div>
                 </div>

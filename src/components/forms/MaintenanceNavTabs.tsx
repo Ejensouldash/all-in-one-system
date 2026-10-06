@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Wrench, ClipboardList, PackageOpen, Bell, FileText } from "lucide-react"
+import { Wrench, ClipboardList, PackageOpen, Bell, FileText, Boxes } from "lucide-react"
 
 export function MaintenanceNavTabs({ 
   userModules = [],
@@ -16,6 +16,7 @@ export function MaintenanceNavTabs({
   const isNotifications = pathname.startsWith("/forms/maintenance/tickets/notifications")
   const isRequests = pathname.startsWith("/forms/maintenance/tickets/service-requests")
   const isPurchaseRequests = pathname.startsWith("/forms/maintenance/purchase-requests")
+  const isAssets = pathname.startsWith("/forms/maintenance/assets")
   const isTickets = pathname.startsWith("/forms/maintenance/tickets") && !isNotifications && !isRequests && !isPurchaseRequests
   const isDashboard = pathname.startsWith("/forms/maintenance/dashboard")
 
@@ -37,6 +38,11 @@ export function MaintenanceNavTabs({
     userModules.includes("MAINTENANCE_DASHBOARD") ||
     userModules.includes("MAINTENANCE_FORMS") ||
     userModules.includes("MAINTENANCE_TICKETS_MANAGE")
+
+  // FMS Asset (NRHO): Accessible to Superadmin or users with MAINTENANCE_ASSETS
+  const hasAssets = isSuperAdmin || 
+    isAssets ||
+    userModules.includes("MAINTENANCE_ASSETS")
 
   const hasPurchaseRequests = hasDashboard || canManage || userModules.includes("MAINTENANCE_PR_APPROVE")
 
@@ -90,7 +96,22 @@ export function MaintenanceNavTabs({
           </Link>
         )}
 
-        {/* Tab 4: Purchase Requisition */}
+        {/* Tab 4: FMS Asset (NRHO) */}
+        {hasAssets && (
+          <Link 
+            href="/forms/maintenance/assets"
+            className={`flex items-center pb-4 text-sm font-black uppercase tracking-wider border-b-4 transition-colors ${
+              isAssets
+                ? "border-blue-700 text-blue-700" 
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            <Boxes className="w-5 h-5 mr-2" />
+            FMS Asset
+          </Link>
+        )}
+
+        {/* Tab 5: Purchase Requisition */}
         {hasPurchaseRequests && (
           <Link 
             href="/forms/maintenance/purchase-requests"

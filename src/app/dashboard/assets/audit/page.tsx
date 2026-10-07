@@ -96,7 +96,7 @@ export default function AuditScanPage() {
                 )}
 
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2 text-center uppercase tracking-wider">Asset Tag / Barcode</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-2 text-center uppercase tracking-wider">Barcode / Serial Number</label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <Package className="h-5 w-5 text-slate-400" />
@@ -107,11 +107,11 @@ export default function AuditScanPage() {
                       value={assetTag}
                       onChange={(e) => setAssetTag(e.target.value.toUpperCase())}
                       className="block w-full pl-12 pr-4 py-4 text-center text-xl font-black text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 placeholder-slate-300 transition-colors"
-                      placeholder="e.g. BBL-IT-001"
+                      placeholder="e.g. GRN 3591..., MJ-001"
                     />
                   </div>
                   <p className="text-xs text-center text-slate-400 font-medium mt-3">
-                    Tip: If you are using a USB barcode scanner, simply scan the tag. It will automatically submit.
+                    Tip: If you are using a USB barcode scanner, simply scan the barcode. It will automatically submit.
                   </p>
                 </div>
 

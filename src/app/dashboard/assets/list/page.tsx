@@ -11,7 +11,7 @@ export default async function AssetsListPage() {
       location: true
     },
     orderBy: {
-      createdAt: 'desc'
+      assetTag: 'asc'
     }
   })
 

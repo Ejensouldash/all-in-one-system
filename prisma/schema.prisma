@@ -139,6 +139,9 @@ model Asset {
   deviceId     String?
   description  String? @db.Text
 
+  condition    String?
+  imageUrl     String?
+
   type   AssetType   @default(OTHER)
   status AssetStatus @default(AVAILABLE)
   condition    String?

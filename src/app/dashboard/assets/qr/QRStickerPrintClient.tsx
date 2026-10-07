@@ -2,15 +2,16 @@
 
 import { useState, useMemo, useRef } from "react"
 import { AssetQRSticker } from "@/components/assets/AssetQRSticker"
-import { ArrowLeft, Printer, Search, CheckSquare, Square, Filter, X, ChevronLeft, ChevronRight } from "lucide-react"
+import { ArrowLeft, Printer, Search, CheckSquare, Square, X, ChevronLeft, ChevronRight, Building2 } from "lucide-react"
 import Link from "next/link"
 
 interface Asset {
   id: string
   assetTag: string
   name: string
-  type: string
-  status: string
+  brand?: string | null
+  serialNumber?: string | null
+  condition?: string | null
   department?: { id: string; name: string } | null
   location?: { id: string; name: string } | null
 }
@@ -20,12 +21,11 @@ const BASE_URL = typeof window !== "undefined" ? window.location.origin : ""
 export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState("")
-  const [typeFilter, setTypeFilter] = useState("")
   const [deptFilter, setDeptFilter] = useState("")
   const [showPreview, setShowPreview] = useState(false)
   const [page, setPage] = useState(1)
   const printRef = useRef<HTMLDivElement>(null)
-  const perPage = 20
+  const perPage = 25
 
   const departments = useMemo(() => {
     const depts = new Set<string>()
@@ -33,21 +33,21 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
     return Array.from(depts).sort()
   }, [assets])
 
-  const types = useMemo(() => {
-    const t = new Set<string>()
-    assets.forEach(a => t.add(a.type))
-    return Array.from(t).sort()
-  }, [assets])
-
   const filtered = useMemo(() => {
     return assets.filter(a => {
       const q = search.toLowerCase()
-      const matchSearch = !q || a.assetTag.toLowerCase().includes(q) || a.name.toLowerCase().includes(q) || (a.department?.name || "").toLowerCase().includes(q)
-      const matchType = !typeFilter || a.type === typeFilter
+      const matchSearch = 
+        !q || 
+        a.name.toLowerCase().includes(q) || 
+        (a.brand || "").toLowerCase().includes(q) ||
+        (a.serialNumber || "").toLowerCase().includes(q) ||
+        (a.department?.name || "").toLowerCase().includes(q) ||
+        (a.location?.name || "").toLowerCase().includes(q)
+
       const matchDept = !deptFilter || a.department?.name === deptFilter
-      return matchSearch && matchType && matchDept
+      return matchSearch && matchDept
     })
-  }, [assets, search, typeFilter, deptFilter])
+  }, [assets, search, deptFilter])
 
   const totalPages = Math.ceil(filtered.length / perPage)
   const paged = filtered.slice((page - 1) * perPage, page * perPage)
@@ -76,6 +76,14 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
     }
   }
 
+  // Quick select all in a specific department
+  const handleSelectDepartment = (deptName: string) => {
+    setDeptFilter(deptName)
+    const deptAssetIds = assets.filter(a => a.department?.name === deptName).map(a => a.id)
+    setSelectedIds(new Set(deptAssetIds))
+    setPage(1)
+  }
+
   const selectedAssets = assets.filter(a => selectedIds.has(a.id))
   const allFilteredSelected = filtered.length > 0 && filtered.every(a => selectedIds.has(a.id))
 
@@ -83,8 +91,6 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
     setShowPreview(true)
     setTimeout(() => window.print(), 300)
   }
-
-  const typeLabel = (t: string) => t.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())
 
   if (showPreview) {
     return (
@@ -112,11 +118,11 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
 
         {/* Screen controls */}
         <div className="no-print p-4 bg-gray-900 text-white flex items-center justify-between sticky top-0 z-50">
-          <button onClick={() => setShowPreview(false)} className="flex items-center gap-2 text-sm hover:text-teal-400 transition-colors">
+          <button onClick={() => setShowPreview(false)} className="flex items-center gap-2 text-sm hover:text-teal-400 transition-colors font-bold">
             <ArrowLeft className="w-4 h-4" /> Back to Selection
           </button>
-          <div className="text-sm text-gray-400">{selectedAssets.length} sticker(s) ready</div>
-          <button onClick={() => window.print()} className="flex items-center gap-2 bg-teal-600 hover:bg-teal-500 px-4 py-2 rounded-lg text-sm font-bold transition-colors">
+          <div className="text-sm text-gray-300 font-semibold">{selectedAssets.length} sticker(s) ready to print</div>
+          <button onClick={() => window.print()} className="flex items-center gap-2 bg-teal-600 hover:bg-teal-500 px-5 py-2 rounded-xl text-sm font-black transition-colors shadow-sm">
             <Printer className="w-4 h-4" /> Print Now
           </button>
         </div>
@@ -136,7 +142,7 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
               <AssetQRSticker
                 key={asset.id}
                 assetTag={asset.assetTag}
-                qrValue={`${BASE_URL}/dashboard/assets/${asset.id}`}
+                qrValue={`${BASE_URL}/public/asset/${asset.id}`}
                 bleed
               />
             ))}
@@ -149,26 +155,26 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       {/* Header */}
-      <div className="border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-40">
+      <div className="border-b border-gray-800 bg-gray-900/60 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <Link href="/dashboard/assets" className="text-gray-400 hover:text-white transition-colors">
+              <Link href="/dashboard/assets/list" className="text-gray-400 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-gray-800">
                 <ArrowLeft className="w-5 h-5" />
               </Link>
               <div>
-                <h1 className="text-xl font-black tracking-tight">QR Sticker Print</h1>
-                <p className="text-sm text-gray-400">Select assets and print QR code stickers for labelling</p>
+                <h1 className="text-xl font-black tracking-tight">QR Sticker Batch Print</h1>
+                <p className="text-xs text-gray-400 mt-0.5">Select assets or choose by department to print official QR stickers</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="text-sm text-gray-400 bg-gray-800 px-3 py-1.5 rounded-lg">
+              <div className="text-xs text-gray-400 bg-gray-800/80 px-3 py-2 rounded-xl border border-gray-700 font-medium">
                 <span className="text-teal-400 font-bold">{selectedIds.size}</span> selected
               </div>
               <button
                 onClick={handlePrint}
                 disabled={selectedIds.size === 0}
-                className="flex items-center gap-2 bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed px-5 py-2.5 rounded-lg text-sm font-bold transition-all"
+                className="flex items-center gap-2 bg-teal-600 hover:bg-teal-500 disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
               >
                 <Printer className="w-4 h-4" />
                 Batch Print ({selectedIds.size})
@@ -178,99 +184,129 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+        
+        {/* Quick Select by Department Pills (Requirement 8) */}
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Building2 className="w-4 h-4 text-teal-400" />
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-300">Quick Select by Department</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {departments.map((dept) => {
+              const count = assets.filter(a => a.department?.name === dept).length
+              const isCurrent = deptFilter === dept
+              return (
+                <button
+                  key={dept}
+                  type="button"
+                  onClick={() => handleSelectDepartment(dept)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border ${
+                    isCurrent
+                      ? "bg-teal-600 text-white border-teal-500 shadow-sm"
+                      : "bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700 hover:text-white"
+                  }`}
+                >
+                  <span>{dept}</span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-black/30 text-[10px] font-mono">{count}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3 mb-6">
-          <div className="relative flex-1 min-w-[250px]">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[260px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input
               type="text"
-              placeholder="Search by asset tag, name, or department..."
+              placeholder="Search item, brand, barcode, location..."
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1) }}
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-900 border border-gray-800 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
           </div>
-          <select
-            value={typeFilter}
-            onChange={e => { setTypeFilter(e.target.value); setPage(1) }}
-            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-          >
-            <option value="">All Types</option>
-            {types.map(t => <option key={t} value={t}>{typeLabel(t)}</option>)}
-          </select>
+
           <select
             value={deptFilter}
             onChange={e => { setDeptFilter(e.target.value); setPage(1) }}
-            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+            className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium"
           >
             <option value="">All Departments</option>
             {departments.map(d => <option key={d} value={d}>{d}</option>)}
           </select>
-          {(search || typeFilter || deptFilter) && (
+
+          {(search || deptFilter) && (
             <button
-              onClick={() => { setSearch(""); setTypeFilter(""); setDeptFilter(""); setPage(1) }}
+              onClick={() => { setSearch(""); setDeptFilter(""); setPage(1) }}
               className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors"
             >
-              <X className="w-3 h-3" /> Clear
+              <X className="w-3.5 h-3.5" /> Clear filters
             </button>
           )}
         </div>
 
-        {/* Select All */}
-        <div className="flex items-center justify-between mb-3">
+        {/* Select All Row */}
+        <div className="flex items-center justify-between">
           <button
             onClick={toggleAll}
-            className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
+            className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white transition-colors"
           >
-            {allFilteredSelected ? <CheckSquare className="w-4 h-4 text-teal-400" /> : <Square className="w-4 h-4" />}
-            Select All ({filtered.length})
+            {allFilteredSelected ? <CheckSquare className="w-4 h-4 text-teal-400" /> : <Square className="w-4 h-4 text-gray-600" />}
+            Select All Filtered ({filtered.length})
           </button>
-          <div className="text-xs text-gray-500">
-            Showing {(page - 1) * perPage + 1}–{Math.min(page * perPage, filtered.length)} of {filtered.length}
+          <div className="text-xs text-gray-500 font-medium">
+            Showing {(page - 1) * perPage + 1}–{Math.min(page * perPage, filtered.length)} of {filtered.length} assets
           </div>
         </div>
 
-        {/* Asset Table */}
-        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
+        {/* Asset Table matching Excel Headers */}
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-sm">
+          <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-gray-800 text-gray-400 text-xs uppercase tracking-wider">
-                <th className="p-3 text-left w-12"></th>
-                <th className="p-3 text-left">Asset Tag</th>
-                <th className="p-3 text-left">Name</th>
-                <th className="p-3 text-left">Type</th>
-                <th className="p-3 text-left">Department</th>
-                <th className="p-3 text-left">Status</th>
+              <tr className="border-b border-gray-800 text-gray-400 text-[11px] uppercase tracking-wider bg-gray-900/80">
+                <th className="p-3.5 text-left w-12"></th>
+                <th className="p-3.5 text-left w-14">No</th>
+                <th className="p-3.5 text-left">Department</th>
+                <th className="p-3.5 text-left">Item</th>
+                <th className="p-3.5 text-left">Brand</th>
+                <th className="p-3.5 text-left">Barcode / Serial</th>
+                <th className="p-3.5 text-left">Location</th>
+                <th className="p-3.5 text-left">Condition</th>
               </tr>
             </thead>
             <tbody>
-              {paged.map(asset => {
+              {paged.map((asset, idx) => {
                 const isSelected = selectedIds.has(asset.id)
+                const rowNo = parseInt(asset.assetTag?.replace("AST-", "") || String((page - 1) * perPage + idx + 1), 10)
+
                 return (
                   <tr
                     key={asset.id}
                     onClick={() => toggleSelect(asset.id)}
-                    className={`border-b border-gray-800/50 cursor-pointer transition-colors ${isSelected ? "bg-teal-950/30" : "hover:bg-gray-800/50"}`}
+                    className={`border-b border-gray-800/40 cursor-pointer transition-colors ${isSelected ? "bg-teal-950/40" : "hover:bg-gray-800/40"}`}
                   >
-                    <td className="p-3">
+                    <td className="p-3.5">
                       {isSelected 
                         ? <CheckSquare className="w-4 h-4 text-teal-400" /> 
                         : <Square className="w-4 h-4 text-gray-600" />
                       }
                     </td>
-                    <td className="p-3 font-mono font-bold text-teal-400">{asset.assetTag}</td>
-                    <td className="p-3 font-medium text-white">{asset.name}</td>
-                    <td className="p-3 text-gray-400">{typeLabel(asset.type)}</td>
-                    <td className="p-3 text-gray-400">{asset.department?.name || "—"}</td>
-                    <td className="p-3">
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                        asset.status === "AVAILABLE" ? "bg-emerald-900/50 text-emerald-400" :
-                        asset.status === "ASSIGNED" ? "bg-blue-900/50 text-blue-400" :
-                        asset.status === "MAINTENANCE" ? "bg-amber-900/50 text-amber-400" :
-                        "bg-gray-800 text-gray-400"
+                    <td className="p-3.5 font-bold text-gray-400">{rowNo}</td>
+                    <td className="p-3.5 text-gray-300 font-semibold">{asset.department?.name || "—"}</td>
+                    <td className="p-3.5 font-bold text-white">{asset.name}</td>
+                    <td className="p-3.5 text-gray-400">{asset.brand || "—"}</td>
+                    <td className="p-3.5 font-mono text-gray-300">{asset.serialNumber || "—"}</td>
+                    <td className="p-3.5 text-gray-400">{asset.location?.name || "—"}</td>
+                    <td className="p-3.5">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        asset.condition === "Good" ? "bg-emerald-950 text-emerald-400 border border-emerald-800" :
+                        asset.condition === "Usable" ? "bg-blue-950 text-blue-400 border border-blue-800" :
+                        asset.condition === "Bad" ? "bg-amber-950 text-amber-400 border border-amber-800" :
+                        "text-gray-500"
                       }`}>
-                        {asset.status}
+                        {asset.condition || "—"}
                       </span>
                     </td>
                   </tr>
@@ -278,8 +314,8 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
               })}
               {paged.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center text-gray-500">
-                    No assets found matching your filters.
+                  <td colSpan={8} className="p-12 text-center text-gray-500 font-medium">
+                    No assets found matching your criteria.
                   </td>
                 </tr>
               )}
@@ -289,11 +325,11 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 mt-4">
+          <div className="flex items-center justify-center gap-1.5 pt-2">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="p-2 rounded-lg bg-gray-800 text-gray-400 hover:text-white disabled:opacity-30 transition-colors"
+              className="p-2 rounded-xl bg-gray-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-30 transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -301,7 +337,11 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
               <button
                 key={p}
                 onClick={() => setPage(p)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${p === page ? "bg-teal-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"}`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                  p === page 
+                    ? "bg-teal-600 text-white" 
+                    : "bg-gray-900 border border-gray-800 text-gray-400 hover:text-white"
+                }`}
               >
                 {p}
               </button>
@@ -309,36 +349,13 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
             <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="p-2 rounded-lg bg-gray-800 text-gray-400 hover:text-white disabled:opacity-30 transition-colors"
+              className="p-2 rounded-xl bg-gray-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-30 transition-colors"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         )}
 
-        {/* Live Preview of selected stickers */}
-        {selectedIds.size > 0 && (
-          <div className="mt-8">
-            <h2 className="text-lg font-bold mb-4 text-gray-300">Preview ({selectedAssets.length} stickers)</h2>
-            <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6 overflow-auto">
-              <div className="flex flex-wrap gap-4">
-                {selectedAssets.slice(0, 6).map(asset => (
-                  <AssetQRSticker
-                    key={asset.id}
-                    assetTag={asset.assetTag}
-                    qrValue={`${BASE_URL}/dashboard/assets/${asset.id}`}
-                    bleed
-                  />
-                ))}
-                {selectedAssets.length > 6 && (
-                  <div className="flex items-center justify-center w-[70mm] h-[30mm] border-2 border-dashed border-gray-600 rounded-lg text-gray-500 text-sm font-medium">
-                    +{selectedAssets.length - 6} more stickers
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

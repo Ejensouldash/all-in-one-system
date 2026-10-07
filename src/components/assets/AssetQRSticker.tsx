@@ -3,13 +3,13 @@
 import { QRCodeSVG } from "qrcode.react"
 
 interface AssetQRStickerProps {
-  assetTag: string
+  assetTag?: string
   qrValue: string
   /** Offset-print mode: adds 2mm bleed around the 70x30mm die line plus a dashed magenta cut guide */
   bleed?: boolean
 }
 
-export function AssetQRSticker({ assetTag, qrValue, bleed = false }: AssetQRStickerProps) {
+export function AssetQRSticker({ assetTag: _assetTag, qrValue, bleed = false }: AssetQRStickerProps) {
   const sticker = (
     <div
       className="asset-qr-sticker"
@@ -32,24 +32,24 @@ export function AssetQRSticker({ assetTag, qrValue, bleed = false }: AssetQRStic
       {/* Left Section */}
       <div
         style={{
-          flex: "1 1 55%",
+          flex: "1 1 60%",
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
-          padding: "2mm 3mm",
-          gap: "0.8mm",
+          padding: "2.8mm 3.8mm",
+          gap: "1.2mm",
         }}
       >
         {/* PROPERTY OF + Logo */}
         <div>
           <div
             style={{
-              fontSize: "5pt",
-              fontWeight: 400,
+              fontSize: "6pt",
+              fontWeight: 600,
               color: "#94a3b8",
-              letterSpacing: "0.5px",
+              letterSpacing: "0.8px",
               textTransform: "uppercase",
-              marginBottom: "0.3mm",
+              marginBottom: "0.6mm",
             }}
           >
             PROPERTY OF
@@ -58,7 +58,7 @@ export function AssetQRSticker({ assetTag, qrValue, bleed = false }: AssetQRStic
             src="/assets/BubblesO2_Logo.png"
             alt="BubblesO2"
             style={{
-              height: "5mm",
+              height: "7.5mm",
               width: "auto",
               objectFit: "contain",
               display: "block",
@@ -70,9 +70,10 @@ export function AssetQRSticker({ assetTag, qrValue, bleed = false }: AssetQRStic
         <div
           style={{
             width: "100%",
-            height: "0.3mm",
+            height: "0.35mm",
             background: "linear-gradient(90deg, transparent, #2dd4bf, transparent)",
             position: "relative",
+            margin: "0.5mm 0",
           }}
         >
           <div
@@ -89,45 +90,22 @@ export function AssetQRSticker({ assetTag, qrValue, bleed = false }: AssetQRStic
           />
         </div>
 
-        {/* Asset Tag */}
-        <div
-          style={{
-            backgroundColor: "#ffffff",
-            borderRadius: "1mm",
-            padding: "0.8mm 2mm",
-            display: "inline-block",
-            alignSelf: "flex-start",
-          }}
-        >
-          <span
-            style={{
-              fontSize: "8pt",
-              fontWeight: 900,
-              color: "#000000",
-              letterSpacing: "0.3px",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {assetTag}
-          </span>
-        </div>
-
         {/* Contact Info */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.3mm", marginTop: "0.3mm" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "1.2mm" }}>
-            <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.8mm" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "1.5mm" }}>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
               <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
             </svg>
-            <span style={{ fontSize: "5pt", color: "#e2e8f0", fontWeight: 500 }}>
+            <span style={{ fontSize: "6pt", color: "#f1f5f9", fontWeight: 600, letterSpacing: "0.2px" }}>
               +60 19-608 9858 (HR)
             </span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "1.2mm" }}>
-            <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <div style={{ display: "flex", alignItems: "center", gap: "1.5mm" }}>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
               <rect width="20" height="16" x="2" y="4" rx="2" />
               <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
             </svg>
-            <span style={{ fontSize: "5pt", color: "#e2e8f0", fontWeight: 500 }}>
+            <span style={{ fontSize: "6pt", color: "#f1f5f9", fontWeight: 600, letterSpacing: "0.2px" }}>
               HR@bubbleso2.com
             </span>
           </div>
@@ -147,18 +125,18 @@ export function AssetQRSticker({ assetTag, qrValue, bleed = false }: AssetQRStic
         <div
           style={{
             backgroundColor: "#ffffff",
-            borderRadius: "2mm",
+            borderRadius: "2.5mm",
             padding: "1.5mm",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            width: "22mm",
-            height: "22mm",
+            width: "24mm",
+            height: "24mm",
           }}
         >
           <QRCodeSVG
             value={qrValue}
-            size={76}
+            size={84}
             level="M"
             bgColor="#ffffff"
             fgColor="#000000"

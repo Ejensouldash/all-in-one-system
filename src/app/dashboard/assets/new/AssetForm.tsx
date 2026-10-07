@@ -3,196 +3,290 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { useRouter } from "next/navigation"
-import { createAsset, generateAssetTag } from "@/app/actions/asset"
-import { Save, ArrowLeft, Loader2, Sparkles } from "lucide-react"
+import { createAsset, uploadAssetPhotoAction } from "@/app/actions/asset"
+import { Save, ArrowLeft, Loader2, Camera, Upload, X, Image as ImageIcon, Building2, MapPin } from "lucide-react"
 import Link from "next/link"
+import { CameraCaptureModal } from "@/components/forms/CameraCaptureModal"
 
 export function AssetForm({ departments, locations }: { departments: any[], locations: any[] }) {
   const router = useRouter()
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<any>({
+  const { register, handleSubmit, formState: { errors } } = useForm<any>({
     defaultValues: {
-      status: "AVAILABLE",
-      type: "ICT_EQUIPMENT"
+      condition: "Good"
     }
   })
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isGenerating, setIsGenerating] = useState(false)
   
-  const watchType = watch("type")
-  const watchDept = watch("departmentId")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [isCameraOpen, setIsCameraOpen] = useState(false)
 
-  const handleGenerateTag = async () => {
-    setIsGenerating(true)
-    const res = await generateAssetTag(watchDept || null, watchType || "OTHER")
-    if (res.success && res.tag) {
-      setValue("assetTag", res.tag, { shouldValidate: true, shouldDirty: true })
-    } else {
-      alert("Failed to generate tag: " + res.error)
-    }
-    setIsGenerating(false)
+  const handleCapturePhoto = (file: File, previewUrl: string) => {
+    setPhotoFile(file)
+    setPhotoPreview(previewUrl)
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setPhotoFile(file)
+    setPhotoPreview(URL.createObjectURL(file))
+  }
+
+  const handleRemovePhoto = () => {
+    if (photoPreview) URL.revokeObjectURL(photoPreview)
+    setPhotoFile(null)
+    setPhotoPreview(null)
   }
 
   const onSubmit = async (data: any) => {
     setIsSubmitting(true)
-    const result = await createAsset(data)
-    if (result.success) {
-      alert("Asset registered successfully!")
-      router.push("/dashboard/assets/list")
-    } else {
-      alert(result.error)
+    try {
+      let uploadedUrl: string | null = null
+
+      if (photoFile) {
+        const formData = new FormData()
+        formData.append("photo", photoFile)
+        const uploadRes = await uploadAssetPhotoAction(formData)
+        if (uploadRes.success && uploadRes.url) {
+          uploadedUrl = uploadRes.url
+        }
+      }
+
+      const payload = {
+        name: data.name?.trim(),
+        brand: data.brand?.trim() || null,
+        serialNumber: data.serialNumber?.trim() || null,
+        condition: data.condition || "Good",
+        departmentId: data.departmentId || null,
+        locationId: data.locationId || null,
+        imageUrl: uploadedUrl,
+      }
+
+      const result = await createAsset(payload)
+      if (result.success) {
+        alert("Asset registered successfully!")
+        router.push("/dashboard/assets/list")
+      } else {
+        alert(result.error || "Failed to register asset.")
+        setIsSubmitting(false)
+      }
+    } catch (err: any) {
+      alert(err.message || "An unexpected error occurred.")
       setIsSubmitting(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden max-w-4xl">
-      <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-slate-800">New Asset Details</h2>
-          <p className="text-sm text-slate-500 mt-1">Enter the specifications and metadata for the new physical asset.</p>
-        </div>
-        <Link href="/dashboard/assets" className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center transition bg-white text-slate-700">
-          <ArrowLeft className="w-4 h-4 mr-2" /> Cancel
-        </Link>
-      </div>
-
-      <div className="p-6 space-y-8">
-        
-        {/* Basic Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <>
+      <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden max-w-4xl">
+        {/* Header */}
+        <div className="p-6 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Asset Tag / QR Code <span className="text-red-500">*</span></label>
-            <div className="flex space-x-2">
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Register New Asset</h2>
+            <p className="text-xs text-slate-500 mt-1">Fill in the asset information according to company asset registry standards.</p>
+          </div>
+          <Link 
+            href="/dashboard/assets/list" 
+            className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-50 flex items-center transition bg-white text-slate-700 shadow-2xs"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1.5" /> Back to List
+          </Link>
+        </div>
+
+        <div className="p-6 sm:p-8 space-y-6">
+          
+          {/* Row 1: Department & Item Name */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Department <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <select 
+                  {...register("departmentId", { required: true })} 
+                  className="w-full p-3 border border-slate-300 rounded-xl focus:ring-teal-500 focus:border-teal-500 bg-white font-medium text-sm text-slate-800"
+                >
+                  <option value="">-- Select Department --</option>
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+              {errors.departmentId && <p className="text-xs text-red-500 font-semibold mt-1">Please select a department.</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Item (Asset Name) <span className="text-red-500">*</span>
+              </label>
               <input 
                 type="text" 
-                placeholder="e.g. HRD-ICT-0001"
-                {...register("assetTag", { required: true })} 
-                className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 font-bold uppercase"
+                placeholder="e.g. Handphone, Meja, Dell Laptop..."
+                {...register("name", { required: true })} 
+                className="w-full p-3 border border-slate-300 rounded-xl focus:ring-teal-500 focus:border-teal-500 text-sm font-semibold text-slate-900"
               />
-              <button
-                type="button"
-                onClick={handleGenerateTag}
-                disabled={isGenerating}
-                className="flex-shrink-0 px-3 py-2 bg-teal-50 text-teal-700 border border-teal-200 rounded-lg hover:bg-teal-100 transition flex items-center justify-center font-medium"
-              >
-                {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
-                Auto
-              </button>
+              {errors.name && <p className="text-xs text-red-500 font-semibold mt-1">Asset item name is required.</p>}
             </div>
-            <p className="text-xs text-slate-500 mt-1">Select Department and Type before clicking Auto to get the correct prefix.</p>
           </div>
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Asset Name <span className="text-red-500">*</span></label>
-            <input 
-              type="text" 
-              placeholder="e.g. Dell Latitude 7420"
-              {...register("name", { required: true })} 
-              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500"
-            />
+
+          {/* Row 2: Brand & Barcode / Serial Number */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Brand
+              </label>
+              <input 
+                type="text" 
+                placeholder="e.g. Samsung, HP, Amgrass..."
+                {...register("brand")} 
+                className="w-full p-3 border border-slate-300 rounded-xl focus:ring-teal-500 focus:border-teal-500 text-sm font-medium text-slate-800"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Barcode / Serial Number
+              </label>
+              <input 
+                type="text" 
+                placeholder="e.g. GRN 359122728149930, MJ-001..."
+                {...register("serialNumber")} 
+                className="w-full p-3 border border-slate-300 rounded-xl focus:ring-teal-500 focus:border-teal-500 text-sm font-mono font-medium text-slate-800"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">Leave blank if no serial code or barcode is present on the asset.</p>
+            </div>
           </div>
+
+          {/* Row 3: Location & Condition */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Location
+              </label>
+              <select 
+                {...register("locationId")} 
+                className="w-full p-3 border border-slate-300 rounded-xl focus:ring-teal-500 focus:border-teal-500 bg-white font-medium text-sm text-slate-800"
+              >
+                <option value="">-- Select Location --</option>
+                {locations.map(l => (
+                  <option key={l.id} value={l.id}>{l.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Condition
+              </label>
+              <select 
+                {...register("condition")} 
+                className="w-full p-3 border border-slate-300 rounded-xl focus:ring-teal-500 focus:border-teal-500 bg-white font-bold text-sm text-slate-800"
+              >
+                <option value="Good">Good</option>
+                <option value="Usable">Usable</option>
+                <option value="Bad">Bad (Requires Maintenance)</option>
+                <option value="Unused">Unused / Disposed</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Row 4: Photo / Camera Feature (Requirement 5) */}
+          <div className="pt-4 border-t border-slate-100">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Asset Photo
+            </label>
+            
+            {photoPreview ? (
+              <div className="flex items-start gap-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                <img 
+                  src={photoPreview} 
+                  alt="Asset Preview" 
+                  className="w-28 h-28 object-cover rounded-xl border border-slate-200 shadow-xs" 
+                />
+                <div className="flex-1 space-y-2">
+                  <p className="text-xs font-bold text-emerald-700">Photo captured & attached</p>
+                  <p className="text-[11px] text-slate-400">This photo will be saved with the asset record.</p>
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsCameraOpen(true)}
+                      className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg transition"
+                    >
+                      Retake
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemovePhoto}
+                      className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-lg transition"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Camera Capture Trigger */}
+                <button
+                  type="button"
+                  onClick={() => setIsCameraOpen(true)}
+                  className="p-5 border-2 border-dashed border-teal-300 hover:border-teal-500 bg-teal-50/40 hover:bg-teal-50 rounded-2xl flex flex-col items-center justify-center gap-2 transition group text-teal-800"
+                >
+                  <div className="p-3 bg-white rounded-full shadow-xs group-hover:scale-110 transition-transform">
+                    <Camera className="w-6 h-6 text-teal-600" />
+                  </div>
+                  <span className="text-xs font-bold uppercase tracking-wider">Open Camera</span>
+                  <span className="text-[11px] text-slate-400">Snap photo with mobile camera or webcam</span>
+                </button>
+
+                {/* Upload from Gallery / Device */}
+                <label className="p-5 border-2 border-dashed border-slate-200 hover:border-slate-400 bg-slate-50/60 hover:bg-slate-100/60 rounded-2xl flex flex-col items-center justify-center gap-2 transition cursor-pointer text-slate-700 group">
+                  <div className="p-3 bg-white rounded-full shadow-xs group-hover:scale-110 transition-transform">
+                    <Upload className="w-6 h-6 text-slate-500" />
+                  </div>
+                  <span className="text-xs font-bold uppercase tracking-wider">Upload from Device</span>
+                  <span className="text-[11px] text-slate-400">JPG, PNG, or WEBP photo</span>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={handleFileChange} 
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+
         </div>
 
-        {/* Categories */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-100">
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Asset Type</label>
-            <select {...register("type")} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white">
-              <option value="ICT_EQUIPMENT">ICT Equipment</option>
-              <option value="OFFICE_EQUIPMENT">Office Equipment</option>
-              <option value="EVENT_EQUIPMENT">Event Equipment (Khemah, etc.)</option>
-              <option value="TOOLS">Tools (Drill, Grinder, etc.)</option>
-              <option value="SAFETY_EQUIPMENT">Safety Equipment</option>
-              <option value="MACHINE">Machine / Compressor</option>
-              <option value="ELECTRICAL_EQUIPMENT">Electrical Equipment</option>
-              <option value="FURNITURE">Furniture (Desk, Chair)</option>
-              <option value="VEHICLE">Vehicle (Lorry, Van, Car)</option>
-              <option value="OTHER">Other</option>
-
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Current Status</label>
-            <select {...register("status")} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white">
-              <option value="AVAILABLE">Available</option>
-              <option value="ASSIGNED">Assigned</option>
-              <option value="MAINTENANCE">In Maintenance</option>
-              <option value="RETIRED">Retired / Disposed</option>
-            </select>
-          </div>
+        {/* Footer Actions */}
+        <div className="p-6 bg-slate-50/80 border-t border-slate-100 flex items-center justify-end gap-3">
+          <Link 
+            href="/dashboard/assets/list" 
+            className="px-5 py-2.5 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+          >
+            Cancel
+          </Link>
+          <button 
+            disabled={isSubmitting} 
+            type="submit" 
+            className="bg-teal-600 hover:bg-teal-700 text-white px-7 py-2.5 rounded-xl text-xs font-bold transition flex items-center shadow-sm disabled:opacity-50"
+          >
+            {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            Register Asset
+          </button>
         </div>
+      </form>
 
-        {/* Placement */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-100">
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Department Owner</label>
-            <select {...register("departmentId")} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white">
-              <option value="">-- No Department --</option>
-              {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Physical Location</label>
-            <select {...register("locationId")} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white">
-              <option value="">-- No Location Set --</option>
-              {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
-          </div>
-        </div>
-
-        {/* Specs */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-slate-100">
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Brand</label>
-            <input type="text" {...register("brand")} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500" />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Model</label>
-            <input type="text" {...register("model")} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500" />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Serial Number</label>
-            <input type="text" {...register("serialNumber")} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 uppercase font-mono text-sm" />
-          </div>
-        </div>
-
-        {/* Conditional Vehicle Info */}
-        {watchType === "VEHICLE" && (
-          <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg animate-in fade-in zoom-in duration-300">
-            <label className="block text-sm font-bold text-blue-900 mb-2">Plate Number</label>
-            <input type="text" {...register("plateNumber")} placeholder="e.g. VCD 1234" className="w-full md:w-1/3 p-2.5 border border-blue-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 uppercase font-bold" />
-          </div>
-        )}
-
-        {/* Purchase Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-100">
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Purchase Date</label>
-            <input type="date" {...register("purchaseDate")} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white" />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Price / Value (RM)</label>
-            <input type="number" step="0.01" {...register("price")} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500" />
-          </div>
-        </div>
-
-        {/* Description */}
-        <div className="pt-6 border-t border-slate-100">
-          <label className="block text-sm font-bold text-slate-700 mb-2">Description / Notes</label>
-          <textarea rows={3} {...register("description")} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500"></textarea>
-        </div>
-
-      </div>
-
-      <div className="p-6 bg-slate-50/80 border-t border-slate-100 flex justify-end">
-        <button 
-          disabled={isSubmitting} 
-          type="submit" 
-          className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-3 rounded-lg font-bold transition flex items-center shadow-sm disabled:opacity-50"
-        >
-          {isSubmitting ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Save className="w-5 h-5 mr-2" />}
-          Register Asset
-        </button>
-      </div>
-    </form>
+      {/* Camera Capture Modal */}
+      <CameraCaptureModal 
+        isOpen={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
+        onCapture={handleCapturePhoto}
+        title="Capture Asset Photo"
+      />
+    </>
   )
 }

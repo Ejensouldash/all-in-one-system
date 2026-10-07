@@ -125,7 +125,9 @@ const staffLinks: NavLink[] = [
     name: "Marketing",
     icon: Megaphone,
     subLinks: [
-      { name: "Assets & Inventory", href: "/business-development/marketing/inventory" },
+      { name: "Forms", href: "/marketing/forms" },
+      { name: "Assets Management", href: "/marketing/assets" },
+      { name: "Inventory Management", href: "/marketing/inventory" },
     ],
   },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
@@ -186,7 +188,9 @@ const adminLinks: NavLink[] = [
     name: "Marketing",
     icon: Megaphone,
     subLinks: [
-      { name: "Assets & Inventory", href: "/business-development/marketing/inventory" },
+      { name: "Forms", href: "/marketing/forms" },
+      { name: "Assets Management", href: "/marketing/assets" },
+      { name: "Inventory Management", href: "/marketing/inventory" },
     ],
   },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },

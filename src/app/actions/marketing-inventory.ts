@@ -225,6 +225,12 @@ export async function getMarketingStockReport(filters: {
       }
     }
 
+    if (filters.category && filters.category !== "ALL") {
+      where.item = {
+        category: filters.category,
+      }
+    }
+
     const logs = await prisma.marketingStockLog.findMany({
       where,
       include: {

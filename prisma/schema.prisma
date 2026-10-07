@@ -141,6 +141,8 @@ model Asset {
 
   type   AssetType   @default(OTHER)
   status AssetStatus @default(AVAILABLE)
+  condition    String?
+  imageUrl     String?
 
   purchaseDate DateTime? @db.Date
   price        Float?
@@ -1410,6 +1412,64 @@ model MarketingStockLog {
   handledBy    String
   remarks      String?
   createdAt    DateTime      @default(now())
+}
+
+model MarketingAsset {
+  id                String               @id @default(uuid())
+  assetCode         String               @unique
+  name              String
+  category          String               @default("FURNITURE") // FURNITURE, DISPLAY_TECH, AUDIO_VISUAL, EVENT_EQUIPMENT, BOOTH_FIXTURE, OTHER
+  brand             String?
+  location          String               @default("HQ Store")
+  totalQuantity     Int                  @default(1)
+  availableQuantity Int                  @default(1)
+  unit              String               @default("units")
+  condition         String               @default("Good") // Good, Fair, Damaged, Under Repair
+  imageUrl          String?
+  notes             String?
+  department        String?              @default("MARKETING")
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  loans             MarketingAssetLoan[]
+
+  @@unique([name, location])
+}
+
+model MarketingAssetLoan {
+  id                 String         @id @default(uuid())
+  loanNumber         String         @unique
+  assetId            String
+  asset              MarketingAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  quantity           Int            @default(1)
+  
+  // Requester & Borrowing details
+  borrowerName       String
+  borrowerDepartment String?
+  borrowerContact    String?
+
+  // Destination & Purpose
+  destination        String
+  purpose            String?
+
+  // Lending date and time & Return dates
+  borrowDateTime     DateTime
+  expectedReturn     DateTime
+  actualReturn       DateTime?
+
+  // Approval & Status workflow
+  status             String         @default("PENDING") // PENDING, APPROVED, REJECTED, LENT_OUT, RETURNED, OVERDUE, CANCELLED
+  rejectionReason    String?
+  approvedBy         String?
+  approvedAt         DateTime?
+  returnedBy         String?
+  returnedNotes      String?
+  conditionOnReturn  String?
+
+  remarks            String?
+  department         String?        @default("MARKETING")
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 }
 
 model MaintenancePurchaseRequest {

@@ -66,6 +66,7 @@ export default async function AssetsDashboard() {
           { type: "SAFETY" }
         ]
       },
+      include: { department: true },
       take: 5
     })
   ])
@@ -256,7 +257,7 @@ export default async function AssetsDashboard() {
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <p className="font-bold text-slate-800 text-sm group-hover:text-teal-600 transition-colors">{asset.name}</p>
-                      <p className="text-xs font-medium text-slate-400 mt-0.5">{asset.assetTag} • {asset.type}</p>
+                      <p className="text-xs font-medium text-slate-400 mt-0.5">{asset.department?.name || 'Asset'}{asset.brand ? ` • ${asset.brand}` : ''}</p>
                     </div>
                     {asset.status === "MAINTENANCE" ? (
                       <span className="text-[10px] font-bold uppercase tracking-widest bg-orange-100 border border-orange-200 text-orange-700 px-2.5 py-1 rounded-md shadow-sm whitespace-nowrap">Maintenance</span>

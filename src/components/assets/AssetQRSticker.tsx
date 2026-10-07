@@ -3,13 +3,13 @@
 import { QRCodeSVG } from "qrcode.react"
 
 interface AssetQRStickerProps {
-  assetTag: string
+  assetTag?: string
   qrValue: string
   /** Offset-print mode: adds 2mm bleed around the 70x30mm die line plus a dashed magenta cut guide */
   bleed?: boolean
 }
 
-export function AssetQRSticker({ assetTag, qrValue, bleed = false }: AssetQRStickerProps) {
+export function AssetQRSticker({ assetTag: _assetTag, qrValue, bleed = false }: AssetQRStickerProps) {
   const sticker = (
     <div
       className="asset-qr-sticker"
@@ -89,28 +89,6 @@ export function AssetQRSticker({ assetTag, qrValue, bleed = false }: AssetQRStic
           />
         </div>
 
-        {/* Asset Tag */}
-        <div
-          style={{
-            backgroundColor: "#ffffff",
-            borderRadius: "1mm",
-            padding: "0.8mm 2mm",
-            display: "inline-block",
-            alignSelf: "flex-start",
-          }}
-        >
-          <span
-            style={{
-              fontSize: "8pt",
-              fontWeight: 900,
-              color: "#000000",
-              letterSpacing: "0.3px",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {assetTag}
-          </span>
-        </div>
 
         {/* Contact Info */}
         <div style={{ display: "flex", flexDirection: "column", gap: "0.3mm", marginTop: "0.3mm" }}>

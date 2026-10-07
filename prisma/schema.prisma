@@ -144,8 +144,6 @@ model Asset {
 
   type   AssetType   @default(OTHER)
   status AssetStatus @default(AVAILABLE)
-  condition    String?
-  imageUrl     String?
 
   purchaseDate DateTime? @db.Date
   price        Float?

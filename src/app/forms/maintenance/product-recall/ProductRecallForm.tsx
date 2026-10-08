@@ -35,6 +35,15 @@ const INITIAL_ITEM: ProductRecallItemInput = {
   remarks: "",
 }
 
+const STANDARD_SKUS = [
+  "425 ML X 24",
+  "425 ML X 6",
+  "425ml",
+  "800 ML X 12",
+  "800 ML X 20",
+  "800ml",
+] as const
+
 export function ProductRecallForm({ userName }: ProductRecallFormProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -446,13 +455,37 @@ export function ProductRecallForm({ userName }: ProductRecallFormProps) {
 
                         {/* SKU */}
                         <td className="p-2 border-r border-gray-200">
-                          <input
-                            type="text"
-                            value={item.sku}
-                            onChange={(e) => handleItemChange(index, "sku", e.target.value)}
-                            placeholder="e.g. 425 ML X 24 / 800 ML X 12"
-                            className="w-full px-2.5 py-1.5 border border-gray-200 rounded text-xs font-medium focus:border-blue-500 focus:outline-none"
-                          />
+                          <div className="space-y-1">
+                            <select
+                              value={(STANDARD_SKUS as readonly string[]).includes(item.sku) ? item.sku : (item.sku ? "__CUSTOM__" : "")}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                if (val === "__CUSTOM__") {
+                                  handleItemChange(index, "sku", "Custom SKU")
+                                } else {
+                                  handleItemChange(index, "sku", val)
+                                }
+                              }}
+                              className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs font-semibold focus:border-blue-500 focus:outline-none bg-white cursor-pointer"
+                            >
+                              <option value="">-- Select SKU --</option>
+                              {STANDARD_SKUS.map((opt) => (
+                                <option key={opt} value={opt}>
+                                  {opt}
+                                </option>
+                              ))}
+                              <option value="__CUSTOM__">Other / Custom...</option>
+                            </select>
+                            {(!(STANDARD_SKUS as readonly string[]).includes(item.sku) && item.sku !== "") && (
+                              <input
+                                type="text"
+                                value={item.sku === "Custom SKU" ? "" : item.sku}
+                                onChange={(e) => handleItemChange(index, "sku", e.target.value)}
+                                placeholder="Type custom SKU..."
+                                className="w-full px-2 py-1 border border-blue-300 rounded text-xs bg-blue-50/50 focus:outline-none font-medium"
+                              />
+                            )}
+                          </div>
                         </td>
 
                         {/* Batch Number */}

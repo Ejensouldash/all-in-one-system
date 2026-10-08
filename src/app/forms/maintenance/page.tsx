@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { ClipboardList, Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, Brush, ClipboardCheck, Bug, Droplets, Boxes, BookmarkCheck } from "lucide-react"
+import { ClipboardList, Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, Brush, ClipboardCheck, Bug, Droplets, Boxes, BookmarkCheck, RotateCcw } from "lucide-react"
 import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
 import { MaintenanceFormsGrid } from "./MaintenanceFormsGrid"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
@@ -13,6 +13,14 @@ export const metadata = {
 export const dynamic = "force-dynamic"
 
 const qcForms = [
+  {
+    title: "SGMP/22/PR",
+    description: "SGMP/22/PR - Product Recall",
+    icon: <RotateCcw className="h-6 w-6 mr-3" />,
+    href: "/forms/maintenance/product-recall",
+    gradient: "from-rose-950 via-red-900 to-slate-900",
+    accent: "bg-rose-400"
+  },
   {
     title: "SGMP/21/RSR",
     description: "SGMP/21/RSR - Retention Sample Record",

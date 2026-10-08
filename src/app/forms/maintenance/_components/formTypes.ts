@@ -29,6 +29,7 @@ export const MAINTENANCE_FORM_TYPES = [
   "pcs",
   "pmir",
   "pmr",
+  "product-recall",
   "qcdr",
   "vchif",
   "waste-disposal",

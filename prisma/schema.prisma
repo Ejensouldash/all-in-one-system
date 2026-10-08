@@ -2692,3 +2692,45 @@ model SocialMediaComplaint {
   @@index([detectedBatchNo])
   @@index([date])
 }
+
+// ---------------------------------------------------------------------------------------------
+// QUALITY CONTROL (QC) - PRODUCT RECALL (SGMP/22/PR)
+// ---------------------------------------------------------------------------------------------
+
+model ProductRecall {
+  id             String              @id @default(uuid())
+  recallNo       String?
+  recallDate     DateTime
+  reason         String?             @db.Text
+  remarks        String?             @db.Text
+  preparedById   String?
+  preparedByName String
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  items          ProductRecallItem[]
+
+  @@index([recallDate])
+  @@index([createdAt])
+  @@index([preparedById])
+}
+
+model ProductRecallItem {
+  id          String        @id @default(uuid())
+  recallId    String
+  customer    String
+  sku         String
+  batchNumber String
+  quantity    Int
+  remarks     String?       @db.Text
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  recall      ProductRecall @relation(fields: [recallId], references: [id], onDelete: Cascade)
+
+  @@index([recallId])
+  @@index([customer])
+  @@index([sku])
+  @@index([batchNumber])
+}

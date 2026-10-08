@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, ClipboardList, FileSpreadsheet, Brush, ClipboardCheck, Bug, Droplets, BookmarkCheck } from "lucide-react"
+import { Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, ClipboardList, FileSpreadsheet, Brush, ClipboardCheck, Bug, Droplets, BookmarkCheck, RotateCcw } from "lucide-react"
 import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
 
 import { getAccessInfo } from "@/lib/access"
@@ -26,6 +26,14 @@ export default async function MaintenanceReportsDashboard() {
     redirect("/dashboard")
   }
   const qcReports = [
+    {
+      title: "SGMP/22/PR",
+      description: "SGMP/22/PR - Product Recall",
+      icon: <RotateCcw className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/product-recall",
+      gradient: "from-slate-900 via-slate-800 to-zinc-900",
+      accent: "bg-rose-400"
+    },
     {
       title: "SGMP/21/RSR",
       description: "SGMP/21/RSR - Retention Sample Record",

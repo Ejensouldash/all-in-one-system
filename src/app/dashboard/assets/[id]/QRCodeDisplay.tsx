@@ -7,12 +7,13 @@ import { Printer, QrCode } from "lucide-react"
 interface QRCodeDisplayProps {
   assetId: string
   assetTag: string
+  departmentCode?: string | null
 }
 
-export function QRCodeDisplay({ assetId, assetTag }: QRCodeDisplayProps) {
+export function QRCodeDisplay({ assetId, assetTag, departmentCode }: QRCodeDisplayProps) {
   const [showPrint, setShowPrint] = useState(false)
   const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
-  const qrValue = `${baseUrl}/dashboard/assets/${assetId}`
+  const qrValue = `${baseUrl}/public/asset/${assetId}`
 
   const handlePrint = () => {
     setShowPrint(true)
@@ -40,7 +41,7 @@ export function QRCodeDisplay({ assetId, assetTag }: QRCodeDisplayProps) {
             }
           `}</style>
           <div className="qr-single-print fixed inset-0 z-[9999] bg-white flex items-start justify-start p-4">
-            <AssetQRSticker assetTag={assetTag} qrValue={qrValue} />
+            <AssetQRSticker assetTag={assetTag} departmentCode={departmentCode} qrValue={qrValue} />
           </div>
         </>
       )}
@@ -62,7 +63,7 @@ export function QRCodeDisplay({ assetId, assetTag }: QRCodeDisplayProps) {
         </div>
         <div className="flex justify-center">
           <div style={{ transform: "scale(0.85)", transformOrigin: "center" }}>
-            <AssetQRSticker assetTag={assetTag} qrValue={qrValue} />
+            <AssetQRSticker assetTag={assetTag} departmentCode={departmentCode} qrValue={qrValue} />
           </div>
         </div>
         <p className="text-[10px] text-gray-500 text-center mt-2">

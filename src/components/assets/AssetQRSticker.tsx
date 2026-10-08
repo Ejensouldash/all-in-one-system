@@ -4,12 +4,13 @@ import { QRCodeSVG } from "qrcode.react"
 
 interface AssetQRStickerProps {
   assetTag?: string
+  departmentCode?: string | null
   qrValue: string
   /** Offset-print mode: adds 2mm bleed around the 70x30mm die line plus a dashed magenta cut guide */
   bleed?: boolean
 }
 
-export function AssetQRSticker({ assetTag: _assetTag, qrValue, bleed = false }: AssetQRStickerProps) {
+export function AssetQRSticker({ assetTag: _assetTag, departmentCode, qrValue, bleed = false }: AssetQRStickerProps) {
   const sticker = (
     <div
       className="asset-qr-sticker"
@@ -40,31 +41,57 @@ export function AssetQRSticker({ assetTag: _assetTag, qrValue, bleed = false }: 
           gap: "1.2mm",
         }}
       >
-        {/* PROPERTY OF + Logo */}
-        <div>
+        {/* Header: PROPERTY OF + Department Shortform Badge */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4mm" }}>
           <div
             style={{
-              fontSize: "6pt",
+              fontSize: "5.5pt",
               fontWeight: 600,
               color: "#94a3b8",
               letterSpacing: "0.8px",
               textTransform: "uppercase",
-              marginBottom: "0.6mm",
             }}
           >
             PROPERTY OF
           </div>
-          <img
-            src="/assets/BubblesO2_Logo.png"
-            alt="BubblesO2"
-            style={{
-              height: "7.5mm",
-              width: "auto",
-              objectFit: "contain",
-              display: "block",
-            }}
-          />
+          {departmentCode && (
+            <div
+              style={{
+                backgroundColor: "rgba(45, 212, 191, 0.15)",
+                border: "0.35mm solid #2dd4bf",
+                borderRadius: "1.2mm",
+                padding: "0.3mm 1.8mm",
+                display: "inline-flex",
+                alignItems: "center",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "5.5pt",
+                  color: "#2dd4bf",
+                  fontWeight: 800,
+                  letterSpacing: "0.6px",
+                  textTransform: "uppercase",
+                  fontFamily: "monospace",
+                }}
+              >
+                {departmentCode}
+              </span>
+            </div>
+          )}
         </div>
+
+        {/* Logo */}
+        <img
+          src="/assets/BubblesO2_Logo.png"
+          alt="BubblesO2"
+          style={{
+            height: "7.2mm",
+            width: "auto",
+            objectFit: "contain",
+            display: "block",
+          }}
+        />
 
         {/* Separator */}
         <div

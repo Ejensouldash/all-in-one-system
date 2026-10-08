@@ -76,6 +76,7 @@ export default function PrintQRPage() {
               <AssetQRSticker
                 key={asset.id}
                 assetTag={asset.assetTag}
+                departmentCode={asset.department?.code}
                 qrValue={qrUrl}
                 bleed
               />

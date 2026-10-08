@@ -19,7 +19,8 @@ import {
   Loader2,
   Image as ImageIcon,
   Building2,
-  X
+  X,
+  Sparkles
 } from "lucide-react"
 import { SmartImportModal } from "@/components/forms/SmartImportModal"
 import { deleteAsset } from "@/app/actions/asset"
@@ -64,9 +65,20 @@ export function DataTable({ initialAssets }: { initialAssets: any[] }) {
 
   // Extract unique departments and conditions
   const departments = useMemo(() => {
-    const depts = new Set<string>()
-    assets.forEach(a => { if (a.department?.name) depts.add(a.department.name) })
-    return Array.from(depts).sort()
+    const map = new Map<string, { id: string; name: string; code: string }>()
+    assets.forEach(a => {
+      if (a.department?.name) {
+        const key = a.department.code || a.department.name
+        if (!map.has(key)) {
+          map.set(key, {
+            id: a.department.id,
+            name: a.department.name,
+            code: a.department.code || "",
+          })
+        }
+      }
+    })
+    return Array.from(map.values()).sort((a, b) => (a.code || a.name).localeCompare(b.code || b.name))
   }, [assets])
 
   const conditions = useMemo(() => {
@@ -96,9 +108,13 @@ export function DataTable({ initialAssets }: { initialAssets: any[] }) {
         (asset.brand?.toLowerCase() || "").includes(q) ||
         (asset.serialNumber?.toLowerCase() || "").includes(q) ||
         (asset.department?.name?.toLowerCase() || "").includes(q) ||
+        (asset.department?.code?.toLowerCase() || "").includes(q) ||
         (asset.location?.name?.toLowerCase() || "").includes(q)
 
-      const matchesDept = deptFilter === "ALL" || asset.department?.name === deptFilter
+      const matchesDept = 
+        deptFilter === "ALL" || 
+        asset.department?.name === deptFilter ||
+        asset.department?.code === deptFilter
       const matchesCondition = conditionFilter === "ALL" || asset.condition === conditionFilter
 
       return matchesSearch && matchesDept && matchesCondition
@@ -175,10 +191,12 @@ export function DataTable({ initialAssets }: { initialAssets: any[] }) {
   }
 
   // Print QR by Department
-  const handlePrintByDepartment = (deptName: string) => {
-    const deptAssets = assets.filter(a => a.department?.name === deptName)
+  const handlePrintByDepartment = (deptIdentifier: string) => {
+    const deptAssets = assets.filter(
+      a => a.department?.code === deptIdentifier || a.department?.name === deptIdentifier
+    )
     if (deptAssets.length === 0) {
-      alert(`No assets found for department: ${deptName}`)
+      alert(`No assets found for department: ${deptIdentifier}`)
       return
     }
     const deptIds = deptAssets.map(a => a.id)
@@ -277,8 +295,10 @@ export function DataTable({ initialAssets }: { initialAssets: any[] }) {
             }}
           >
             <option value="ALL">All Departments ({assets.length})</option>
-            {departments.map(dept => (
-              <option key={dept} value={dept}>{dept}</option>
+            {departments.map(d => (
+              <option key={d.code || d.name} value={d.code || d.name}>
+                {d.code ? `[${d.code}] ${d.name}` : d.name}
+              </option>
             ))}
           </select>
           
@@ -485,9 +505,16 @@ export function DataTable({ initialAssets }: { initialAssets: any[] }) {
 
                   {/* Department */}
                   <td className="px-5 py-3.5 whitespace-nowrap">
-                    <span className="text-xs font-bold text-slate-800 bg-slate-100/90 border border-slate-200 px-2.5 py-1 rounded-md">
-                      {asset.department?.name || "Unassigned"}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {asset.department?.code && (
+                        <span className="text-[10px] font-mono font-black text-teal-700 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded">
+                          {asset.department.code}
+                        </span>
+                      )}
+                      <span className="text-xs font-bold text-slate-800">
+                        {asset.department?.name || "Unassigned"}
+                      </span>
+                    </div>
                   </td>
 
                   {/* Item (Name + optional thumbnail) */}
@@ -505,7 +532,13 @@ export function DataTable({ initialAssets }: { initialAssets: any[] }) {
                         </div>
                       )}
                       <div>
-                        <div className="text-sm font-bold text-slate-900 leading-snug">{asset.name}</div>
+                        {asset.name === "[Blank QR - Ready to Register]" ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-black text-amber-700 bg-amber-50 border border-amber-300/80 px-2 py-0.5 rounded-md">
+                            <Sparkles className="w-3 h-3 text-amber-600" /> Blank QR (Ready to Register)
+                          </span>
+                        ) : (
+                          <div className="text-sm font-bold text-slate-900 leading-snug">{asset.name}</div>
+                        )}
                         {asset.model && <div className="text-[11px] text-slate-500">{asset.model}</div>}
                       </div>
                     </div>
@@ -669,16 +702,30 @@ export function DataTable({ initialAssets }: { initialAssets: any[] }) {
 
               <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
                 {departments.map((dept) => {
-                  const count = assets.filter(a => a.department?.name === dept).length
+                  const count = assets.filter(
+                    a => a.department?.code === dept.code || a.department?.name === dept.name
+                  ).length
+                  const blankCount = assets.filter(
+                    a => (a.department?.code === dept.code || a.department?.name === dept.name) && a.name === "[Blank QR - Ready to Register]"
+                  ).length
                   return (
                     <button
-                      key={dept}
-                      onClick={() => handlePrintByDepartment(dept)}
+                      key={dept.code || dept.name}
+                      onClick={() => handlePrintByDepartment(dept.code || dept.name)}
                       className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-teal-500 hover:bg-teal-50/50 text-left transition group"
                     >
                       <div>
-                        <p className="text-sm font-bold text-slate-800 group-hover:text-teal-900">{dept}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{count} sticker{count !== 1 ? 's' : ''}</p>
+                        <div className="flex items-center gap-1.5">
+                          {dept.code && (
+                            <span className="font-mono text-xs font-black text-teal-700 bg-teal-100 px-1.5 py-0.5 rounded">
+                              {dept.code}
+                            </span>
+                          )}
+                          <p className="text-sm font-bold text-slate-800 group-hover:text-teal-900">{dept.name}</p>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {count} sticker{count !== 1 ? 's' : ''} ({count - blankCount} registered + {blankCount} blank)
+                        </p>
                       </div>
                       <Printer className="w-4 h-4 text-slate-400 group-hover:text-teal-600 transition" />
                     </button>

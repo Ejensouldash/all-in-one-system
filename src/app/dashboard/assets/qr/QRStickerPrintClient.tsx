@@ -184,7 +184,6 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
                 key={asset.id}
                 assetTag={asset.assetTag}
                 departmentCode={asset.department?.code}
-                isBlank={asset.name === "[Blank QR - Ready to Register]"}
                 qrValue={`${BASE_URL}/public/asset/${asset.id}`}
                 bleed
               />

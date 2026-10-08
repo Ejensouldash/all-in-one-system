@@ -102,7 +102,6 @@ const staffLinks: NavLink[] = [
       { name: "Service Request", href: "/forms/maintenance/tickets/service-requests", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS", "MAINTENANCE_SUMMARY", "FORMS"] },
       { name: "FMS Inventory", href: "/forms/maintenance/dashboard", module: "MAINTENANCE_DASHBOARD" },
       { name: "FMS Asset", href: "/forms/maintenance/assets", module: "MAINTENANCE_ASSETS" },
-      { name: "Purchase Requisition", href: "/forms/maintenance/purchase-requests", modules: ["MAINTENANCE_DASHBOARD", "MAINTENANCE_TICKETS_MANAGE", "MAINTENANCE_PR_APPROVE", "MAINTENANCE_FORMS"] },
     ],
   },
   {
@@ -165,7 +164,6 @@ const adminLinks: NavLink[] = [
       { name: "Service Request", href: "/forms/maintenance/tickets/service-requests", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS", "MAINTENANCE_SUMMARY", "FORMS"] },
       { name: "FMS Inventory", href: "/forms/maintenance/dashboard", module: "MAINTENANCE_DASHBOARD" },
       { name: "FMS Asset", href: "/forms/maintenance/assets", module: "MAINTENANCE_ASSETS" },
-      { name: "Purchase Requisition", href: "/forms/maintenance/purchase-requests", modules: ["MAINTENANCE_DASHBOARD", "MAINTENANCE_TICKETS_MANAGE", "MAINTENANCE_PR_APPROVE", "MAINTENANCE_FORMS"] },
     ],
   },
   {
@@ -235,8 +233,7 @@ export function Sidebar({
       if (
         pathname.startsWith("/forms/maintenance/tickets") || 
         pathname.startsWith("/forms/maintenance/dashboard") ||
-        pathname.startsWith("/forms/maintenance/assets") ||
-        pathname.startsWith("/forms/maintenance/purchase-requests")
+        pathname.startsWith("/forms/maintenance/assets")
       ) {
         next["Facilities Maintenance"] = true;
       }

@@ -5,12 +5,13 @@ import { QRCodeSVG } from "qrcode.react"
 interface AssetQRStickerProps {
   assetTag?: string
   departmentCode?: string | null
+  isBlank?: boolean
   qrValue: string
   /** Offset-print mode: adds 2mm bleed around the 70x30mm die line plus a dashed magenta cut guide */
   bleed?: boolean
 }
 
-export function AssetQRSticker({ assetTag: _assetTag, departmentCode, qrValue, bleed = false }: AssetQRStickerProps) {
+export function AssetQRSticker({ assetTag: _assetTag, departmentCode, isBlank = false, qrValue, bleed = false }: AssetQRStickerProps) {
   const sticker = (
     <div
       className="asset-qr-sticker"
@@ -19,7 +20,7 @@ export function AssetQRSticker({ assetTag: _assetTag, departmentCode, qrValue, b
         height: "30mm",
         backgroundColor: "#111827",
         borderRadius: "3mm",
-        border: "0.6mm solid #2dd4bf",
+        border: isBlank ? "0.6mm solid #f59e0b" : "0.6mm solid #2dd4bf",
         display: "flex",
         alignItems: "stretch",
         overflow: "hidden",
@@ -57,8 +58,8 @@ export function AssetQRSticker({ assetTag: _assetTag, departmentCode, qrValue, b
           {departmentCode && (
             <div
               style={{
-                backgroundColor: "rgba(45, 212, 191, 0.15)",
-                border: "0.35mm solid #2dd4bf",
+                backgroundColor: isBlank ? "rgba(245, 158, 11, 0.2)" : "rgba(45, 212, 191, 0.15)",
+                border: isBlank ? "0.35mm solid #f59e0b" : "0.35mm solid #2dd4bf",
                 borderRadius: "1.2mm",
                 padding: "0.3mm 1.8mm",
                 display: "inline-flex",
@@ -68,14 +69,14 @@ export function AssetQRSticker({ assetTag: _assetTag, departmentCode, qrValue, b
               <span
                 style={{
                   fontSize: "5.5pt",
-                  color: "#2dd4bf",
+                  color: isBlank ? "#fbbf24" : "#2dd4bf",
                   fontWeight: 800,
                   letterSpacing: "0.6px",
                   textTransform: "uppercase",
                   fontFamily: "monospace",
                 }}
               >
-                {departmentCode}
+                {isBlank ? `${departmentCode} • BLANK` : departmentCode}
               </span>
             </div>
           )}

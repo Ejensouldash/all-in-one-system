@@ -8,9 +8,10 @@ interface QRCodeDisplayProps {
   assetId: string
   assetTag: string
   departmentCode?: string | null
+  isBlank?: boolean
 }
 
-export function QRCodeDisplay({ assetId, assetTag, departmentCode }: QRCodeDisplayProps) {
+export function QRCodeDisplay({ assetId, assetTag, departmentCode, isBlank = false }: QRCodeDisplayProps) {
   const [showPrint, setShowPrint] = useState(false)
   const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
   const qrValue = `${baseUrl}/public/asset/${assetId}`
@@ -41,7 +42,7 @@ export function QRCodeDisplay({ assetId, assetTag, departmentCode }: QRCodeDispl
             }
           `}</style>
           <div className="qr-single-print fixed inset-0 z-[9999] bg-white flex items-start justify-start p-4">
-            <AssetQRSticker assetTag={assetTag} departmentCode={departmentCode} qrValue={qrValue} />
+            <AssetQRSticker assetTag={assetTag} departmentCode={departmentCode} isBlank={isBlank} qrValue={qrValue} />
           </div>
         </>
       )}
@@ -63,7 +64,7 @@ export function QRCodeDisplay({ assetId, assetTag, departmentCode }: QRCodeDispl
         </div>
         <div className="flex justify-center">
           <div style={{ transform: "scale(0.85)", transformOrigin: "center" }}>
-            <AssetQRSticker assetTag={assetTag} departmentCode={departmentCode} qrValue={qrValue} />
+            <AssetQRSticker assetTag={assetTag} departmentCode={departmentCode} isBlank={isBlank} qrValue={qrValue} />
           </div>
         </div>
         <p className="text-[10px] text-gray-500 text-center mt-2">

@@ -417,7 +417,7 @@ export function AssetDetailClient({ asset, departments, locations }: { asset: an
           <div className="space-y-6">
             
             {/* QR Code Sticker Box */}
-            <QRCodeDisplay assetId={asset.id} assetTag={asset.assetTag} />
+            <QRCodeDisplay assetId={asset.id} assetTag={asset.assetTag} departmentCode={asset.department?.code} />
 
             {/* Quick Metadata Box */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-3">

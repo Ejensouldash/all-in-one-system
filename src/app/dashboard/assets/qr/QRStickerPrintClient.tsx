@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef } from "react"
 import { AssetQRSticker } from "@/components/assets/AssetQRSticker"
-import { ArrowLeft, Printer, Search, CheckSquare, Square, X, ChevronLeft, ChevronRight, Building2 } from "lucide-react"
+import { ArrowLeft, Printer, Search, CheckSquare, Square, X, ChevronLeft, ChevronRight, Building2, Sparkles, Filter } from "lucide-react"
 import Link from "next/link"
 
 interface Asset {
@@ -12,7 +12,7 @@ interface Asset {
   brand?: string | null
   serialNumber?: string | null
   condition?: string | null
-  department?: { id: string; name: string } | null
+  department?: { id: string; name: string; code?: string | null } | null
   location?: { id: string; name: string } | null
 }
 
@@ -22,32 +22,57 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState("")
   const [deptFilter, setDeptFilter] = useState("")
+  const [typeFilter, setTypeFilter] = useState<"ALL" | "BLANK" | "REAL">("ALL")
   const [showPreview, setShowPreview] = useState(false)
   const [page, setPage] = useState(1)
   const printRef = useRef<HTMLDivElement>(null)
   const perPage = 25
 
+  // Collect unique departments with codes
   const departments = useMemo(() => {
-    const depts = new Set<string>()
-    assets.forEach(a => { if (a.department?.name) depts.add(a.department.name) })
-    return Array.from(depts).sort()
+    const map = new Map<string, { id: string; name: string; code: string }>()
+    assets.forEach(a => {
+      if (a.department?.name) {
+        const key = a.department.code || a.department.name
+        if (!map.has(key)) {
+          map.set(key, {
+            id: a.department.id,
+            name: a.department.name,
+            code: a.department.code || "",
+          })
+        }
+      }
+    })
+    return Array.from(map.values()).sort((a, b) => (a.code || a.name).localeCompare(b.code || b.name))
   }, [assets])
 
   const filtered = useMemo(() => {
     return assets.filter(a => {
       const q = search.toLowerCase()
-      const matchSearch = 
-        !q || 
-        a.name.toLowerCase().includes(q) || 
+      const isBlank = a.name === "[Blank QR - Ready to Register]"
+
+      const matchType =
+        typeFilter === "ALL" ||
+        (typeFilter === "BLANK" && isBlank) ||
+        (typeFilter === "REAL" && !isBlank)
+
+      const matchSearch =
+        !q ||
+        a.name.toLowerCase().includes(q) ||
         (a.brand || "").toLowerCase().includes(q) ||
         (a.serialNumber || "").toLowerCase().includes(q) ||
         (a.department?.name || "").toLowerCase().includes(q) ||
+        (a.department?.code || "").toLowerCase().includes(q) ||
         (a.location?.name || "").toLowerCase().includes(q)
 
-      const matchDept = !deptFilter || a.department?.name === deptFilter
-      return matchSearch && matchDept
+      const matchDept =
+        !deptFilter ||
+        a.department?.name === deptFilter ||
+        a.department?.code === deptFilter
+
+      return matchType && matchSearch && matchDept
     })
-  }, [assets, search, deptFilter])
+  }, [assets, search, deptFilter, typeFilter])
 
   const totalPages = Math.ceil(filtered.length / perPage)
   const paged = filtered.slice((page - 1) * perPage, page * perPage)
@@ -77,10 +102,26 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
   }
 
   // Quick select all in a specific department
-  const handleSelectDepartment = (deptName: string) => {
-    setDeptFilter(deptName)
-    const deptAssetIds = assets.filter(a => a.department?.name === deptName).map(a => a.id)
+  const handleSelectDepartment = (deptCodeOrName: string) => {
+    setDeptFilter(deptCodeOrName)
+    const deptAssetIds = assets
+      .filter(a => a.department?.code === deptCodeOrName || a.department?.name === deptCodeOrName)
+      .map(a => a.id)
     setSelectedIds(new Set(deptAssetIds))
+    setPage(1)
+  }
+
+  // Quick select all Blank QRs for current department or overall
+  const handleSelectBlankQRs = () => {
+    setTypeFilter("BLANK")
+    const blankIds = assets
+      .filter(a => {
+        const isBlank = a.name === "[Blank QR - Ready to Register]"
+        const matchDept = !deptFilter || a.department?.code === deptFilter || a.department?.name === deptFilter
+        return isBlank && matchDept
+      })
+      .map(a => a.id)
+    setSelectedIds(new Set(blankIds))
     setPage(1)
   }
 
@@ -142,6 +183,7 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
               <AssetQRSticker
                 key={asset.id}
                 assetTag={asset.assetTag}
+                departmentCode={asset.department?.code}
                 qrValue={`${BASE_URL}/public/asset/${asset.id}`}
                 bleed
               />
@@ -164,7 +206,7 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
               </Link>
               <div>
                 <h1 className="text-xl font-black tracking-tight">QR Sticker Batch Print</h1>
-                <p className="text-xs text-gray-400 mt-0.5">Select assets or choose by department to print official QR stickers</p>
+                <p className="text-xs text-gray-400 mt-0.5">Select assets or choose by department to print official 70x30mm QR stickers</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -186,60 +228,114 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
 
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
         
-        {/* Quick Select by Department Pills (Requirement 8) */}
+        {/* Quick Select by Department */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Building2 className="w-4 h-4 text-teal-400" />
-            <span className="text-xs font-bold uppercase tracking-wider text-gray-300">Quick Select by Department</span>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-teal-400" />
+              <span className="text-xs font-bold uppercase tracking-wider text-gray-300">Quick Select by Department</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSelectBlankQRs}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 transition-all flex items-center gap-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Select Blank QRs ({assets.filter(a => a.name === "[Blank QR - Ready to Register]" && (!deptFilter || a.department?.code === deptFilter)).length})
+              </button>
+            </div>
           </div>
+
           <div className="flex flex-wrap gap-2">
             {departments.map((dept) => {
-              const count = assets.filter(a => a.department?.name === dept).length
-              const isCurrent = deptFilter === dept
+              const count = assets.filter(a => a.department?.code === dept.code || a.department?.name === dept.name).length
+              const blankCount = assets.filter(a => (a.department?.code === dept.code || a.department?.name === dept.name) && a.name === "[Blank QR - Ready to Register]").length
+              const isCurrent = deptFilter === dept.code || deptFilter === dept.name
+
               return (
                 <button
-                  key={dept}
+                  key={dept.code || dept.name}
                   type="button"
-                  onClick={() => handleSelectDepartment(dept)}
+                  onClick={() => handleSelectDepartment(dept.code || dept.name)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border ${
                     isCurrent
                       ? "bg-teal-600 text-white border-teal-500 shadow-sm"
                       : "bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700 hover:text-white"
                   }`}
                 >
-                  <span>{dept}</span>
-                  <span className="px-1.5 py-0.2 rounded-full bg-black/30 text-[10px] font-mono">{count}</span>
+                  <span className="font-mono text-teal-300 font-black">{dept.code || dept.name}</span>
+                  <span className="text-[11px] opacity-80">{dept.name}</span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-black/40 text-[10px] font-mono">{count}</span>
+                  {blankCount > 0 && (
+                    <span className="px-1 py-0.2 rounded-full bg-amber-500/30 text-amber-300 text-[9px] font-mono" title={`${blankCount} Blank QRs`}>
+                      +{blankCount} blk
+                    </span>
+                  )}
                 </button>
               )
             })}
           </div>
         </div>
 
-        {/* Filters */}
+        {/* Filter Bar */}
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[260px]">
+          {/* Type Toggle */}
+          <div className="flex items-center bg-gray-900 border border-gray-800 rounded-xl p-1 gap-1">
+            <button
+              onClick={() => { setTypeFilter("ALL"); setPage(1) }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                typeFilter === "ALL" ? "bg-teal-600 text-white" : "text-gray-400 hover:text-white"
+              }`}
+            >
+              All Assets ({assets.length})
+            </button>
+            <button
+              onClick={() => { setTypeFilter("REAL"); setPage(1) }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                typeFilter === "REAL" ? "bg-teal-600 text-white" : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Registered Only ({assets.filter(a => a.name !== "[Blank QR - Ready to Register]").length})
+            </button>
+            <button
+              onClick={() => { setTypeFilter("BLANK"); setPage(1) }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                typeFilter === "BLANK" ? "bg-amber-600 text-white" : "text-amber-400 hover:text-amber-300"
+              }`}
+            >
+              <Sparkles className="w-3 h-3" />
+              Blank QRs Only ({assets.filter(a => a.name === "[Blank QR - Ready to Register]").length})
+            </button>
+          </div>
+
+          <div className="relative flex-1 min-w-[240px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input
               type="text"
-              placeholder="Search item, brand, barcode, location..."
+              placeholder="Search item, brand, barcode, location, department..."
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1) }}
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-900 border border-gray-800 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full pl-10 pr-4 py-2 bg-gray-900 border border-gray-800 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
           </div>
 
           <select
             value={deptFilter}
             onChange={e => { setDeptFilter(e.target.value); setPage(1) }}
-            className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium"
+            className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium"
           >
             <option value="">All Departments</option>
-            {departments.map(d => <option key={d} value={d}>{d}</option>)}
+            {departments.map(d => (
+              <option key={d.code || d.name} value={d.code || d.name}>
+                {d.code ? `[${d.code}] ${d.name}` : d.name}
+              </option>
+            ))}
           </select>
 
-          {(search || deptFilter) && (
+          {(search || deptFilter || typeFilter !== "ALL") && (
             <button
-              onClick={() => { setSearch(""); setDeptFilter(""); setPage(1) }}
+              onClick={() => { setSearch(""); setDeptFilter(""); setTypeFilter("ALL"); setPage(1) }}
               className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors"
             >
               <X className="w-3.5 h-3.5" /> Clear filters
@@ -279,6 +375,7 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
             <tbody>
               {paged.map((asset, idx) => {
                 const isSelected = selectedIds.has(asset.id)
+                const isBlank = asset.name === "[Blank QR - Ready to Register]"
                 const rowNo = parseInt(asset.assetTag?.replace("AST-", "") || String((page - 1) * perPage + idx + 1), 10)
 
                 return (
@@ -294,20 +391,41 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
                       }
                     </td>
                     <td className="p-3.5 font-bold text-gray-400">{rowNo}</td>
-                    <td className="p-3.5 text-gray-300 font-semibold">{asset.department?.name || "—"}</td>
-                    <td className="p-3.5 font-bold text-white">{asset.name}</td>
+                    <td className="p-3.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-1.5 py-0.5 rounded bg-teal-950 text-teal-400 border border-teal-800/60 font-mono font-bold text-[10px]">
+                          {asset.department?.code || "DEPT"}
+                        </span>
+                        <span className="text-gray-300 font-semibold">{asset.department?.name || "—"}</span>
+                      </div>
+                    </td>
+                    <td className="p-3.5 font-bold text-white">
+                      {isBlank ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold text-[11px]">
+                          <Sparkles className="w-3 h-3 text-amber-400" /> Blank QR (Ready to Register)
+                        </span>
+                      ) : (
+                        asset.name
+                      )}
+                    </td>
                     <td className="p-3.5 text-gray-400">{asset.brand || "—"}</td>
                     <td className="p-3.5 font-mono text-gray-300">{asset.serialNumber || "—"}</td>
                     <td className="p-3.5 text-gray-400">{asset.location?.name || "—"}</td>
                     <td className="p-3.5">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        asset.condition === "Good" ? "bg-emerald-950 text-emerald-400 border border-emerald-800" :
-                        asset.condition === "Usable" ? "bg-blue-950 text-blue-400 border border-blue-800" :
-                        asset.condition === "Bad" ? "bg-amber-950 text-amber-400 border border-amber-800" :
-                        "text-gray-500"
-                      }`}>
-                        {asset.condition || "—"}
-                      </span>
+                      {isBlank ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-400 border border-amber-800">
+                          Unregistered
+                        </span>
+                      ) : (
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          asset.condition === "Good" ? "bg-emerald-950 text-emerald-400 border border-emerald-800" :
+                          asset.condition === "Usable" ? "bg-blue-950 text-blue-400 border border-blue-800" :
+                          asset.condition === "Bad" ? "bg-amber-950 text-amber-400 border border-amber-800" :
+                          "text-gray-500"
+                        }`}>
+                          {asset.condition || "—"}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 )
@@ -338,9 +456,7 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
                 key={p}
                 onClick={() => setPage(p)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
-                  p === page 
-                    ? "bg-teal-600 text-white" 
-                    : "bg-gray-900 border border-gray-800 text-gray-400 hover:text-white"
+                  page === p ? "bg-teal-600 text-white" : "bg-gray-900 border border-gray-800 text-gray-400 hover:text-white"
                 }`}
               >
                 {p}
@@ -355,7 +471,6 @@ export function QRStickerPrintClient({ assets }: { assets: Asset[] }) {
             </button>
           </div>
         )}
-
       </div>
     </div>
   )

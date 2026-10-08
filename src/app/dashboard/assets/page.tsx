@@ -41,7 +41,8 @@ export default async function AssetsDashboard() {
     ytdLogs,
     recentAssignments,
     recentMaintenance,
-    alertAssets
+    alertAssets,
+    blankAssetsCount
   ] = await Promise.all([
     prisma.asset.groupBy({ by: ['status'], _count: { _all: true } }),
     prisma.asset.aggregate({ _sum: { price: true } }),
@@ -68,6 +69,9 @@ export default async function AssetsDashboard() {
       },
       include: { department: true },
       take: 5
+    }),
+    prisma.asset.count({
+      where: { name: "[Blank QR - Ready to Register]" }
     })
   ])
 
@@ -145,8 +149,8 @@ export default async function AssetsDashboard() {
             </div>
           </div>
           <div className="text-xs font-bold text-slate-500 mt-5 flex justify-between bg-slate-50 p-2 rounded-lg border border-slate-100">
-            <span className="text-teal-600">{availableAssets} Available</span>
-            <span className="text-indigo-600">{assignedAssets} Assigned</span>
+            <span className="text-teal-600 font-bold">{totalAssets - blankAssetsCount} Registered</span>
+            <span className="text-amber-600 font-bold">{blankAssetsCount} Blank QRs</span>
           </div>
         </div>
 

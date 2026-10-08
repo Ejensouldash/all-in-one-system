@@ -1,6 +1,6 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
-import { getAccessInfo } from "@/lib/access"
+import { getAccessInfo, canAccessMarketingForms } from "@/lib/access"
 import { MarketingFormsClient } from "./MarketingFormsClient"
 
 export const metadata = {
@@ -14,9 +14,15 @@ export default async function Page() {
   const access = await getAccessInfo()
   if (!access) redirect("/login?callbackUrl=/marketing/forms")
 
+  if (!canAccessMarketingForms(access)) {
+    redirect("/dashboard")
+  }
+
   return (
     <MarketingFormsClient
       userName={session.user.name || "Unknown"}
+      userModules={access.modules}
+      isSuperAdmin={access.isSuperAdmin}
     />
   )
 }

@@ -1,7 +1,7 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
-import { getAccessInfo } from "@/lib/access"
+import { getAccessInfo, canAccessMarketingAssets } from "@/lib/access"
 import { MarketingAssetsClient } from "./MarketingAssetsClient"
 import { getMarketingAssets, getMarketingAssetLoans } from "@/app/actions/marketing-assets"
 
@@ -16,6 +16,10 @@ export default async function Page() {
   const access = await getAccessInfo()
   if (!access) redirect("/login?callbackUrl=/marketing/assets")
 
+  if (!canAccessMarketingAssets(access)) {
+    redirect("/dashboard")
+  }
+
   const [assetsRes, loansRes] = await Promise.all([
     getMarketingAssets(),
     getMarketingAssetLoans("ALL"),
@@ -29,6 +33,8 @@ export default async function Page() {
       initialAssets={initialAssets}
       initialLoans={initialLoans}
       userName={session.user.name || "Unknown"}
+      userModules={access.modules}
+      isSuperAdmin={access.isSuperAdmin}
     />
   )
 }

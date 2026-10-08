@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
+import { getAccessInfo, canAccessMarketingAssets } from "@/lib/access"
 import { logUserAction } from "./audit"
 import { uploadMaintenanceItemPhoto } from "@/lib/maintenance-r2"
 
@@ -134,6 +135,11 @@ export async function addMarketingAsset(data: {
   imageUrl?: string | null
 }) {
   try {
+    const access = await getAccessInfo()
+    if (!canAccessMarketingAssets(access)) {
+      return { success: false, error: "Unauthorized: Missing MARKETING_ASSETS module access." }
+    }
+
     const session = await auth()
     const nameUpper = data.name.trim()
     if (!nameUpper) return { success: false, error: "Asset name is required." }
@@ -217,6 +223,11 @@ export async function editMarketingAsset(
   }
 ) {
   try {
+    const access = await getAccessInfo()
+    if (!canAccessMarketingAssets(access)) {
+      return { success: false, error: "Unauthorized: Missing MARKETING_ASSETS module access." }
+    }
+
     const session = await auth()
     const existing = await prisma.marketingAsset.findUnique({
       where: { id },
@@ -270,6 +281,11 @@ export async function editMarketingAsset(
 
 export async function deleteMarketingAsset(id: string) {
   try {
+    const access = await getAccessInfo()
+    if (!canAccessMarketingAssets(access)) {
+      return { success: false, error: "Unauthorized: Missing MARKETING_ASSETS module access." }
+    }
+
     const session = await auth()
     const asset = await prisma.marketingAsset.findUnique({
       where: { id },
@@ -320,6 +336,11 @@ export async function requestMarketingAssetLoan(data: {
   remarks?: string
 }) {
   try {
+    const access = await getAccessInfo()
+    if (!access || (!access.isSuperAdmin && !access.modules.includes("MARKETING_ASSETS") && !access.modules.includes("MARKETING_FORMS"))) {
+      return { success: false, error: "Unauthorized: Missing MARKETING_ASSETS or MARKETING_FORMS access." }
+    }
+
     const session = await auth()
     const asset = await prisma.marketingAsset.findUnique({
       where: { id: data.assetId },
@@ -380,6 +401,11 @@ export async function requestMarketingAssetLoan(data: {
 
 export async function approveMarketingAssetLoan(loanId: string, dispatchNow = false) {
   try {
+    const access = await getAccessInfo()
+    if (!canAccessMarketingAssets(access)) {
+      return { success: false, error: "Unauthorized: Missing MARKETING_ASSETS module access." }
+    }
+
     const session = await auth()
     const approver = session?.user?.name || "Marketing Team"
 
@@ -438,6 +464,11 @@ export async function approveMarketingAssetLoan(loanId: string, dispatchNow = fa
 
 export async function dispatchMarketingAssetLoan(loanId: string) {
   try {
+    const access = await getAccessInfo()
+    if (!canAccessMarketingAssets(access)) {
+      return { success: false, error: "Unauthorized: Missing MARKETING_ASSETS module access." }
+    }
+
     const session = await auth()
     const loan = await prisma.marketingAssetLoan.findUnique({
       where: { id: loanId },
@@ -472,6 +503,11 @@ export async function dispatchMarketingAssetLoan(loanId: string) {
 
 export async function rejectMarketingAssetLoan(loanId: string, reason: string) {
   try {
+    const access = await getAccessInfo()
+    if (!canAccessMarketingAssets(access)) {
+      return { success: false, error: "Unauthorized: Missing MARKETING_ASSETS module access." }
+    }
+
     const session = await auth()
     const approver = session?.user?.name || "Marketing Team"
 
@@ -518,6 +554,11 @@ export async function returnMarketingAssetLoan(
   }
 ) {
   try {
+    const access = await getAccessInfo()
+    if (!canAccessMarketingAssets(access)) {
+      return { success: false, error: "Unauthorized: Missing MARKETING_ASSETS module access." }
+    }
+
     const session = await auth()
     const handler = session?.user?.name || "Marketing Staff"
 

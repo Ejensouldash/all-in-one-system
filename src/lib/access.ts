@@ -113,3 +113,29 @@ export function canManageCustomerCare(access: AccessInfo | null): boolean {
   if (!access) return false
   return access.isSuperAdmin || access.modules.includes("CUSTOMER_CARE_MANAGE")
 }
+
+export const MARKETING_MODULES = [
+  "MARKETING_FORMS",
+  "MARKETING_ASSETS",
+  "MARKETING_INVENTORY",
+]
+
+export function canAccessMarketing(access: AccessInfo | null): boolean {
+  if (!access) return false
+  return access.isSuperAdmin || hasAnyModule(access, MARKETING_MODULES)
+}
+
+export function canAccessMarketingForms(access: AccessInfo | null): boolean {
+  if (!access) return false
+  return access.isSuperAdmin || access.modules.includes("MARKETING_FORMS")
+}
+
+export function canAccessMarketingAssets(access: AccessInfo | null): boolean {
+  if (!access) return false
+  return access.isSuperAdmin || access.modules.includes("MARKETING_ASSETS")
+}
+
+export function canAccessMarketingInventory(access: AccessInfo | null): boolean {
+  if (!access) return false
+  return access.isSuperAdmin || access.modules.includes("MARKETING_INVENTORY")
+}

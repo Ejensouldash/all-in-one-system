@@ -13,6 +13,7 @@ import {
   LayoutDashboard, FileSpreadsheet, BellRing,
   ShoppingCart, FileSearch, FileCheck, FilePenLine, Trash2, UserCheck, BookmarkCheck,
   Briefcase, Headphones,
+  ChevronDown,
   type LucideIcon,
 } from "lucide-react"
 
@@ -129,6 +130,17 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "SETTINGS", name: "System Settings", description: "Configure system parameters and cost catalogs.", icon: Settings },
     ],
   },
+    {
+    id: "MARKETING",
+    name: "Marketing",
+    icon: Megaphone,
+    iconClass: "bg-pink-50 text-pink-600 border-pink-100",
+    modules: [
+      { id: "MARKETING_FORMS", name: "Marketing Forms & Templates", description: "Access to view and submit marketing requisition forms.", icon: ClipboardList },
+      { id: "MARKETING_ASSETS", name: "Marketing Asset Management", description: "Manage marketing department assets, loans, and returns.", icon: Boxes },
+      { id: "MARKETING_INVENTORY", name: "Marketing Inventory Management", description: "Track marketing stock, merchandise check-in/out, and logs.", icon: PackageOpen },
+    ],
+  },
 ]
 
 const ALL_MODULES = MODULE_CATEGORIES.flatMap(c => c.modules)
@@ -159,6 +171,16 @@ export function AccessForm({ userId, initialModules }: { userId: string, initial
 
   const initial = initialModules || []
 
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>(() => {
+    const initialOpen: Record<string, boolean> = {}
+    MODULE_CATEGORIES.forEach(cat => {
+      const hasActive = cat.modules.some(m => (initialModules || []).includes(m.id))
+      initialOpen[cat.id] = hasActive
+    })
+    return initialOpen
+  })
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("ALL")
+
   const hasChanges = useMemo(() => {
     return [...selectedModules].sort().join(",") !== [...initial].sort().join(",")
   }, [selectedModules, initial])
@@ -170,9 +192,13 @@ export function AccessForm({ userId, initialModules }: { userId: string, initial
   }, [selectedModules, initial])
 
   const filteredCategories = useMemo(() => {
+    let cats = MODULE_CATEGORIES
+    if (selectedCategoryFilter !== "ALL") {
+      cats = cats.filter(cat => cat.id === selectedCategoryFilter)
+    }
     const q = query.trim().toLowerCase()
-    if (!q) return MODULE_CATEGORIES
-    return MODULE_CATEGORIES
+    if (!q) return cats
+    return cats
       .map(cat => ({
         ...cat,
         modules: cat.modules.filter(m =>
@@ -180,7 +206,28 @@ export function AccessForm({ userId, initialModules }: { userId: string, initial
         ),
       }))
       .filter(cat => cat.modules.length > 0)
-  }, [query])
+  }, [query, selectedCategoryFilter])
+
+  const toggleCategoryDropdown = (catId: string) => {
+    setOpenCategories(prev => ({
+      ...prev,
+      [catId]: !prev[catId],
+    }))
+  }
+
+  const allExpanded = useMemo(() => {
+    return filteredCategories.every(cat => Boolean(openCategories[cat.id]))
+  }, [filteredCategories, openCategories])
+
+  const toggleExpandAll = () => {
+    if (allExpanded) {
+      setOpenCategories({})
+    } else {
+      const allOpen: Record<string, boolean> = {}
+      MODULE_CATEGORIES.forEach(c => { allOpen[c.id] = true })
+      setOpenCategories(allOpen)
+    }
+  }
 
   const toggleModule = (moduleId: string) => {
     if (isSubmitting || saveState === "success") return
@@ -258,7 +305,30 @@ export function AccessForm({ userId, initialModules }: { userId: string, initial
               />
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Category Dropdown Filter */}
+            <div className="relative">
+              <select
+                value={selectedCategoryFilter}
+                onChange={e => {
+                  const val = e.target.value
+                  setSelectedCategoryFilter(val)
+                  if (val !== "ALL") {
+                    setOpenCategories(prev => ({ ...prev, [val]: true }))
+                  }
+                }}
+                className="pl-3 pr-8 py-2 text-sm rounded-lg border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 font-medium text-gray-700 transition-colors"
+              >
+                <option value="ALL">All Categories ({MODULE_CATEGORIES.length})</option>
+                {MODULE_CATEGORIES.map(cat => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name} ({cat.modules.length})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Search Input */}
             <div className="relative flex-1 sm:flex-none">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
@@ -266,15 +336,27 @@ export function AccessForm({ userId, initialModules }: { userId: string, initial
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="Search modules..."
-                className="w-full sm:w-56 pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-colors"
+                className="w-full sm:w-48 pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-colors"
               />
             </div>
-            <button
-              onClick={handleSelectAll}
-              className="shrink-0 text-xs font-bold uppercase tracking-wide text-blue-600 hover:text-blue-800 transition-colors"
-            >
-              {selectedModules.length === ALL_MODULES.length ? "Deselect All" : "Select All"}
-            </button>
+
+            {/* Expand / Collapse All & Select All */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleExpandAll}
+                className="text-xs font-semibold px-2.5 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                {allExpanded ? "Collapse All" : "Expand All"}
+              </button>
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                className="text-xs font-bold uppercase tracking-wide text-blue-600 hover:text-blue-800 transition-colors px-1"
+              >
+                {selectedModules.length === ALL_MODULES.length ? "Deselect All" : "Select All"}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -287,66 +369,94 @@ export function AccessForm({ userId, initialModules }: { userId: string, initial
           <p className="text-sm text-gray-500 mt-1">No module matches &quot;{query}&quot;. Try a different keyword.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        <div className="space-y-3">
           {filteredCategories.map(cat => {
             const CatIcon = cat.icon
             const catIds = cat.modules.map(m => m.id)
             const selectedInCat = catIds.filter(id => selectedModules.includes(id)).length
             const allInCatSelected = selectedInCat === catIds.length
+            const isSearching = Boolean(query.trim())
+            const isExpanded = isSearching || Boolean(openCategories[cat.id])
+
             return (
-              <div key={cat.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className={`h-8 w-8 rounded-lg border flex items-center justify-center ${cat.iconClass}`}>
+              <div 
+                key={cat.id} 
+                className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-200"
+              >
+                {/* Collapsible Dropdown Header */}
+                <div
+                  onClick={() => toggleCategoryDropdown(cat.id)}
+                  className="w-full px-5 py-3.5 bg-gray-50/60 hover:bg-gray-100/70 cursor-pointer flex items-center justify-between transition-colors select-none"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`h-8 w-8 rounded-lg border flex items-center justify-center shrink-0 ${cat.iconClass}`}>
                       <CatIcon className="h-4 w-4" />
                     </div>
-                    <h3 className="font-semibold text-gray-800 text-sm">{cat.name}</h3>
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                      selectedInCat > 0 ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-gray-100 text-gray-500 border border-gray-200"
-                    }`}>
-                      {selectedInCat}/{catIds.length}
-                    </span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h3 className="font-semibold text-gray-800 text-sm truncate">{cat.name}</h3>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                        selectedInCat > 0 
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200" 
+                          : "bg-gray-100 text-gray-500 border border-gray-200"
+                      }`}>
+                        {selectedInCat}/{catIds.length} active
+                      </span>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => toggleCategory(cat)}
-                    className="text-[11px] font-bold uppercase tracking-wide text-gray-400 hover:text-blue-600 transition-colors"
-                  >
-                    {allInCatSelected ? "Clear" : "Select all"}
-                  </button>
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleCategory(cat)
+                      }}
+                      className="text-[11px] font-bold uppercase tracking-wide text-gray-400 hover:text-blue-600 transition-colors px-2 py-1 rounded hover:bg-white"
+                    >
+                      {allInCatSelected ? "Clear" : "Select all"}
+                    </button>
+                    <div className={`text-gray-400 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>
+                      <ChevronDown className="h-5 w-5" />
+                    </div>
+                  </div>
                 </div>
-                <div className="divide-y divide-gray-50">
-                  {cat.modules.map(module => {
-                    const ModIcon = module.icon
-                    const isSelected = selectedModules.includes(module.id)
-                    return (
-                      <button
-                        key={module.id}
-                        type="button"
-                        role="switch"
-                        aria-checked={isSelected}
-                        onClick={() => toggleModule(module.id)}
-                        className={`w-full flex items-center gap-4 px-5 py-3.5 text-left transition-colors duration-150 ${
-                          isSelected ? "bg-emerald-50/50 hover:bg-emerald-50" : "hover:bg-gray-50"
-                        }`}
-                      >
-                        <div className={`h-10 w-10 shrink-0 rounded-lg border flex items-center justify-center transition-colors ${
-                          isSelected
-                            ? "bg-emerald-100 border-emerald-200 text-emerald-700"
-                            : "bg-gray-100 border-gray-200 text-gray-400"
-                        }`}>
-                          <ModIcon className="h-5 w-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-semibold ${isSelected ? "text-gray-900" : "text-gray-600"}`}>
-                            {module.name}
-                          </p>
-                          <p className="text-xs text-gray-400 truncate mt-0.5">{module.description}</p>
-                        </div>
-                        <ToggleSwitch checked={isSelected} />
-                      </button>
-                    )
-                  })}
-                </div>
+
+                {/* Dropdown Content / Modules List */}
+                {isExpanded && (
+                  <div className="border-t border-gray-100 divide-y divide-gray-50 animate-in fade-in duration-150">
+                    {cat.modules.map(module => {
+                      const ModIcon = module.icon
+                      const isSelected = selectedModules.includes(module.id)
+                      return (
+                        <button
+                          key={module.id}
+                          type="button"
+                          role="switch"
+                          aria-checked={isSelected}
+                          onClick={() => toggleModule(module.id)}
+                          className={`w-full flex items-center gap-4 px-5 py-3.5 text-left transition-colors duration-150 ${
+                            isSelected ? "bg-emerald-50/50 hover:bg-emerald-50" : "hover:bg-gray-50"
+                          }`}
+                        >
+                          <div className={`h-10 w-10 shrink-0 rounded-lg border flex items-center justify-center transition-colors ${
+                            isSelected
+                              ? "bg-emerald-100 border-emerald-200 text-emerald-700"
+                              : "bg-gray-100 border-gray-200 text-gray-400"
+                          }`}>
+                            <ModIcon className="h-5 w-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-semibold ${isSelected ? "text-gray-900" : "text-gray-600"}`}>
+                              {module.name}
+                            </p>
+                            <p className="text-xs text-gray-400 truncate mt-0.5">{module.description}</p>
+                          </div>
+                          <ToggleSwitch checked={isSelected} />
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             )
           })}

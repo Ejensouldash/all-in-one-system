@@ -80,6 +80,7 @@ export function MarketingInventoryClient({
   initialItems, 
   initialLogs, 
   userName,
+  userModules,
   isSuperAdmin = false,
 }: Props) {
   const [items, setItems] = useState<Item[]>(initialItems)
@@ -534,7 +535,7 @@ export function MarketingInventoryClient({
         
         {/* Nav Header Tabs */}
         <div className="print:hidden">
-          <MarketingNavTabs />
+          <MarketingNavTabs userModules={userModules} isSuperAdmin={isSuperAdmin} />
         </div>
 
         {/* Global Toast Alerts */}

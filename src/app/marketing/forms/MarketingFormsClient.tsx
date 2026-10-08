@@ -128,7 +128,15 @@ const CATEGORIES = [
   "CREATIVE & DESIGN",
 ]
 
-export function MarketingFormsClient({ userName }: { userName: string }) {
+export function MarketingFormsClient({ 
+  userName,
+  userModules,
+  isSuperAdmin = false,
+}: { 
+  userName: string
+  userModules?: string[]
+  isSuperAdmin?: boolean
+}) {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("ALL")
   const [selectedTemplate, setSelectedTemplate] = useState<FormTemplate | null>(null)
@@ -147,7 +155,7 @@ export function MarketingFormsClient({ userName }: { userName: string }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         
         {/* Nav Header Tabs */}
-        <MarketingNavTabs />
+        <MarketingNavTabs userModules={userModules} isSuperAdmin={isSuperAdmin} />
 
         {/* Page Title Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">

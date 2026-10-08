@@ -71,6 +71,8 @@ type Props = {
   initialAssets: Asset[]
   initialLoans: Loan[]
   userName: string
+  userModules?: string[]
+  isSuperAdmin?: boolean
 }
 
 const ASSET_CATEGORIES = [
@@ -83,7 +85,13 @@ const ASSET_CATEGORIES = [
   { id: "OTHER", label: "OTHER ASSETS" },
 ]
 
-export function MarketingAssetsClient({ initialAssets, initialLoans, userName }: Props) {
+export function MarketingAssetsClient({ 
+  initialAssets, 
+  initialLoans, 
+  userName,
+  userModules,
+  isSuperAdmin = false,
+}: Props) {
   const [assets, setAssets] = useState<Asset[]>(initialAssets)
   const [loans, setLoans] = useState<Loan[]>(initialLoans)
   const [activeTab, setActiveTab] = useState<"REQUESTS" | "TRACKING" | "CATALOG">("REQUESTS")
@@ -494,7 +502,7 @@ export function MarketingAssetsClient({ initialAssets, initialLoans, userName }:
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         
         {/* Nav Header Tabs */}
-        <MarketingNavTabs />
+        <MarketingNavTabs userModules={userModules} isSuperAdmin={isSuperAdmin} />
 
         {/* Global Toasts */}
         {errorMsg && (

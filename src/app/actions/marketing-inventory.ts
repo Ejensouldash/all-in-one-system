@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
-import { getAccessInfo } from "@/lib/access"
+import { getAccessInfo, canAccessMarketingInventory } from "@/lib/access"
 import { logUserAction } from "./audit"
 import { uploadMaintenanceItemPhoto } from "@/lib/maintenance-r2"
 
@@ -34,6 +34,11 @@ export async function addMarketingStock(data: {
   imageUrl?: string | null
 }) {
   try {
+    const access = await getAccessInfo()
+    if (!canAccessMarketingInventory(access)) {
+      return { success: false, error: "Unauthorized: Missing MARKETING_INVENTORY access." }
+    }
+
     if (!data.quantity || data.quantity <= 0) {
       return { success: false, error: "Quantity must be greater than zero." }
     }
@@ -148,6 +153,11 @@ export async function withdrawMarketingStock(data: {
   remarks?: string
 }) {
   try {
+    const access = await getAccessInfo()
+    if (!canAccessMarketingInventory(access)) {
+      return { success: false, error: "Unauthorized: Missing MARKETING_INVENTORY access." }
+    }
+
     if (data.quantity <= 0) {
       return { success: false, error: "Quantity must be greater than zero." }
     }
@@ -248,6 +258,11 @@ export async function getMarketingStockReport(filters: {
 
 export async function deleteMarketingItem(itemId: string) {
   try {
+    const access = await getAccessInfo()
+    if (!canAccessMarketingInventory(access)) {
+      return { success: false, error: "Unauthorized: Missing MARKETING_INVENTORY access." }
+    }
+
     const item = await prisma.marketingItem.findUnique({
       where: { id: itemId },
     })
@@ -329,6 +344,11 @@ export async function editMarketingItemMaster(
 ) {
   const session = await auth()
   if (!session?.user?.id) return { success: false, error: "Unauthorized" }
+
+  const access = await getAccessInfo()
+  if (!canAccessMarketingInventory(access)) {
+    return { success: false, error: "Unauthorized: Missing MARKETING_INVENTORY access." }
+  }
 
   const nameUpper = data.name.trim().toUpperCase()
   if (!nameUpper) return { success: false, error: "Item name cannot be empty." }

@@ -4,29 +4,43 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { FileText, Layers, Box } from "lucide-react"
 
-export function MarketingNavTabs() {
+interface MarketingNavTabsProps {
+  userModules?: string[]
+  isSuperAdmin?: boolean
+}
+
+export function MarketingNavTabs({ userModules, isSuperAdmin = false }: MarketingNavTabsProps = {}) {
   const pathname = usePathname() || ""
 
-  const tabs = [
+  const allTabs = [
     {
       name: "Forms",
       href: "/marketing/forms",
+      module: "MARKETING_FORMS",
       icon: FileText,
       active: pathname.startsWith("/marketing/forms"),
     },
     {
       name: "Assets Management",
       href: "/marketing/assets",
+      module: "MARKETING_ASSETS",
       icon: Layers,
       active: pathname.startsWith("/marketing/assets"),
     },
     {
       name: "Inventory Management",
       href: "/marketing/inventory",
+      module: "MARKETING_INVENTORY",
       icon: Box,
       active: pathname.startsWith("/marketing/inventory") || pathname.startsWith("/business-development/marketing/inventory"),
     },
   ]
+
+  const tabs = allTabs.filter(tab => {
+    if (isSuperAdmin) return true
+    if (!userModules) return true
+    return userModules.includes(tab.module)
+  })
 
   return (
     <div className="mb-8 border-b border-slate-200 overflow-x-auto">

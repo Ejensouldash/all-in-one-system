@@ -2,7 +2,7 @@ import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { MarketingInventoryClient } from "./MarketingInventoryClient"
-import { getAccessInfo } from "@/lib/access"
+import { getAccessInfo, canAccessMarketingInventory } from "@/lib/access"
 
 export const metadata = {
   title: "Marketing Inventory Management | Bubbles O2",
@@ -14,6 +14,10 @@ export default async function Page() {
 
   const access = await getAccessInfo()
   if (!access) redirect("/login?callbackUrl=/marketing/inventory")
+
+  if (!canAccessMarketingInventory(access)) {
+    redirect("/dashboard")
+  }
 
   // Fetch all Marketing Items
   const items = await prisma.marketingItem.findMany({

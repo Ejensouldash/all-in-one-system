@@ -5,7 +5,7 @@ import { MaintenanceNavTabs } from "@/components/forms/MaintenanceNavTabs"
 import { 
   Plus, Minus, FileText, Search, PackageOpen, AlertCircle, 
   Trash2, ArrowUpDown, RefreshCw, X, Calendar, Printer, User, MessageSquare,
-  Image as ImageIcon, Upload, Tag, Pencil
+  Image as ImageIcon, Upload, Tag, Pencil, ChevronLeft, ChevronRight
 } from "lucide-react"
 import { 
   addMaintenanceStock, 
@@ -16,6 +16,22 @@ import {
   editMaintenanceItemMaster
 } from "@/app/actions/maintenance-inventory"
 import { MaintenanceItemDetailModal, InventoryItem } from "@/components/forms/maintenance/MaintenanceItemDetailModal"
+
+function getPaginationItems(currentPage: number, totalPages: number): (number | string)[] {
+  const items: (number | string)[] = []
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) items.push(i)
+  } else {
+    if (currentPage <= 4) {
+      items.push(1, 2, 3, 4, 5, "...", totalPages)
+    } else if (currentPage >= totalPages - 3) {
+      items.push(1, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages)
+    } else {
+      items.push(1, "...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages)
+    }
+  }
+  return items
+}
 
 type Item = {
   id: string
@@ -70,6 +86,8 @@ export function MaintenanceDashboardClient({
   const [logs, setLogs] = useState<StockLog[]>(initialLogs as any)
   const [searchTerm, setSearchTerm] = useState("")
   const [departmentFilter, setDepartmentFilter] = useState("ALL")
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const [pageSize, setPageSize] = useState<number>(10)
   
   // Add Stock Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -125,6 +143,29 @@ export function MaintenanceDashboardClient({
     const matchesDept = departmentFilter === "ALL" || (item.department || "BOS") === departmentFilter
     return matchesSearch && matchesDept
   })
+
+  // Pagination calculations
+  const totalFiltered = filteredItems.length
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize))
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages)
+  const startIndex = (safeCurrentPage - 1) * pageSize
+  const endIndex = Math.min(startIndex + pageSize, totalFiltered)
+  const paginatedItems = filteredItems.slice(startIndex, endIndex)
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value)
+    setCurrentPage(1)
+  }
+
+  const handleDepartmentFilterChange = (dept: string) => {
+    setDepartmentFilter(dept)
+    setCurrentPage(1)
+  }
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size)
+    setCurrentPage(1)
+  }
 
   const totalUniqueItems = items.length
   const totalStockQty = items.reduce((sum, item) => sum + item.quantity, 0)
@@ -694,7 +735,7 @@ export function MaintenanceDashboardClient({
                     <button
                       key={dept}
                       type="button"
-                      onClick={() => setDepartmentFilter(dept)}
+                      onClick={() => handleDepartmentFilterChange(dept)}
                       className={`px-3 py-1.5 rounded-lg transition-all ${
                         departmentFilter === dept
                           ? "bg-white text-gray-900 shadow-xs font-black"
@@ -711,20 +752,46 @@ export function MaintenanceDashboardClient({
                     type="text"
                     placeholder="Search item name..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => handleSearchChange(e.target.value)}
                     className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-xl text-sm font-semibold bg-white outline-none focus:border-blue-500"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="overflow-x-auto max-h-[580px] overflow-y-auto">
-              <table className="w-full text-sm text-left text-gray-700">
+            {/* Results summary and Page size */}
+            <div className="px-6 py-3 border-b border-gray-100 bg-gray-50/50 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+              <span>
+                Showing <strong className="text-slate-800">{totalFiltered === 0 ? 0 : startIndex + 1}</strong> to{" "}
+                <strong className="text-slate-800">{endIndex}</strong> of{" "}
+                <strong className="text-slate-800">{totalFiltered}</strong> items
+              </span>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs">Per page:</span>
+                {[10, 25, 50].map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => handlePageSizeChange(size)}
+                    className={`px-2 py-0.5 rounded text-xs font-bold transition-colors ${
+                      pageSize === size
+                        ? "bg-slate-800 text-white"
+                        : "text-slate-500 hover:bg-slate-200"
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-100 text-sm text-left text-gray-700">
                 <thead className="bg-gray-50 border-b border-gray-100 text-xs font-black uppercase tracking-wider text-gray-500 sticky top-0 z-10 shadow-xs">
                   <tr>
-                    <th className="px-6 py-3.5">Item Name</th>
+                    <th className="px-6 py-3.5 w-64 max-w-[260px]">Item Name</th>
                     <th className="px-6 py-3.5 text-center">Brand</th>
-                    <th className="px-6 py-3.5 text-center">Department</th>
                     <th className="px-6 py-3.5">Location</th>
                     <th className="px-6 py-3.5 text-right">Current Stock</th>
                     <th className="px-6 py-3.5">Unit</th>
@@ -734,14 +801,14 @@ export function MaintenanceDashboardClient({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 font-medium">
-                  {filteredItems.length === 0 ? (
+                  {totalFiltered === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-6 py-10 text-center text-gray-500 font-medium bg-gray-50/20">
+                      <td colSpan={8} className="px-6 py-10 text-center text-gray-500 font-medium bg-gray-50/20">
                         No inventory items found. Add stock to register items.
                       </td>
                     </tr>
                   ) : (
-                    filteredItems.map((item) => (
+                    paginatedItems.map((item) => (
                       <tr 
                         key={item.id} 
                         onClick={() => {
@@ -750,19 +817,23 @@ export function MaintenanceDashboardClient({
                         }}
                         className="hover:bg-blue-50/40 cursor-pointer transition-colors group"
                       >
-                        <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900 flex items-center gap-3">
-                          {item.imageUrl ? (
-                            <img 
-                              src={item.imageUrl} 
-                              alt={item.name} 
-                              className="w-9 h-9 object-cover rounded-lg border border-gray-200 shadow-xs flex-shrink-0 group-hover:scale-105 transition-transform" 
-                            />
-                          ) : (
-                            <div className="w-9 h-9 rounded-lg bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center flex-shrink-0 text-gray-400 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
-                              <ImageIcon className="w-4 h-4" />
-                            </div>
-                          )}
-                          <span className="group-hover:text-blue-700 transition-colors">{item.name}</span>
+                        <td className="px-6 py-4 w-64 max-w-[260px]">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {item.imageUrl ? (
+                              <img 
+                                src={item.imageUrl} 
+                                alt={item.name} 
+                                className="w-9 h-9 object-cover rounded-lg border border-gray-200 shadow-xs flex-shrink-0 group-hover:scale-105 transition-transform" 
+                              />
+                            ) : (
+                              <div className="w-9 h-9 rounded-lg bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center flex-shrink-0 text-gray-400 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                                <ImageIcon className="w-4 h-4" />
+                              </div>
+                            )}
+                            <span className="truncate group-hover:text-blue-700 transition-colors font-bold text-gray-900" title={item.name}>
+                              {item.name}
+                            </span>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           {item.brand ? (
@@ -772,17 +843,6 @@ export function MaintenanceDashboardClient({
                           ) : (
                             <span className="text-gray-300 text-xs font-bold">—</span>
                           )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
-                            (item.department || "BOS") === "NRHO"
-                              ? "bg-purple-100 text-purple-800 border border-purple-200"
-                              : (item.department || "BOS") === "BOM"
-                              ? "bg-teal-100 text-teal-800 border border-teal-200"
-                              : "bg-amber-100 text-amber-800 border border-amber-200"
-                          }`}>
-                            {item.department || "BOS"}
-                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-gray-700 font-semibold">
                           {item.location}
@@ -833,6 +893,54 @@ export function MaintenanceDashboardClient({
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalFiltered > 0 && (
+              <div className="px-6 py-4 bg-slate-50/80 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                <span className="text-xs text-slate-500">
+                  Page {safeCurrentPage} of {totalPages}
+                </span>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(Math.max(1, safeCurrentPage - 1))}
+                    disabled={safeCurrentPage === 1}
+                    className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+
+                  {getPaginationItems(safeCurrentPage, totalPages).map((item, idx) =>
+                    item === "..." ? (
+                      <span key={idx} className="px-2 text-xs text-slate-400">...</span>
+                    ) : (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setCurrentPage(item as number)}
+                        className={`min-w-[32px] h-8 rounded-lg text-xs font-bold transition-all ${
+                          safeCurrentPage === item
+                            ? "bg-slate-900 text-white shadow-sm"
+                            : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    )
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(Math.min(totalPages, safeCurrentPage + 1))}
+                    disabled={safeCurrentPage === totalPages}
+                    className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

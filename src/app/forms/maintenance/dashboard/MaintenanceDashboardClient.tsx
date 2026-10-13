@@ -1006,10 +1006,26 @@ export function MaintenanceDashboardClient({
                       required
                     />
                     {parseFloat(addTotalPrice) > 0 && addQty > 0 && (
-                      <p className="mt-1 text-xs font-bold text-emerald-600 flex items-center gap-1">
-                        <Tag className="w-3.5 h-3.5" />
-                        Calc: RM {(parseFloat(addTotalPrice) / addQty).toFixed(2)} / {isNewItem ? addUnit : (items.find(i => i.id === selectedAddItemId)?.unit || "unit")}
-                      </p>
+                      <div className="mt-1.5 space-y-1">
+                        <p className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                          <Tag className="w-3.5 h-3.5" />
+                          Batch Unit Price: RM {(parseFloat(addTotalPrice) / addQty).toFixed(2)} / {isNewItem ? addUnit : (items.find(i => i.id === selectedAddItemId)?.unit || "unit")}
+                        </p>
+                        {!isNewItem && selectedAddItemId && (() => {
+                          const existing = items.find(i => i.id === selectedAddItemId);
+                          if (existing && existing.quantity > 0 && existing.pricePerUnit && existing.pricePerUnit > 0) {
+                            const newTotalVal = (existing.quantity * existing.pricePerUnit) + parseFloat(addTotalPrice);
+                            const newTotalQty = existing.quantity + addQty;
+                            const avgPrice = newTotalVal / newTotalQty;
+                            return (
+                              <p className="text-[11px] font-semibold text-blue-700 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200 inline-block">
+                                Est. Weighted Avg: RM {avgPrice.toFixed(2)} / {existing.unit || "unit"} (Curr: RM {existing.pricePerUnit.toFixed(2)})
+                              </p>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
                     )}
                   </div>
                   <div>

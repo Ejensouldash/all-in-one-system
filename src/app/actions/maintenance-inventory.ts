@@ -48,12 +48,34 @@ export async function addMaintenanceStock(data: {
     const result = await prisma.$transaction(async (tx) => {
       let item;
       let isNew = false;
+      let finalUnitPrice = calculatedUnitPrice;
 
       if (data.itemId) {
+        const existingItem = await tx.maintenanceItem.findUnique({
+          where: { id: data.itemId }
+        })
+
+        if (!existingItem) {
+          throw new Error("Item not found.")
+        }
+
+        // Calculate Weighted Moving Average Unit Price:
+        // If the item currently has stock (quantity > 0) and an existing unit price (pricePerUnit > 0):
+        //   New Average Price = ( (currentQty * currentPrice) + incomingTotalPrice ) / ( currentQty + incomingQty )
+        // Otherwise (stock is 0 or previous price was not set), use incoming batch unit price.
+        if (existingItem.quantity > 0 && existingItem.pricePerUnit > 0) {
+          const currentTotalValue = existingItem.quantity * existingItem.pricePerUnit
+          const combinedTotalValue = currentTotalValue + data.totalPrice
+          const combinedQuantity = existingItem.quantity + data.quantity
+          finalUnitPrice = Number((combinedTotalValue / combinedQuantity).toFixed(4))
+        } else {
+          finalUnitPrice = calculatedUnitPrice
+        }
+
         // Increment existing item and update unit price (and image/department/brand if provided)
         const updateData: any = {
           quantity: { increment: data.quantity },
-          pricePerUnit: calculatedUnitPrice,
+          pricePerUnit: finalUnitPrice,
         }
         if (data.department) {
           updateData.department = departmentVal
@@ -86,6 +108,7 @@ export async function addMaintenanceStock(data: {
           throw new Error(`Item with name "${normalizedName}" already exists in location "${locationVal}". Please select it from the list instead.`)
         }
 
+        finalUnitPrice = calculatedUnitPrice
         item = await tx.maintenanceItem.create({
           data: {
             name: normalizedName,
@@ -94,7 +117,7 @@ export async function addMaintenanceStock(data: {
             department: departmentVal,
             quantity: data.quantity,
             unit: data.unit || "pcs",
-            pricePerUnit: calculatedUnitPrice,
+            pricePerUnit: finalUnitPrice,
             imageUrl: data.imageUrl || null
           }
         })
@@ -115,7 +138,7 @@ export async function addMaintenanceStock(data: {
         }
       })
 
-      return { item, isNew, unitPrice: calculatedUnitPrice }
+      return { item, isNew, unitPrice: finalUnitPrice, batchUnitPrice: calculatedUnitPrice }
     })
 
     revalidatePath("/forms/maintenance/dashboard")
@@ -129,7 +152,7 @@ export async function addMaintenanceStock(data: {
     } else {
       await logUserAction(
         "Added Maintenance Stock",
-        `Added ${data.quantity} ${result.item.unit} to item: ${result.item.name} (${result.item.location}) at RM ${data.totalPrice.toFixed(2)} (Unit Price: RM ${result.unitPrice.toFixed(2)}/${result.item.unit}). Handled by: ${data.handledBy}. Remarks: ${data.remarks || "-"}`
+        `Added ${data.quantity} ${result.item.unit} to item: ${result.item.name} (${result.item.location}) at RM ${data.totalPrice.toFixed(2)} (Batch: RM ${result.batchUnitPrice.toFixed(2)}/${result.item.unit}, New Avg Unit Price: RM ${result.unitPrice.toFixed(2)}/${result.item.unit}). Handled by: ${data.handledBy}. Remarks: ${data.remarks || "-"}`
       )
     }
 

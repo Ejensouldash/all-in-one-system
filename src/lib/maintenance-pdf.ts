@@ -8,6 +8,7 @@ import {
   getMaintenanceFileByExactKeyFromR2
 } from "@/lib/maintenance-r2"
 import { prisma } from "@/lib/prisma"
+import { getSignatureBufferFromR2 } from "@/lib/signature-storage"
 
 /**
  * Resolves a ticket photo record into a Base64 Data URI string
@@ -68,6 +69,101 @@ async function resolveMaintenancePhotoToBase64(photo?: { objectKey?: string | nu
 }
 
 /**
+ * Resolves a signature string (base64 Data URI, R2 API proxy path, or HTTP URL)
+ * into a base64 Data URI string that @react-pdf/renderer can render in Node.js.
+ */
+async function resolveSignatureToDataUrl(sig?: string | null): Promise<string | null> {
+  if (!sig || !sig.trim()) return null
+  const trimmed = sig.trim()
+
+  // 1. Already a base64 data URI
+  if (trimmed.startsWith("data:image/")) {
+    return trimmed
+  }
+
+  // 2. Relative API route: /api/users/[userId]/signature
+  const userMatch = trimmed.match(/\/api\/users\/([a-zA-Z0-9-]+)\/signature/)
+  if (userMatch && userMatch[1]) {
+    const userId = userMatch[1]
+    try {
+      const buffer = await getSignatureBufferFromR2(userId)
+      if (buffer) {
+        return `data:image/png;base64,${buffer.toString("base64")}`
+      }
+    } catch (err) {
+      console.warn(`[resolveSignatureToDataUrl] R2 error for user ${userId}:`, err)
+    }
+
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { signatureUrl: true },
+      })
+      if (user?.signatureUrl && user.signatureUrl !== sig) {
+        return await resolveSignatureToDataUrl(user.signatureUrl)
+      }
+    } catch (err) {
+      console.warn(`[resolveSignatureToDataUrl] DB user lookup error for ${userId}:`, err)
+    }
+  }
+
+  // 3. Absolute HTTP/HTTPS URL
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    try {
+      const res = await fetch(trimmed)
+      if (res.ok) {
+        const arrayBuffer = await res.arrayBuffer()
+        const contentType = res.headers.get("content-type") || "image/png"
+        return `data:${contentType};base64,${Buffer.from(arrayBuffer).toString("base64")}`
+      }
+    } catch (err) {
+      console.warn(`[resolveSignatureToDataUrl] Failed fetching URL ${trimmed}:`, err)
+    }
+  }
+
+  // 4. Relative path starting with /
+  if (trimmed.startsWith("/")) {
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "http://localhost:3000"
+      const fullUrl = `${baseUrl.replace(/\/$/, "")}${trimmed}`
+      const res = await fetch(fullUrl)
+      if (res.ok) {
+        const arrayBuffer = await res.arrayBuffer()
+        const contentType = res.headers.get("content-type") || "image/png"
+        return `data:${contentType};base64,${Buffer.from(arrayBuffer).toString("base64")}`
+      }
+    } catch (err) {
+      console.warn(`[resolveSignatureToDataUrl] Failed fetching relative path ${trimmed}:`, err)
+    }
+  }
+
+  return null
+}
+
+/**
+ * Fallback to resolve user signature by ID directly from R2 or DB
+ */
+async function resolveUserSignatureById(userId?: string | null): Promise<string | null> {
+  if (!userId) return null
+  try {
+    const buffer = await getSignatureBufferFromR2(userId)
+    if (buffer) {
+      return `data:image/png;base64,${buffer.toString("base64")}`
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { signatureUrl: true },
+    })
+    if (user?.signatureUrl) {
+      return await resolveSignatureToDataUrl(user.signatureUrl)
+    }
+  } catch (err) {
+    console.warn(`[resolveUserSignatureById] Error for ${userId}:`, err)
+  }
+  return null
+}
+
+/**
  * Compiles a Maintenance Job Sheet & Billing Memo into a PDF Buffer in memory
  */
 export async function generateMaintenanceJobSheetPdfBuffer(data: MaintenanceJobSheetPdfData): Promise<Buffer> {
@@ -99,10 +195,10 @@ export async function generateAndSaveMaintenanceJobSheet(ticketId: string): Prom
   const ticket = await prisma.maintenanceTicket.findUnique({
     where: { id: ticketId },
     include: {
-      createdBy: { select: { id: true, name: true, email: true } },
-      assignee: { select: { id: true, name: true, email: true } },
-      acknowledgedBy: { select: { id: true, name: true } },
-      closedBy: { select: { id: true, name: true } },
+      createdBy: { select: { id: true, name: true, email: true, signatureUrl: true } },
+      assignee: { select: { id: true, name: true, email: true, signatureUrl: true } },
+      acknowledgedBy: { select: { id: true, name: true, signatureUrl: true } },
+      closedBy: { select: { id: true, name: true, signatureUrl: true } },
       costs: true,
       photos: true,
     },
@@ -122,6 +218,22 @@ export async function generateAndSaveMaintenanceJobSheet(ticketId: string): Prom
     resolveMaintenancePhotoToBase64(progressPhoto),
     resolveMaintenancePhotoToBase64(afterPhoto),
   ])
+
+  // Resolve signatures: Ticket specific direct signatures OR user profile saved signatures
+  let picSignature = await resolveSignatureToDataUrl(ticket.picSignature)
+  if (!picSignature && (ticket.closedById || ticket.acknowledgedById)) {
+    picSignature = await resolveUserSignatureById(ticket.closedById || ticket.acknowledgedById)
+  }
+
+  let technicianSignature = await resolveSignatureToDataUrl(ticket.technicianSignature)
+  if (!technicianSignature && ticket.assigneeId) {
+    technicianSignature = await resolveUserSignatureById(ticket.assigneeId)
+  }
+
+  let requesterSignature = await resolveSignatureToDataUrl(ticket.requesterSignature)
+  if (!requesterSignature && ticket.createdById) {
+    requesterSignature = await resolveUserSignatureById(ticket.createdById)
+  }
 
   const totalCost = ticket.costs.reduce((sum, c) => sum + (c.amount || 0), 0)
 
@@ -159,6 +271,9 @@ export async function generateAndSaveMaintenanceJobSheet(ticketId: string): Prom
       amount: c.amount,
     })),
     totalCost,
+    technicianSignature,
+    requesterSignature,
+    picSignature,
   }
 
   const pdfBuffer = await generateMaintenanceJobSheetPdfBuffer(pdfData)

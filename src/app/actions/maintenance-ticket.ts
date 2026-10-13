@@ -838,6 +838,7 @@ export async function technicianSubmitWork(id: string, formData: FormData, contr
 
   const rootCause = (formData.get("rootCause") as string)?.trim() || null
   const resolution = (formData.get("resolution") as string)?.trim()
+  const signature = (formData.get("signature") as string)?.trim() || null
 
   if (!resolution) {
     return { success: false, error: "Technical resolution summary is mandatory." }
@@ -873,6 +874,7 @@ export async function technicianSubmitWork(id: string, formData: FormData, contr
         rootCause,
         resolution,
         noPhotoReason: null,
+        technicianSignature: signature || ticket.technicianSignature,
         workCompletedAt: now,
         completedAt: now,
         kpiRepairHours: repairHours,
@@ -928,7 +930,8 @@ export async function verifyMaintenanceWork(
   id: string,
   token: string,
   satisfied: boolean,
-  feedback?: string
+  feedback?: string,
+  signature?: string
 ) {
   const ticket = await prisma.maintenanceTicket.findUnique({ where: { id } })
   if (!ticket) return { success: false, error: "Ticket not found." }
@@ -947,6 +950,7 @@ export async function verifyMaintenanceWork(
           verifiedByRequester: true,
           requesterVerifiedAt: now,
           requesterFeedback: feedback?.trim() || "Work confirmed satisfactory.",
+          requesterSignature: signature || ticket.requesterSignature,
           status: MaintenanceTicketStatus.AWAITING_COSTING,
           activityLogs: {
             create: {
@@ -1114,6 +1118,7 @@ export async function closeMaintenanceTicket(id: string, formData: FormData) {
   }
 
   const closingRemarks = (formData.get("closingRemarks") as string)?.trim() || null
+  const signature = (formData.get("signature") as string)?.trim() || null
 
   const ticket = await prisma.maintenanceTicket.findUnique({
     where: { id },
@@ -1135,6 +1140,7 @@ export async function closeMaintenanceTicket(id: string, formData: FormData) {
         closedAt: now,
         internalNotes: closingRemarks ? `${ticket.internalNotes ? ticket.internalNotes + "\n" : ""}[Closure Remark]: ${closingRemarks}` : ticket.internalNotes,
         jobSheetNumber,
+        picSignature: signature || ticket.picSignature,
         activityLogs: {
           create: {
             actorName: session.user.name || "Supervisor / HOD",

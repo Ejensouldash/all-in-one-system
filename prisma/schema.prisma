@@ -39,6 +39,8 @@ model User {
   createdMaintenanceTickets  MaintenanceTicket[] @relation("MaintenanceTicketCreator")
   acknowledgedMaintenanceTickets MaintenanceTicket[] @relation("MaintenanceTicketAcknowledger")
   closedMaintenanceTickets       MaintenanceTicket[] @relation("MaintenanceTicketCloser")
+  createdNrhoProjects            NrhoProject[]           @relation("NrhoProjectCreator")
+  approvedNrhoProjects           NrhoProject[]           @relation("NrhoProjectApprover")
   branch                 Branch?                 @relation(fields: [branchId], references: [id])
   unit                   Unit?                   @relation(fields: [unitId], references: [id])
   openingStocks          WarehouseOpeningStock[] @relation("OpeningStockSetter")
@@ -329,6 +331,9 @@ model MaintenanceTicket {
   closedBy        User?                     @relation("MaintenanceTicketCloser", fields: [closedById], references: [id])
   jobSheetNumber  String?                   @unique
   jobSheetPdfUrl  String?
+  technicianSignature String?               @db.Text
+  requesterSignature  String?               @db.Text
+  picSignature        String?               @db.Text
   
   photoUrl        String?                   // Cloudflare R2 path or public URL (Legacy / complaint preview)
   
@@ -2733,4 +2738,194 @@ model ProductRecallItem {
   @@index([customer])
   @@index([sku])
   @@index([batchNumber])
+}
+
+// ==========================================
+// NRHO PROJECT MANAGEMENT SYSTEM
+// ==========================================
+
+enum NrhoProjectStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum NrhoTaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  DELAYED
+}
+
+model NrhoProject {
+  id                   String            @id @default(uuid())
+  projectCode          String            @unique // e.g. NRHO-2026-001
+  title                String
+  description          String?           @db.Text
+  siteLocation         String?
+  projectManager       String?
+  clientOrDepartment   String?
+  status               NrhoProjectStatus @default(DRAFT)
+  
+  // Approval Flow ("Bentang Kat Boss")
+  submittedForApprovalAt DateTime?
+  approvedById         String?
+  approvedBy           User?             @relation("NrhoProjectApprover", fields: [approvedById], references: [id])
+  approvedAt           DateTime?
+  approvalRemarks      String?           @db.Text
+
+  startDate            DateTime?
+  targetCompletionDate DateTime?
+  actualCompletionDate DateTime?
+
+  totalBqAmount        Float             @default(0)
+  totalPoAmount        Float             @default(0)
+  totalInvoicedAmount  Float             @default(0)
+
+  createdById          String?
+  createdBy            User?             @relation("NrhoProjectCreator", fields: [createdById], references: [id])
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  bqItems              NrhoProjectBqItem[]
+  tasks                NrhoProjectTask[]
+  blueprints           NrhoProjectBlueprint[]
+  purchaseOrders       NrhoProjectPO[]
+  deliveryOrders       NrhoProjectDO[]
+  invoices             NrhoProjectInvoice[]
+  auditLogs            NrhoProjectAuditLog[]
+
+  @@index([status])
+  @@index([projectCode])
+}
+
+model NrhoProjectBqItem {
+  id          String      @id @default(uuid())
+  projectId   String
+  project     NrhoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  category    String      // e.g. KERJA AWAM, ELEKTRIKAL, KEMASAN
+  itemCode    String?
+  description String      @db.Text
+  quantity    Float       @default(1.0)
+  unit        String      @default("UNIT") // M2, M3, LOT, PCS, METER
+  unitRate    Float       @default(0.0)
+  amount      Float       @default(0.0)
+  orderIndex  Int         @default(0)
+  createdAt   DateTime    @default(now())
+
+  @@index([projectId])
+}
+
+model NrhoProjectTask {
+  id              String            @id @default(uuid())
+  projectId       String
+  project         NrhoProject       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskName        String
+  description     String?           @db.Text
+  assignedTo      String?
+  plannedWeek     Int               // e.g. 1 for Week 1
+  currentWeek     Int               // active week (when rescheduled)
+  startDate       DateTime?
+  endDate         DateTime?
+  status          NrhoTaskStatus    @default(PENDING)
+  progressPercent Int               @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  rescheduleLogs  NrhoProjectTaskRescheduleLog[]
+
+  @@index([projectId])
+  @@index([currentWeek])
+}
+
+model NrhoProjectTaskRescheduleLog {
+  id          String          @id @default(uuid())
+  taskId      String
+  task        NrhoProjectTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  fromWeek    Int
+  toWeek      Int
+  reason      String          @db.Text
+  recordedBy  String
+  createdAt   DateTime        @default(now())
+
+  @@index([taskId])
+}
+
+model NrhoProjectBlueprint {
+  id          String      @id @default(uuid())
+  projectId   String
+  project     NrhoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  fileUrl     String
+  fileType    String      // IMAGE, PDF, CAD
+  fileSize    Int?
+  uploadedBy  String?
+  createdAt   DateTime    @default(now())
+
+  @@index([projectId])
+}
+
+model NrhoProjectPO {
+  id          String      @id @default(uuid())
+  projectId   String
+  project     NrhoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  poNumber    String
+  vendorName  String
+  amount      Float
+  status      String      @default("ISSUED")
+  issueDate   DateTime    @default(now())
+  fileUrl     String?
+  notes       String?     @db.Text
+  createdAt   DateTime    @default(now())
+
+  @@index([projectId])
+}
+
+model NrhoProjectDO {
+  id           String      @id @default(uuid())
+  projectId    String
+  project      NrhoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  doNumber     String
+  vendorName   String
+  receivedDate DateTime    @default(now())
+  receivedBy   String
+  itemsSummary String?     @db.Text
+  fileUrl      String?
+  notes        String?     @db.Text
+  createdAt    DateTime    @default(now())
+
+  @@index([projectId])
+}
+
+model NrhoProjectInvoice {
+  id            String      @id @default(uuid())
+  projectId     String
+  project       NrhoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  invoiceNumber String
+  vendorName    String
+  amount        Float
+  status        String      @default("UNPAID") // UNPAID, PAID
+  invoiceDate   DateTime    @default(now())
+  dueDate       DateTime?
+  fileUrl       String?
+  notes         String?     @db.Text
+  createdAt     DateTime    @default(now())
+
+  @@index([projectId])
+}
+
+model NrhoProjectAuditLog {
+  id        String      @id @default(uuid())
+  projectId String
+  project   NrhoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  action    String
+  details   String?     @db.Text
+  actorName String
+  createdAt DateTime    @default(now())
+
+  @@index([projectId])
 }

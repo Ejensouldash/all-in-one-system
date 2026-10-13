@@ -24,7 +24,8 @@ import {
   Wrench,
   ClipboardCheck,
   Briefcase,
-  Megaphone
+  Megaphone,
+  HardHat
 } from "lucide-react"
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
@@ -105,6 +106,19 @@ const staffLinks: NavLink[] = [
     ],
   },
   {
+    name: "NRHO Project",
+    icon: HardHat,
+    subLinks: [
+      { name: "Projects Dashboard", href: "/nrho-project", modules: ["NRHO_PROJECT", "NRHO_PROJECT_VIEW", "DASHBOARD", "FORMS"] },
+      { name: "New Project", href: "/nrho-project/new", modules: ["NRHO_PROJECT", "NRHO_PROJECT_MANAGE"] },
+      { name: "Quotations & BQ", href: "/nrho-project/bq", modules: ["NRHO_PROJECT", "NRHO_PROJECT_BQ"] },
+      { name: "Work Planning & Timeline", href: "/nrho-project/timeline", modules: ["NRHO_PROJECT", "NRHO_PROJECT_TIMELINE"] },
+      { name: "Procurement & Finance", href: "/nrho-project/financial", modules: ["NRHO_PROJECT", "NRHO_PROJECT_FINANCIAL"] },
+      { name: "Floor Plans & Blueprints", href: "/nrho-project/blueprints", modules: ["NRHO_PROJECT", "NRHO_PROJECT_BLUEPRINTS"] },
+      { name: "Boss Approvals", href: "/nrho-project/approvals", modules: ["NRHO_PROJECT", "NRHO_PROJECT_APPROVALS"] },
+    ],
+  },
+  {
     name: "GMP & Quality",
     icon: ClipboardCheck,
     subLinks: [
@@ -164,6 +178,19 @@ const adminLinks: NavLink[] = [
       { name: "Service Request", href: "/forms/maintenance/tickets/service-requests", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS", "MAINTENANCE_SUMMARY", "FORMS"] },
       { name: "FMS Inventory", href: "/forms/maintenance/dashboard", module: "MAINTENANCE_DASHBOARD" },
       { name: "FMS Asset", href: "/forms/maintenance/assets", module: "MAINTENANCE_ASSETS" },
+    ],
+  },
+  {
+    name: "NRHO Project",
+    icon: HardHat,
+    subLinks: [
+      { name: "Projects Dashboard", href: "/nrho-project", modules: ["NRHO_PROJECT", "NRHO_PROJECT_VIEW", "DASHBOARD", "FORMS"] },
+      { name: "New Project", href: "/nrho-project/new", modules: ["NRHO_PROJECT", "NRHO_PROJECT_MANAGE"] },
+      { name: "Quotations & BQ", href: "/nrho-project/bq", modules: ["NRHO_PROJECT", "NRHO_PROJECT_BQ"] },
+      { name: "Work Planning & Timeline", href: "/nrho-project/timeline", modules: ["NRHO_PROJECT", "NRHO_PROJECT_TIMELINE"] },
+      { name: "Procurement & Finance", href: "/nrho-project/financial", modules: ["NRHO_PROJECT", "NRHO_PROJECT_FINANCIAL"] },
+      { name: "Floor Plans & Blueprints", href: "/nrho-project/blueprints", modules: ["NRHO_PROJECT", "NRHO_PROJECT_BLUEPRINTS"] },
+      { name: "Boss Approvals", href: "/nrho-project/approvals", modules: ["NRHO_PROJECT", "NRHO_PROJECT_APPROVALS"] },
     ],
   },
   {
@@ -241,6 +268,7 @@ export function Sidebar({
         next["Marketing"] = true;
       }
       if (pathname.startsWith("/organization")) next["Organization"] = true;
+      if (pathname.startsWith("/nrho-project")) next["NRHO Project"] = true;
       return next;
   
     });

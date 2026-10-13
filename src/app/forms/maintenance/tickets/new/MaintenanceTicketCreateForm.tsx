@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createMaintenanceTicket, extractMaintenancePdfAction } from "@/app/actions/maintenance-ticket"
 import { 
@@ -20,9 +20,72 @@ import {
   HelpCircle,
   X,
   Plus,
-  ImageIcon
+  ImageIcon,
+  Camera
 } from "lucide-react"
 import Link from "next/link"
+
+/**
+ * Automatically compress photos on mobile before upload to prevent network timeouts
+ * and payload rejection, converting high-res smartphone camera files into crisp JPEG images.
+ */
+async function compressImageFile(file: File, maxDimension = 1600, quality = 0.82): Promise<File> {
+  if (!file.type.startsWith("image/") && !file.name.match(/\.(jpg|jpeg|png|webp|heic|heif)$/i)) {
+    return file
+  }
+  if (file.size < 400 * 1024 && (file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/webp")) {
+    return file
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onload = () => {
+        let width = img.width
+        let height = img.height
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width)
+            width = maxDimension
+          } else {
+            width = Math.round((width * maxDimension) / height)
+            height = maxDimension
+          }
+        }
+
+        const canvas = document.createElement("canvas")
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext("2d")
+        if (!ctx) {
+          resolve(file)
+          return
+        }
+
+        ctx.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file)
+              return
+            }
+            const cleanName = file.name.replace(/\.[^/.]+$/, "") + ".jpg"
+            const compressed = new File([blob], cleanName, { type: "image/jpeg" })
+            resolve(compressed)
+          },
+          "image/jpeg",
+          quality
+        )
+      }
+      img.onerror = () => resolve(file)
+      img.src = e.target?.result as string
+    }
+    reader.onerror = () => resolve(file)
+    reader.readAsDataURL(file)
+  })
+}
 
 const LOCATIONS = [
   "Kilang Air Rantau (KAR)",
@@ -46,9 +109,13 @@ export function MaintenanceTicketCreateForm({
   defaultEmail?: string
 }) {
   const router = useRouter()
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
+
   const [activeTab, setActiveTab] = useState<"MANUAL" | "PDF">("MANUAL")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isExtractingPdf, setIsExtractingPdf] = useState(false)
+  const [isCompressingImage, setIsCompressingImage] = useState(false)
   const [pdfExtractionWarnings, setPdfExtractionWarnings] = useState<string[]>([])
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
@@ -67,32 +134,41 @@ export function MaintenanceTicketCreateForm({
   
   const [photoItems, setPhotoItems] = useState<PhotoItem[]>([])
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    if (files.length === 0) return
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFiles = Array.from(e.target.files || [])
+    if (rawFiles.length === 0) return
 
-    const validNewItems: PhotoItem[] = []
-    let hasExceededSize = false
+    setIsCompressingImage(true)
+    setError("")
 
-    for (const file of files) {
-      if (file.size > 10 * 1024 * 1024) {
-        hasExceededSize = true
-        continue
+    try {
+      const validNewItems: PhotoItem[] = []
+      let hasExceededSize = false
+
+      for (const rawFile of rawFiles) {
+        const compressedFile = await compressImageFile(rawFile)
+        if (compressedFile.size > 10 * 1024 * 1024) {
+          hasExceededSize = true
+          continue
+        }
+        validNewItems.push({
+          file: compressedFile,
+          previewUrl: URL.createObjectURL(compressedFile),
+        })
       }
-      validNewItems.push({
-        file,
-        previewUrl: URL.createObjectURL(file),
-      })
-    }
 
-    if (hasExceededSize) {
-      setError("Some photos exceed the 10MB limit and were skipped.")
-    } else {
-      setError("")
-    }
+      if (hasExceededSize) {
+        setError("Some photos exceed the 10MB limit and were skipped.")
+      }
 
-    setPhotoItems((prev) => [...prev, ...validNewItems].slice(0, 10))
-    e.target.value = ""
+      setPhotoItems((prev) => [...prev, ...validNewItems].slice(0, 10))
+    } catch (err: any) {
+      console.error("handleImageChange error:", err)
+      setError("Failed to process images. Please try again.")
+    } finally {
+      setIsCompressingImage(false)
+      e.target.value = ""
+    }
   }
 
   const handleRemovePhoto = (index: number) => {
@@ -445,21 +521,71 @@ export function MaintenanceTicketCreateForm({
             )}
           </div>
 
+          {/* Hidden inputs: One strictly for live camera, one for multi-file gallery selection */}
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            disabled={isCompressingImage}
+            onChange={handleImageChange}
+          />
+          <input
+            ref={galleryInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            disabled={isCompressingImage}
+            onChange={handleImageChange}
+          />
+
+          {isCompressingImage && (
+            <div className="p-3 mb-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+              <span>Memproses & memampatkan imej kamera...</span>
+            </div>
+          )}
+
           {photoItems.length === 0 ? (
-            <label className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-colors bg-slate-50/50 text-center group">
-              <div className="h-10 w-10 rounded-full bg-slate-100 group-hover:bg-blue-50 flex items-center justify-center text-slate-400 group-hover:text-blue-600 transition-colors mb-2">
-                <Upload className="h-5 w-5" />
-              </div>
-              <span className="text-xs font-bold text-slate-700 group-hover:text-blue-600 transition-colors">Select site/item photo(s)</span>
-              <span className="text-[10px] text-slate-400 mt-0.5">Select single or multiple photos (JPEG, PNG, WebP)</span>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={handleImageChange}
-              />
-            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Button 1: Live Mobile Camera */}
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                disabled={isCompressingImage}
+                className="border-2 border-dashed border-blue-300 hover:border-blue-600 rounded-2xl p-5 flex flex-col items-center justify-center cursor-pointer transition-all bg-blue-50/40 hover:bg-blue-100/60 text-center group active:scale-[0.98]"
+              >
+                <div className="h-12 w-12 rounded-full bg-blue-100 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center text-blue-600 transition-colors mb-2 shadow-sm">
+                  <Camera className="h-6 w-6" />
+                </div>
+                <span className="text-xs font-bold text-slate-900 group-hover:text-blue-700 transition-colors">
+                  Buka Kamera (Snap Foto)
+                </span>
+                <span className="text-[10px] text-slate-500 mt-1 max-w-[200px]">
+                  Terus buka kamera telefon untuk tangkap foto kerosakan di tapak
+                </span>
+              </button>
+
+              {/* Button 2: Choose from Gallery (Multiple) */}
+              <button
+                type="button"
+                onClick={() => galleryInputRef.current?.click()}
+                disabled={isCompressingImage}
+                className="border-2 border-dashed border-slate-300 hover:border-slate-500 rounded-2xl p-5 flex flex-col items-center justify-center cursor-pointer transition-all bg-slate-50/70 hover:bg-slate-100 text-center group active:scale-[0.98]"
+              >
+                <div className="h-12 w-12 rounded-full bg-slate-100 group-hover:bg-slate-700 group-hover:text-white flex items-center justify-center text-slate-600 transition-colors mb-2 shadow-sm">
+                  <ImageIcon className="h-6 w-6" />
+                </div>
+                <span className="text-xs font-bold text-slate-900 group-hover:text-slate-800 transition-colors">
+                  Pilih Dari Galeri
+                </span>
+                <span className="text-[10px] text-slate-500 mt-1 max-w-[200px]">
+                  Pilih berbilang gambar (multiple photos) dari album / storan peranti
+                </span>
+              </button>
+            </div>
           ) : (
             <div className="space-y-3">
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
@@ -485,17 +611,26 @@ export function MaintenanceTicketCreateForm({
                 ))}
 
                 {photoItems.length < 10 && (
-                  <label className="aspect-square border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-colors bg-slate-50/50 text-center p-2 group">
-                    <Plus className="h-5 w-5 text-slate-400 group-hover:text-blue-600 transition-colors mb-0.5" />
-                    <span className="text-[10px] font-bold text-slate-600 group-hover:text-blue-600 transition-colors">Add More</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      onChange={handleImageChange}
-                    />
-                  </label>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => cameraInputRef.current?.click()}
+                      disabled={isCompressingImage}
+                      className="aspect-square border-2 border-dashed border-blue-300 hover:border-blue-500 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-colors bg-blue-50/40 hover:bg-blue-100/50 text-center p-2 group"
+                    >
+                      <Camera className="h-5 w-5 text-blue-600 mb-0.5" />
+                      <span className="text-[10px] font-bold text-blue-700">Snap Kamera</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => galleryInputRef.current?.click()}
+                      disabled={isCompressingImage}
+                      className="aspect-square border-2 border-dashed border-slate-200 hover:border-slate-400 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-colors bg-slate-50/70 hover:bg-slate-100 text-center p-2 group"
+                    >
+                      <Plus className="h-5 w-5 text-slate-500 mb-0.5" />
+                      <span className="text-[10px] font-bold text-slate-700">+ Galeri</span>
+                    </button>
+                  </>
                 )}
               </div>
             </div>

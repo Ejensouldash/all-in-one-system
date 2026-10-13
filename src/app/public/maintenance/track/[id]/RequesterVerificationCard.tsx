@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { verifyMaintenanceWork } from "@/app/actions/maintenance-ticket"
 import { CheckCircle2, AlertCircle, Loader2, RotateCcw, ThumbsUp } from "lucide-react"
+import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
 
 export function RequesterVerificationCard({
   ticketId,
@@ -14,6 +15,7 @@ export function RequesterVerificationCard({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showReworkInput, setShowReworkInput] = useState(false)
   const [reworkFeedback, setReworkFeedback] = useState("")
+  const [signature, setSignature] = useState<string | null>(null)
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
   const handleVerify = async (satisfied: boolean) => {
@@ -25,7 +27,7 @@ export function RequesterVerificationCard({
     setIsSubmitting(true)
     setStatusMsg(null)
 
-    const res = await verifyMaintenanceWork(ticketId, token, satisfied, reworkFeedback)
+    const res = await verifyMaintenanceWork(ticketId, token, satisfied, reworkFeedback, signature || undefined)
     setIsSubmitting(false)
 
     if (res.success) {
@@ -81,6 +83,19 @@ export function RequesterVerificationCard({
             onChange={(e) => setReworkFeedback(e.target.value)}
             placeholder="e.g. Pump is still vibrating at high speed, minor leak persists..."
             className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+          />
+        </div>
+      )}
+
+      {!showReworkInput && (
+        <div className="bg-white p-3.5 rounded-xl border border-emerald-200 space-y-1.5">
+          <label className="block text-[10px] font-bold uppercase tracking-wider text-emerald-900">
+            Requester Signature / Pengesahan Pengadu (Optional)
+          </label>
+          <SignaturePadClient
+            onSave={setSignature}
+            label="Requester Signature"
+            autoLoadSaved={true}
           />
         </div>
       )}

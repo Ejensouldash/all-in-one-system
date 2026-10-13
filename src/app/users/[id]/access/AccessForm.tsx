@@ -13,6 +13,7 @@ import {
   LayoutDashboard, FileSpreadsheet, BellRing,
   ShoppingCart, FileSearch, FileCheck, FilePenLine, Trash2, UserCheck, BookmarkCheck,
   Briefcase, Headphones,
+  HardHat, Layers, Crown,
   ChevronDown,
   type LucideIcon,
 } from "lucide-react"
@@ -138,6 +139,21 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "MARKETING_FORMS", name: "Marketing Forms & Templates", description: "Access to view and submit marketing requisition forms.", icon: ClipboardList },
       { id: "MARKETING_ASSETS", name: "Marketing Asset Management", description: "Manage marketing department assets, loans, and returns.", icon: Boxes },
       { id: "MARKETING_INVENTORY", name: "Marketing Inventory Management", description: "Track marketing stock, merchandise check-in/out, and logs.", icon: PackageOpen },
+    ],
+  },
+  {
+    id: "NRHO_PROJECT",
+    name: "NRHO Project Hub",
+    icon: HardHat,
+    iconClass: "bg-emerald-50 text-emerald-600 border-emerald-100",
+    modules: [
+      { id: "NRHO_PROJECT_VIEW", name: "Projects Dashboard & Catalog", description: "Access to view the NRHO projects dashboard, list, and project overview.", icon: LayoutDashboard },
+      { id: "NRHO_PROJECT_MANAGE", name: "Project Registration & Settings", description: "Register new projects, edit project details, site locations, and project managers.", icon: Building2 },
+      { id: "NRHO_PROJECT_BQ", name: "Quotations & Bill of Quantities (BQ)", description: "Manage and edit Bill of Quantities line items, units, rates, and cost estimates.", icon: FileSpreadsheet },
+      { id: "NRHO_PROJECT_TIMELINE", name: "Work Planning & Weekly Timeline", description: "Plan weekly tasks, update completion status, and reschedule tasks with mandatory delay justifications.", icon: CalendarDays },
+      { id: "NRHO_PROJECT_FINANCIAL", name: "Procurement & Financial (PO / DO / Invoices)", description: "Manage Purchase Orders, site Delivery Orders, and vendor Invoices with payment status.", icon: ShoppingCart },
+      { id: "NRHO_PROJECT_BLUEPRINTS", name: "Floor Plans & Blueprints", description: "Upload, view, and manage architectural floor plans, CAD drawings, and site blueprints.", icon: Layers },
+      { id: "NRHO_PROJECT_APPROVALS", name: "Boss Presentation & Management Approvals", description: "Submit project proposals for management review and approve/reject project budgets.", icon: Crown },
     ],
   },
 ]

@@ -38,6 +38,9 @@ export interface MaintenanceJobSheetPdfData {
   costs: JobSheetCostLine[]
   totalCost: number
   logoUrl?: string
+  technicianSignature?: string | null
+  requesterSignature?: string | null
+  picSignature?: string | null
 }
 
 const styles = StyleSheet.create({
@@ -242,9 +245,16 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: "#cbd5e1",
     borderRadius: 4,
-    padding: 6,
-    height: 65,
+    padding: 5,
+    minHeight: 70,
     justifyContent: "space-between",
+  },
+  signatureImg: {
+    maxHeight: 28,
+    maxWidth: 95,
+    objectFit: "contain",
+    alignSelf: "center",
+    marginVertical: 2,
   },
   signHeader: {
     fontFamily: "Helvetica-Bold",
@@ -455,17 +465,29 @@ export function MaintenanceJobSheetDocument({ data }: { data: MaintenanceJobShee
         <View style={styles.signOffBox}>
           <View style={styles.signCol}>
             <Text style={styles.signHeader}>1. Technician / Contractor</Text>
-            <Text style={styles.signStatus}>[ WORK COMPLETED ]</Text>
+            {data.technicianSignature ? (
+              <Image src={data.technicianSignature} style={styles.signatureImg} />
+            ) : (
+              <Text style={styles.signStatus}>[ WORK COMPLETED ]</Text>
+            )}
             <Text style={styles.signFooter}>{data.technicianName} • {data.completedAt || data.closedAt}</Text>
           </View>
           <View style={styles.signCol}>
             <Text style={styles.signHeader}>2. Requester Verification</Text>
-            <Text style={styles.signStatus}>[ WORK VERIFIED ]</Text>
+            {data.requesterSignature ? (
+              <Image src={data.requesterSignature} style={styles.signatureImg} />
+            ) : (
+              <Text style={styles.signStatus}>[ WORK VERIFIED ]</Text>
+            )}
             <Text style={styles.signFooter}>{data.requesterName} • Satisfactory</Text>
           </View>
           <View style={styles.signCol}>
             <Text style={styles.signHeader}>3. PIC / HOD Sign-off</Text>
-            <Text style={styles.signStatus}>[ APPROVED &amp; CLOSED ]</Text>
+            {data.picSignature ? (
+              <Image src={data.picSignature} style={styles.signatureImg} />
+            ) : (
+              <Text style={styles.signStatus}>[ APPROVED &amp; CLOSED ]</Text>
+            )}
             <Text style={styles.signFooter}>{data.picName} • {data.closedAt}</Text>
           </View>
         </View>

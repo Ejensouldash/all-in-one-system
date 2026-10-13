@@ -33,6 +33,7 @@ import {
   UserPlus
 } from "lucide-react"
 import Link from "next/link"
+import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
 
 export function MaintenanceWorkspace({
   ticket,
@@ -115,8 +116,9 @@ export function MaintenanceWorkspace({
       : []
   )
 
-  // Closure Remarks
+  // Closure Remarks & Signature
   const [closingRemarks, setClosingRemarks] = useState("")
+  const [picSignature, setPicSignature] = useState<string | null>(ticket.picSignature || null)
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text)
@@ -249,6 +251,7 @@ export function MaintenanceWorkspace({
 
     const formData = new FormData()
     formData.set("closingRemarks", closingRemarks)
+    if (picSignature) formData.set("signature", picSignature)
 
     const res = await closeMaintenanceTicket(ticket.id, formData)
     setIsProcessing(false)
@@ -969,6 +972,18 @@ export function MaintenanceWorkspace({
               onChange={(e) => setClosingRemarks(e.target.value)}
               placeholder="e.g. Work inspected, machine running satisfactorily in production, approved."
               className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+
+          <div className="bg-white rounded-2xl p-4 text-slate-900 shadow-inner space-y-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+              HOD / PIC Digital Signature
+            </label>
+            <SignaturePadClient
+              onSave={setPicSignature}
+              label="HOD / PIC Signature"
+              savedSignatureUrl={ticket.picSignature}
+              autoLoadSaved={true}
             />
           </div>
 

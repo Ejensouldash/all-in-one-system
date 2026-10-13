@@ -18,6 +18,7 @@ import {
   Send,
   Info
 } from "lucide-react"
+import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
 
 /**
  * Automatically compress photos on mobile before upload to prevent network timeouts
@@ -99,6 +100,7 @@ export function TechnicianWorkForm({
   
   const [rootCause, setRootCause] = useState(ticket.rootCause || "")
   const [resolution, setResolution] = useState(ticket.resolution || "")
+  const [technicianSignature, setTechnicianSignature] = useState<string | null>(ticket.technicianSignature || null)
 
   const handleStartWork = async () => {
     setIsSubmitting(true)
@@ -164,6 +166,7 @@ export function TechnicianWorkForm({
       const formData = new FormData()
       formData.set("rootCause", rootCause)
       formData.set("resolution", resolution)
+      if (technicianSignature) formData.set("signature", technicianSignature)
 
       const res = await technicianSubmitWork(ticket.id, formData, contractorToken)
 
@@ -367,6 +370,18 @@ export function TechnicianWorkForm({
               onChange={(e) => setResolution(e.target.value)}
               placeholder="Describe what was repaired, replaced parts, testing conducted, and current equipment condition..."
               className="w-full text-xs p-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800"
+            />
+          </div>
+
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+              Technician / Contractor Signature (Optional / Profil)
+            </label>
+            <SignaturePadClient
+              onSave={setTechnicianSignature}
+              label="Technician Signature"
+              savedSignatureUrl={ticket.technicianSignature}
+              autoLoadSaved={true}
             />
           </div>
 

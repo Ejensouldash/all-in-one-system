@@ -432,11 +432,11 @@ export function MaintenanceTicketCreateForm({
           </div>
         </div>
 
-        {/* Damage Photos */}
+        {/* Site/Item Photos */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-              Damage Photos <span className="text-slate-400 text-[10px] font-normal">(Optional, Max 10MB each)</span>
+              Site/Item Photos <span className="text-slate-400 text-[10px] font-normal">(Optional, Max 10MB each)</span>
             </label>
             {photoItems.length > 0 && (
               <span className="text-xs font-bold text-blue-600">
@@ -450,7 +450,7 @@ export function MaintenanceTicketCreateForm({
               <div className="h-10 w-10 rounded-full bg-slate-100 group-hover:bg-blue-50 flex items-center justify-center text-slate-400 group-hover:text-blue-600 transition-colors mb-2">
                 <Upload className="h-5 w-5" />
               </div>
-              <span className="text-xs font-bold text-slate-700 group-hover:text-blue-600 transition-colors">Select damage photo(s)</span>
+              <span className="text-xs font-bold text-slate-700 group-hover:text-blue-600 transition-colors">Select site/item photo(s)</span>
               <span className="text-[10px] text-slate-400 mt-0.5">Select single or multiple photos (JPEG, PNG, WebP)</span>
               <input
                 type="file"
@@ -467,7 +467,7 @@ export function MaintenanceTicketCreateForm({
                   <div key={idx} className="relative group aspect-square rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 shadow-sm">
                     <img
                       src={item.previewUrl}
-                      alt={`Damage preview ${idx + 1}`}
+                      alt={`Site/Item Photos Preview ${idx + 1}`}
                       className="w-full h-full object-cover"
                     />
                     <button

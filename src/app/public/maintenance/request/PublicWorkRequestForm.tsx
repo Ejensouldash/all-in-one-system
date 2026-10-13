@@ -611,11 +611,11 @@ export function PublicWorkRequestForm() {
           </div>
         </div>
 
-        {/* Damage Photos Upload */}
+        {/* Site/Item Photos Upload */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-              Damage Photos <span className="text-slate-400 text-[10px] font-normal">(Optional, Max 10MB each)</span>
+              Site/Item Photos <span className="text-slate-400 text-[10px] font-normal">(Optional, Max 10MB each)</span>
             </label>
             {photoItems.length > 0 && (
               <span className="text-xs font-bold text-blue-600">

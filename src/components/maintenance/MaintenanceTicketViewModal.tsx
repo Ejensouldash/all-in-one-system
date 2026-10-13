@@ -162,7 +162,7 @@ export function MaintenanceTicketViewModal({
             </div>
           </div>
 
-          {/* Damage Photos if attached */}
+          {/* Site/Item Photos if attached */}
           {(() => {
             const complaintPhotos = ticket.photos?.filter((p: any) => p.category === "INITIAL_COMPLAINT") || []
             const displayPhotos = complaintPhotos.length > 0
@@ -175,14 +175,14 @@ export function MaintenanceTicketViewModal({
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center">
                   <ImageIcon className="h-4 w-4 mr-1.5 text-blue-500" />
-                  Damage / Fault Photos ({displayPhotos.length})
+                  Site/Item Photos ({displayPhotos.length})
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {displayPhotos.map((p: any, idx: number) => (
                     <div key={idx} className="relative group rounded-lg overflow-hidden border border-slate-200 aspect-video bg-slate-100">
                       <img 
                         src={p.fileUrl} 
-                        alt={`Damage photo ${idx + 1}`} 
+                        alt={`Site/Item Photo ${idx + 1}`} 
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                       <a 

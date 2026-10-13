@@ -403,10 +403,10 @@ export function MaintenanceTicketCreateForm({
           </label>
           <div className="grid grid-cols-4 gap-2">
             {[
-              { id: "LOW", label: "Low", target: "14 Days" },
-              { id: "MEDIUM", label: "Medium", target: "7 Days" },
+              { id: "LOW", label: "Low", target: "7 Days" },
+              { id: "MEDIUM", label: "Medium", target: "5 Days" },
               { id: "HIGH", label: "High", target: "3 Days" },
-              { id: "URGENT", label: "Urgent", target: "< 24 Hours" },
+              { id: "URGENT", label: "Urgent", target: "1 Day" },
             ].map((p) => {
               const isSelected = priority === p.id
               return (

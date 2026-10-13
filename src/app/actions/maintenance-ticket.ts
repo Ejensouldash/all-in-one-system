@@ -397,6 +397,8 @@ export async function acknowledgeMaintenanceTicket(id: string, formData: FormDat
   }
 
   const customDeadlineStr = (formData.get("targetDateline") as string)?.trim() || null
+  const rawPriority = (formData.get("priority") as string)?.toUpperCase()
+  const rawTicketType = (formData.get("ticketType") as string)?.toUpperCase()
 
   const ticket = await prisma.maintenanceTicket.findUnique({
     where: { id },
@@ -407,24 +409,35 @@ export async function acknowledgeMaintenanceTicket(id: string, formData: FormDat
     return { success: false, error: `Ticket cannot be acknowledged from current status: ${ticket.status}` }
   }
 
+  const validPriorities: MaintenanceTicketPriority[] = ["LOW", "MEDIUM", "HIGH", "URGENT"]
+  const validTicketTypes: MaintenanceTicketType[] = ["MECHANICAL", "CIVIL", "ELECTRICAL", "OTHERS"]
+
+  const priorityToUse = validPriorities.includes(rawPriority as any)
+    ? (rawPriority as MaintenanceTicketPriority)
+    : ticket.priority
+
+  const ticketTypeToUse = validTicketTypes.includes(rawTicketType as any)
+    ? (rawTicketType as MaintenanceTicketType)
+    : ticket.ticketType
+
   const now = new Date()
   const responseMinutes = Math.max(0, Math.round((now.getTime() - ticket.createdAt.getTime()) / (1000 * 60)))
 
   // Calculate default target dateline based on priority:
-  // URGENT: +24h, HIGH: +72h (3d), MEDIUM: +7d, LOW: +14d
+  // URGENT: +24h (1d), HIGH: +72h (3d), MEDIUM: +5d, LOW: +7d
   let targetEnd: Date
   if (customDeadlineStr) {
     targetEnd = new Date(customDeadlineStr)
   } else {
     targetEnd = new Date(now)
-    if (ticket.priority === "URGENT") {
+    if (priorityToUse === "URGENT") {
       targetEnd.setHours(targetEnd.getHours() + 24)
-    } else if (ticket.priority === "HIGH") {
+    } else if (priorityToUse === "HIGH") {
       targetEnd.setDate(targetEnd.getDate() + 3)
-    } else if (ticket.priority === "MEDIUM") {
-      targetEnd.setDate(targetEnd.getDate() + 7)
+    } else if (priorityToUse === "MEDIUM") {
+      targetEnd.setDate(targetEnd.getDate() + 5)
     } else {
-      targetEnd.setDate(targetEnd.getDate() + 14)
+      targetEnd.setDate(targetEnd.getDate() + 7)
     }
   }
 
@@ -433,6 +446,8 @@ export async function acknowledgeMaintenanceTicket(id: string, formData: FormDat
       where: { id },
       data: {
         status: MaintenanceTicketStatus.ACKNOWLEDGED,
+        ticketType: ticketTypeToUse,
+        priority: priorityToUse,
         acknowledgedById: session.user.id,
         acknowledgedAt: now,
         picAgreement: true,
@@ -444,7 +459,7 @@ export async function acknowledgeMaintenanceTicket(id: string, formData: FormDat
             actorName: session.user.name || "PIC",
             actorRole: "PIC",
             action: "ACKNOWLEDGED",
-            details: `Ticket formally acknowledged by ${session.user.name || 'PIC'}. Response time: ${responseMinutes} minutes. Target deadline set to ${targetEnd.toLocaleString('en-GB')}.`,
+            details: `Ticket formally acknowledged by ${session.user.name || 'PIC'}. Category: ${ticketTypeToUse}, Priority: ${priorityToUse}. Response time: ${responseMinutes} minutes. Target deadline set to ${targetEnd.toLocaleString('en-GB')}.`,
             isPublic: true,
           },
         },
@@ -479,6 +494,64 @@ export async function acknowledgeMaintenanceTicket(id: string, formData: FormDat
   } catch (err: any) {
     console.error("acknowledgeMaintenanceTicket error:", err)
     return { success: false, error: err.message || "Failed to acknowledge ticket." }
+  }
+}
+
+/**
+ * Update Maintenance Ticket Classification (Category and/or Priority)
+ */
+export async function updateMaintenanceTicketClassification(id: string, formData: FormData) {
+  const session = await auth()
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" }
+
+  const access = await getAccessInfo()
+  if (!access || (!access.isSuperAdmin && !hasAnyModule(access, ["MAINTENANCE_TICKETS_MANAGE"]))) {
+    return { success: false, error: "Unauthorized. MAINTENANCE_TICKETS_MANAGE permission required." }
+  }
+
+  const rawTicketType = (formData.get("ticketType") as string)?.toUpperCase()
+  const rawPriority = (formData.get("priority") as string)?.toUpperCase()
+
+  const validTypes: MaintenanceTicketType[] = ["MECHANICAL", "CIVIL", "ELECTRICAL", "OTHERS"]
+  const validPriorities: MaintenanceTicketPriority[] = ["LOW", "MEDIUM", "HIGH", "URGENT"]
+
+  const ticketType = validTypes.includes(rawTicketType as any) ? (rawTicketType as MaintenanceTicketType) : undefined
+  const priority = validPriorities.includes(rawPriority as any) ? (rawPriority as MaintenanceTicketPriority) : undefined
+
+  if (!ticketType && !priority) {
+    return { success: false, error: "No valid category or priority provided." }
+  }
+
+  const ticket = await prisma.maintenanceTicket.findUnique({
+    where: { id },
+  })
+
+  if (!ticket) return { success: false, error: "Ticket not found." }
+
+  try {
+    const updated = await prisma.maintenanceTicket.update({
+      where: { id },
+      data: {
+        ...(ticketType ? { ticketType } : {}),
+        ...(priority ? { priority } : {}),
+        activityLogs: {
+          create: {
+            actorName: session.user.name || "Staff",
+            actorRole: "PIC",
+            action: "CLASSIFICATION_UPDATED",
+            details: `Ticket classification updated by ${session.user.name || 'PIC'}: Category -> ${ticketType || ticket.ticketType}, Priority -> ${priority || ticket.priority}.`,
+            isPublic: true,
+          },
+        },
+      },
+    })
+
+    revalidatePath(`/forms/maintenance/tickets/${id}`)
+    revalidatePath("/forms/maintenance/tickets")
+    return { success: true, ticket: { ticketType: updated.ticketType, priority: updated.priority } }
+  } catch (err: any) {
+    console.error("updateMaintenanceTicketClassification error:", err)
+    return { success: false, error: err.message || "Failed to update classification." }
   }
 }
 

@@ -7,7 +7,8 @@ import {
   assignMaintenanceTicket,
   resendTechnicianNotification,
   updateMaintenanceCosts,
-  closeMaintenanceTicket
+  closeMaintenanceTicket,
+  updateMaintenanceTicketClassification
 } from "@/app/actions/maintenance-ticket"
 import { 
   Wrench, 
@@ -20,19 +21,62 @@ import {
   Trash2, 
   Plus, 
   MapPin, 
-  FileText,
-  Clock,
-  ExternalLink,
-  Copy,
-  Check,
-  Send,
-  Loader2,
-  ShieldCheck,
-  Download,
-  AlertTriangle,
-  UserPlus
+  FileText, 
+  Clock, 
+  ExternalLink, 
+  Copy, 
+  Check, 
+  Send, 
+  Loader2, 
+  ShieldCheck, 
+  Download, 
+  AlertTriangle, 
+  UserPlus,
+  Edit3,
+  Cog,
+  Building,
+  Zap,
+  HelpCircle,
+  Save,
+  X
 } from "lucide-react"
 import Link from "next/link"
+
+const CATEGORY_CONFIG: Record<string, { label: string; icon: any; color: string }> = {
+  MECHANICAL: { label: "Mechanical", icon: Cog, color: "text-blue-700 bg-blue-50 border-blue-200" },
+  CIVIL: { label: "Civil & Facility", icon: Building, color: "text-sky-700 bg-sky-50 border-sky-200" },
+  ELECTRICAL: { label: "Electrical", icon: Zap, color: "text-amber-700 bg-amber-50 border-amber-200" },
+  OTHERS: { label: "Others", icon: HelpCircle, color: "text-purple-700 bg-purple-50 border-purple-200" },
+}
+
+const PRIORITY_OPTIONS = [
+  { id: "LOW", label: "Low", target: "7 Days", badgeClass: "bg-slate-100 text-slate-700 border-slate-200" },
+  { id: "MEDIUM", label: "Medium", target: "5 Days", badgeClass: "bg-blue-100 text-blue-800 border-blue-200" },
+  { id: "HIGH", label: "High", target: "3 Days", badgeClass: "bg-orange-100 text-orange-800 border-orange-200" },
+  { id: "URGENT", label: "Urgent", target: "1 Day", badgeClass: "bg-red-100 text-red-800 border-red-200" },
+]
+
+function calculateDefaultDeadline(priority: string) {
+  const d = new Date()
+  if (priority === "URGENT") {
+    d.setHours(d.getHours() + 24)
+  } else if (priority === "HIGH") {
+    d.setDate(d.getDate() + 3)
+  } else if (priority === "MEDIUM") {
+    d.setDate(d.getDate() + 5)
+  } else {
+    d.setDate(d.getDate() + 7)
+  }
+  const pad = (n: number) => n.toString().padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function formatToLocalDatetimeString(date: Date | string) {
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return ""
+  const pad = (n: number) => n.toString().padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
 
 export function MaintenanceWorkspace({
   ticket,
@@ -50,13 +94,43 @@ export function MaintenanceWorkspace({
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [copiedLink, setCopiedLink] = useState<string | null>(null)
 
+  // Classification Edit State
+  const [selectedTicketType, setSelectedTicketType] = useState<string>(ticket.ticketType || "MECHANICAL")
+  const [selectedPriority, setSelectedPriority] = useState<string>(ticket.priority || "MEDIUM")
+  const [isEditingClassification, setIsEditingClassification] = useState(false)
+  const [isSavingClassification, setIsSavingClassification] = useState(false)
+
   // Acknowledgment State
   const [ackAgree, setAckAgree] = useState(false)
   const [customDeadline, setCustomDeadline] = useState(
     ticket.targetDateline
-      ? new Date(ticket.targetDateline).toISOString().slice(0, 16)
-      : ""
+      ? formatToLocalDatetimeString(ticket.targetDateline)
+      : calculateDefaultDeadline(ticket.priority || "MEDIUM")
   )
+
+  const handlePriorityChange = (newPriority: string) => {
+    setSelectedPriority(newPriority)
+    if (ticket.status === "OPEN") {
+      setCustomDeadline(calculateDefaultDeadline(newPriority))
+    }
+  }
+
+  const handleSaveClassification = async () => {
+    setIsSavingClassification(true)
+    setStatusMsg(null)
+    const formData = new FormData()
+    formData.set("ticketType", selectedTicketType)
+    formData.set("priority", selectedPriority)
+    const res = await updateMaintenanceTicketClassification(ticket.id, formData)
+    setIsSavingClassification(false)
+    if (res.success) {
+      setStatusMsg({ type: "success", text: "Category and Priority updated successfully!" })
+      setIsEditingClassification(false)
+      setTimeout(() => router.refresh(), 1000)
+    } else {
+      setStatusMsg({ type: "error", text: res.error || "Failed to update category and priority." })
+    }
+  }
 
   // Assignment Modal/Panel State
   const [showAssignPanel, setShowAssignPanel] = useState(false)
@@ -183,6 +257,8 @@ export function MaintenanceWorkspace({
 
     const formData = new FormData()
     formData.set("agree", ackAgree ? "true" : "false")
+    formData.set("ticketType", selectedTicketType)
+    formData.set("priority", selectedPriority)
     if (customDeadline) formData.set("targetDateline", customDeadline)
 
     const res = await acknowledgeMaintenanceTicket(ticket.id, formData)
@@ -371,15 +447,127 @@ export function MaintenanceWorkspace({
               }`}>
                 {ticket.status.replace("_", " ")}
               </span>
-              <span className="text-xs font-bold px-2.5 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200">
-                {ticket.ticketType}
-              </span>
-              <span className={`text-xs font-bold px-2.5 py-0.5 rounded ${
-                ticket.priority === 'URGENT' ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-slate-100 text-slate-700'
+              <span className={`text-xs font-bold px-2.5 py-0.5 rounded border ${
+                CATEGORY_CONFIG[selectedTicketType]?.color || 'bg-blue-50 text-blue-800 border-blue-200'
               }`}>
-                Priority: {ticket.priority}
+                {CATEGORY_CONFIG[selectedTicketType]?.label || selectedTicketType}
               </span>
+              <span className={`text-xs font-bold px-2.5 py-0.5 rounded border ${
+                PRIORITY_OPTIONS.find(p => p.id === selectedPriority)?.badgeClass || 'bg-slate-100 text-slate-700 border-slate-200'
+              }`}>
+                Priority: {selectedPriority}
+              </span>
+              {!isClosed && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingClassification(!isEditingClassification)}
+                  className="text-[11px] font-bold text-blue-600 hover:text-blue-800 px-2.5 py-0.5 rounded-lg hover:bg-blue-50 border border-blue-200 transition-colors inline-flex items-center gap-1 shadow-sm"
+                  title="Edit Category or Priority"
+                >
+                  <Edit3 className="w-3 h-3" />
+                  <span>{isEditingClassification ? "Close Edit" : "Edit Category & Priority"}</span>
+                </button>
+              )}
             </div>
+
+            {/* Quick Classification Edit Panel (Standalone) */}
+            {isEditingClassification && (
+              <div className="p-4 bg-slate-50 rounded-2xl border border-blue-200 space-y-3.5 mt-2 animate-in fade-in">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <div className="flex items-center gap-2">
+                    <Edit3 className="h-4 w-4 text-blue-600" />
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      Edit Ticket Classification
+                    </h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingClassification(false)}
+                    className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1.5">
+                    Category of Issue
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {Object.entries(CATEGORY_CONFIG).map(([key, config]) => {
+                      const Icon = config.icon
+                      const isSelected = selectedTicketType === key
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setSelectedTicketType(key)}
+                          className={`p-2 rounded-xl border text-left flex items-center gap-2 transition-all ${
+                            isSelected
+                              ? "bg-blue-50 border-blue-600 text-blue-900 font-bold ring-2 ring-blue-500/20"
+                              : "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
+                          }`}
+                        >
+                          <Icon className={`h-4 w-4 ${isSelected ? "text-blue-600" : "text-slate-400"}`} />
+                          <span className="text-xs">{config.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1.5">
+                    Urgency / Priority
+                  </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {PRIORITY_OPTIONS.map((p) => {
+                      const isSelected = selectedPriority === p.id
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => handlePriorityChange(p.id)}
+                          className={`py-2 px-2 rounded-xl border text-center transition-all ${
+                            isSelected
+                              ? p.id === "URGENT"
+                                ? "bg-red-50 border-red-500 text-red-700 ring-2 ring-red-500/20 font-bold"
+                                : p.id === "HIGH"
+                                ? "bg-orange-50 border-orange-500 text-orange-700 ring-2 ring-orange-500/20 font-bold"
+                                : p.id === "MEDIUM"
+                                ? "bg-blue-50 border-blue-600 text-blue-700 ring-2 ring-blue-500/20 font-bold"
+                                : "bg-slate-100 border-slate-400 text-slate-800 font-bold"
+                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
+                          }`}
+                        >
+                          <p className="text-xs">{p.label}</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{p.target}</p>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-1 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingClassification(false)}
+                    className="px-3 py-1.5 text-xs text-slate-600 font-bold hover:bg-slate-200 rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveClassification}
+                    disabled={isSavingClassification}
+                    className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    {isSavingClassification ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                    <span>Save Changes</span>
+                  </button>
+                </div>
+              </div>
+            )}
             <h1 className="text-xl sm:text-2xl font-black text-slate-900">{ticket.title}</h1>
             <p className="text-xs text-slate-500 flex items-center gap-1.5 font-medium">
               <MapPin className="h-3.5 w-3.5 text-slate-400" />
@@ -419,7 +607,7 @@ export function MaintenanceWorkspace({
 
       {/* GATE 1: PIC Formal Acknowledgment (If still OPEN) */}
       {ticket.status === "OPEN" && (
-        <form onSubmit={handleAcknowledge} className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-3xl p-6 sm:p-8 space-y-4 shadow-sm">
+        <form onSubmit={handleAcknowledge} className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-3xl p-6 sm:p-8 space-y-5 shadow-sm">
           <div className="flex items-start gap-3">
             <div className="h-10 w-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0">
               <ShieldCheck className="h-6 w-6" />
@@ -427,12 +615,74 @@ export function MaintenanceWorkspace({
             <div>
               <h3 className="text-base font-black text-amber-950">Action Required: Acknowledge Ticket &amp; Set SLA Target</h3>
               <p className="text-xs text-amber-900 mt-0.5">
-                As the designated PIC for {ticket.ticketType}, please review this request, accept supervisory accountability, and confirm the repair deadline.
+                As the designated PIC for <strong className="underline">{CATEGORY_CONFIG[selectedTicketType]?.label || selectedTicketType}</strong>, please review this request, adjust category or priority if needed, accept supervisory accountability, and confirm the repair deadline.
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+          {/* Edit Category & Priority in Acknowledgment */}
+          <div className="p-4 bg-white/90 rounded-2xl border border-amber-200 space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Category of Issue (Verify / Reclassify)
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {Object.entries(CATEGORY_CONFIG).map(([key, config]) => {
+                  const Icon = config.icon
+                  const isSelected = selectedTicketType === key
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setSelectedTicketType(key)}
+                      className={`p-2.5 rounded-xl border text-left flex items-center gap-2 transition-all ${
+                        isSelected
+                          ? "bg-amber-100 border-amber-500 text-amber-950 font-bold ring-2 ring-amber-500/20"
+                          : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <Icon className={`h-4 w-4 ${isSelected ? "text-amber-700" : "text-slate-400"}`} />
+                      <span className="text-xs">{config.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Urgency / Priority (Review &amp; Set SLA)
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                {PRIORITY_OPTIONS.map((p) => {
+                  const isSelected = selectedPriority === p.id
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => handlePriorityChange(p.id)}
+                      className={`py-2 px-2 rounded-xl border text-center transition-all ${
+                        isSelected
+                          ? p.id === "URGENT"
+                            ? "bg-red-50 border-red-500 text-red-700 ring-2 ring-red-500/20 font-bold"
+                            : p.id === "HIGH"
+                            ? "bg-orange-50 border-orange-500 text-orange-700 ring-2 ring-orange-500/20 font-bold"
+                            : p.id === "MEDIUM"
+                            ? "bg-blue-50 border-blue-600 text-blue-700 ring-2 ring-blue-500/20 font-bold"
+                            : "bg-amber-100 border-amber-500 text-amber-900 ring-2 ring-amber-500/20 font-bold"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <p className="text-xs">{p.label}</p>
+                      <p className="text-[10px] text-slate-500 font-semibold mt-0.5">{p.target}</p>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Target Completion Deadline <span className="text-red-500">*</span>
@@ -442,15 +692,19 @@ export function MaintenanceWorkspace({
                 required
                 value={customDeadline}
                 onChange={(e) => setCustomDeadline(e.target.value)}
-                className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium text-slate-800"
               />
-              <p className="text-[10px] text-slate-500 mt-1">
-                Default for {ticket.priority}: {ticket.priority === 'URGENT' ? '24 Hours' : ticket.priority === 'HIGH' ? '3 Days' : '7 Days'} from acknowledgment.
+              <p className="text-[10px] text-slate-600 mt-1 font-medium">
+                Default for {selectedPriority}: {
+                  selectedPriority === 'URGENT' ? '1 Day (24 Hours)' :
+                  selectedPriority === 'HIGH' ? '3 Days' :
+                  selectedPriority === 'MEDIUM' ? '5 Days' : '7 Days'
+                } from acknowledgment.
               </p>
             </div>
 
             <div className="flex items-center">
-              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-white/80 border border-amber-200 cursor-pointer">
+              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-white/80 border border-amber-200 cursor-pointer w-full">
                 <input
                   type="checkbox"
                   required

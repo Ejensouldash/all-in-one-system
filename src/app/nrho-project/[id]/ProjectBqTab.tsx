@@ -123,7 +123,20 @@ export function ProjectBqTab({
     setIsSaving(true)
     setStatusMsg(null)
 
-    const cleanItems = items.filter((item) => item.description.trim().length > 0)
+    const cleanItems = items
+      .filter((item) => item.description.trim().length > 0)
+      .map((item) => {
+        const q = Math.max(0, parseFloat(String(item.quantity)) || 0)
+        const r = Math.max(0, parseFloat(String(item.unitRate)) || 0)
+        return {
+          category: item.category,
+          description: item.description.trim(),
+          quantity: q,
+          unit: item.unit,
+          unitRate: r,
+          amount: Math.round(q * r * 100) / 100,
+        }
+      })
 
     if (cleanItems.length === 0) {
       setStatusMsg({

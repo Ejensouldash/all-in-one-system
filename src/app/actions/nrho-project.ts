@@ -312,15 +312,31 @@ export async function saveNrhoBqItems(
   items: Array<{
     category: string
     description: string
-    quantity: number
+    quantity: number | string
     unit: string
-    unitRate: number
-    amount: number
+    unitRate: number | string
+    amount: number | string
   }>
 ) {
   const session = await auth()
   try {
-    const totalAmount = items.reduce((sum, item) => sum + item.amount, 0)
+    const sanitizedItems = items.map((item, index) => {
+      const quantity = Math.max(0, parseFloat(String(item.quantity)) || 0)
+      const unitRate = Math.max(0, parseFloat(String(item.unitRate)) || 0)
+      const amount = Math.round(quantity * unitRate * 100) / 100
+      return {
+        projectId,
+        category: item.category || "GENERAL",
+        description: item.description?.trim() || "",
+        quantity,
+        unit: item.unit || "UNIT",
+        unitRate,
+        amount,
+        orderIndex: index + 1,
+      }
+    })
+
+    const totalAmount = sanitizedItems.reduce((sum, item) => sum + item.amount, 0)
 
     await prisma.$transaction(async (tx) => {
       // Delete existing BQ items
@@ -329,18 +345,9 @@ export async function saveNrhoBqItems(
       })
 
       // Insert new items
-      if (items.length > 0) {
+      if (sanitizedItems.length > 0) {
         await tx.nrhoProjectBqItem.createMany({
-          data: items.map((item, index) => ({
-            projectId,
-            category: item.category,
-            description: item.description,
-            quantity: item.quantity,
-            unit: item.unit,
-            unitRate: item.unitRate,
-            amount: item.amount,
-            orderIndex: index + 1,
-          })),
+          data: sanitizedItems,
         })
       }
 
@@ -357,7 +364,7 @@ export async function saveNrhoBqItems(
         data: {
           projectId,
           action: "BQ_UPDATED",
-          details: `Bill of Quantities (BQ) updated with ${items.length} line items. Total estimate: RM ${totalAmount.toFixed(2)}.`,
+          details: `Bill of Quantities (BQ) updated with ${sanitizedItems.length} line items. Total estimate: RM ${totalAmount.toFixed(2)}.`,
           actorName: session?.user?.name || "User",
         },
       })

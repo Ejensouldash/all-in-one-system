@@ -9,6 +9,7 @@ import {
   Package, 
   FileText, 
   Calendar,
+  CalendarClock,
   BellRing,
   Settings,
   Users,
@@ -144,7 +145,7 @@ const staffLinks: NavLink[] = [
     ],
   },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
-  { name: "Reminders", href: "/reminders", icon: BellRing, module: "REMINDERS" },
+  { name: "PMC (Preventive Maintenance Calendar)", href: "/reminders", icon: CalendarClock, module: "REMINDERS" },
   { name: "Assets", href: "/dashboard/assets", icon: Package, module: "ASSETS" },
 ]
 

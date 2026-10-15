@@ -633,6 +633,23 @@ export function PMWorkspace() {
 
   return (
     <div className="space-y-4">
+      {/* Module Title Banner */}
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-white p-4 border border-gray-100 shadow-sm">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 p-2.5 text-white shadow-sm shadow-indigo-200">
+            <Wrench className="h-5 w-5" />
+          </span>
+          <div>
+            <h1 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">
+              PMC — Preventive Maintenance Calendar
+            </h1>
+            <p className="text-xs text-gray-500 font-medium">
+              SOP SGMP-03 &bull; Equipment maintenance schedules, weekend routines &amp; audit sign-offs
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Feedback banner */}
       {banner && (
         <div

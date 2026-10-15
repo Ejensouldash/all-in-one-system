@@ -12,7 +12,7 @@ export function classifyPMMailError(error: { responseCode?: number; code?: strin
 }
 const escape = (text: string) => text.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!))
 export function buildPMDigest(tasks: { id: string; dueDate: string; equipment: string; srs: string | null; checklist: string[] }[], today: string, baseUrl: string) {
-  return `<h2>Preventive Maintenance — ${escape(today)}</h2><p>Sila rekod pemeriksaan dalam Reminders.</p><ul>${tasks.map(t => `<li><strong>${escape(t.equipment)}</strong>${t.srs ? ` (${escape(t.srs)})` : ""} — ${escape(t.dueDate)} (${t.dueDate < today ? "Tertunggak" : t.dueDate === today ? "Hari ini" : "Esok"})<ul>${t.checklist.map(c => `<li>${escape(c)}</li>`).join("")}</ul><a href="${escape(baseUrl)}/reminders?tab=pm&amp;occurrence=${encodeURIComponent(t.id)}">Buka pemeriksaan</a></li>`).join("")}</ul>`
+  return `<h2>PMC: Preventive Maintenance — ${escape(today)}</h2><p>Please record inspection in PMC (Preventive Maintenance Calendar).</p><ul>${tasks.map(t => `<li><strong>${escape(t.equipment)}</strong>${t.srs ? ` (${escape(t.srs)})` : ""} — ${escape(t.dueDate)} (${t.dueDate < today ? "Overdue" : t.dueDate === today ? "Today" : "Tomorrow"})<ul>${t.checklist.map(c => `<li>${escape(c)}</li>`).join("")}</ul><a href="${escape(baseUrl)}/reminders?tab=pm&amp;occurrence=${encodeURIComponent(t.id)}">Open Inspection</a></li>`).join("")}</ul>`
 }
 async function sendPMMail(to: string, subject: string, html: string): Promise<PMMailOutcome> {
   if (!process.env.SMTP_EMAIL || !process.env.SMTP_PASSWORD) return { status: "FAILED", detail: "Konfigurasi SMTP belum lengkap." }
@@ -206,7 +206,7 @@ export function buildPMSingleTaskEmailHtml({
           <tr>
             <td style="background-color: #f8fafc; padding: 18px 25px; border-top: 1px solid #e2e8f0; text-align: center;">
               <p style="margin: 0; font-size: 11px; color: #64748b; line-height: 1.5;">
-                Notifikasi simulasi rasmi daripada <strong>BubblesO2 All-in-One SuperApp System</strong> &bull; Modul Reminders (SGMP-03).
+                Official notification from <strong>BubblesO2 All-in-One System</strong> &bull; PMC — Preventive Maintenance Calendar (SGMP-03).
               </p>
             </td>
           </tr>

@@ -113,8 +113,8 @@ const MODULE_CATEGORIES: CategoryDef[] = [
     iconClass: "bg-violet-50 text-violet-600 border-violet-100",
     modules: [
       { id: "EVENTS", name: "Events & Facilities", description: "Manage company events and calendar.", icon: CalendarDays },
-      { id: "REMINDERS", name: "Reminder Calendar", description: "Create scheduled email reminders (one-off or recurring) for yourself, users, or units.", icon: BellRing },
-      { id: "REMINDERS_ASSIGN_PIC", name: "Tugaskan PIC Reminders", description: "Kebenaran untuk menetapkan, memilih, atau menukar PIC bagi jadual dan tugasan Preventive Maintenance (SGMP-03).", icon: UserCheck },
+      { id: "REMINDERS", name: "PMC (Preventive Maintenance Calendar)", description: "Preventive maintenance schedules, calendar, routine checklists, and inspection records (SGMP-03).", icon: BellRing },
+      { id: "REMINDERS_ASSIGN_PIC", name: "Assign PMC PIC", description: "Permission to assign, select, or reassign PIC for Preventive Maintenance schedules and inspection tasks (SGMP-03).", icon: UserCheck },
       { id: "NOTICES", name: "Internal Notices", description: "Post and read company-wide announcements.", icon: Megaphone },
       { id: "ASSETS", name: "Company Assets", description: "Manage, track, and print QR for company assets and equipment.", icon: QrCode },
     ],

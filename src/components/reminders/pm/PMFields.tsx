@@ -107,12 +107,19 @@ export function PMFields({
             onChange({ ...value, intervalUnit, intervalCount: Number(count) })
           }}
         >
-          <option value="DAY:14">2 weeks</option>
-          <option value="MONTH:1">Monthly</option>
-          <option value="MONTH:2">2 months</option>
-          <option value="MONTH:3">3 months</option>
-          <option value="MONTH:6">6 months</option>
-          <option value="MONTH:12">Yearly</option>
+          <option value="MON_SAT:1">Daily (Monday - Saturday)</option>
+          <option value="DAY:7">1 Week</option>
+          <option value="DAY:14">2 Weeks</option>
+          <option value="DAY:28">4 Weeks (1 Month)</option>
+          <option value="DAY:42">6 Weeks (~350 Operating Hours)</option>
+          <option value="DAY:84">12 Weeks (3 Months)</option>
+          <option value="DAY:168">24 Weeks (6 Months)</option>
+          <option value="DAY:336">48 Weeks (1 Year)</option>
+          <option value="MONTH:1">Monthly (Calendar Month)</option>
+          <option value="MONTH:2">2 Months (Calendar)</option>
+          <option value="MONTH:3">3 Months (Calendar)</option>
+          <option value="MONTH:6">6 Months (Calendar)</option>
+          <option value="MONTH:12">Yearly (Calendar)</option>
         </select>
       </label>
 

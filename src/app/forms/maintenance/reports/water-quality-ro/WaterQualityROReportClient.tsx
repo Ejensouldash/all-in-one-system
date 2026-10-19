@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   Search,
   FileDown,
+  FileSpreadsheet,
   Printer,
   Plus,
   Droplets,
@@ -23,6 +24,7 @@ import {
   generateWaterQualityROSlipPdf,
   type WaterQualityROPdfRecord,
 } from "@/lib/pdf/generateWaterQualityROPdf"
+import { exportWaterQualityROToExcel } from "@/lib/excel/exportWaterQualityROExcel"
 
 interface WaterQualityRORecord {
   id: string
@@ -69,6 +71,7 @@ export function WaterQualityROReportClient({ initialRecords }: WaterQualityRORep
   const [selectedMonth, setSelectedMonth] = useState<number>(0)
   const [selectedYear, setSelectedYear] = useState<string>("ALL")
   const [isExportingTable, setIsExportingTable] = useState(false)
+  const [isExportingExcel, setIsExportingExcel] = useState(false)
   const [exportingSlipId, setExportingSlipId] = useState<string | null>(null)
   const [previewRecord, setPreviewRecord] = useState<WaterQualityRORecord | null>(null)
 
@@ -129,6 +132,18 @@ export function WaterQualityROReportClient({ initialRecords }: WaterQualityRORep
       alert("Failed to export Table PDF. Please try again.")
     } finally {
       setIsExportingTable(false)
+    }
+  }
+
+  const handleExportExcel = async () => {
+    try {
+      setIsExportingExcel(true)
+      await exportWaterQualityROToExcel(filteredRecords as WaterQualityROPdfRecord[], filterPeriodLabel)
+    } catch (err) {
+      console.error("Failed to generate Excel export:", err)
+      alert("Failed to export Excel file. Please try again.")
+    } finally {
+      setIsExportingExcel(false)
     }
   }
 
@@ -196,6 +211,23 @@ export function WaterQualityROReportClient({ initialRecords }: WaterQualityRORep
               >
                 <Plus className="w-4 h-4 mr-1.5" /> New Entry
               </Link>
+
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                disabled={isExportingExcel || filteredRecords.length === 0}
+                className="inline-flex items-center px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-all shadow-md shadow-emerald-600/20 disabled:opacity-50"
+              >
+                {isExportingExcel ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Preparing Excel...
+                  </>
+                ) : (
+                  <>
+                    <FileSpreadsheet className="w-4 h-4 mr-1.5" /> Export Excel
+                  </>
+                )}
+              </button>
 
               <button
                 type="button"

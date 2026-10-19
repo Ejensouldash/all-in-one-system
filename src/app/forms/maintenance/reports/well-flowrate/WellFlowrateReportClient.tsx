@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   Search,
   FileDown,
+  FileSpreadsheet,
   Printer,
   Plus,
   Droplets,
@@ -21,6 +22,7 @@ import {
   generateWellFlowrateSlipPdf,
   type WellFlowratePdfRecord,
 } from "@/lib/pdf/generateWellFlowratePdf"
+import { exportWellFlowrateToExcel } from "@/lib/excel/exportWellFlowrateExcel"
 
 interface WellFlowrateRecord {
   id: string
@@ -63,6 +65,7 @@ export function WellFlowrateReportClient({ initialRecords }: WellFlowrateReportC
   const [selectedMonth, setSelectedMonth] = useState<number>(0) // 0 = all
   const [selectedYear, setSelectedYear] = useState<string>("ALL")
   const [isExportingTable, setIsExportingTable] = useState(false)
+  const [isExportingExcel, setIsExportingExcel] = useState(false)
   const [exportingSlipId, setExportingSlipId] = useState<string | null>(null)
   const [previewRecord, setPreviewRecord] = useState<WellFlowrateRecord | null>(null)
 
@@ -140,6 +143,19 @@ export function WellFlowrateReportClient({ initialRecords }: WellFlowrateReportC
     }
   }
 
+  // Export Excel handler
+  const handleExportExcel = async () => {
+    try {
+      setIsExportingExcel(true)
+      await exportWellFlowrateToExcel(filteredRecords as WellFlowratePdfRecord[], filterPeriodLabel)
+    } catch (err) {
+      console.error("Failed to generate Excel export:", err)
+      alert("Failed to export Excel file. Please try again.")
+    } finally {
+      setIsExportingExcel(false)
+    }
+  }
+
   // Export Individual Slip PDF handler
   const handleExportSlipPdf = async (record: WellFlowrateRecord) => {
     try {
@@ -205,6 +221,23 @@ export function WellFlowrateReportClient({ initialRecords }: WellFlowrateReportC
               >
                 <Plus className="w-4 h-4 mr-1.5" /> New Entry
               </Link>
+
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                disabled={isExportingExcel || filteredRecords.length === 0}
+                className="inline-flex items-center px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-all shadow-md shadow-emerald-600/20 disabled:opacity-50"
+              >
+                {isExportingExcel ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Preparing Excel...
+                  </>
+                ) : (
+                  <>
+                    <FileSpreadsheet className="w-4 h-4 mr-1.5" /> Export Excel
+                  </>
+                )}
+              </button>
 
               <button
                 type="button"

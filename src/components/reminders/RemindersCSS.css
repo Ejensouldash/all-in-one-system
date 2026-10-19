@@ -158,3 +158,19 @@
   .reminder-btn-glow:hover::after { animation: none; }
   .reminder-bell:hover svg { animation: none; }
 }
+
+/* ---------- Mobile Utilities ---------- */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.touch-pan-x {
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+}
+.tap-highlight-transparent {
+  -webkit-tap-highlight-color: transparent;
+}

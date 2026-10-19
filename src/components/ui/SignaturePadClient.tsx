@@ -102,7 +102,7 @@ export function SignaturePadClient({
           </label>
           {isUsingSaved && (
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-800 border border-green-200">
-              <CheckCircle2 className="w-3 h-3 mr-1 text-green-600" /> Profil
+              <CheckCircle2 className="w-3 h-3 mr-1 text-green-600" /> Profile
             </span>
           )}
         </div>
@@ -114,7 +114,7 @@ export function SignaturePadClient({
               onClick={handleSwitchToManual}
               className="text-xs text-purple-600 hover:text-purple-800 font-bold flex items-center gap-1 cursor-pointer"
             >
-              <PenTool className="w-3 h-3" /> Lukis Manual
+              <PenTool className="w-3 h-3" /> Draw Manually
             </button>
           )}
 
@@ -124,7 +124,7 @@ export function SignaturePadClient({
               onClick={handleUseSaved}
               className="text-xs text-purple-600 hover:text-purple-800 font-bold flex items-center gap-1 cursor-pointer mr-2"
             >
-              <CheckCircle2 className="w-3 h-3" /> Guna Tandatangan Profil
+              <CheckCircle2 className="w-3 h-3" /> Use Profile Signature
             </button>
           )}
 
@@ -144,11 +144,11 @@ export function SignaturePadClient({
         <div className="w-full border-[3px] border-black bg-white rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 flex flex-col items-center justify-center min-h-[8rem] md:min-h-[10rem] transition-all relative">
           <img
             src={savedUrl}
-            alt="Tandatangan Profil"
+            alt="Profile Signature"
             className="max-h-24 md:max-h-28 max-w-full object-contain pointer-events-none"
           />
           <div className="absolute bottom-2 right-2 text-[10px] text-gray-400 font-medium tracking-tight">
-            Tandatangan Profil Sah
+            Verified Profile Signature
           </div>
         </div>
       ) : (

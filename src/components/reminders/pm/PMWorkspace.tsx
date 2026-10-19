@@ -31,6 +31,7 @@ import {
   Zap,
   UserCheck,
   RotateCcw,
+  SlidersHorizontal,
 } from "lucide-react"
 import Link from "next/link"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
@@ -52,6 +53,7 @@ import {
   canCompletePM,
   pmStatus,
   ruleLabel,
+  mytDate,
   type PMInput,
   type PMRule,
   type PMUser,
@@ -117,6 +119,11 @@ export function PMWorkspace() {
   const [picFilter, setPicFilter] = useState<string>("ALL")
   const [searchQuery, setSearchQuery] = useState("")
   const [scheduleArchiveTab, setScheduleArchiveTab] = useState<"ACTIVE" | "ARCHIVED" | "ALL">("ACTIVE")
+
+  // Mobile-specific UX state
+  const [selectedDayDate, setSelectedDayDate] = useState<string>("")
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false)
+  const [quickFilter, setQuickFilter] = useState<"ALL" | "TODAY" | "MY_TASKS" | "OVERDUE">("ALL")
 
   // Modals
   const [selectedOccurrence, setSelectedOccurrence] = useState<PMOccurrence | null>(null)
@@ -278,6 +285,21 @@ export function PMWorkspace() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  // Synchronize mobile selected day with month cursor and current date
+  useEffect(() => {
+    const todayStr = data?.today || mytDate()
+    const cursorYear = cursor.getFullYear()
+    const cursorMonth = cursor.getMonth()
+    const todayYear = Number(todayStr.slice(0, 4))
+    const todayMonth = Number(todayStr.slice(5, 7)) - 1
+
+    if (cursorYear === todayYear && cursorMonth === todayMonth) {
+      setSelectedDayDate(todayStr)
+    } else {
+      setSelectedDayDate(`${cursorYear}-${String(cursorMonth + 1).padStart(2, "0")}-01`)
+    }
+  }, [cursor, data?.today])
 
   // Open occurrence modal and sync URL
   const openOccurrence = (occ: PMOccurrence) => {
@@ -581,6 +603,11 @@ export function PMWorkspace() {
     return data.occurrences.filter((occ) => {
       const status = pmStatus(occ, today)
 
+      // Quick Filter (Mobile 1-Tap Chips)
+      if (quickFilter === "TODAY" && occ.dueDate !== today) return false
+      if (quickFilter === "MY_TASKS" && (!data.userId || !occ.picIds.includes(data.userId))) return false
+      if (quickFilter === "OVERDUE" && status !== "OVERDUE") return false
+
       // Status filter
       if (statusFilter !== "ALL" && status !== statusFilter) return false
 
@@ -605,7 +632,36 @@ export function PMWorkspace() {
 
       return true
     })
-  }, [data, statusFilter, equipmentFilter, picFilter, searchQuery, userMap])
+  }, [data, quickFilter, statusFilter, equipmentFilter, picFilter, searchQuery, userMap])
+
+  // Occurrences for the selected day in mobile agenda
+  const selectedDayOccurrences = useMemo(() => {
+    if (!selectedDayDate) return []
+    return filteredOccurrences.filter((occ) => occ.dueDate === selectedDayDate)
+  }, [filteredOccurrences, selectedDayDate])
+
+  const selectedDayDateFormatted = useMemo(() => {
+    if (!selectedDayDate) return ""
+    const [y, m, d] = selectedDayDate.split("-").map(Number)
+    const dt = new Date(Date.UTC(y, m - 1, d))
+    return dt.toLocaleDateString("en-US", {
+      weekday: "long",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    })
+  }, [selectedDayDate])
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (searchQuery.trim()) count++
+    if (equipmentFilter !== "ALL") count++
+    if (picFilter !== "ALL") count++
+    if (statusFilter !== "ALL") count++
+    if (quickFilter !== "ALL") count++
+    return count
+  }, [searchQuery, equipmentFilter, picFilter, statusFilter, quickFilter])
 
   // Schedule counts for status tabs
   const scheduleCounts = useMemo(() => {
@@ -705,6 +761,11 @@ export function PMWorkspace() {
 
     return days
   }, [cursor])
+
+  // Current month days without padding (for mobile agenda strip)
+  const currentMonthDays = useMemo(() => {
+    return calendarDays.filter((d) => d.isCurrentMonth)
+  }, [calendarDays])
 
   // Map occurrences by date for fast calendar cell rendering
   const occurrencesByDate = useMemo(() => {
@@ -822,8 +883,145 @@ export function PMWorkspace() {
         ))}
       </div>
 
-      {/* Main Toolbar */}
-      <div className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
+      {/* Mobile Toolbar (md:hidden) */}
+      <div className="md:hidden space-y-2.5 rounded-2xl border border-gray-100 bg-white p-3 shadow-xs">
+        {/* Row 1: Month navigation & View switch */}
+        <div className="flex items-center justify-between gap-2">
+          {/* Month selector */}
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() =>
+                setCursor((d) => new Date(Date.UTC(d.getFullYear(), d.getMonth() - 1, 1)))
+              }
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50"
+              aria-label="Previous Month"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div className="px-1 text-center min-w-[100px]">
+              <span className="block text-xs font-black text-gray-900 leading-tight">
+                {MONTH_NAMES[cursor.getMonth()]} {cursor.getFullYear()}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setCursor((d) => new Date(Date.UTC(d.getFullYear(), d.getMonth() + 1, 1)))
+              }
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50"
+              aria-label="Next Month"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* View switcher */}
+          <div className="flex rounded-lg bg-gray-100 p-0.5 text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setView("calendar")}
+              className={`rounded-md px-2.5 py-1 transition ${
+                view === "calendar"
+                  ? "bg-white text-indigo-700 shadow-xs"
+                  : "text-gray-500 hover:text-gray-800"
+              }`}
+            >
+              Agenda
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("list")}
+              className={`rounded-md px-2.5 py-1 transition ${
+                view === "list"
+                  ? "bg-white text-indigo-700 shadow-xs"
+                  : "text-gray-500 hover:text-gray-800"
+              }`}
+            >
+              List
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("schedules")}
+              className={`rounded-md px-2.5 py-1 transition ${
+                view === "schedules"
+                  ? "bg-white text-indigo-700 shadow-xs"
+                  : "text-gray-500 hover:text-gray-800"
+              }`}
+            >
+              Schedules
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2: 1-Tap Quick Filter Chips & Filter Drawer Trigger */}
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 touch-pan-x flex-1">
+            <button
+              type="button"
+              onClick={() => setQuickFilter("ALL")}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition whitespace-nowrap ${
+                quickFilter === "ALL"
+                  ? "bg-slate-900 text-white shadow-xs"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              All ({filteredOccurrences.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setQuickFilter((prev) => (prev === "TODAY" ? "ALL" : "TODAY"))}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition whitespace-nowrap flex items-center gap-1 ${
+                quickFilter === "TODAY"
+                  ? "bg-amber-500 text-white shadow-xs"
+                  : "bg-amber-50 text-amber-700 border border-amber-200/60"
+              }`}
+            >
+              <Zap className="h-3 w-3" /> Today ({stats.today})
+            </button>
+            <button
+              type="button"
+              onClick={() => setQuickFilter((prev) => (prev === "MY_TASKS" ? "ALL" : "MY_TASKS"))}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition whitespace-nowrap flex items-center gap-1 ${
+                quickFilter === "MY_TASKS"
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "bg-indigo-50 text-indigo-700 border border-indigo-200/60"
+              }`}
+            >
+              <UserIcon className="h-3 w-3" /> My Tasks
+            </button>
+            <button
+              type="button"
+              onClick={() => setQuickFilter((prev) => (prev === "OVERDUE" ? "ALL" : "OVERDUE"))}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition whitespace-nowrap flex items-center gap-1 ${
+                quickFilter === "OVERDUE"
+                  ? "bg-rose-600 text-white shadow-xs"
+                  : "bg-rose-50 text-rose-700 border border-rose-200/60"
+              }`}
+            >
+              <AlertTriangle className="h-3 w-3" /> Overdue ({stats.overdue})
+            </button>
+          </div>
+
+          {/* Filter & Export Drawer Trigger */}
+          <button
+            type="button"
+            onClick={() => setIsMobileFilterOpen(true)}
+            className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-bold text-gray-700 shrink-0 hover:bg-gray-100"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5 text-gray-500" />
+            <span>Filters</span>
+            {activeFilterCount > 0 && (
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Desktop Main Toolbar (hidden md:block) */}
+      <div className="hidden md:block rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3">
           {/* Top Row: Month navigation, Views, Actions */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1083,6 +1281,188 @@ export function PMWorkspace() {
         </div>
       </div>
 
+      {/* Mobile Filter & Export Sheet */}
+      {isMobileFilterOpen && (
+        <ModalShell open={isMobileFilterOpen} onClose={() => setIsMobileFilterOpen(false)} maxWidth="max-w-md">
+          <div className="p-5 space-y-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="h-4 w-4 text-indigo-600" />
+                <h3 className="text-base font-black text-gray-900">Filters &amp; Exports</h3>
+                {activeFilterCount > 0 && (
+                  <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-bold text-indigo-800">
+                    {activeFilterCount} active
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMobileFilterOpen(false)}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Search Keywords</label>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search equipment, SRS, checklist..."
+                  className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-3 text-xs text-gray-900 outline-none focus:border-indigo-500"
+                />
+              </div>
+            </div>
+
+            {/* Equipment Filter */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Equipment / Zone</label>
+              <select
+                value={equipmentFilter}
+                onChange={(e) => setEquipmentFilter(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-800 outline-none focus:border-indigo-500"
+              >
+                <option value="ALL">All Equipment ({equipmentOptions.length})</option>
+                {equipmentOptions.map((eq) => (
+                  <option key={eq} value={eq}>{eq}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* PIC Filter */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Assigned PIC</label>
+              <select
+                value={picFilter}
+                onChange={(e) => setPicFilter(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-800 outline-none focus:border-indigo-500"
+              >
+                <option value="ALL">All PICs</option>
+                {data?.users.filter((u) => u.eligible).map((u) => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Status Filter */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Inspection Status</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-800 outline-none focus:border-indigo-500"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="TODAY">Today</option>
+                <option value="UPCOMING">Upcoming</option>
+                <option value="OVERDUE">Overdue</option>
+                <option value="DONE">Completed</option>
+              </select>
+            </div>
+
+            {/* Reset Filters */}
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("")
+                  setEquipmentFilter("ALL")
+                  setPicFilter("ALL")
+                  setStatusFilter("ALL")
+                  setQuickFilter("ALL")
+                }}
+                className="w-full rounded-xl border border-rose-200 bg-rose-50 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition"
+              >
+                Reset All Filters
+              </button>
+            )}
+
+            {/* Export & Actions Section */}
+            <div className="pt-3 border-t border-gray-100 space-y-2">
+              <label className="block text-xs font-bold text-gray-700">Actions &amp; Reports</label>
+              <div className="grid grid-cols-2 gap-2">
+                <a
+                  href={`/api/reminders/pm/export/calendar-pdf?year=${cursor.getFullYear()}&month=${cursor.getMonth() + 1}&view=month`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100"
+                >
+                  <FileText className="h-3.5 w-3.5" /> 1-Page PDF
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileFilterOpen(false)
+                    setExportModal({ open: true, format: "pdf" })
+                  }}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100"
+                >
+                  <FileText className="h-3.5 w-3.5" /> Detailed PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileFilterOpen(false)
+                    setExportModal({ open: true, format: "excel" })
+                  }}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5" /> Export Excel
+                </button>
+                <Link
+                  href="/reminders/summary"
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Summary
+                </Link>
+              </div>
+
+              {/* Weekly Wall PDFs */}
+              <div className="pt-1">
+                <span className="text-[11px] font-semibold text-gray-500 block mb-1">Weekly Wall PDFs:</span>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {[1, 2, 3, 4, 5].map((wk) => (
+                    <a
+                      key={wk}
+                      href={`/api/reminders/pm/export/calendar-pdf?year=${cursor.getFullYear()}&month=${cursor.getMonth() + 1}&view=week&week=${wk}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-1 text-center rounded-lg border border-slate-200 bg-slate-50 font-bold text-slate-700 text-xs hover:bg-indigo-50 hover:text-indigo-700"
+                    >
+                      W{wk}
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileFilterOpen(false)
+                  openScheduleModal(null)
+                }}
+                className="w-full mt-2 flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-indigo-700"
+              >
+                <Plus className="h-4 w-4" /> Create New Schedule
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsMobileFilterOpen(false)}
+              className="w-full rounded-xl bg-gray-900 py-2.5 text-xs font-bold text-white hover:bg-gray-800 transition"
+            >
+              Apply &amp; View ({filteredOccurrences.length} Tasks)
+            </button>
+          </div>
+        </ModalShell>
+      )}
+
       {/* Main Content Areas */}
       {loading ? (
         <div className="flex h-64 items-center justify-center rounded-3xl border border-gray-100 bg-white shadow-sm">
@@ -1212,119 +1592,368 @@ export function PMWorkspace() {
           )}
         </div>
       ) : view === "calendar" ? (
-        /* Calendar Grid View */
-        <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
-          {/* Calendar top bar with Print Wall Calendar buttons */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 bg-white px-4 py-2.5">
-            <span className="text-xs font-bold text-gray-700">
-              Monthly Schedule &bull; {MONTH_NAMES[cursor.getMonth()]} {cursor.getFullYear()}
-            </span>
-            <div className="flex flex-wrap items-center gap-2">
-              <a
-                href={`/api/reminders/pm/export/calendar-pdf?year=${cursor.getFullYear()}&month=${cursor.getMonth() + 1}&view=month`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100 shadow-xs"
-                title="Export 1-Page A4 Landscape Monthly Calendar for Noticeboard"
-              >
-                <FileText className="h-3.5 w-3.5 text-indigo-600" />
-                Print Monthly Calendar (1 Page)
-              </a>
-
-              {/* Weekly Detail Print Buttons */}
-              <div className="inline-flex items-center gap-1 bg-slate-100 rounded-xl px-2 py-1 border border-slate-200 text-xs">
-                <span className="font-semibold text-slate-600 text-[11px]">Weekly 1-Page:</span>
-                {[1, 2, 3, 4, 5].map((wk) => (
+        <>
+          {/* MOBILE AGENDA DAY STRIP & TASK FEED (md:hidden) */}
+          <div className="md:hidden space-y-3">
+            {/* 1. Date Carousel Header & Horizontal Day Strip */}
+            <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm space-y-2.5">
+              <div className="flex items-center justify-between px-0.5">
+                <span className="text-xs font-bold text-gray-800">
+                  {MONTH_NAMES[cursor.getMonth()]} {cursor.getFullYear()}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const todayStr = data?.today || new Date().toISOString().slice(0, 10)
+                      setSelectedDayDate(todayStr)
+                      const [y, m] = todayStr.split("-").map(Number)
+                      setCursor(new Date(Date.UTC(y, m - 1, 1)))
+                    }}
+                    className="rounded-lg bg-indigo-50 px-2.5 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-100 transition"
+                  >
+                    Today
+                  </button>
                   <a
-                    key={wk}
-                    href={`/api/reminders/pm/export/calendar-pdf?year=${cursor.getFullYear()}&month=${cursor.getMonth() + 1}&view=week&week=${wk}`}
+                    href={`/api/reminders/pm/export/calendar-pdf?year=${cursor.getFullYear()}&month=${cursor.getMonth() + 1}&view=month`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-2 py-0.5 rounded-md font-bold text-slate-700 hover:bg-white hover:text-indigo-600 hover:shadow-xs transition text-xs"
-                    title={`Export 1-Page Detailed Work Sheet for Week ${wk}`}
+                    className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-bold text-gray-700 hover:bg-gray-100"
+                    title="Export 1-Page PDF"
                   >
-                    W{wk}
+                    <FileText className="h-3 w-3 text-indigo-600" /> PDF
                   </a>
-                ))}
+                </div>
               </div>
+
+              {/* Horizontal Scrollable Day Strip */}
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar touch-pan-x py-1">
+                {currentMonthDays.map((day) => {
+                  const isSelected = day.dateStr === selectedDayDate
+                  const isToday = day.dateStr === (data?.today || "")
+                  const occs = occurrencesByDate.get(day.dateStr) || []
+
+                  // Status indicators
+                  const hasOverdue = occs.some((o) => pmStatus(o, data?.today || "") === "OVERDUE")
+                  const hasIssue = occs.some((o) => o.result === "ISSUE")
+                  const allDone = occs.length > 0 && occs.every((o) => Boolean(o.completedAt))
+                  const hasPending = occs.length > 0 && !allDone
+
+                  const [y, m, d] = day.dateStr.split("-").map(Number)
+                  const dayOfWeek = DAY_NAMES[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+
+                  return (
+                    <button
+                      key={day.dateStr}
+                      type="button"
+                      onClick={() => setSelectedDayDate(day.dateStr)}
+                      className={`flex flex-col items-center justify-between min-w-[50px] w-[50px] h-[68px] py-1.5 px-1 rounded-xl transition-all shrink-0 active:scale-95 ${
+                        isSelected
+                          ? "bg-indigo-600 text-white shadow-md ring-2 ring-indigo-400 font-bold"
+                          : isToday
+                          ? "bg-indigo-50 border border-indigo-200 text-indigo-900"
+                          : "bg-gray-50/80 border border-gray-100 text-gray-700 hover:bg-gray-100"
+                      }`}
+                    >
+                      <span
+                        className={`text-[10px] uppercase font-bold tracking-tight ${
+                          isSelected ? "text-indigo-100" : "text-gray-400"
+                        }`}
+                      >
+                        {dayOfWeek}
+                      </span>
+                      <span
+                        className={`text-base font-black leading-none ${
+                          isSelected ? "text-white" : "text-gray-900"
+                        }`}
+                      >
+                        {day.dayNumber}
+                      </span>
+
+                      {/* Dots / badge container */}
+                      <div className="flex items-center justify-center gap-0.5 h-3">
+                        {occs.length === 0 ? (
+                          <span
+                            className={`h-1 w-1 rounded-full ${
+                              isSelected ? "bg-indigo-400/60" : "bg-transparent"
+                            }`}
+                          />
+                        ) : (
+                          <>
+                            {hasOverdue && (
+                              <span className="h-1.5 w-1.5 rounded-full bg-rose-500 ring-1 ring-white" />
+                            )}
+                            {hasIssue && (
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 ring-1 ring-white" />
+                            )}
+                            {allDone && !hasIssue && (
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 ring-1 ring-white" />
+                            )}
+                            {hasPending && !hasOverdue && !hasIssue && (
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full ${
+                                  isSelected ? "bg-white" : "bg-indigo-500"
+                                }`}
+                              />
+                            )}
+                            {occs.length > 1 && (
+                              <span
+                                className={`text-[9px] font-black leading-none ml-0.5 ${
+                                  isSelected ? "text-indigo-200" : "text-gray-500"
+                                }`}
+                              >
+                                {occs.length}
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* 2. Selected Day Task Feed */}
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-xs font-bold text-gray-900">
+                    {selectedDayDateFormatted || selectedDayDate}
+                  </h3>
+                  {selectedDayDate === data?.today && (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                      Today
+                    </span>
+                  )}
+                </div>
+                <span className="text-[11px] font-bold text-gray-500">
+                  {selectedDayOccurrences.length}{" "}
+                  {selectedDayOccurrences.length === 1 ? "task" : "tasks"}
+                </span>
+              </div>
+
+              {selectedDayOccurrences.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-100 bg-white p-8 text-center shadow-xs">
+                  <CalendarDays className="h-8 w-8 text-gray-300" />
+                  <p className="mt-2 text-xs font-bold text-gray-700">No PM tasks for this day</p>
+                  <p className="mt-0.5 text-[11px] text-gray-400">
+                    Swipe the day strip above or tap another day to inspect tasks.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-2.5">
+                  {selectedDayOccurrences.map((occ) => {
+                    const status = pmStatus(occ, data?.today || "")
+                    const isCompleted = Boolean(occ.completedAt)
+                    const assignedPics = occ.picIds
+                      .map((id) => userMap.get(id)?.name || id)
+                      .filter(Boolean)
+
+                    return (
+                      <div
+                        key={occ.id}
+                        onClick={() => openOccurrence(occ)}
+                        className="group flex flex-col gap-2 rounded-2xl border border-gray-100 bg-white p-3.5 shadow-xs transition hover:border-indigo-100 active:scale-[0.99] cursor-pointer"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-sm font-bold text-gray-900 group-hover:text-indigo-600 transition">
+                                {occ.equipment}
+                              </span>
+                              {occ.srs && (
+                                <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                                  {occ.srs}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Status Badge */}
+                          <span
+                            className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold ${
+                              status === "DONE"
+                                ? occ.result === "ISSUE"
+                                  ? "bg-amber-100 text-amber-800"
+                                  : "bg-emerald-100 text-emerald-800"
+                                : status === "OVERDUE"
+                                ? "bg-rose-100 text-rose-800"
+                                : status === "TODAY"
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-blue-100 text-blue-800"
+                            }`}
+                          >
+                            {status === "DONE"
+                              ? occ.result === "ISSUE"
+                                ? "Issue"
+                                : "Done (OK)"
+                              : status === "OVERDUE"
+                              ? "Overdue"
+                              : status === "TODAY"
+                              ? "Today"
+                              : "Upcoming"}
+                          </span>
+                        </div>
+
+                        {/* Checklist items preview */}
+                        <ul className="text-xs text-gray-600 list-disc list-inside space-y-0.5">
+                          {occ.checklist.slice(0, 2).map((item, idx) => (
+                            <li key={idx} className="truncate">
+                              {item}
+                            </li>
+                          ))}
+                          {occ.checklist.length > 2 && (
+                            <li className="text-[11px] text-gray-400 font-medium">
+                              +{occ.checklist.length - 2} more instructions
+                            </li>
+                          )}
+                        </ul>
+
+                        {/* PIC and Action button row */}
+                        <div className="flex items-center justify-between pt-1 border-t border-gray-50 text-[11px] text-gray-500">
+                          <span className="flex items-center gap-1 truncate max-w-[180px]">
+                            <UserIcon className="h-3 w-3 text-gray-400 shrink-0" />
+                            <span className="truncate">{assignedPics.join(", ") || "No PIC"}</span>
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openOccurrence(occ)
+                            }}
+                            className={`rounded-lg px-2.5 py-1 text-[11px] font-bold shadow-xs transition ${
+                              isCompleted
+                                ? "border border-gray-200 bg-gray-50 text-gray-700"
+                                : "bg-indigo-600 text-white hover:bg-indigo-700"
+                            }`}
+                          >
+                            {isCompleted ? "View" : "Inspect"}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Day header */}
-          <div className="grid grid-cols-7 border-b border-gray-100 bg-gray-50/50 text-center text-xs font-bold text-gray-500">
-            {DAY_NAMES.map((name) => (
-              <div key={name} className="py-2.5">
-                {name}
-              </div>
-            ))}
-          </div>
-
-          {/* Day cells */}
-          <div className="grid grid-cols-7 divide-x divide-y divide-gray-100">
-            {calendarDays.map((day, idx) => {
-              const occurrences = occurrencesByDate.get(day.dateStr) || []
-              const isToday = day.dateStr === (data?.today || "")
-
-              return (
-                <div
-                  key={idx}
-                  className={`min-h-[110px] p-1.5 transition ${
-                    day.isCurrentMonth ? "bg-white" : "bg-gray-50/30 text-gray-300"
-                  }`}
+          {/* DESKTOP CALENDAR GRID (hidden md:block) */}
+          <div className="hidden md:block overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+            {/* Calendar top bar with Print Wall Calendar buttons */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 bg-white px-4 py-2.5">
+              <span className="text-xs font-bold text-gray-700">
+                Monthly Schedule &bull; {MONTH_NAMES[cursor.getMonth()]} {cursor.getFullYear()}
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <a
+                  href={`/api/reminders/pm/export/calendar-pdf?year=${cursor.getFullYear()}&month=${cursor.getMonth() + 1}&view=month`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100 shadow-xs"
+                  title="Export 1-Page A4 Landscape Monthly Calendar for Noticeboard"
                 >
-                  <div className="flex items-center justify-between pb-1">
-                    <span
-                      className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-                        isToday
-                          ? "bg-indigo-600 text-white shadow-sm"
-                          : day.isCurrentMonth
-                          ? "text-gray-700"
-                          : "text-gray-400"
-                      }`}
+                  <FileText className="h-3.5 w-3.5 text-indigo-600" />
+                  Print Monthly Calendar (1 Page)
+                </a>
+
+                {/* Weekly Detail Print Buttons */}
+                <div className="inline-flex items-center gap-1 bg-slate-100 rounded-xl px-2 py-1 border border-slate-200 text-xs">
+                  <span className="font-semibold text-slate-600 text-[11px]">Weekly 1-Page:</span>
+                  {[1, 2, 3, 4, 5].map((wk) => (
+                    <a
+                      key={wk}
+                      href={`/api/reminders/pm/export/calendar-pdf?year=${cursor.getFullYear()}&month=${cursor.getMonth() + 1}&view=week&week=${wk}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2 py-0.5 rounded-md font-bold text-slate-700 hover:bg-white hover:text-indigo-600 hover:shadow-xs transition text-xs"
+                      title={`Export 1-Page Detailed Work Sheet for Week ${wk}`}
                     >
-                      {day.dayNumber}
-                    </span>
-                    {occurrences.length > 0 && (
-                      <span className="text-[10px] font-bold text-gray-400">
-                        {occurrences.length}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Occurrence pills */}
-                  <div className="space-y-1 overflow-y-auto max-h-[85px] reminder-scroll">
-                    {occurrences.map((occ) => {
-                      const status = pmStatus(occ, data?.today || "")
-                      const isCompleted = Boolean(occ.completedAt)
-
-                      return (
-                        <button
-                          key={occ.id}
-                          type="button"
-                          onClick={() => openOccurrence(occ)}
-                          className={`reminder-pill w-full truncate rounded-md px-1.5 py-1 text-left text-[11px] font-bold ${
-                            isCompleted
-                              ? occ.result === "ISSUE"
-                                ? "bg-amber-100 text-amber-900"
-                                : "bg-emerald-100 text-emerald-900"
-                              : status === "OVERDUE"
-                              ? "bg-rose-100 text-rose-900"
-                              : status === "TODAY"
-                              ? "bg-amber-100 text-amber-900"
-                              : "bg-blue-100 text-blue-900"
-                          }`}
-                          title={`${occ.equipment} - ${occ.checklist.join(", ")}`}
-                        >
-                          {occ.equipment}
-                        </button>
-                      )
-                    })}
-                  </div>
+                      W{wk}
+                    </a>
+                  ))}
                 </div>
-              )
-            })}
+              </div>
+            </div>
+
+            {/* Day header */}
+            <div className="grid grid-cols-7 border-b border-gray-100 bg-gray-50/50 text-center text-xs font-bold text-gray-500">
+              {DAY_NAMES.map((name) => (
+                <div key={name} className="py-2.5">
+                  {name}
+                </div>
+              ))}
+            </div>
+
+            {/* Day cells */}
+            <div className="grid grid-cols-7 divide-x divide-y divide-gray-100">
+              {calendarDays.map((day, idx) => {
+                const occurrences = occurrencesByDate.get(day.dateStr) || []
+                const isToday = day.dateStr === (data?.today || "")
+
+                return (
+                  <div
+                    key={idx}
+                    className={`min-h-[110px] p-1.5 transition ${
+                      day.isCurrentMonth ? "bg-white" : "bg-gray-50/30 text-gray-300"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between pb-1">
+                      <span
+                        className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
+                          isToday
+                            ? "bg-indigo-600 text-white shadow-sm"
+                            : day.isCurrentMonth
+                            ? "text-gray-700"
+                            : "text-gray-400"
+                        }`}
+                      >
+                        {day.dayNumber}
+                      </span>
+                      {occurrences.length > 0 && (
+                        <span className="text-[10px] font-bold text-gray-400">
+                          {occurrences.length}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Occurrence pills */}
+                    <div className="space-y-1 overflow-y-auto max-h-[85px] reminder-scroll">
+                      {occurrences.map((occ) => {
+                        const status = pmStatus(occ, data?.today || "")
+                        const isCompleted = Boolean(occ.completedAt)
+
+                        return (
+                          <button
+                            key={occ.id}
+                            type="button"
+                            onClick={() => openOccurrence(occ)}
+                            className={`reminder-pill w-full truncate rounded-md px-1.5 py-1 text-left text-[11px] font-bold ${
+                              isCompleted
+                                ? occ.result === "ISSUE"
+                                  ? "bg-amber-100 text-amber-900"
+                                  : "bg-emerald-100 text-emerald-900"
+                                : status === "OVERDUE"
+                                ? "bg-rose-100 text-rose-900"
+                                : status === "TODAY"
+                                ? "bg-amber-100 text-amber-900"
+                                : "bg-blue-100 text-blue-900"
+                            }`}
+                            title={`${occ.equipment} - ${occ.checklist.join(", ")}`}
+                          >
+                            {occ.equipment}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
-        </div>
+        </>
       ) : (
         /* Schedules Management View */
         <div className="space-y-4">
@@ -1926,16 +2555,16 @@ export function PMWorkspace() {
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-1.5 rounded-2xl border border-gray-200 bg-white p-3 text-xs text-gray-700 max-h-56 overflow-y-auto">
+                        <div className="space-y-2 rounded-2xl border border-gray-200 bg-white p-3 text-xs text-gray-700 max-h-60 overflow-y-auto">
                           {selectedOccurrence.checklist.map((item, idx) => {
                             const isChecked = completedChecklist.includes(item)
                             return (
                               <label
                                 key={idx}
-                                className={`flex items-start gap-2.5 p-2 rounded-xl border transition cursor-pointer ${
+                                className={`flex items-start gap-3 p-3 rounded-xl border transition cursor-pointer min-h-[46px] select-none active:scale-[0.99] ${
                                   isChecked
-                                    ? "border-indigo-200 bg-indigo-50/40 text-gray-900 font-medium"
-                                    : "border-gray-100 bg-gray-50/40 text-gray-600 hover:bg-gray-100"
+                                    ? "border-indigo-300 bg-indigo-50/70 text-indigo-950 font-semibold shadow-xs"
+                                    : "border-gray-200/80 bg-gray-50/50 text-gray-700 hover:bg-gray-100"
                                 }`}
                               >
                                 <input
@@ -1952,7 +2581,7 @@ export function PMWorkspace() {
                                   }}
                                   className="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0"
                                 />
-                                <span className="text-xs leading-relaxed">{item}</span>
+                                <span className="text-xs leading-relaxed flex-1">{item}</span>
                               </label>
                             )
                           })}
@@ -2054,20 +2683,22 @@ export function PMWorkspace() {
                       />
                     </div>
 
-                    <button
-                      type="button"
-                      disabled={submitting}
-                      onClick={handleComplete}
-                      className={`w-full ${buttonClass} flex items-center justify-center gap-2`}
-                    >
-                      {submitting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" /> Saving…
-                        </>
-                      ) : (
-                        "Confirm & Record Inspection"
-                      )}
-                    </button>
+                    <div className="sticky bottom-0 z-10 pt-2 pb-1 bg-white/95 backdrop-blur-xs -mx-1 px-1">
+                      <button
+                        type="button"
+                        disabled={submitting}
+                        onClick={handleComplete}
+                        className={`w-full ${buttonClass} py-3 text-xs sm:text-sm font-bold shadow-md flex items-center justify-center gap-2`}
+                      >
+                        {submitting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" /> Saving…
+                          </>
+                        ) : (
+                          "Confirm & Record Inspection"
+                        )}
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">

@@ -1806,6 +1806,24 @@ model ProductionPlasticBreakage {
   updatedAt          DateTime @updatedAt
 }
 
+model ProductionWellFlowrate {
+  id                 String   @id @default(uuid())
+  dateTime           DateTime
+  picName            String
+  well2              String?
+  well3              String?
+  well4              String?
+  well7              String?
+  well8              String?
+  well12             String?
+  remarks            String?
+  performedSignature String?  @db.Text
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([dateTime])
+}
+
 // ============================================================
 // Reminder Calendar (scheduled email reminders)
 // ============================================================

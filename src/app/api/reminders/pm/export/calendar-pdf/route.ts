@@ -4,7 +4,7 @@ import path from "path"
 import { renderToBuffer } from "@react-pdf/renderer"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
 import { getPMData } from "@/app/actions/reminder-pm"
-import { pmStatus, ruleLabel } from "@/lib/reminders/pm-core"
+import { addDays, pmStatus, ruleLabel } from "@/lib/reminders/pm-core"
 import {
   PMCalendarWallPdfDocument,
   type PMCalendarWallDay,
@@ -71,8 +71,12 @@ export async function GET(request: Request) {
   const fromDate = `${year}-${String(month).padStart(2, "0")}-01`
   const toDate = `${year}-${String(month).padStart(2, "0")}-${String(totalDays).padStart(2, "0")}`
 
+  // Fetch with 7 days boundary padding so that Monday-to-Sunday week boundary days have tasks
+  const fetchFromDate = addDays(fromDate, -7)
+  const fetchToDate = addDays(toDate, 7)
+
   try {
-    const data = await getPMData(fromDate, toDate)
+    const data = await getPMData(fetchFromDate, fetchToDate)
     const logo = await loadLogo()
 
     // Map occurrences by dueDate
@@ -162,22 +166,47 @@ export async function GET(request: Request) {
 
     const userMap = new Map(data.users.map((u) => [u.id, u.name]))
 
-    // Handle 1-Page Weekly Detailed Work Schedule
+    // Handle 1-Page Weekly Detailed Work Schedule (Monday to Sunday)
     if (view === "week") {
       const weekParam = parseInt(searchParams.get("week") || "1", 10)
-      const maxWeeks = Math.floor(days.length / 7)
-      const weekIdx = Math.max(0, Math.min(maxWeeks - 1, weekParam - 1))
-      const weekDaysRaw = days.slice(weekIdx * 7, (weekIdx + 1) * 7)
 
-      const DAY_LABELS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
-      const weeklyDays: PMWeeklyDay[] = weekDaysRaw.map((d, idx) => {
-        const occs = occByDate.get(d.dateStr) || []
-        return {
-          dayName: DAY_LABELS[idx],
-          dayNumber: d.dayNumber,
-          dateStr: d.dateStr,
-          isCurrentMonth: d.isCurrentMonth,
-          isToday: d.isToday,
+      // Calculate Monday-to-Sunday weeks for the month
+      const firstDay = new Date(Date.UTC(year, monthIdx, 1))
+      // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      // Monday offset: how many days before Day 1 to reach preceding Monday
+      const mondayOffset = (firstDay.getUTCDay() + 6) % 7
+      const totalMonthDays = new Date(Date.UTC(year, monthIdx + 1, 0)).getUTCDate()
+      const maxWeeks = Math.ceil((mondayOffset + totalMonthDays) / 7)
+      const weekIdx = Math.max(0, Math.min(maxWeeks - 1, weekParam - 1))
+
+      // The Monday that starts Week 1
+      const firstMonday = addDays(fromDate, -mondayOffset)
+      const weekStartMonday = addDays(firstMonday, weekIdx * 7)
+
+      // Monday to Sunday column labels
+      const DAY_LABELS = [
+        "MONDAY",
+        "TUESDAY",
+        "WEDNESDAY",
+        "THURSDAY",
+        "FRIDAY",
+        "SATURDAY",
+        "SUNDAY",
+      ]
+
+      const weeklyDays: PMWeeklyDay[] = []
+      for (let i = 0; i < 7; i++) {
+        const curDateStr = addDays(weekStartMonday, i)
+        const [curY, curM, curD] = curDateStr.split("-").map(Number)
+        const isCurrentMonth = curM === month && curY === year
+        const occs = occByDate.get(curDateStr) || []
+
+        weeklyDays.push({
+          dayName: DAY_LABELS[i],
+          dayNumber: curD,
+          dateStr: curDateStr,
+          isCurrentMonth,
+          isToday: curDateStr === data.today,
           tasks: occs.map((o) => ({
             id: o.id,
             equipment: o.equipment,
@@ -188,8 +217,8 @@ export async function GET(request: Request) {
             status: pmStatus(o, data.today),
             result: o.result,
           })),
-        }
-      })
+        })
+      }
 
       const weekLabel = `WEEK ${weekIdx + 1} (${monthName} ${year})`
       const dateRangeLabel = `${weeklyDays[0].dateStr} to ${weeklyDays[6].dateStr}`

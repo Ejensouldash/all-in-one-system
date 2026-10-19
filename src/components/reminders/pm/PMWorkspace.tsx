@@ -767,6 +767,17 @@ export function PMWorkspace() {
     return calendarDays.filter((d) => d.isCurrentMonth)
   }, [calendarDays])
 
+  // Dynamic weekly count for Monday-to-Sunday weekly printouts
+  const monthWeeks = useMemo(() => {
+    const year = cursor.getFullYear()
+    const month = cursor.getMonth()
+    const firstDay = new Date(Date.UTC(year, month, 1))
+    const totalDays = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
+    const mondayOffset = (firstDay.getUTCDay() + 6) % 7
+    const count = Math.ceil((mondayOffset + totalDays) / 7)
+    return Array.from({ length: count }, (_, i) => i + 1)
+  }, [cursor])
+
   // Map occurrences by date for fast calendar cell rendering
   const occurrencesByDate = useMemo(() => {
     const map = new Map<string, PMOccurrence[]>()
@@ -1424,15 +1435,18 @@ export function PMWorkspace() {
 
               {/* Weekly Wall PDFs */}
               <div className="pt-1">
-                <span className="text-[11px] font-semibold text-gray-500 block mb-1">Weekly Wall PDFs:</span>
-                <div className="grid grid-cols-5 gap-1.5">
-                  {[1, 2, 3, 4, 5].map((wk) => (
+                <span className="text-[11px] font-semibold text-gray-500 block mb-1">
+                  Weekly Wall PDFs (Mon – Sun):
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {monthWeeks.map((wk) => (
                     <a
                       key={wk}
                       href={`/api/reminders/pm/export/calendar-pdf?year=${cursor.getFullYear()}&month=${cursor.getMonth() + 1}&view=week&week=${wk}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="py-1 text-center rounded-lg border border-slate-200 bg-slate-50 font-bold text-slate-700 text-xs hover:bg-indigo-50 hover:text-indigo-700"
+                      className="flex-1 min-w-[42px] py-1 text-center rounded-lg border border-slate-200 bg-slate-50 font-bold text-slate-700 text-xs hover:bg-indigo-50 hover:text-indigo-700"
+                      title={`Export 1-Page Detailed Work Sheet for Week ${wk} (Monday to Sunday)`}
                     >
                       W{wk}
                     </a>
@@ -1859,17 +1873,17 @@ export function PMWorkspace() {
                   Print Monthly Calendar (1 Page)
                 </a>
 
-                {/* Weekly Detail Print Buttons */}
+                {/* Weekly Detail Print Buttons (Monday to Sunday) */}
                 <div className="inline-flex items-center gap-1 bg-slate-100 rounded-xl px-2 py-1 border border-slate-200 text-xs">
-                  <span className="font-semibold text-slate-600 text-[11px]">Weekly 1-Page:</span>
-                  {[1, 2, 3, 4, 5].map((wk) => (
+                  <span className="font-semibold text-slate-600 text-[11px]">Weekly 1-Page (Mon–Sun):</span>
+                  {monthWeeks.map((wk) => (
                     <a
                       key={wk}
                       href={`/api/reminders/pm/export/calendar-pdf?year=${cursor.getFullYear()}&month=${cursor.getMonth() + 1}&view=week&week=${wk}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-2 py-0.5 rounded-md font-bold text-slate-700 hover:bg-white hover:text-indigo-600 hover:shadow-xs transition text-xs"
-                      title={`Export 1-Page Detailed Work Sheet for Week ${wk}`}
+                      title={`Export 1-Page Detailed Work Sheet for Week ${wk} (Monday to Sunday)`}
                     >
                       W{wk}
                     </a>

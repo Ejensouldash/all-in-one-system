@@ -10,6 +10,11 @@ import {
   type PMCalendarWallDay,
   type PMCalendarWallTask,
 } from "@/lib/pdf/PMCalendarWallPdfDocument"
+import {
+  PMWeeklyWallPdfDocument,
+  type PMWeeklyDay,
+  type PMWeeklyTask,
+} from "@/lib/pdf/PMWeeklyWallPdfDocument"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -52,6 +57,7 @@ export async function GET(request: Request) {
   const now = new Date()
   const year = parseInt(searchParams.get("year") || String(now.getFullYear()), 10)
   const month = parseInt(searchParams.get("month") || String(now.getMonth() + 1), 10) // 1-indexed
+  const view = (searchParams.get("view") || "month").toLowerCase()
 
   if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
     return NextResponse.json({ error: "Invalid year or month parameter." }, { status: 400 })
@@ -153,6 +159,70 @@ export async function GET(request: Request) {
       timeStyle: "short",
       timeZone: "Asia/Kuala_Lumpur",
     }).format(new Date())
+
+    const userMap = new Map(data.users.map((u) => [u.id, u.name]))
+
+    // Handle 1-Page Weekly Detailed Work Schedule
+    if (view === "week") {
+      const weekParam = parseInt(searchParams.get("week") || "1", 10)
+      const maxWeeks = Math.floor(days.length / 7)
+      const weekIdx = Math.max(0, Math.min(maxWeeks - 1, weekParam - 1))
+      const weekDaysRaw = days.slice(weekIdx * 7, (weekIdx + 1) * 7)
+
+      const DAY_LABELS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
+      const weeklyDays: PMWeeklyDay[] = weekDaysRaw.map((d, idx) => {
+        const occs = occByDate.get(d.dateStr) || []
+        return {
+          dayName: DAY_LABELS[idx],
+          dayNumber: d.dayNumber,
+          dateStr: d.dateStr,
+          isCurrentMonth: d.isCurrentMonth,
+          isToday: d.isToday,
+          tasks: occs.map((o) => ({
+            id: o.id,
+            equipment: o.equipment,
+            srs: o.srs,
+            frequency: o.schedule ? ruleLabel(o.schedule) : "-",
+            checklist: o.checklist || [],
+            picNames: (o.picIds || []).map((id) => userMap.get(id) || id).filter(Boolean),
+            status: pmStatus(o, data.today),
+            result: o.result,
+          })),
+        }
+      })
+
+      const weekLabel = `WEEK ${weekIdx + 1} (${monthName} ${year})`
+      const dateRangeLabel = `${weeklyDays[0].dateStr} to ${weeklyDays[6].dateStr}`
+
+      const totalScheduled = weeklyDays.reduce((acc, d) => acc + d.tasks.length, 0)
+      const totalCompleted = weeklyDays.reduce((acc, d) => acc + d.tasks.filter((t) => t.status === "DONE").length, 0)
+      const totalOverdue = weeklyDays.reduce((acc, d) => acc + d.tasks.filter((t) => t.status === "OVERDUE").length, 0)
+
+      const buffer = await renderToBuffer(
+        PMWeeklyWallPdfDocument({
+          logo: logo || undefined,
+          weekLabel,
+          dateRangeLabel,
+          days: weeklyDays,
+          generatedAt,
+          totalScheduled,
+          totalCompleted,
+          totalOverdue,
+        })
+      )
+
+      const safeFilename = `PM_Weekly_Schedule_${monthName}_Week${weekIdx + 1}_${year}.pdf`
+
+      return new NextResponse(new Uint8Array(buffer), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `attachment; filename="${safeFilename}"`,
+          "Content-Length": String(buffer.length),
+          "Cache-Control": "no-store",
+        },
+      })
+    }
 
     let totalCompleted = 0
     let totalOverdue = 0

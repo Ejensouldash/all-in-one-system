@@ -115,6 +115,8 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "EVENTS", name: "Events & Facilities", description: "Manage company events and calendar.", icon: CalendarDays },
       { id: "REMINDERS", name: "PMC (Preventive Maintenance Calendar)", description: "Preventive maintenance schedules, calendar, routine checklists, and inspection records (SGMP-03).", icon: BellRing },
       { id: "REMINDERS_ASSIGN_PIC", name: "Assign PMC PIC", description: "Permission to assign, select, or reassign PIC for Preventive Maintenance schedules and inspection tasks (SGMP-03).", icon: UserCheck },
+      { id: "REMINDERS_EDIT_WORK", name: "Edit PMC Work Instructions", description: "Authority to edit work instructions and checklist steps for Preventive Maintenance schedules and tasks (SGMP-03).", icon: FilePenLine },
+      { id: "REMINDERS_EDIT_FREQUENCY", name: "Manage PMC Frequency", description: "Authority to change recurrence intervals and frequencies for Preventive Maintenance schedules.", icon: CalendarClock },
       { id: "NOTICES", name: "Internal Notices", description: "Post and read company-wide announcements.", icon: Megaphone },
       { id: "ASSETS", name: "Company Assets", description: "Manage, track, and print QR for company assets and equipment.", icon: QrCode },
     ],

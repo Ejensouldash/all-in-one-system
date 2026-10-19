@@ -330,15 +330,30 @@ export function PMWeeklyWallPdfDocument(props: PMWeeklyWallPayload) {
           </View>
         </View>
 
-        {/* 7-Day Columns */}
+        {/* 7-Day Columns (Monday to Sunday) */}
         <View style={s.weekGrid}>
           {days.map((day, dIdx) => {
             const isLast = dIdx === days.length - 1
+            const isOutsideMonth = !day.isCurrentMonth
             return (
-              <View key={dIdx} style={[s.dayCol, isLast ? s.dayColLast : {}]}>
-                <View style={s.dayColHeader}>
+              <View
+                key={dIdx}
+                style={[
+                  s.dayCol,
+                  isLast ? s.dayColLast : {},
+                  isOutsideMonth ? { backgroundColor: "#f8fafc" } : {},
+                ]}
+              >
+                <View
+                  style={[
+                    s.dayColHeader,
+                    isOutsideMonth ? { backgroundColor: "#475569" } : {},
+                  ]}
+                >
                   <Text style={s.dayColHeaderText}>{day.dayName}</Text>
-                  <Text style={s.dayColDateText}>{day.dateStr.slice(5)}</Text>
+                  <Text style={[s.dayColDateText, isOutsideMonth ? { color: "#cbd5e1" } : {}]}>
+                    {day.dateStr.slice(8, 10)}/{day.dateStr.slice(5, 7)}
+                  </Text>
                 </View>
 
                 {day.tasks.length === 0 ? (

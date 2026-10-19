@@ -212,6 +212,14 @@ export default async function MaintenanceReportsDashboard() {
       href: "/forms/maintenance/reports/fuv",
       gradient: "from-blue-900 via-cyan-800 to-teal-900",
       accent: "bg-cyan-400"
+    },
+    {
+      title: "WELL FLOWRATE",
+      description: "Well Flowrate Monitoring Record (Wells 2, 3, 4, 7, 8, 12)",
+      icon: <Droplets className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/well-flowrate",
+      gradient: "from-sky-950 via-cyan-900 to-slate-900",
+      accent: "bg-cyan-400"
     }
   ]
 

@@ -20,6 +20,42 @@ const allBorders: Partial<ExcelJS.Borders> = {
   right: thinBorder,
 }
 
+const totalBorders: Partial<ExcelJS.Borders> = {
+  top: { style: "thin", color: { argb: BRAND_DARK } },
+  bottom: { style: "double", color: { argb: BRAND_DARK } },
+  left: thinBorder,
+  right: thinBorder,
+}
+
+function parseWellValue(val: string | null | undefined): {
+  isNumeric: boolean
+  numValue?: number
+  note?: string
+  displayStr: string
+} {
+  if (!val || !val.trim() || val.trim() === "-") {
+    return { isNumeric: false, displayStr: "-" }
+  }
+
+  const trimmed = val.trim()
+  if (trimmed.toUpperCase() === "OFF") {
+    return { isNumeric: false, displayStr: "OFF" }
+  }
+
+  // Matches "720.00 L/h (1m 30s)" or "720 L/h" or "720.5"
+  const match = trimmed.match(/^([\d.]+)\s*(?:L\/h)?(?:\s*\((.+)\))?/i)
+  if (match && !isNaN(parseFloat(match[1]))) {
+    return {
+      isNumeric: true,
+      numValue: parseFloat(match[1]),
+      note: match[2] ? `Test Duration: ${match[2]}` : undefined,
+      displayStr: trimmed,
+    }
+  }
+
+  return { isNumeric: false, displayStr: trimmed }
+}
+
 export async function exportWellFlowrateToExcel(
   records: WellFlowratePdfRecord[],
   periodLabel: string = "All Time"
@@ -50,7 +86,7 @@ export async function exportWellFlowrateToExcel(
   // 2. Report Title (Row 2)
   ws.mergeCells("A2:J2")
   const r2 = ws.getCell("A2")
-  r2.value = "WELL FLOWRATE MONITORING REPORT"
+  r2.value = "WELL FLOWRATE MONITORING REPORT (18L CONTAINER FILLING METHOD)"
   r2.font = { name: "Calibri", size: 12, bold: true, color: { argb: BRAND_SKY } }
   r2.alignment = { vertical: "middle" }
   ws.getRow(2).height = 20
@@ -66,7 +102,7 @@ export async function exportWellFlowrateToExcel(
     minute: "2-digit",
     hour12: true,
   })
-  r3.value = `Filter Period: ${periodLabel}   •   Generated On: ${nowStr}   •   Total Records: ${records.length}   •   Scope: Internal Production & Utilities Record`
+  r3.value = `Filter Period: ${periodLabel}   •   Generated On: ${nowStr}   •   Total Records: ${records.length}   •   Formula: (18L ÷ Z sec) × 3,600 = L/h`
   r3.font = { name: "Calibri", size: 9, italic: true, color: { argb: MUTED } }
   r3.alignment = { vertical: "middle" }
   ws.getRow(3).height = 18
@@ -79,12 +115,12 @@ export async function exportWellFlowrateToExcel(
     "No.",
     "Date & Time",
     "PIC Name",
-    "Well 2",
-    "Well 3",
-    "Well 4",
-    "Well 7",
-    "Well 8",
-    "Well 12",
+    "Well 2 (L/h)",
+    "Well 3 (L/h)",
+    "Well 4 (L/h)",
+    "Well 7 (L/h)",
+    "Well 8 (L/h)",
+    "Well 12 (L/h)",
     "Remarks / Notes",
   ]
 
@@ -132,23 +168,37 @@ export async function exportWellFlowrateToExcel(
     row.getCell(3).value = record.picName
     row.getCell(3).alignment = { vertical: "middle", horizontal: "left" }
 
-    row.getCell(4).value = record.well2 || "-"
-    row.getCell(4).alignment = { vertical: "middle", horizontal: "center" }
+    // Wells: columns 4, 5, 6, 7, 8, 9
+    const wellValues = [
+      record.well2,
+      record.well3,
+      record.well4,
+      record.well7,
+      record.well8,
+      record.well12,
+    ]
 
-    row.getCell(5).value = record.well3 || "-"
-    row.getCell(5).alignment = { vertical: "middle", horizontal: "center" }
+    wellValues.forEach((val, idx) => {
+      const colNum = 4 + idx
+      const cell = row.getCell(colNum)
+      const parsed = parseWellValue(val)
 
-    row.getCell(6).value = record.well4 || "-"
-    row.getCell(6).alignment = { vertical: "middle", horizontal: "center" }
-
-    row.getCell(7).value = record.well7 || "-"
-    row.getCell(7).alignment = { vertical: "middle", horizontal: "center" }
-
-    row.getCell(8).value = record.well8 || "-"
-    row.getCell(8).alignment = { vertical: "middle", horizontal: "center" }
-
-    row.getCell(9).value = record.well12 || "-"
-    row.getCell(9).alignment = { vertical: "middle", horizontal: "center" }
+      if (parsed.isNumeric && parsed.numValue !== undefined) {
+        cell.value = parsed.numValue
+        cell.numFmt = '#,##0.00 "L/h"'
+        cell.alignment = { vertical: "middle", horizontal: "right" }
+        cell.font = { name: "Calibri", bold: true, color: { argb: "FF0369A1" } }
+        if (parsed.note) {
+          cell.note = parsed.note
+        }
+      } else {
+        cell.value = parsed.displayStr
+        cell.alignment = { vertical: "middle", horizontal: "center" }
+        if (parsed.displayStr === "OFF") {
+          cell.font = { name: "Calibri", bold: true, color: { argb: "FFE11D48" } }
+        }
+      }
+    })
 
     row.getCell(10).value = record.remarks || "-"
     row.getCell(10).alignment = { vertical: "middle", horizontal: "left" }
@@ -162,8 +212,40 @@ export async function exportWellFlowrateToExcel(
     currentRow++
   })
 
+  // 6. Summary / Average Row
+  if (records.length > 0) {
+    const totalRow = ws.getRow(currentRow)
+    totalRow.height = 22
+
+    ws.mergeCells(`A${currentRow}:C${currentRow}`)
+    const lbl = totalRow.getCell(1)
+    lbl.value = "AVERAGE OPERATING FLOWRATE"
+    lbl.font = { name: "Calibri", size: 9.5, bold: true, color: { argb: BRAND_DARK } }
+    lbl.alignment = { vertical: "middle", horizontal: "right" }
+
+    // Wells 2, 3, 4, 7, 8, 12 -> cols D to I (4 to 9)
+    const colLetters = ["D", "E", "F", "G", "H", "I"]
+    colLetters.forEach((letter, idx) => {
+      const cell = totalRow.getCell(4 + idx)
+      cell.value = {
+        formula: `AVERAGE(${letter}6:${letter}${currentRow - 1})`,
+      }
+      cell.numFmt = '#,##0.00 "L/h"'
+      cell.font = { bold: true, color: { argb: "FF0369A1" } }
+      cell.alignment = { vertical: "middle", horizontal: "right" }
+    })
+
+    totalRow.getCell(10).value = ""
+
+    for (let c = 1; c <= 10; c++) {
+      const cell = totalRow.getCell(c)
+      cell.border = totalBorders
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE2E8F0" } }
+    }
+  }
+
   // Auto-fit column widths
-  const baseWidths = [7, 22, 22, 16, 16, 16, 16, 16, 16, 35]
+  const baseWidths = [7, 22, 22, 18, 18, 18, 18, 18, 18, 35]
   baseWidths.forEach((w, idx) => {
     ws.getColumn(idx + 1).width = w
   })

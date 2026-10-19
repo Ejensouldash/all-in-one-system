@@ -1,8 +1,20 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useRef, useState, useMemo } from "react"
 import { submitWellFlowrate } from "./actions"
-import { Loader2, CheckCircle2, Droplets, User, Calendar, Clock, Gauge, FileText } from "lucide-react"
+import {
+  Loader2,
+  CheckCircle2,
+  Droplets,
+  User,
+  Calendar,
+  Gauge,
+  FileText,
+  Calculator,
+  Power,
+  Clock,
+  Sparkles,
+} from "lucide-react"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
 import { useMaintenanceFormElementDraft } from "../_components/useMaintenanceDraft"
 import { DraftBanner, SaveDraftButton } from "../_components/DraftControls"
@@ -11,21 +23,98 @@ interface WellFlowrateFormProps {
   userName: string
 }
 
+interface WellTimeState {
+  isOff: boolean
+  minutes: string
+  seconds: string
+}
+
+const INITIAL_WELL_STATE: WellTimeState = {
+  isOff: false,
+  minutes: "",
+  seconds: "",
+}
+
+const WELL_KEYS = [2, 3, 4, 7, 8, 12] as const
+
 export function WellFlowrateForm({ userName }: WellFlowrateFormProps) {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
   const [signature, setSignature] = useState<string | null>(null)
 
+  // State for each well
+  const [wellTimes, setWellTimes] = useState<Record<number, WellTimeState>>({
+    2: { ...INITIAL_WELL_STATE },
+    3: { ...INITIAL_WELL_STATE },
+    4: { ...INITIAL_WELL_STATE },
+    7: { ...INITIAL_WELL_STATE },
+    8: { ...INITIAL_WELL_STATE },
+    12: { ...INITIAL_WELL_STATE },
+  })
+
   const formRef = useRef<HTMLFormElement>(null)
   const draft = useMaintenanceFormElementDraft("well-flowrate", formRef)
 
-  // Current local datetime formatted for datetime-local input (YYYY-MM-DDTHH:mm)
   const getDefaultDateTime = () => {
     const now = new Date()
     const offset = now.getTimezoneOffset() * 60000
-    const localISOTime = new Date(now.getTime() - offset).toISOString().slice(0, 16)
-    return localISOTime
+    return new Date(now.getTime() - offset).toISOString().slice(0, 16)
+  }
+
+  // Helper to compute flowrate from time
+  const computeFlowrateInfo = (state: WellTimeState) => {
+    if (state.isOff) {
+      return {
+        formatted: "OFF",
+        totalSeconds: 0,
+        flowrateLh: null,
+      }
+    }
+
+    const m = parseInt(state.minutes || "0", 10) || 0
+    const s = parseInt(state.seconds || "0", 10) || 0
+    const totalSeconds = m * 60 + s
+
+    if (totalSeconds <= 0) {
+      return {
+        formatted: "",
+        totalSeconds: 0,
+        flowrateLh: null,
+      }
+    }
+
+    // Formula: (18 / Z) * 3600
+    const flowrate = (18 / totalSeconds) * 3600
+    const rounded = Math.round(flowrate * 100) / 100
+    const timeLabel = m > 0 ? `${m}m ${s}s` : `${s}s`
+
+    return {
+      formatted: `${rounded.toFixed(2)} L/h (${timeLabel})`,
+      totalSeconds,
+      flowrateLh: rounded,
+      timeLabel,
+    }
+  }
+
+  const handleWellChange = (wellNum: number, field: "minutes" | "seconds", value: string) => {
+    setWellTimes((prev) => ({
+      ...prev,
+      [wellNum]: {
+        ...prev[wellNum],
+        [field]: value,
+      },
+    }))
+  }
+
+  const toggleWellOff = (wellNum: number) => {
+    setWellTimes((prev) => ({
+      ...prev,
+      [wellNum]: {
+        ...prev[wellNum],
+        isOff: !prev[wellNum].isOff,
+      },
+    }))
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -41,12 +130,26 @@ export function WellFlowrateForm({ userName }: WellFlowrateFormProps) {
     const formData = new FormData(e.currentTarget)
     formData.append("performedSignature", signature)
 
+    // Append calculated well values into formData
+    WELL_KEYS.forEach((num) => {
+      const info = computeFlowrateInfo(wellTimes[num])
+      formData.set(`well${num}`, info.formatted)
+    })
+
     const res = await submitWellFlowrate(formData)
 
     if (res.success) {
       await draft.clearDraft()
       setSuccess(true)
       setSignature(null)
+      setWellTimes({
+        2: { ...INITIAL_WELL_STATE },
+        3: { ...INITIAL_WELL_STATE },
+        4: { ...INITIAL_WELL_STATE },
+        7: { ...INITIAL_WELL_STATE },
+        8: { ...INITIAL_WELL_STATE },
+        12: { ...INITIAL_WELL_STATE },
+      })
       ;(e.target as HTMLFormElement).reset()
       setTimeout(() => setSuccess(false), 5000)
     } else {
@@ -106,100 +209,157 @@ export function WellFlowrateForm({ userName }: WellFlowrateFormProps) {
         </div>
       </div>
 
-      {/* Well Flowrate Readings Section */}
+      {/* Well Flowrate Readings Section (With 18L Fill Formula) */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-          <h3 className="text-sm font-black uppercase tracking-wider text-sky-950 flex items-center">
-            <Gauge className="w-5 h-5 mr-2 text-sky-600" />
-            Well Flowrate Readings
-          </h3>
-          <span className="text-xs font-medium text-slate-500">Enter reading or status (e.g. 15.5 m³/h, OFF, RUNNING)</span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-3 gap-2">
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-wider text-sky-950 flex items-center">
+              <Gauge className="w-5 h-5 mr-2 text-sky-600" />
+              Well Flowrate Readings (18L Container Filling Test)
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Enter time taken to fill 18-liter container in Minutes &amp; Seconds. The system auto-calculates Liter/Hour (L/h).
+            </p>
+          </div>
+          <div className="bg-sky-50 border border-sky-200 rounded-xl px-3 py-1 text-[11px] font-bold text-sky-800 inline-flex items-center shrink-0">
+            <Calculator className="w-3.5 h-3.5 mr-1 text-sky-600" />
+            Formula: (18L ÷ Z sec) × 3,600 = L/h
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {/* Well 2 */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-sky-300 transition-all space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-black uppercase tracking-wider text-slate-700">Well 2</label>
-              <Droplets className="w-4 h-4 text-sky-500" />
-            </div>
-            <input
-              type="text"
-              name="well2"
-              placeholder="e.g. 12.5 m³/h or OFF"
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all font-semibold text-slate-800"
-            />
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {WELL_KEYS.map((num) => {
+            const state = wellTimes[num]
+            const info = computeFlowrateInfo(state)
 
-          {/* Well 3 */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-sky-300 transition-all space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-black uppercase tracking-wider text-slate-700">Well 3</label>
-              <Droplets className="w-4 h-4 text-sky-500" />
-            </div>
-            <input
-              type="text"
-              name="well3"
-              placeholder="e.g. 15.0 m³/h or OFF"
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all font-semibold text-slate-800"
-            />
-          </div>
+            return (
+              <div
+                key={num}
+                className={`p-5 rounded-2xl border transition-all space-y-3.5 ${
+                  state.isOff
+                    ? "bg-slate-100 border-slate-300 opacity-80"
+                    : "bg-white border-slate-200 shadow-sm hover:border-sky-300"
+                }`}
+              >
+                {/* Well Card Header */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Droplets
+                      className={`w-4 h-4 ${state.isOff ? "text-slate-400" : "text-sky-500"}`}
+                    />
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-800">
+                      Well {num}
+                    </label>
+                  </div>
 
-          {/* Well 4 */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-sky-300 transition-all space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-black uppercase tracking-wider text-slate-700">Well 4</label>
-              <Droplets className="w-4 h-4 text-sky-500" />
-            </div>
-            <input
-              type="text"
-              name="well4"
-              placeholder="e.g. 18.2 m³/h or OFF"
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all font-semibold text-slate-800"
-            />
-          </div>
+                  {/* Toggle OFF / Running Button */}
+                  <button
+                    type="button"
+                    onClick={() => toggleWellOff(num)}
+                    className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                      state.isOff
+                        ? "bg-rose-100 text-rose-700 border border-rose-200"
+                        : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                    }`}
+                    title={state.isOff ? "Click to Activate" : "Click to set OFF"}
+                  >
+                    <Power className="w-3 h-3 mr-1" />
+                    {state.isOff ? "OFF" : "Active"}
+                  </button>
+                </div>
 
-          {/* Well 7 */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-sky-300 transition-all space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-black uppercase tracking-wider text-slate-700">Well 7</label>
-              <Droplets className="w-4 h-4 text-sky-500" />
-            </div>
-            <input
-              type="text"
-              name="well7"
-              placeholder="e.g. 20.1 m³/h or OFF"
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all font-semibold text-slate-800"
-            />
-          </div>
+                {/* Inputs: Minutes & Seconds */}
+                {!state.isOff ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">
+                          Minutes
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0"
+                            max="59"
+                            placeholder="0"
+                            value={state.minutes}
+                            onChange={(e) => handleWellChange(num, "minutes", e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 outline-none font-bold text-slate-800 text-center"
+                          />
+                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">
+                            m
+                          </span>
+                        </div>
+                      </div>
 
-          {/* Well 8 */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-sky-300 transition-all space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-black uppercase tracking-wider text-slate-700">Well 8</label>
-              <Droplets className="w-4 h-4 text-sky-500" />
-            </div>
-            <input
-              type="text"
-              name="well8"
-              placeholder="e.g. 14.8 m³/h or OFF"
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all font-semibold text-slate-800"
-            />
-          </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">
+                          Seconds
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0"
+                            max="59"
+                            placeholder="0"
+                            value={state.seconds}
+                            onChange={(e) => handleWellChange(num, "seconds", e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 outline-none font-bold text-slate-800 text-center"
+                          />
+                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">
+                            s
+                          </span>
+                        </div>
+                      </div>
+                    </div>
 
-          {/* Well 12 */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-sky-300 transition-all space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-black uppercase tracking-wider text-slate-700">Well 12</label>
-              <Droplets className="w-4 h-4 text-sky-500" />
-            </div>
-            <input
-              type="text"
-              name="well12"
-              placeholder="e.g. 16.4 m³/h or OFF"
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all font-semibold text-slate-800"
-            />
-          </div>
+                    {/* Auto Computed Flowrate Badge */}
+                    <div
+                      className={`p-3 rounded-xl border transition-all ${
+                        info.flowrateLh !== null
+                          ? "bg-sky-50 border-sky-200 text-sky-950"
+                          : "bg-slate-50 border-slate-200 text-slate-500"
+                      }`}
+                    >
+                      {info.flowrateLh !== null ? (
+                        <div>
+                          <div className="flex items-center justify-between text-xs font-semibold mb-0.5">
+                            <span>Computed Flowrate:</span>
+                            <span className="text-[10px] text-sky-600 font-bold">
+                              Z = {info.totalSeconds}s
+                            </span>
+                          </div>
+                          <div className="text-xl font-black text-sky-700">
+                            {info.flowrateLh.toFixed(2)}{" "}
+                            <span className="text-xs font-bold">L/h</span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            (18 ÷ {info.totalSeconds}s) × 3,600
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center text-xs text-slate-400 py-1">
+                          <Clock className="w-3.5 h-3.5 mr-1.5" />
+                          <span>Fill minutes &amp; seconds</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  /* Well is OFF */
+                  <div className="p-4 bg-slate-200/60 rounded-xl text-center space-y-1">
+                    <p className="text-xs font-bold text-slate-600">PUMP IS OFF</p>
+                    <p className="text-[11px] text-slate-400">
+                      Well {num} is marked inactive / not extracting.
+                    </p>
+                  </div>
+                )}
+
+                {/* Hidden input to carry formatted value */}
+                <input type="hidden" name={`well${num}`} value={info.formatted} />
+              </div>
+            )
+          })}
         </div>
       </div>
 
@@ -212,7 +372,7 @@ export function WellFlowrateForm({ userName }: WellFlowrateFormProps) {
         <textarea
           name="remarks"
           rows={3}
-          placeholder="Enter any observations, maintenance notes, or pump operational status..."
+          placeholder="Enter any observations, pump maintenance status, pressure readings, or operational anomalies..."
           className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all font-medium text-slate-800"
         ></textarea>
       </div>
@@ -240,6 +400,14 @@ export function WellFlowrateForm({ userName }: WellFlowrateFormProps) {
             onClick={() => {
               formRef.current?.reset()
               setSignature(null)
+              setWellTimes({
+                2: { ...INITIAL_WELL_STATE },
+                3: { ...INITIAL_WELL_STATE },
+                4: { ...INITIAL_WELL_STATE },
+                7: { ...INITIAL_WELL_STATE },
+                8: { ...INITIAL_WELL_STATE },
+                12: { ...INITIAL_WELL_STATE },
+              })
               setError("")
             }}
             className="w-full sm:w-auto px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-100 transition-colors"
@@ -254,7 +422,7 @@ export function WellFlowrateForm({ userName }: WellFlowrateFormProps) {
             {loading ? (
               <>
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                Submitting...
+                Submitting Flowrate...
               </>
             ) : (
               "Submit Flowrate"

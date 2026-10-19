@@ -207,6 +207,14 @@ const productionForms = [
     href: "/forms/maintenance/well-flowrate",
     gradient: "from-sky-950 via-cyan-900 to-slate-900",
     accent: "bg-cyan-400"
+  },
+  {
+    title: "WATER QUALITY TESTING RO",
+    description: "RO Water Quality Testing Record (pH, Turbidity, Colour, Smell, Conductivity & UV)",
+    icon: <Droplets className="h-6 w-6 mr-3" />,
+    href: "/forms/maintenance/water-quality-ro",
+    gradient: "from-teal-950 via-cyan-900 to-slate-900",
+    accent: "bg-teal-400"
   }
 ]
 

@@ -1824,6 +1824,28 @@ model ProductionWellFlowrate {
   @@index([dateTime])
 }
 
+model ProductionWaterQualityRO {
+  id                 String   @id @default(uuid())
+  dateTime           DateTime
+  picName            String
+  ph                 String
+  turbidity          String   // "Yes" | "No"
+  colour             String   // "Clear" | "Not Clear"
+  smell              String   // "Okay" | "Not Okay"
+  condBefore         Float?
+  condAfter          Float?
+  condPerformance    Float?   // Computed %: ((Before - After) / Before) * 100
+  uvIntensity        String?
+  uvOperatingHours   String?
+  uvRunningDays      String?
+  remarks            String?
+  performedSignature String?  @db.Text
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([dateTime])
+}
+
 // ============================================================
 // Reminder Calendar (scheduled email reminders)
 // ============================================================

@@ -1,4 +1,7 @@
-import "server-only"
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require("server-only")
+} catch {}
 
 export const GEMINI_MODEL = "gemini-3.1-flash-lite"
 

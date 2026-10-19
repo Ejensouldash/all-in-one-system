@@ -380,6 +380,7 @@ export async function completePMOccurrence(
   })
   revalidatePath("/reminders")
   revalidatePath("/reminders/summary")
+  return { success: true }
 }
 
 export async function verifyPMOccurrence(id: string, signature: string) {

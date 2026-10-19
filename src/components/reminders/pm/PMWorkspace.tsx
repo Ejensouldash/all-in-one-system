@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   CalendarDays,
   List,
@@ -139,7 +139,7 @@ export function PMWorkspace() {
   const [completedChecklist, setCompletedChecklist] = useState<string[]>([])
   const [performedSignature, setPerformedSignature] = useState<string | null>(null)
   const [completionError, setCompletionError] = useState("")
-  const [submitting, startSubmitting] = useTransition()
+  const [submitting, setSubmitting] = useState(false)
 
   // SuperAdmin Simulation state
   const [isSimulating, setIsSimulating] = useState(false)
@@ -170,7 +170,7 @@ export function PMWorkspace() {
   })
   const [scheduleActivation, setScheduleActivation] = useState("")
   const [scheduleError, setScheduleError] = useState("")
-  const [savingSchedule, startSavingSchedule] = useTransition()
+  const [savingSchedule, setSavingSchedule] = useState(false)
 
   const flash = (b: Banner) => {
     setBanner(b)
@@ -250,9 +250,11 @@ export function PMWorkspace() {
 
   // Fetch PM Data
   const loadData = useCallback(
-    async (occurrenceId?: string) => {
+    async (occurrenceId?: string, showFullLoading = true) => {
       try {
-        setLoading(true)
+        if (showFullLoading) {
+          setLoading(true)
+        }
         const targetId =
           occurrenceId ||
           (typeof window !== "undefined"
@@ -276,7 +278,9 @@ export function PMWorkspace() {
       } catch (err) {
         flash({ kind: "err", text: sanitizeError(err) })
       } finally {
-        setLoading(false)
+        if (showFullLoading) {
+          setLoading(false)
+        }
       }
     },
     [fromDate, toDate]
@@ -353,7 +357,7 @@ export function PMWorkspace() {
       flash({ kind: "ok", text: "PIC successfully updated for this task." })
       setIsEditingTaskPic(false)
       setSelectedOccurrence((prev) => (prev ? { ...prev, picIds: taskPicIds } : null))
-      await loadData()
+      await loadData(undefined, false)
     } catch (err) {
       flash({ kind: "err", text: sanitizeError(err) })
     } finally {
@@ -382,7 +386,7 @@ export function PMWorkspace() {
           ? "Work instructions updated for this task and future occurrences."
           : "Work instructions updated for this task.",
       })
-      await loadData()
+      await loadData(undefined, false)
     } catch (err) {
       setWorkEditError(sanitizeError(err))
     } finally {
@@ -424,7 +428,7 @@ export function PMWorkspace() {
   }
 
   // Handle task completion submit
-  const handleComplete = () => {
+  const handleComplete = async () => {
     if (!selectedOccurrence) return
     setCompletionError("")
 
@@ -450,23 +454,50 @@ export function PMWorkspace() {
       return
     }
 
-    startSubmitting(async () => {
-      try {
-        await completePMOccurrence(
-          selectedOccurrence.id,
-          completionResult,
-          completionNotes,
-          completionDate,
-          performedSignature,
-          completedChecklist
-        )
-        flash({ kind: "ok", text: "Inspection successfully recorded." })
-        closeOccurrence()
-        await loadData()
-      } catch (err) {
-        setCompletionError(sanitizeError(err))
-      }
-    })
+    setSubmitting(true)
+    try {
+      await completePMOccurrence(
+        selectedOccurrence.id,
+        completionResult,
+        completionNotes,
+        completionDate,
+        performedSignature,
+        completedChecklist
+      )
+
+      // Optimistic in-memory update so task card immediately reflects completion
+      const completedAtDate = new Date()
+      setData((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          occurrences: prev.occurrences.map((o) => {
+            if (o.id === selectedOccurrence.id) {
+              return {
+                ...o,
+                result: completionResult,
+                notes: completionNotes.trim() || null,
+                inspectedDate: completionDate,
+                performedSignature,
+                completedChecklist: completedChecklist || [],
+                completedById: prev.userId,
+                completedAt: completedAtDate,
+              }
+            }
+            return o
+          }),
+        }
+      })
+
+      flash({ kind: "ok", text: "Inspection successfully recorded." })
+      closeOccurrence()
+      // Silent background sync - does not blank the screen with a full spinner
+      await loadData(undefined, false)
+    } catch (err) {
+      setCompletionError(sanitizeError(err))
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   // Handle Schedule Create / Edit
@@ -500,7 +531,7 @@ export function PMWorkspace() {
     setScheduleError("")
   }
 
-  const handleSaveSchedule = () => {
+  const handleSaveSchedule = async () => {
     setScheduleError("")
     const filteredChecklist = scheduleForm.checklist
       .map((c) => c.trim())
@@ -515,29 +546,30 @@ export function PMWorkspace() {
       return
     }
 
-    startSavingSchedule(async () => {
-      try {
-        await savePMSchedule(
-          scheduleModal.schedule?.id || null,
-          { ...scheduleForm, checklist: filteredChecklist },
-          scheduleActivation
-        )
-        flash({
-          kind: "ok",
-          text: scheduleModal.schedule
-            ? "Schedule successfully updated."
-            : "New schedule successfully created.",
-        })
-        setScheduleModal({ open: false, schedule: null })
-        await loadData()
-      } catch (err) {
-        setScheduleError(sanitizeError(err))
-      }
-    })
+    setSavingSchedule(true)
+    try {
+      await savePMSchedule(
+        scheduleModal.schedule?.id || null,
+        { ...scheduleForm, checklist: filteredChecklist },
+        scheduleActivation
+      )
+      flash({
+        kind: "ok",
+        text: scheduleModal.schedule
+          ? "Schedule successfully updated."
+          : "New schedule successfully created.",
+      })
+      setScheduleModal({ open: false, schedule: null })
+      await loadData(undefined, false)
+    } catch (err) {
+      setScheduleError(sanitizeError(err))
+    } finally {
+      setSavingSchedule(false)
+    }
   }
 
   // Handle Schedule Archive
-  const handleArchiveSchedule = (sched: PMSchedule) => {
+  const handleArchiveSchedule = async (sched: PMSchedule) => {
     if (
       !window.confirm(
         `Are you sure you want to archive schedule "${sched.equipment}"? Uncompleted future occurrences will be discontinued, but historical records will be preserved.`
@@ -546,19 +578,20 @@ export function PMWorkspace() {
       return
     }
 
-    startSavingSchedule(async () => {
-      try {
-        await archivePMSchedule(sched.id)
-        flash({ kind: "ok", text: `Schedule "${sched.equipment}" has been archived.` })
-        await loadData()
-      } catch (err) {
-        flash({ kind: "err", text: sanitizeError(err) })
-      }
-    })
+    setSavingSchedule(true)
+    try {
+      await archivePMSchedule(sched.id)
+      flash({ kind: "ok", text: `Schedule "${sched.equipment}" has been archived.` })
+      await loadData(undefined, false)
+    } catch (err) {
+      flash({ kind: "err", text: sanitizeError(err) })
+    } finally {
+      setSavingSchedule(false)
+    }
   }
 
   // Handle Schedule Unarchive / Restore
-  const handleUnarchiveSchedule = (sched: PMSchedule) => {
+  const handleUnarchiveSchedule = async (sched: PMSchedule) => {
     if (
       !window.confirm(
         `Are you sure you want to restore schedule "${sched.equipment}"? Future occurrences will be regenerated according to its frequency rule.`
@@ -567,15 +600,16 @@ export function PMWorkspace() {
       return
     }
 
-    startSavingSchedule(async () => {
-      try {
-        await unarchivePMSchedule(sched.id)
-        flash({ kind: "ok", text: `Schedule "${sched.equipment}" has been restored and reactivated.` })
-        await loadData()
-      } catch (err) {
-        flash({ kind: "err", text: sanitizeError(err) })
-      }
-    })
+    setSavingSchedule(true)
+    try {
+      await unarchivePMSchedule(sched.id)
+      flash({ kind: "ok", text: `Schedule "${sched.equipment}" has been restored and reactivated.` })
+      await loadData(undefined, false)
+    } catch (err) {
+      flash({ kind: "err", text: sanitizeError(err) })
+    } finally {
+      setSavingSchedule(false)
+    }
   }
 
   // Derived user map for fast lookup

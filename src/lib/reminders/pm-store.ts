@@ -10,14 +10,39 @@ export async function lockPM(tx: PMTransaction) {
 }
 export async function materializePM(tx: PMTransaction, through: string, scheduleIds?: string[]) {
   const schedules = await tx.reminderPMSchedule.findMany({ where: { archivedAt: null, ...(scheduleIds ? { id: { in: scheduleIds } } : {}) } })
+  const allOccurrences: {
+    scheduleId: string
+    dueDate: string
+    equipment: string
+    srs: string | null
+    checklist: string[]
+    picIds: string[]
+  }[] = []
+
   for (const schedule of schedules) {
     const from = schedule.generationFrom > schedule.activationDate ? schedule.generationFrom : schedule.activationDate
     if (from > through) continue
     const dates = datesBetween(schedule, from, through)
-    if (dates.length) await tx.reminderPMOccurrence.createMany({
-      data: dates.map(dueDate => ({ scheduleId: schedule.id, dueDate, equipment: schedule.equipment, srs: schedule.srs, checklist: schedule.checklist, picIds: schedule.picIds })),
-      skipDuplicates: true,
-    })
+    for (const dueDate of dates) {
+      allOccurrences.push({
+        scheduleId: schedule.id,
+        dueDate,
+        equipment: schedule.equipment,
+        srs: schedule.srs,
+        checklist: schedule.checklist,
+        picIds: schedule.picIds,
+      })
+    }
+  }
+
+  if (allOccurrences.length > 0) {
+    const CHUNK_SIZE = 500
+    for (let i = 0; i < allOccurrences.length; i += CHUNK_SIZE) {
+      await tx.reminderPMOccurrence.createMany({
+        data: allOccurrences.slice(i, i + CHUNK_SIZE),
+        skipDuplicates: true,
+      })
+    }
   }
 }
 export async function ensurePMThrough(through: string) {

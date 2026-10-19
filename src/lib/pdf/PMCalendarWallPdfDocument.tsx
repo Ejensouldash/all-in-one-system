@@ -206,6 +206,25 @@ const s = StyleSheet.create({
     lineHeight: 1.1,
   },
 
+  // Compact Dual-Column Grid for Busy Days (>4 tasks)
+  compactRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  compactTaskPill: {
+    width: "48.5%",
+    paddingVertical: 1,
+    paddingHorizontal: 2,
+    borderRadius: 2,
+    marginBottom: 1.5,
+  },
+  compactTaskText: {
+    fontSize: 4.6,
+    fontFamily: "Helvetica-Bold",
+    lineHeight: 1.05,
+  },
+
   pillDone: { backgroundColor: C.goodSoft },
   pillDoneText: { color: C.good },
   pillIssue: { backgroundColor: C.warnSoft },
@@ -255,25 +274,104 @@ const s = StyleSheet.create({
 
   signoffGroup: {
     flexDirection: "row",
-    gap: 24,
+    gap: 20,
   },
   signoffBox: {
-    width: 140,
+    width: 165,
   },
   signoffLine: {
-    borderBottomWidth: 1,
-    borderBottomColor: C.muted,
-    height: 14,
-    marginBottom: 2,
+    borderBottomWidth: 1.2,
+    borderBottomColor: C.ink,
+    height: 32,
+    marginBottom: 4,
   },
   signoffLabel: {
-    fontSize: 5.5,
-    color: C.muted,
+    fontSize: 6.5,
+    fontFamily: "Helvetica-Bold",
+    color: C.body,
     textAlign: "center",
+  },
+
+  // Daily Routine Reference Box in Footer
+  routineRefBox: {
+    flex: 1,
+    marginHorizontal: 10,
+    backgroundColor: "#f8fafc",
+    borderWidth: 0.8,
+    borderColor: "#cbd5e1",
+    borderRadius: 3,
+    paddingVertical: 2.5,
+    paddingHorizontal: 5,
+  },
+  routineRefTitle: {
+    fontSize: 5.5,
+    fontFamily: "Helvetica-Bold",
+    color: C.brand,
+    marginBottom: 1.5,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  routineRefGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  routineRefItem: {
+    width: "49%",
+    marginBottom: 1,
+  },
+  routineRefZone: {
+    fontSize: 5,
+    fontFamily: "Helvetica-Bold",
+    color: C.ink,
+  },
+  routineRefText: {
+    fontSize: 4.6,
+    color: C.body,
+    lineHeight: 1.1,
   },
 })
 
 const WEEKDAYS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
+
+function getPillStyles(status: string) {
+  if (status === "DONE") return { pill: s.pillDone, text: s.pillDoneText }
+  if (status === "ISSUE") return { pill: s.pillIssue, text: s.pillIssueText }
+  if (status === "OVERDUE") return { pill: s.pillOverdue, text: s.pillOverdueText }
+  if (status === "TODAY") return { pill: s.pillToday, text: s.pillTodayText }
+  return { pill: s.pillUpcoming, text: s.pillUpcomingText }
+}
+
+function processDayTasks(tasks: PMCalendarWallTask[]) {
+  const routines = tasks.filter((t) => /daily routine/i.test(t.equipment))
+  const periodic = tasks.filter((t) => !/daily routine/i.test(t.equipment))
+
+  let groupedRoutine: { label: string; status: PMCalendarWallTask["status"] } | null = null
+  if (routines.length >= 2) {
+    const zones = Array.from(
+      new Set(
+        routines.map((t) => {
+          const match = t.equipment.match(/zone\s*([a-z0-9]+)/i)
+          return match ? match[1].toUpperCase() : t.equipment.replace(/daily routine/i, "").trim()
+        })
+      )
+    ).filter(Boolean)
+
+    let status: PMCalendarWallTask["status"] = "UPCOMING"
+    if (routines.some((r) => r.status === "OVERDUE")) status = "OVERDUE"
+    else if (routines.some((r) => r.status === "ISSUE")) status = "ISSUE"
+    else if (routines.every((r) => r.status === "DONE")) status = "DONE"
+    else if (routines.some((r) => r.status === "TODAY")) status = "TODAY"
+
+    groupedRoutine = {
+      label: `${routines.length}x Daily Routines (${zones.length ? `Zones ${zones.join(", ")}` : "All Zones"})`,
+      status,
+    }
+    return { groupedRoutine, items: periodic }
+  }
+
+  return { groupedRoutine: null, items: tasks }
+}
 
 export function PMCalendarWallPdfDocument(props: PMCalendarWallPayload) {
   const { logo, year, monthName, days, generatedAt } = props
@@ -356,46 +454,54 @@ export function PMCalendarWallPdfDocument(props: PMCalendarWallPayload) {
                       )}
                     </View>
 
-                    {/* Task Pills */}
-                    {day.tasks.slice(0, 4).map((task, tIdx) => {
-                      const isDone = task.status === "DONE"
-                      const isIssue = task.status === "ISSUE"
-                      const isOverdue = task.status === "OVERDUE"
-                      const isToday = task.status === "TODAY"
-
-                      let pillStyle = s.pillUpcoming
-                      let textStyle = s.pillUpcomingText
-
-                      if (isDone) {
-                        pillStyle = s.pillDone
-                        textStyle = s.pillDoneText
-                      } else if (isIssue) {
-                        pillStyle = s.pillIssue
-                        textStyle = s.pillIssueText
-                      } else if (isOverdue) {
-                        pillStyle = s.pillOverdue
-                        textStyle = s.pillOverdueText
-                      } else if (isToday) {
-                        pillStyle = s.pillToday
-                        textStyle = s.pillTodayText
-                      }
+                    {(() => {
+                      const { groupedRoutine, items } = processDayTasks(day.tasks)
+                      const totalCount = (groupedRoutine ? 1 : 0) + items.length
+                      const isBusy = totalCount > 4
 
                       return (
-                        <View key={task.id || tIdx} style={[s.taskPill, pillStyle]}>
-                          <Text style={[s.taskText, textStyle]}>
-                            {task.equipment.length > 20
-                              ? task.equipment.slice(0, 19) + "…"
-                              : task.equipment}
-                          </Text>
-                        </View>
-                      )
-                    })}
+                        <>
+                          {groupedRoutine && (
+                            <View style={[s.taskPill, getPillStyles(groupedRoutine.status).pill, { marginBottom: 1.5 }]}>
+                              <Text style={[s.taskText, getPillStyles(groupedRoutine.status).text, { fontSize: isBusy ? 4.8 : 5.5 }]}>
+                                {groupedRoutine.label}
+                              </Text>
+                            </View>
+                          )}
 
-                    {day.tasks.length > 4 && (
-                      <Text style={{ fontSize: 5, color: C.muted, fontStyle: "italic" }}>
-                        +{day.tasks.length - 4} more tasks
-                      </Text>
-                    )}
+                          {isBusy ? (
+                            <View style={s.compactRow}>
+                              {items.slice(0, 12).map((task, tIdx) => {
+                                const styles = getPillStyles(task.status)
+                                return (
+                                  <View key={task.id || tIdx} style={[s.compactTaskPill, styles.pill]}>
+                                    <Text style={[s.compactTaskText, styles.text]}>
+                                      {task.equipment.length > 18 ? task.equipment.slice(0, 17) + "…" : task.equipment}
+                                    </Text>
+                                  </View>
+                                )
+                              })}
+                              {items.length > 12 && (
+                                <Text style={{ width: "100%", fontSize: 4.5, color: C.muted, fontStyle: "italic", textAlign: "right" }}>
+                                  +{items.length - 12} more
+                                </Text>
+                              )}
+                            </View>
+                          ) : (
+                            items.map((task, tIdx) => {
+                              const styles = getPillStyles(task.status)
+                              return (
+                                <View key={task.id || tIdx} style={[s.taskPill, styles.pill]}>
+                                  <Text style={[s.taskText, styles.text]}>
+                                    {task.equipment.length > 22 ? task.equipment.slice(0, 21) + "…" : task.equipment}
+                                  </Text>
+                                </View>
+                              )
+                            })
+                          )}
+                        </>
+                      )
+                    })()}
                   </View>
                 )
               })}
@@ -426,6 +532,29 @@ export function PMCalendarWallPdfDocument(props: PMCalendarWallPayload) {
             </View>
           </View>
 
+          {/* Daily Routine Reference Box */}
+          <View style={s.routineRefBox}>
+            <Text style={s.routineRefTitle}>Daily Routine Work Scope Reference (Mon – Sat):</Text>
+            <View style={s.routineRefGrid}>
+              <View style={s.routineRefItem}>
+                <Text style={s.routineRefZone}>• Zone A (Well & Raw Tank):</Text>
+                <Text style={s.routineRefText}>Crystal Ball & Sand Filter Backwash</Text>
+              </View>
+              <View style={s.routineRefItem}>
+                <Text style={s.routineRefZone}>• Zone B (Water Filtration):</Text>
+                <Text style={s.routineRefText}>Sand, Carbon, Hollow Membrane Backwash & UV Check</Text>
+              </View>
+              <View style={s.routineRefItem}>
+                <Text style={s.routineRefZone}>• Zone D (RO System):</Text>
+                <Text style={s.routineRefText}>PP RO Filter Change, Backwash & Conductivity Check</Text>
+              </View>
+              <View style={s.routineRefItem}>
+                <Text style={s.routineRefZone}>• Zone E (Bottling Line):</Text>
+                <Text style={s.routineRefText}>Autoscrambler, Rail Blower Clean & Filter Drain</Text>
+              </View>
+            </View>
+          </View>
+
           {/* Plant Sign-offs */}
           <View style={s.signoffGroup}>
             <View style={s.signoffBox}>
@@ -434,7 +563,7 @@ export function PMCalendarWallPdfDocument(props: PMCalendarWallPayload) {
             </View>
             <View style={s.signoffBox}>
               <View style={s.signoffLine} />
-              <Text style={s.signoffLabel}>Verified & Approved By: Plant QA Manager</Text>
+              <Text style={s.signoffLabel}>Verified & Approved By: Production Manager</Text>
             </View>
           </View>
         </View>

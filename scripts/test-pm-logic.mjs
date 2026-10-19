@@ -44,7 +44,7 @@ test("2-week recurrence generates 2026-01-03 => 2026-01-17 => 2026-01-31", () =>
 
 // 2. Monthly recurrence
 test("Monthly recurrence generates exact calendar months", () => {
-  const rule = { startDate: "2026-01-15", ...frequencyRule("monthly") }
+  const rule = { startDate: "2026-01-15", ...frequencyRule("calendar-monthly") }
   assert.equal(occurrenceDate(rule, 0), "2026-01-15")
   assert.equal(occurrenceDate(rule, 1), "2026-02-15")
   assert.equal(occurrenceDate(rule, 2), "2026-03-15")
@@ -53,7 +53,7 @@ test("Monthly recurrence generates exact calendar months", () => {
 
 // 3. Month-end clamping
 test("Month-end clamping clamps to last day without drifting across months", () => {
-  const rule = { startDate: "2026-01-31", ...frequencyRule("monthly") }
+  const rule = { startDate: "2026-01-31", ...frequencyRule("calendar-monthly") }
   assert.equal(occurrenceDate(rule, 0), "2026-01-31") // Jan has 31
   assert.equal(occurrenceDate(rule, 1), "2026-02-28") // Feb 2026 has 28
   assert.equal(occurrenceDate(rule, 2), "2026-03-31") // Mar has 31
@@ -68,17 +68,17 @@ test("2, 3, 6, and 12 month interval calculations", () => {
   assert.equal(occurrenceDate(r2, 1), "2026-03-08")
   assert.equal(occurrenceDate(r2, 2), "2026-05-08")
 
-  const r3 = { startDate: "2026-02-21", ...frequencyRule("3 months") }
+  const r3 = { startDate: "2026-02-21", ...frequencyRule("calendar-3 months") }
   assert.equal(occurrenceDate(r3, 0), "2026-02-21")
   assert.equal(occurrenceDate(r3, 1), "2026-05-21")
   assert.equal(occurrenceDate(r3, 2), "2026-08-21")
 
-  const r6 = { startDate: "2026-02-14", ...frequencyRule("6 months") }
+  const r6 = { startDate: "2026-02-14", ...frequencyRule("calendar-6 months") }
   assert.equal(occurrenceDate(r6, 0), "2026-02-14")
   assert.equal(occurrenceDate(r6, 1), "2026-08-14")
   assert.equal(occurrenceDate(r6, 2), "2027-02-14")
 
-  const r12 = { startDate: "2026-06-16", ...frequencyRule("yearly") }
+  const r12 = { startDate: "2026-06-16", ...frequencyRule("calendar-yearly") }
   assert.equal(occurrenceDate(r12, 0), "2026-06-16")
   assert.equal(occurrenceDate(r12, 1), "2027-06-16")
 })

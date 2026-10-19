@@ -45,6 +45,24 @@ function canAssignPMPic(access: { isSuperAdmin: boolean; role?: string; unitName
   )
 }
 
+function canEditPMWork(access: { isSuperAdmin: boolean; role?: string; unitName?: string | null; modules: string[] }) {
+  return (
+    access.isSuperAdmin ||
+    access.modules.includes("REMINDERS_EDIT_WORK") ||
+    ["SUPERADMIN", "ADMIN"].includes(access.role?.toUpperCase() || "") ||
+    access.unitName === "Information Technology"
+  )
+}
+
+function canEditPMFrequency(access: { isSuperAdmin: boolean; role?: string; unitName?: string | null; modules: string[] }) {
+  return (
+    access.isSuperAdmin ||
+    access.modules.includes("REMINDERS_EDIT_FREQUENCY") ||
+    ["SUPERADMIN", "ADMIN"].includes(access.role?.toUpperCase() || "") ||
+    access.unitName === "Information Technology"
+  )
+}
+
 export async function getPMData(from: string, to: string, occurrenceId?: string) {
   const access = await accessPM()
   const today = mytDate()
@@ -70,6 +88,8 @@ export async function getPMData(from: string, to: string, occurrenceId?: string)
     userId: access.userId,
     isSuperAdmin: access.isSuperAdmin,
     canAssignPic: canAssignPMPic(access),
+    canEditWork: canEditPMWork(access),
+    canEditFrequency: canEditPMFrequency(access),
     schedules,
     occurrences,
     users: await usersPM(),
@@ -203,10 +223,69 @@ export async function savePMSchedule(id: string | null, raw: PMInput, activation
       if (!access.isSuperAdmin && schedule.createdById !== access.userId && !canAssignPMPic(access)) {
         throw new Error("Only the creator, Superadmin, or authorized officers can modify schedules.")
       }
+      const freqChanged = schedule.intervalUnit !== input.intervalUnit || schedule.intervalCount !== input.intervalCount
+      if (freqChanged && !canEditPMFrequency(access)) {
+        throw new Error("Permission denied: 'Manage PMC Frequency' module is required to change schedule frequency.")
+      }
+      const checklistChanged = JSON.stringify(schedule.checklist) !== JSON.stringify(input.checklist)
+      if (checklistChanged && !canEditPMWork(access)) {
+        throw new Error("Permission denied: 'Edit PMC Work Instructions' module is required to change work checklist items.")
+      }
       await replaceFuture(tx, id, input, today)
-    } else await tx.reminderPMSchedule.create({ data: { ...input, activationDate, generationFrom: activationDate, createdById: access.userId } })
+    } else {
+      await tx.reminderPMSchedule.create({ data: { ...input, activationDate, generationFrom: activationDate, createdById: access.userId } })
+    }
   }, { timeout: 30000 })
   revalidatePath("/reminders")
+}
+
+export async function updatePMOccurrenceWork(
+  occurrenceId: string,
+  checklist: string[],
+  propagateToFuture = false
+) {
+  const access = await accessPM()
+  if (!canEditPMWork(access)) {
+    throw new Error("Permission denied: 'Edit PMC Work Instructions' module is required to modify work instructions.")
+  }
+
+  const cleanedChecklist = checklist.map(t => t.trim()).filter(Boolean)
+  if (!cleanedChecklist.length || cleanedChecklist.length > 30) {
+    throw new Error("Enter 1–30 valid work instructions.")
+  }
+
+  const today = mytDate()
+  await prisma.$transaction(async tx => {
+    await lockPM(tx)
+    const occ = await tx.reminderPMOccurrence.findUniqueOrThrow({
+      where: { id: occurrenceId },
+      include: { schedule: true },
+    })
+
+    await tx.reminderPMOccurrence.update({
+      where: { id: occurrenceId },
+      data: { checklist: cleanedChecklist },
+    })
+
+    if (propagateToFuture) {
+      await tx.reminderPMSchedule.update({
+        where: { id: occ.scheduleId },
+        data: { checklist: cleanedChecklist },
+      })
+      await tx.reminderPMOccurrence.updateMany({
+        where: {
+          scheduleId: occ.scheduleId,
+          dueDate: { gte: occ.dueDate > today ? occ.dueDate : today },
+          completedAt: null,
+          id: { not: occurrenceId },
+        },
+        data: { checklist: cleanedChecklist },
+      })
+    }
+  }, { timeout: 30000 })
+
+  revalidatePath("/reminders")
+  return { success: true }
 }
 
 export async function archivePMSchedule(id: string) {
@@ -222,6 +301,29 @@ export async function archivePMSchedule(id: string) {
     await tx.reminderPMSchedule.update({ where: { id }, data: { archivedAt: new Date() } })
   }, { timeout: 30000 })
   revalidatePath("/reminders")
+}
+
+export async function unarchivePMSchedule(id: string) {
+  const access = await accessPM()
+  await prisma.$transaction(async tx => {
+    await lockPM(tx)
+    const schedule = await tx.reminderPMSchedule.findUniqueOrThrow({ where: { id } })
+    if (!access.isSuperAdmin && schedule.createdById !== access.userId && !canAssignPMPic(access)) {
+      throw new Error("Permission denied to restore schedule.")
+    }
+    const today = mytDate()
+    const generationFrom = schedule.activationDate > today ? schedule.activationDate : today
+    await tx.reminderPMSchedule.update({
+      where: { id },
+      data: {
+        archivedAt: null,
+        generationFrom,
+      },
+    })
+    await materializePM(tx, addDays(today, 365), [id])
+  }, { timeout: 30000 })
+  revalidatePath("/reminders")
+  return { success: true }
 }
 
 function canVerifyPM(access: { isSuperAdmin: boolean; role: string; unitName: string | null }) {

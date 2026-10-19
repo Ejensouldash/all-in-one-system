@@ -13,6 +13,51 @@ export function addDays(date: string, days: number) { return new Date(Date.parse
 export const VALID_DAY_INTERVALS = [1, 7, 14, 28, 42, 84, 168, 336]
 export const VALID_MONTH_INTERVALS = [1, 2, 3, 6, 12]
 
+export const STANDARD_WEEK_INTERVALS = [
+  { weeks: 1, days: 7, label: "1 Week" },
+  { weeks: 2, days: 14, label: "2 Weeks" },
+  { weeks: 4, days: 28, label: "4 Weeks (~1 Month)" },
+  { weeks: 6, days: 42, label: "6 Weeks (~350 Operating Hours)" },
+  { weeks: 12, days: 84, label: "12 Weeks (~3 Months)" },
+  { weeks: 24, days: 168, label: "24 Weeks (~6 Months)" },
+  { weeks: 48, days: 336, label: "48 Weeks (~1 Year)" },
+] as const
+
+export function convertDurationToWeeks(amount: number, unit: "DAY" | "WEEK" | "MONTH"): {
+  weeks: number
+  days: number
+  intervalUnit: string
+  intervalCount: number
+  label: string
+} {
+  let targetDays = 7
+  if (unit === "DAY") {
+    targetDays = Math.max(1, amount)
+  } else if (unit === "WEEK") {
+    targetDays = Math.max(1, amount) * 7
+  } else if (unit === "MONTH") {
+    targetDays = Math.max(1, amount) * 28
+  }
+
+  let closest: (typeof STANDARD_WEEK_INTERVALS)[number] = STANDARD_WEEK_INTERVALS[0]
+  let minDiff = Math.abs(targetDays - closest.days)
+  for (const item of STANDARD_WEEK_INTERVALS) {
+    const diff = Math.abs(targetDays - item.days)
+    if (diff < minDiff) {
+      minDiff = diff
+      closest = item
+    }
+  }
+
+  return {
+    weeks: closest.weeks,
+    days: closest.days,
+    intervalUnit: "DAY",
+    intervalCount: closest.days,
+    label: closest.label,
+  }
+}
+
 export function frequencyRule(raw: string) {
   const key = raw.trim().toLowerCase()
   if (key === "daily" || key === "daily (mon - sat)" || key === "daily until clear" || key === "mon-sat" || key === "harian") {

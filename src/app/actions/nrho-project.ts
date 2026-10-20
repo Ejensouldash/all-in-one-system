@@ -103,6 +103,14 @@ export async function getNrhoProjectById(id: string) {
         auditLogs: {
           orderBy: { createdAt: "desc" },
         },
+        uatSessions: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            items: {
+              orderBy: { orderIndex: "asc" },
+            },
+          },
+        },
       },
     })
 
@@ -906,5 +914,220 @@ export async function getAllNrhoApprovalsOverview() {
     return { success: true, data: projects }
   } catch (err: any) {
     return { success: false, error: err.message || "Failed to fetch approvals." }
+  }
+}
+
+
+/**
+ * Fetch or initialize UAT data for a project
+ */
+export async function getNrhoUatData(projectId: string) {
+  try {
+    let uat = await prisma.nrhoProjectUat.findFirst({
+      where: { projectId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        items: {
+          orderBy: { orderIndex: "asc" },
+        },
+      },
+    })
+
+    if (!uat) {
+      // Find project details to provide intelligent defaults
+      const project = await prisma.nrhoProject.findUnique({
+        where: { id: projectId },
+        include: { bqItems: { orderBy: { orderIndex: "asc" } } },
+      })
+
+      if (!project) {
+        return { success: false, error: "Project not found." }
+      }
+
+      // Auto-create initial UAT session pre-populated from BQ items
+      uat = await prisma.nrhoProjectUat.create({
+        data: {
+          projectId,
+          testerName: project.projectManager || "",
+          testerLocation: project.siteLocation || "",
+          testerAddress: project.siteLocation || "",
+          startDate: project.startDate,
+          endDate: project.targetCompletionDate,
+          overallResult: "PENDING",
+          items: {
+            create: project.bqItems.map((bq, idx) => ({
+              bqItemId: bq.id,
+              itemDescription: bq.description,
+              installationStatus: "COMPLETED",
+              testResult: "PASS",
+              issues: "",
+              orderIndex: idx,
+            })),
+          },
+        },
+        include: {
+          items: {
+            orderBy: { orderIndex: "asc" },
+          },
+        },
+      })
+    }
+
+    return { success: true, data: uat }
+  } catch (err: any) {
+    console.error("getNrhoUatData error:", err)
+    return { success: false, error: err.message || "Failed to fetch UAT data." }
+  }
+}
+
+/**
+ * Sync BQ line items into UAT checklist
+ */
+export async function syncUatItemsFromBq(projectId: string) {
+  try {
+    const project = await prisma.nrhoProject.findUnique({
+      where: { id: projectId },
+      include: {
+        bqItems: { orderBy: { orderIndex: "asc" } },
+        uatSessions: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          include: { items: true },
+        },
+      },
+    })
+
+    if (!project) return { success: false, error: "Project not found." }
+
+    let uat = project.uatSessions[0]
+    if (!uat) {
+      const initRes = await getNrhoUatData(projectId)
+      return initRes
+    }
+
+    const existingDescriptions = new Set(uat.items.map((it: any) => it.itemDescription.trim().toLowerCase()))
+    const itemsToAdd = project.bqItems.filter(
+      (bq: any) => !existingDescriptions.has(bq.description.trim().toLowerCase())
+    )
+
+    if (itemsToAdd.length > 0) {
+      let nextOrder = uat.items.length
+      for (const bq of itemsToAdd) {
+        await prisma.nrhoProjectUatItem.create({
+          data: {
+            uatId: uat.id,
+            bqItemId: bq.id,
+            itemDescription: bq.description,
+            installationStatus: "COMPLETED",
+            testResult: "PASS",
+            issues: "",
+            orderIndex: nextOrder++,
+          },
+        })
+      }
+    }
+
+    const updated = await prisma.nrhoProjectUat.findUnique({
+      where: { id: uat.id },
+      include: { items: { orderBy: { orderIndex: "asc" } } },
+    })
+
+    revalidatePath(`/nrho-project/${projectId}`)
+    return { success: true, data: updated, addedCount: itemsToAdd.length }
+  } catch (err: any) {
+    console.error("syncUatItemsFromBq error:", err)
+    return { success: false, error: err.message || "Failed to sync items from BQ." }
+  }
+}
+
+/**
+ * Save UAT data including header fields and checklist items
+ */
+export async function saveNrhoUatData(
+  projectId: string,
+  payload: {
+    uatId?: string
+    testerName?: string
+    testerPhone?: string
+    testerLocation?: string
+    testerAddress?: string
+    startDate?: string | null
+    endDate?: string | null
+    overallResult?: string
+    notes?: string
+    testedBySign?: string
+    testedByDate?: string | null
+    approvedBySign?: string
+    approvedByDate?: string | null
+    items: Array<{
+      id?: string
+      itemDescription: string
+      installationStatus: string
+      testResult: string
+      issues?: string
+    }>
+  }
+) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: "Unauthorized." }
+
+    let uatId = payload.uatId
+    if (!uatId) {
+      const existing = await prisma.nrhoProjectUat.findFirst({
+        where: { projectId },
+        orderBy: { createdAt: "desc" },
+      })
+      if (existing) {
+        uatId = existing.id
+      } else {
+        const created = await prisma.nrhoProjectUat.create({
+          data: { projectId },
+        })
+        uatId = created.id
+      }
+    }
+
+    await prisma.nrhoProjectUat.update({
+      where: { id: uatId },
+      data: {
+        testerName: payload.testerName ?? undefined,
+        testerPhone: payload.testerPhone ?? undefined,
+        testerLocation: payload.testerLocation ?? undefined,
+        testerAddress: payload.testerAddress ?? undefined,
+        startDate: payload.startDate ? new Date(payload.startDate) : undefined,
+        endDate: payload.endDate ? new Date(payload.endDate) : undefined,
+        overallResult: payload.overallResult || "PENDING",
+        notes: payload.notes ?? undefined,
+        testedBySign: payload.testedBySign ?? undefined,
+        testedByDate: payload.testedByDate ? new Date(payload.testedByDate) : undefined,
+        approvedBySign: payload.approvedBySign ?? undefined,
+        approvedByDate: payload.approvedByDate ? new Date(payload.approvedByDate) : undefined,
+      },
+    })
+
+    // Delete existing and re-insert items in order
+    await prisma.nrhoProjectUatItem.deleteMany({
+      where: { uatId },
+    })
+
+    if (payload.items && payload.items.length > 0) {
+      await prisma.nrhoProjectUatItem.createMany({
+        data: payload.items.map((it, idx) => ({
+          uatId: uatId!,
+          itemDescription: it.itemDescription.trim() || `Item ${idx + 1}`,
+          installationStatus: it.installationStatus || "COMPLETED",
+          testResult: it.testResult || "PASS",
+          issues: it.issues?.trim() || null,
+          orderIndex: idx,
+        })),
+      })
+    }
+
+    revalidatePath(`/nrho-project/${projectId}`)
+    return { success: true }
+  } catch (err: any) {
+    console.error("saveNrhoUatData error:", err)
+    return { success: false, error: err.message || "Failed to save UAT data." }
   }
 }

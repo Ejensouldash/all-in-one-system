@@ -8,36 +8,26 @@ import {
   Calendar, 
   MapPin, 
   User, 
-  Clock, 
   FileSpreadsheet, 
-  Crown, 
   KanbanSquare, 
-  DollarSign, 
   Layers, 
-  CheckCircle2, 
-  AlertCircle, 
-  History, 
   Sparkles,
-  ShieldCheck,
-  Building,
-  TrendingUp,
-  FileCheck2,
-  ChevronRight,
-  ExternalLink
+  ClipboardCheck,
+  FileText
 } from "lucide-react"
 
 import { ProjectBqTab } from "./ProjectBqTab"
-import { ProjectApprovalTab } from "./ProjectApprovalTab"
 import { ProjectTimelineTab } from "./ProjectTimelineTab"
-import { ProjectFinancialTab } from "./ProjectFinancialTab"
 import { ProjectBlueprintsTab } from "./ProjectBlueprintsTab"
+import { ProjectUatTab } from "./ProjectUatTab"
+import { ProjectFullReportTab } from "./ProjectFullReportTab"
 
 interface ProjectDetailsClientProps {
   project: any
   initialTab?: string
 }
 
-type TabType = "timeline" | "bq" | "approval" | "financial" | "blueprints" | "audit"
+type TabType = "timeline" | "bq" | "uat" | "blueprints" | "full-report"
 
 const STATUS_BADGES: Record<string, { label: string; bg: string; text: string; border: string }> = {
   DRAFT: {
@@ -47,7 +37,7 @@ const STATUS_BADGES: Record<string, { label: string; bg: string; text: string; b
     border: "border-amber-200",
   },
   PENDING_APPROVAL: {
-    label: "PENDING BOSS APPROVAL",
+    label: "PENDING APPROVAL",
     bg: "bg-blue-50",
     text: "text-blue-800",
     border: "border-blue-200",
@@ -86,7 +76,7 @@ const STATUS_BADGES: Record<string, { label: string; bg: string; text: string; b
 
 export function ProjectDetailsClient({ project, initialTab }: ProjectDetailsClientProps) {
   const [activeTab, setActiveTab] = useState<TabType>(
-    (initialTab && ["timeline", "bq", "approval", "financial", "blueprints", "audit"].includes(initialTab)
+    (initialTab && ["timeline", "bq", "uat", "blueprints", "full-report"].includes(initialTab)
       ? (initialTab as TabType)
       : "timeline")
   )
@@ -103,6 +93,7 @@ export function ProjectDetailsClient({ project, initialTab }: ProjectDetailsClie
   }
 
   const isApproved = ["APPROVED", "IN_PROGRESS", "COMPLETED"].includes(project.status)
+  const latestUat = project.uatSessions?.[0]
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-16">
@@ -181,7 +172,7 @@ export function ProjectDetailsClient({ project, initialTab }: ProjectDetailsClie
             </div>
           </div>
 
-          {/* Right Highlights: Progress & Quick Financial */}
+          {/* Right Highlights: Progress & BQ Estimate */}
           <div className="flex flex-col sm:flex-row lg:flex-col gap-3 min-w-[260px]">
             {/* Task Progress Bar */}
             <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 shadow-sm">
@@ -207,16 +198,18 @@ export function ProjectDetailsClient({ project, initialTab }: ProjectDetailsClie
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 block">
                   BQ Estimate (Ceiling)
                 </span>
-                <span className="text-sm font-black text-slate-900 font-mono">
+                <span className="text-base font-black text-slate-900 font-mono">
                   RM {(project.totalBqAmount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                 </span>
               </div>
               <div className="text-right">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 block">
-                  PO Committed
+                  UAT Status
                 </span>
-                <span className="text-xs font-bold text-purple-700 font-mono">
-                  RM {(project.totalPoAmount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                <span className={`text-xs font-bold font-mono ${
+                  latestUat?.overallResult === "PASSED" ? "text-emerald-700" : "text-amber-600"
+                }`}>
+                  {latestUat?.overallResult || "PENDING"}
                 </span>
               </div>
             </div>
@@ -257,32 +250,17 @@ export function ProjectDetailsClient({ project, initialTab }: ProjectDetailsClie
         </button>
 
         <button
-          onClick={() => setActiveTab("approval")}
+          onClick={() => setActiveTab("uat")}
           className={`flex items-center gap-2 px-4 py-3 text-xs border-b-2 whitespace-nowrap transition-all ${
-            activeTab === "approval"
-              ? "border-amber-600 text-amber-700 bg-amber-50/80 rounded-t-xl font-bold"
-              : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 font-medium"
-          }`}
-        >
-          <Crown className="w-4 h-4" />
-          <span>3. Boss Presentation &amp; Approval</span>
-          {project.status === "PENDING_APPROVAL" && (
-            <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-          )}
-        </button>
-
-        <button
-          onClick={() => setActiveTab("financial")}
-          className={`flex items-center gap-2 px-4 py-3 text-xs border-b-2 whitespace-nowrap transition-all ${
-            activeTab === "financial"
+            activeTab === "uat"
               ? "border-purple-600 text-purple-700 bg-purple-50/80 rounded-t-xl font-bold"
               : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 font-medium"
           }`}
         >
-          <DollarSign className="w-4 h-4" />
-          <span>4. Procurement &amp; Financial (PO / DO / Invoices)</span>
+          <ClipboardCheck className="w-4 h-4" />
+          <span>3. User Acceptance Test (UAT)</span>
           <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-700 border border-slate-200 font-mono">
-            {(project.purchaseOrders?.length || 0) + (project.deliveryOrders?.length || 0) + (project.invoices?.length || 0)}
+            {latestUat?.items?.length || project.bqItems?.length || 0}
           </span>
         </button>
 
@@ -295,25 +273,25 @@ export function ProjectDetailsClient({ project, initialTab }: ProjectDetailsClie
           }`}
         >
           <Layers className="w-4 h-4" />
-          <span>5. Floor Plans &amp; Blueprints</span>
+          <span>4. Floor Plans &amp; Blueprints</span>
           <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-700 border border-slate-200 font-mono">
             {project.blueprints?.length || 0}
           </span>
         </button>
 
         <button
-          onClick={() => setActiveTab("audit")}
+          onClick={() => setActiveTab("full-report")}
           className={`flex items-center gap-2 px-4 py-3 text-xs border-b-2 whitespace-nowrap transition-all ${
-            activeTab === "audit"
-              ? "border-slate-600 text-slate-900 bg-slate-100 rounded-t-xl font-bold"
+            activeTab === "full-report"
+              ? "border-indigo-600 text-indigo-700 bg-indigo-50/80 rounded-t-xl font-bold"
               : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 font-medium"
           }`}
         >
-          <History className="w-4 h-4" />
-          <span>Audit Trail &amp; History Logs</span>
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-700 border border-slate-200 font-mono">
-            {project.auditLogs?.length || 0}
-          </span>
+          <Sparkles className="w-4 h-4 text-indigo-600" />
+          <span>5. Full Project Report (AI)</span>
+          {project.aiSummary && (
+            <span className="w-2 h-2 rounded-full bg-indigo-500" />
+          )}
         </button>
       </div>
 
@@ -334,14 +312,8 @@ export function ProjectDetailsClient({ project, initialTab }: ProjectDetailsClie
           />
         )}
 
-        {activeTab === "approval" && (
-          <ProjectApprovalTab 
-            project={project} 
-          />
-        )}
-
-        {activeTab === "financial" && (
-          <ProjectFinancialTab 
+        {activeTab === "uat" && (
+          <ProjectUatTab 
             projectId={project.id} 
             project={project} 
           />
@@ -354,59 +326,11 @@ export function ProjectDetailsClient({ project, initialTab }: ProjectDetailsClie
           />
         )}
 
-        {activeTab === "audit" && (
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <History className="w-4 h-4 text-blue-600" />
-                  Audit Trail &amp; Transaction Logs
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Immutable record of approvals, BQ modifications, task rescheduling reasons, and financial entries.
-                </p>
-              </div>
-              <span className="text-xs text-slate-500 font-mono font-medium">
-                {project.auditLogs?.length || 0} Actions Logged
-              </span>
-            </div>
-
-            {(!project.auditLogs || project.auditLogs.length === 0) ? (
-              <div className="p-8 text-center text-slate-500 text-xs">
-                No activity has been logged for this project yet.
-              </div>
-            ) : (
-              <div className="relative pl-6 border-l border-slate-200 space-y-5 my-4">
-                {project.auditLogs.map((log: any) => (
-                  <div key={log.id} className="relative group">
-                    <div className="absolute -left-[31px] top-1 w-3 h-3 rounded-full bg-white border-2 border-blue-600 group-hover:bg-blue-600 transition-colors" />
-                    <div className="text-xs">
-                      <div className="flex items-center gap-2 text-slate-800 font-semibold mb-1">
-                        <span className="font-mono text-blue-700 uppercase tracking-wider text-[11px] font-bold">
-                          {log.action}
-                        </span>
-                        <span className="text-slate-300">•</span>
-                        <span className="text-slate-700">{log.actorName}</span>
-                        <span className="text-slate-300">•</span>
-                        <span className="text-slate-500 text-[11px] font-normal">
-                          {new Date(log.createdAt).toLocaleString("en-US", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit"
-                          })}
-                        </span>
-                      </div>
-                      <p className="text-slate-700 text-xs bg-slate-50 p-3 rounded-xl border border-slate-200 leading-relaxed">
-                        {log.details || "-"}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        {activeTab === "full-report" && (
+          <ProjectFullReportTab 
+            projectId={project.id} 
+            project={project} 
+          />
         )}
       </div>
     </div>

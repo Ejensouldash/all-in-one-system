@@ -9,13 +9,19 @@ import remarkGfm from "remark-gfm"
 
 type AvatarState = "idle" | "thinking" | "excited"
 
-export function Chatbot() {
+export function Chatbot({ hasProductionAccess = false }: { hasProductionAccess?: boolean }) {
   const [isOpen, setIsOpen] = useState(false)
   const [avatarState, setAvatarState] = useState<AvatarState>("idle")
   const [input, setInput] = useState("")
   const [isPending, setIsPending] = useState(false)
-  const [messages, setMessages] = useState<{role: "user" | "bot", text: string, time: string}[]>([
-    { role: "bot", text: "Hi! I'm **Aria**, your BubblesO2 IT Support Assistant. Ada apa-apa masalah IT yang saya boleh bantu hari ini? 👩‍💻✨", time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) }
+  const [messages, setMessages] = useState<{ role: "user" | "bot"; text: string; time: string }[]>([
+    {
+      role: "bot",
+      text: hasProductionAccess
+        ? "Hi! I'm **Aria**, pembantu BubblesO2 IT & Production. Saya boleh tolong selesaikan isu IT atau semak **storeroom balance**, rekod **transfer-in**, dan **daily production reports**. Ada apa yang saya boleh bantu? 🏭✨"
+        : "Hi! I'm **Aria**, your BubblesO2 IT Support Assistant. Ada apa-apa masalah IT yang saya boleh bantu hari ini? 👩‍💻✨",
+      time: new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
+    },
   ])
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -80,7 +86,14 @@ export function Chatbot() {
     }
   }
 
-  const quickActions = [
+  const quickActions = hasProductionAccess
+  ? [
+    "Berapa baki botol dalam storeroom?",
+    "Berapa banyak barang transfer-in masuk hari ini?",
+    "Ringkasan laporan production semalam",
+    "Laptop saya slow / Masalah IT lain",
+  ]
+: [
     "Laptop saya slow",
     "Tak boleh print",
     "WiFi problem",
@@ -121,9 +134,13 @@ export function Chatbot() {
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
                 </span>
               </div>
-              <p className="text-[10px] text-indigo-300 font-medium tracking-wider uppercase">
-                {isPending ? "Typing..." : "BubblesO2 IT Support · Online"}
-              </p>
+                <p className="text-[10px] text-indigo-300 font-medium tracking-wider uppercase">
+                  {isPending
+                  ? "Typing..."
+                  : hasProductionAccess
+                  ? "BubblesO2 IT & Production · Online"
+                  : "BubblesO2 IT Support · Online"}
+                </p>
             </div>
 
             <button 

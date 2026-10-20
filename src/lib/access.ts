@@ -157,3 +157,12 @@ export function canAccessMarketingInventory(access: AccessInfo | null): boolean 
   if (!access) return false
   return access.isSuperAdmin || access.modules.includes("MARKETING_INVENTORY")
 }
+
+export const CHATBOT_PRODUCTION_MODULE = "CHATBOT_PRODUCTION" 
+
+export function canAccessProductionChatbot(access: AccessInfo | null): boolean {
+  if (!access) return false
+  return access.isSuperAdmin || access.modules.includes(CHATBOT_PRODUCTION_MODULE)
+}
+
+

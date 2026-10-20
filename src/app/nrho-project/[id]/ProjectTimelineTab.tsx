@@ -21,7 +21,8 @@ import {
   Layers, 
   X,
   Sparkles,
-  CalendarDays
+  CalendarDays,
+  FileDown,
 } from "lucide-react"
 
 const DELAY_PRESETS = [
@@ -168,16 +169,28 @@ export function ProjectTimelineTab({
           </div>
         </div>
 
-        <button
-          onClick={() => {
-            setNewTaskWeek(1)
-            setShowAddTaskModal(true)
-          }}
-          className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm flex items-center gap-2 transition-all active:scale-95 shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Weekly Task</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <a
+            href={`/api/nrho-project/${projectId}/pdf?type=timeline`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm flex items-center gap-2 transition-all active:scale-95"
+          >
+            <FileDown className="w-4 h-4" />
+            <span>Export Timeline PDF</span>
+          </a>
+
+          <button
+            onClick={() => {
+              setNewTaskWeek(1)
+              setShowAddTaskModal(true)
+            }}
+            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm flex items-center gap-2 transition-all active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Weekly Task</span>
+          </button>
+        </div>
       </div>
 
       {/* Notification Toast */}

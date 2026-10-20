@@ -5,6 +5,7 @@ import {
   generateNrhoProjectAiSummary,
   updateNrhoProjectAiSummary,
 } from "@/app/actions/nrho-ai"
+import { AriaMarkdown } from "@/components/chat/AriaMarkdown"
 import {
   Sparkles,
   FileDown,
@@ -248,22 +249,9 @@ export function ProjectFullReportTab({ projectId, project }: ProjectFullReportTa
             className="w-full bg-slate-50 border border-slate-300 rounded-xl p-4 text-xs font-mono text-slate-900 leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           />
         ) : (
-          <div className="prose prose-slate max-w-none text-xs sm:text-sm leading-relaxed text-slate-700 space-y-4 bg-slate-50/70 p-5 rounded-xl border border-slate-200">
+          <div className="max-w-none text-xs sm:text-[13px] leading-relaxed text-slate-700 bg-slate-50/70 p-5 rounded-xl border border-slate-200">
             {aiSummary ? (
-              aiSummary.split("\n\n").map((para, i) => {
-                if (para.startsWith("### ")) {
-                  return (
-                    <h5 key={i} className="text-sm font-bold text-slate-900 mt-4 mb-1">
-                      {para.replace("### ", "")}
-                    </h5>
-                  )
-                }
-                return (
-                  <p key={i} className="text-slate-700 text-xs leading-relaxed">
-                    {para}
-                  </p>
-                )
-              })
+              <AriaMarkdown>{aiSummary}</AriaMarkdown>
             ) : (
               <div className="text-center py-10 space-y-3">
                 <Sparkles className="w-8 h-8 text-indigo-400 mx-auto" />

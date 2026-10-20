@@ -320,7 +320,8 @@ export function NrhoTimelineDocument({ logoSource, project }: NrhoTimelineDocume
     4,
     ...project.tasks.map((t) => Math.max(t.plannedWeek || 1, t.currentWeek || 1))
   )
-  const weeks = Array.from({ length: Math.min(maxWeek, 8) }, (_, i) => i + 1)
+  // 12 columns still fit "100%"/"DONE" cells on A4 portrait; beyond that tasks would drop off the chart
+  const weeks = Array.from({ length: Math.min(maxWeek, 12) }, (_, i) => i + 1)
 
   return (
     <Document>

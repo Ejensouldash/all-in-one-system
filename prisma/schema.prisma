@@ -2838,6 +2838,9 @@ model NrhoProject {
   deliveryOrders       NrhoProjectDO[]
   invoices             NrhoProjectInvoice[]
   auditLogs            NrhoProjectAuditLog[]
+  uatSessions          NrhoProjectUat[]
+  aiSummary            String?           @db.Text
+  aiGeneratedAt        DateTime?
 
   @@index([status])
   @@index([projectCode])
@@ -2968,4 +2971,44 @@ model NrhoProjectAuditLog {
   createdAt DateTime    @default(now())
 
   @@index([projectId])
+}
+
+model NrhoProjectUat {
+  id              String               @id @default(uuid())
+  projectId       String
+  project         NrhoProject          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  testerName      String?
+  testerPhone     String?
+  testerLocation  String?
+  testerAddress   String?
+  startDate       DateTime?
+  endDate         DateTime?
+  overallResult   String               @default("PENDING") // PENDING, PASSED, FAILED
+  notes           String?              @db.Text
+  testedBySign    String?
+  testedByDate    DateTime?
+  approvedBySign  String?
+  approvedByDate  DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  items           NrhoProjectUatItem[]
+
+  @@index([projectId])
+}
+
+model NrhoProjectUatItem {
+  id                 String          @id @default(uuid())
+  uatId              String
+  uat                NrhoProjectUat  @relation(fields: [uatId], references: [id], onDelete: Cascade)
+  bqItemId           String?
+  itemDescription    String          @db.Text
+  installationStatus String          @default("COMPLETED") // COMPLETED, IN_PROGRESS, PENDING
+  testResult         String          @default("PASS")      // PASS, FAIL, PENDING, NA
+  issues             String?         @db.Text
+  orderIndex         Int             @default(0)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@index([uatId])
 }

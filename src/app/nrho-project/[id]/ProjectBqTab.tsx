@@ -12,7 +12,10 @@ import {
   DollarSign, 
   FileSpreadsheet,
   Calculator,
-  Lock
+  Lock,
+  FileDown,
+  Printer,
+  FileText
 } from "lucide-react"
 
 const CATEGORIES = [
@@ -70,6 +73,7 @@ export function ProjectBqTab({
   )
 
   const [isSaving, setIsSaving] = useState(false)
+  const [hidePricing, setHidePricing] = useState(false)
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
   const totalAmount = items.reduce((sum, item) => sum + (item.amount || 0), 0)
@@ -194,14 +198,50 @@ export function ProjectBqTab({
             </span>
           </div>
 
-          <button
-            onClick={handleSaveBq}
-            disabled={isSaving}
-            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm flex items-center gap-2 transition-all active:scale-95"
-          >
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            <span>Save BQ Changes</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <a
+              href={`/api/nrho-project/${projectId}/pdf?type=quotation`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm flex items-center gap-1.5 transition-all active:scale-95"
+              title="Download formal client quotation with validity terms"
+            >
+              <FileText className="w-4 h-4" />
+              <span>Generate Quotation PDF</span>
+            </a>
+
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl">
+              <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={hidePricing}
+                  onChange={(e) => setHidePricing(e.target.checked)}
+                  className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                <span className="text-[11px] font-medium">Unpriced (Tender)</span>
+              </label>
+
+              <a
+                href={`/api/nrho-project/${projectId}/pdf?type=bq${hidePricing ? "&hidePricing=true" : ""}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-sm flex items-center gap-1.5 transition-all active:scale-95"
+                title="Download Bill of Quantities schedule"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Generate BQ PDF</span>
+              </a>
+            </div>
+
+            <button
+              onClick={handleSaveBq}
+              disabled={isSaving}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm flex items-center gap-2 transition-all active:scale-95"
+            >
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              <span>Save BQ Changes</span>
+            </button>
+          </div>
         </div>
       </div>
 

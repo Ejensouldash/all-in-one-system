@@ -13,6 +13,7 @@ import {
   formatRM,
   BUBBLESO2_COMPANY_PROFILE,
 } from "./nrho-pdf-utils"
+import { PdfMarkdown } from "./pdf-markdown"
 
 const styles = StyleSheet.create({
   page: {
@@ -346,14 +347,7 @@ export function NrhoFullReportDocument({ logoSource, project }: NrhoFullReportDo
         <Text style={styles.sectionTitle}>1. Executive Appraisal &amp; Performance Synthesis</Text>
         <View style={styles.aiContainer}>
           {project.aiSummary ? (
-            project.aiSummary
-              .split("\n\n")
-              .filter((p) => p.trim().length > 0)
-              .map((p, idx) => (
-                <Text key={idx} style={styles.aiParagraph}>
-                  {p.replace(/###?\s*/g, "")}
-                </Text>
-              ))
+            <PdfMarkdown markdown={project.aiSummary} />
           ) : (
             <Text style={[styles.aiParagraph, { color: nrhoPalette.muted, fontStyle: "italic" }]}>
               No AI executive summary generated yet. Please trigger 'Generate / Refresh AI Summary' in the report tab to populate automated executive synthesis.

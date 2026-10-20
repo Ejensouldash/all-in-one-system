@@ -26,6 +26,8 @@ export async function MainLayout({ children }: { children: React.ReactNode }) {
     trueRole: access?.role || (session.user as any).trueRole
   }
 
+  const hasProductionAccess = access?.isSuperAdmin || access?.modules.includes("CHATBOT_PRODUCTION")
+
   return (
     <>
       {isViewOnly && (
@@ -39,7 +41,7 @@ export async function MainLayout({ children }: { children: React.ReactNode }) {
         notices={activeNotices.length > 0 ? <NoticeBanner notices={activeNotices} /> : null}
         modals={
           <>
-            <Chatbot />
+            <Chatbot hasProductionAccess={Boolean(hasProductionAccess)}/>
             <FloatingTicketModal />
           </>
         }

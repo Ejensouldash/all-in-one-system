@@ -12,9 +12,7 @@ import {
   Workflow, Factory, Building2, ShieldCheck,
   LayoutDashboard, FileSpreadsheet, BellRing,
   ShoppingCart, FileSearch, FileCheck, FilePenLine, Trash2, UserCheck, BookmarkCheck,
-  Briefcase, Headphones,
-  HardHat, Layers, Crown,
-  ChevronDown,
+  Briefcase, Headphones, HardHat, Layers, Crown, ChevronDown, Bot,
   type LucideIcon,
 } from "lucide-react"
 
@@ -104,6 +102,7 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "DAILY_REPORT_EDIT_APPROVED", name: "Edit Approved Daily Report", description: "Allows editing production daily reports even after they have been approved.", icon: FileSpreadsheet },
       { id: "KBP", name: "KBP — Batch QR", description: "Generate and print batch QR stickers for the Pedas bottle & cap machines.", icon: QrCode },
       { id: "DATABASE_MANAGER", name: "Production Database", description: "Manage raw database records for production.", icon: Database },
+      { id: "CHATBOT_PRODUCTION", name: "Chatbot - Production (Aria)", description: "Access to the production chatbot functionality.", icon: Bot, }
     ],
   },
   {

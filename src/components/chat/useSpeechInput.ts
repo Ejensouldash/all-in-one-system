@@ -61,15 +61,19 @@ export function useSpeechInput(onText: (text: string) => void) {
       const transcript = Array.from(event.results).map(result => result[0]?.transcript ?? "").join("")
       onTextRef.current(prefix + transcript)
     }
+    // Chrome on Android doesn't always fire onend after an error (e.g. a
+    // blocked mic), which left the button stuck on "listening". Reset here too.
+    const finish = () => {
+      if (recognitionRef.current === recognition) recognitionRef.current = null
+      setListening(false)
+    }
     recognition.onerror = event => {
       if (event.error !== "no-speech" && event.error !== "aborted") {
         setError(ERROR_MESSAGES[event.error] || "Pengecaman suara gagal. Cuba lagi.")
       }
+      finish()
     }
-    recognition.onend = () => {
-      recognitionRef.current = null
-      setListening(false)
-    }
+    recognition.onend = finish
 
     recognitionRef.current = recognition
     setError(null)

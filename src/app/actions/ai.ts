@@ -4,6 +4,7 @@ import { auth } from "@/auth"
 import { GoogleGenerativeAI, SchemaType, type Tool } from "@google/generative-ai"
 import { GEMINI_MODEL, geminiUserMessage, runGeminiRequest } from "@/lib/ai/gemini"
 import { getAccessInfo, canAccessProductionChatbot } from "@/lib/access"
+import { prisma } from "@/lib/prisma"
 import {
   getStoreroomStock,
   getTransferInDeliveries,
@@ -79,13 +80,48 @@ const PRODUCTION_TOOLS: Tool[] = [
   },
 ]
 
-export async function chatWithAria(history: { role: string, text: string }[]) {
-  const formattedHistory = history.map(msg => ({
+// Older turns are dropped before calling Gemini so a long reopened chat
+// doesn't keep growing the prompt.
+const MAX_CONTEXT_MESSAGES = 20
+
+// Saves one question + reply into the user's chat history and returns the
+// session id. A sessionId that isn't the user's own starts a new session.
+async function saveAriaExchange(
+  userId: string,
+  sessionId: string | null | undefined,
+  question: string,
+  reply: string,
+  askedAt: Date,
+) {
+  const existing = sessionId
+    ? await prisma.ariaChatSession.findFirst({ where: { id: sessionId, userId }, select: { id: true } })
+    : null
+
+  const session = existing
+    ? await prisma.ariaChatSession.update({ where: { id: existing.id }, data: { updatedAt: new Date() }, select: { id: true } })
+    : await prisma.ariaChatSession.create({
+        data: { userId, title: question.replace(/\s+/g, " ").trim().slice(0, 60) || "Chat baru" },
+        select: { id: true },
+      })
+
+  await prisma.ariaChatMessage.createMany({
+    data: [
+      { sessionId: session.id, role: "user", text: question, createdAt: askedAt },
+      { sessionId: session.id, role: "bot", text: reply },
+    ],
+  })
+
+  return session.id
+}
+
+export async function chatWithAria(history: { role: string, text: string }[], sessionId?: string | null) {
+  const askedAt = new Date()
+  const formattedHistory = history.slice(-MAX_CONTEXT_MESSAGES).map(msg => ({
     role: msg.role === "user" ? ("user" as const) : ("assistant" as const),
     content: msg.text,
   }))
 
-  if (formattedHistory.length > 0 && formattedHistory[0].role === "assistant") {
+  while (formattedHistory.length > 0 && formattedHistory[0].role === "assistant") {
     formattedHistory.shift()
   }
 
@@ -177,7 +213,19 @@ If the user asks about production, storeroom balances, or transfer-in deliveries
       text = "Maaf, Aria tidak dapat menghasilkan respons yang lengkap. Sila cuba lagi."
     }
 
-    return { success: true, text }
+    // Chat history is part of the production chatbot module. A failed save
+    // must not lose the reply the user is waiting for.
+    let savedSessionId: string | null = null
+    if (hasProductionAccess && access && lastMessage) {
+      try {
+        savedSessionId = await saveAriaExchange(access.userId, sessionId, lastMessage.parts[0].text, text, askedAt)
+      } catch (error) {
+        console.error("Aria Chat History Save Error:", error)
+        savedSessionId = sessionId ?? null
+      }
+    }
+
+    return { success: true, text, sessionId: savedSessionId }
   } catch (error: unknown) {
     console.error("Aria Chat Error Details:", error)
     return {

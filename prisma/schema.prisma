@@ -45,6 +45,7 @@ model User {
   unit                   Unit?                   @relation(fields: [unitId], references: [id])
   openingStocks          WarehouseOpeningStock[] @relation("OpeningStockSetter")
   auditLogs              AuditLog[]
+  ariaChatSessions       AriaChatSession[]
   assetAssignments       AssetAssignment[]
   createdReminders       Reminder[]              @relation("ReminderCreator")
   reminderTargets        ReminderRecipient[]     @relation("ReminderTargetUser")
@@ -3011,4 +3012,33 @@ model NrhoProjectUatItem {
   updatedAt          DateTime        @updatedAt
 
   @@index([uatId])
+}
+
+// ---------------------------------------------------------------------------------------------
+// ARIA CHATBOT HISTORY
+// Saved only for users with the CHATBOT_PRODUCTION module (or superadmin). Each user sees their
+// own sessions only.
+// ---------------------------------------------------------------------------------------------
+
+model AriaChatSession {
+  id        String            @id @default(uuid())
+  userId    String
+  title     String
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  AriaChatMessage[]
+
+  @@index([userId, updatedAt])
+}
+
+model AriaChatMessage {
+  id        String          @id @default(uuid())
+  sessionId String
+  role      String // "user" | "bot"
+  text      String          @db.Text
+  createdAt DateTime        @default(now())
+  session   AriaChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
 }

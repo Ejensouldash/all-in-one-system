@@ -1,8 +1,8 @@
 "use server"
 
 import { auth } from "@/auth"
-import { GoogleGenerativeAI, SchemaType, type Tool } from "@google/generative-ai"
-import { GEMINI_MODEL, geminiUserMessage, runGeminiRequest } from "@/lib/ai/gemini"
+import { GoogleGenerativeAI, SchemaType, type Content, type Tool } from "@google/generative-ai"
+import { ARIA_FALLBACK_MODEL, ARIA_MODEL, GEMINI_MODEL, geminiUserMessage, runGeminiRequest } from "@/lib/ai/gemini"
 import { getAccessInfo, canAccessProductionChatbot } from "@/lib/access"
 import { prisma } from "@/lib/prisma"
 import {
@@ -118,6 +118,83 @@ async function saveAriaExchange(
   return session.id
 }
 
+// One full Aria turn on a given model: send the question, then answer
+// Gemini's tool calls (up to 5 rounds) until it replies with text. `call`
+// wraps every Gemini request so the caller decides whether to retry.
+async function runAriaConversation({
+  apiKey,
+  model,
+  systemInstruction,
+  hasProductionAccess,
+  history,
+  question,
+  timeoutMs,
+  call,
+}: {
+  apiKey: string
+  model: string
+  systemInstruction: string
+  hasProductionAccess: boolean
+  history: Content[]
+  question: string
+  timeoutMs: number
+  call: <T>(request: () => Promise<T>) => Promise<T>
+}) {
+  const generativeModel = new GoogleGenerativeAI(apiKey).getGenerativeModel(
+    { model, systemInstruction, ...(hasProductionAccess ? { tools: PRODUCTION_TOOLS } : {}) },
+    { timeout: timeoutMs },
+  )
+
+  // The conversation is built by hand instead of with startChat(): the SDK's
+  // ChatSession keeps a reference to (and mutates) the history array, which
+  // leaked a half-finished tool exchange into the fallback run, and it sends
+  // tool results with role "function", which newer models reject. Tool
+  // results go back with role "user" here.
+  const contents: Content[] = [...history, { role: "user", parts: [{ text: question }] }]
+  let response = (await call(() => generativeModel.generateContent({ contents }))).response
+
+  // Gemini can request several calls in one turn (e.g. one per day) and
+  // expects an answer to every one of them; answering only the first leaves
+  // it re-asking until the loop runs out and the reply comes back empty.
+  let functionCalls = response.functionCalls()
+  let toolTurns = 0
+
+  while (hasProductionAccess && functionCalls && functionCalls.length > 0 && toolTurns < 5) {
+    toolTurns++
+    // Keep the model's own turn verbatim (it carries the thought signatures
+    // newer models require alongside their function calls).
+    const modelTurn = response.candidates?.[0]?.content
+    if (modelTurn) contents.push(modelTurn)
+
+    const toolResponses = await Promise.all(functionCalls.map(async functionCall => {
+      let toolData: Record<string, unknown> = {}
+      const args = (functionCall.args || {}) as Record<string, string | undefined>
+      if (functionCall.name === "getStoreroomStock") {
+        toolData = await getStoreroomStock(args)
+      } else if (functionCall.name === "getTransferInDeliveries") {
+        toolData = await getTransferInDeliveries(args)
+      } else if (functionCall.name === "getDailyProductionSummary") {
+        toolData = await getDailyProductionSummary(args)
+      } else {
+        toolData = { error: `Unknown tool: ${functionCall.name}` }
+      }
+      return { functionResponse: { name: functionCall.name, response: toolData } }
+    }))
+
+    contents.push({ role: "user", parts: toolResponses })
+    response = (await call(() => generativeModel.generateContent({ contents }))).response
+    functionCalls = response.functionCalls()
+  }
+
+  let text = ""
+  try {
+    text = response.text().trim()
+  } catch {
+    text = ""
+  }
+  return { text, toolTurns }
+}
+
 export async function chatWithAria(history: { role: string, text: string }[], sessionId?: string | null) {
   const askedAt = new Date()
   const formattedHistory = history.slice(-MAX_CONTEXT_MESSAGES).map(msg => ({
@@ -157,72 +234,44 @@ When the user asks questions such as "how much bottles are in the storeroom", "h
 If the user asks about production, storeroom balances, or transfer-in deliveries, politely explain that they do not currently have access to the 'Chatbot - Production' module, and encourage them to contact their system administrator to enable the toggle.`
   }
 
+  const geminiHistory: Content[] = formattedHistory.map(message => ({
+    role: message.role === "assistant" ? "model" : "user",
+    parts: [{ text: message.content }],
+  }))
+  const lastMessage = geminiHistory.pop()
+  const question = lastMessage?.parts[0].text || ""
+  const conversation = { apiKey, systemInstruction, hasProductionAccess, history: geminiHistory, question }
+
   try {
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({
-      model: GEMINI_MODEL,
-      systemInstruction,
-      ...(hasProductionAccess ? { tools: PRODUCTION_TOOLS } : {}),
-    })
-
-    const geminiHistory = formattedHistory.map(message => ({
-      role: message.role === "assistant" ? "model" : "user",
-      parts: [{ text: message.content }],
-    }))
-    const lastMessage = geminiHistory.pop()
-
-    const chat = model.startChat({
-      history: geminiHistory,
-    })
-
-    let result = await runGeminiRequest(() => chat.sendMessage(lastMessage?.parts[0].text || ""))
-    let response = result.response
-
-    // Handle tool execution loop (up to 5 turns). Gemini can request several
-    // calls in one turn (e.g. one per day) and expects an answer to every one
-    // of them; answering only the first leaves it re-asking until the loop
-    // runs out and the reply comes back empty.
-    let functionCalls = response.functionCalls()
-    let loopCount = 0
-
-    while (hasProductionAccess && functionCalls && functionCalls.length > 0 && loopCount < 5) {
-      loopCount++
-      const toolResponses = await Promise.all(functionCalls.map(async call => {
-        let toolData: Record<string, unknown> = {}
-        const args = (call.args || {}) as Record<string, string | undefined>
-        if (call.name === "getStoreroomStock") {
-          toolData = await getStoreroomStock(args)
-        } else if (call.name === "getTransferInDeliveries") {
-          toolData = await getTransferInDeliveries(args)
-        } else if (call.name === "getDailyProductionSummary") {
-          toolData = await getDailyProductionSummary(args)
-        } else {
-          toolData = { error: `Unknown tool: ${call.name}` }
-        }
-        return { functionResponse: { name: call.name, response: toolData } }
-      }))
-
-      result = await runGeminiRequest(() => chat.sendMessage(toolResponses))
-      response = result.response
-      functionCalls = response.functionCalls()
-    }
-
-    let text = ""
+    // Primary model gets one quick attempt; any failure (503 overload,
+    // timeout, quota) goes straight to the fallback model, which keeps the
+    // usual retries. Retrying the primary first is what used to stretch a
+    // single reply to 1–2 minutes.
+    const startedAt = Date.now()
+    let model = ARIA_MODEL
+    let reply: { text: string, toolTurns: number }
     try {
-      text = response.text().trim()
-    } catch {
-      text = ""
+      reply = await runAriaConversation({ ...conversation, model, timeoutMs: 20_000, call: request => request() })
+    } catch (primaryError) {
+      console.warn(`Aria primary model ${ARIA_MODEL} failed, using ${ARIA_FALLBACK_MODEL}:`, primaryError)
+      model = ARIA_FALLBACK_MODEL
+      reply = await runAriaConversation({
+        ...conversation,
+        model,
+        timeoutMs: 25_000,
+        call: request => runGeminiRequest(request, undefined, ARIA_FALLBACK_MODEL),
+      })
     }
-    if (!text) {
-      text = "Maaf, Aria tidak dapat menghasilkan respons yang lengkap. Sila cuba lagi."
-    }
+    console.info("Aria reply", { ms: Date.now() - startedAt, model, toolTurns: reply.toolTurns })
+
+    const text = reply.text || "Maaf, Aria tidak dapat menghasilkan respons yang lengkap. Sila cuba lagi."
 
     // Chat history is part of the production chatbot module. A failed save
     // must not lose the reply the user is waiting for.
     let savedSessionId: string | null = null
     if (hasProductionAccess && access && lastMessage) {
       try {
-        savedSessionId = await saveAriaExchange(access.userId, sessionId, lastMessage.parts[0].text, text, askedAt)
+        savedSessionId = await saveAriaExchange(access.userId, sessionId, question, text, askedAt)
       } catch (error) {
         console.error("Aria Chat History Save Error:", error)
         savedSessionId = sessionId ?? null
@@ -234,7 +283,7 @@ If the user asks about production, storeroom balances, or transfer-in deliveries
     console.error("Aria Chat Error Details:", error)
     return {
       success: false,
-      error: geminiUserMessage(error, "Aria tidak dapat menjawab sekarang. Sila cuba lagi sebentar nanti."),
+      error: geminiUserMessage(error, "Aria tidak dapat menjawab sekarang. Sila cuba lagi sebentar nanti.", ARIA_FALLBACK_MODEL),
     }
   }
 }

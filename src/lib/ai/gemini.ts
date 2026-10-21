@@ -4,6 +4,7 @@ try {
 } catch {}
 
 export const GEMINI_MODEL = "gemini-3.1-flash-lite"
+export const GEMINI_TTS_MODEL = "gemini-3.8-flash-lite-tts"
 
 const RETRY_DELAYS_MS = [2500, 7000]
 

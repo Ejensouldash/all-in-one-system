@@ -6,7 +6,7 @@ import { chatWithAria } from "@/app/actions/ai"
 import Image from "next/image"
 import { AriaMarkdown } from "./AriaMarkdown"
 
-type AvatarState = "idle" | "thinking" | "excited"
+type AvatarState = "idle" | "thinking" | "excited" | "apologetic" | "greeting"
 
 export function Chatbot({ hasProductionAccess = false }: { hasProductionAccess?: boolean }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -25,6 +25,22 @@ export function Chatbot({ hasProductionAccess = false }: { hasProductionAccess?:
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const avatarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Show a pose, optionally reverting to idle afterwards. Clears any pending
+  // revert so an old timer can't override a newer pose (e.g. thinking).
+  const showAvatar = (state: AvatarState, revertAfterMs?: number) => {
+    if (avatarTimerRef.current) clearTimeout(avatarTimerRef.current)
+    avatarTimerRef.current = null
+    setAvatarState(state)
+    if (revertAfterMs) {
+      avatarTimerRef.current = setTimeout(() => setAvatarState("idle"), revertAfterMs)
+    }
+  }
+
+  useEffect(() => () => {
+    if (avatarTimerRef.current) clearTimeout(avatarTimerRef.current)
+  }, [])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -51,7 +67,7 @@ export function Chatbot({ hasProductionAccess = false }: { hasProductionAccess?:
     const newHistory = [...messages, { role: "user" as const, text: userMessage, time: now }]
     setMessages(newHistory)
     
-    setAvatarState("thinking")
+    showAvatar("thinking")
     setIsPending(true)
 
     try {
@@ -62,26 +78,27 @@ export function Chatbot({ hasProductionAccess = false }: { hasProductionAccess?:
       
       if (response.success) {
         setMessages(prev => [...prev, { role: "bot", text: response.text!, time: replyTime }])
-        setAvatarState("excited")
-        setTimeout(() => setAvatarState("idle"), 4000)
+        showAvatar("excited", 4000)
       } else {
         setMessages(prev => [...prev, { role: "bot", text: "Oops, " + response.error, time: replyTime }])
-        setAvatarState("idle")
+        showAvatar("apologetic", 4000)
       }
     } catch (error: any) {
       setIsPending(false)
       const replyTime = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
       setMessages(prev => [...prev, { role: "bot", text: "Maaf, connection Aria terputus. Boleh cuba sekali lagi? 😅", time: replyTime }])
-      setAvatarState("idle")
+      showAvatar("apologetic", 4000)
     }
   }
 
   const getAvatarImage = () => {
     switch(avatarState) {
-      case "thinking": return "/avatars/aria_thinking.png?v=2"
-      case "excited": return "/avatars/aria_excited.png?v=2"
+      case "thinking": return "/avatars/aria_thinking.png?v=3"
+      case "excited": return "/avatars/aria_excited.png?v=3"
+      case "apologetic": return "/avatars/aria_apologetic.png?v=3"
+      case "greeting": return "/avatars/aria_greeting.png?v=3"
       case "idle":
-      default: return "/avatars/aria_idle.png?v=2"
+      default: return "/avatars/aria_idle.png?v=3"
     }
   }
 
@@ -162,7 +179,7 @@ export function Chatbot({ hasProductionAccess = false }: { hasProductionAccess?:
                 {msg.role === "bot" && (
                   <div className="relative w-7 h-7 rounded-lg overflow-hidden shrink-0 mr-2 border border-indigo-100 shadow-sm self-end mb-5 bg-white">
                     <Image 
-                      src="/avatars/aria_idle.png?v=2" 
+                      src="/avatars/aria_idle.png?v=3"
                       alt="Aria" 
                       fill 
                       className="object-cover object-top" 
@@ -196,7 +213,7 @@ export function Chatbot({ hasProductionAccess = false }: { hasProductionAccess?:
               <div className="flex justify-start" style={{ animation: 'msgFadeIn 0.3s ease-out' }}>
                 <div className="relative w-7 h-7 rounded-lg overflow-hidden shrink-0 mr-2 border border-indigo-100 shadow-sm self-end mb-1 bg-white">
                   <Image 
-                    src="/avatars/aria_thinking.png?v=2" 
+                    src="/avatars/aria_thinking.png?v=3"
                     alt="Aria Thinking" 
                     fill 
                     className="object-cover object-top" 
@@ -258,7 +275,10 @@ export function Chatbot({ hasProductionAccess = false }: { hasProductionAccess?:
         </div>
       ) : (
         <button 
-          onClick={() => setIsOpen(true)}
+          onClick={() => {
+            setIsOpen(true)
+            if (!isPending) showAvatar("greeting", 3000)
+          }}
           className="bg-gradient-to-br from-slate-900 to-indigo-900 hover:from-indigo-800 hover:to-indigo-900 text-white rounded-2xl p-4 shadow-xl hover:shadow-2xl hover:shadow-indigo-500/20 transition-all hover:-translate-y-1 group relative"
         >
           <div className="absolute -top-1 -right-1 flex h-3 w-3">

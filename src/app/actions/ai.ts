@@ -61,13 +61,17 @@ const PRODUCTION_TOOLS: Tool[] = [
       },
       {
         name: "getDailyProductionSummary",
-        description: "Fetch daily production report insights including output quantities (boxes produced per SKU), scrap/reject counts, machine breakdowns, and report approval status.",
+        description: "Fetch daily production report insights including output quantities (boxes produced per SKU, with totals), scrap/reject counts, machine breakdowns, and report approval status. For a period (e.g. last week, this month) make ONE call with date as the first day and endDate as the last day (max 31 days) instead of one call per day.",
         parameters: {
           type: SchemaType.OBJECT,
           properties: {
             date: {
               type: SchemaType.STRING,
-              description: "Date of the report in YYYY-MM-DD format. Default is today.",
+              description: "Report date (or first day of the range) in YYYY-MM-DD format. Default is today.",
+            },
+            endDate: {
+              type: SchemaType.STRING,
+              description: "Optional last day of the range in YYYY-MM-DD format, inclusive. Omit for a single day.",
             },
             line: {
               type: SchemaType.STRING,
@@ -174,42 +178,42 @@ If the user asks about production, storeroom balances, or transfer-in deliveries
     let result = await runGeminiRequest(() => chat.sendMessage(lastMessage?.parts[0].text || ""))
     let response = result.response
 
-    // Handle tool execution loop (up to 3 turns)
+    // Handle tool execution loop (up to 5 turns). Gemini can request several
+    // calls in one turn (e.g. one per day) and expects an answer to every one
+    // of them; answering only the first leaves it re-asking until the loop
+    // runs out and the reply comes back empty.
     let functionCalls = response.functionCalls()
     let loopCount = 0
 
-    while (hasProductionAccess && functionCalls && functionCalls.length > 0 && loopCount < 3) {
+    while (hasProductionAccess && functionCalls && functionCalls.length > 0 && loopCount < 5) {
       loopCount++
-      const call = functionCalls[0]
-      let toolData: Record<string, unknown> = {}
+      const toolResponses = await Promise.all(functionCalls.map(async call => {
+        let toolData: Record<string, unknown> = {}
+        const args = (call.args || {}) as Record<string, string | undefined>
+        if (call.name === "getStoreroomStock") {
+          toolData = await getStoreroomStock(args)
+        } else if (call.name === "getTransferInDeliveries") {
+          toolData = await getTransferInDeliveries(args)
+        } else if (call.name === "getDailyProductionSummary") {
+          toolData = await getDailyProductionSummary(args)
+        } else {
+          toolData = { error: `Unknown tool: ${call.name}` }
+        }
+        return { functionResponse: { name: call.name, response: toolData } }
+      }))
 
-      const args = (call.args || {}) as Record<string, string | undefined>
-      if (call.name === "getStoreroomStock") {
-        toolData = await getStoreroomStock(args)
-      } else if (call.name === "getTransferInDeliveries") {
-        toolData = await getTransferInDeliveries(args)
-      } else if (call.name === "getDailyProductionSummary") {
-        toolData = await getDailyProductionSummary(args)
-      }
-
-      result = await runGeminiRequest(() =>
-        chat.sendMessage([
-          {
-            functionResponse: {
-              name: call.name,
-              response: toolData,
-            },
-          },
-        ])
-      )
+      result = await runGeminiRequest(() => chat.sendMessage(toolResponses))
       response = result.response
       functionCalls = response.functionCalls()
     }
 
     let text = ""
     try {
-      text = response.text()
+      text = response.text().trim()
     } catch {
+      text = ""
+    }
+    if (!text) {
       text = "Maaf, Aria tidak dapat menghasilkan respons yang lengkap. Sila cuba lagi."
     }
 

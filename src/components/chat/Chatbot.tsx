@@ -104,7 +104,7 @@ export function Chatbot({ hasProductionAccess = false }: { hasProductionAccess?:
         setMessages(prev => [...prev, { role: "bot", text: response.text!, time: replyTime }])
         if (response.sessionId) setSessionId(response.sessionId)
         showAvatar("excited", 4000)
-        if (voice.autoSpeak) void voice.speak(`msg-${newHistory.length}`, response.text!)
+        if (voice.autoSpeak && response.text?.trim()) void voice.speak(`msg-${newHistory.length}`, response.text!)
       } else {
         setMessages(prev => [...prev, { role: "bot", text: "Oops, " + response.error, time: replyTime }])
         showAvatar("apologetic", 4000)

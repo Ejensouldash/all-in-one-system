@@ -148,10 +148,21 @@ export async function getTransferInDeliveries(params: { date?: string; itemFilte
 /**
  * 3. Fetch Daily Production Report insights (outputs, scrap/rejects, machine breakdowns)
  */
-export async function getDailyProductionSummary(params: { date?: string; line?: string }) {
+const MAX_SUMMARY_RANGE_DAYS = 31
+
+export async function getDailyProductionSummary(params: { date?: string; endDate?: string; line?: string }) {
   const targetDateStr = params.date || getMalaysiaDateStr()
+  // Optional endDate turns this into one range query ("minggu lepas") instead
+  // of the model firing one call per day.
+  const isRange = Boolean(params.endDate && params.endDate > targetDateStr)
+  const endDateStr = isRange ? params.endDate! : targetDateStr
   const startOfDay = new Date(`${targetDateStr}T00:00:00.000Z`)
-  const endOfDay = new Date(`${targetDateStr}T23:59:59.999Z`)
+  const endOfDay = new Date(`${endDateStr}T23:59:59.999Z`)
+
+  if (isRange && (endOfDay.getTime() - startOfDay.getTime()) / 86_400_000 > MAX_SUMMARY_RANGE_DAYS) {
+    return { error: `Julat tarikh terlalu panjang. Maksimum ${MAX_SUMMARY_RANGE_DAYS} hari setiap kali semakan.` }
+  }
+  const rangeLabel = isRange ? `${targetDateStr} hingga ${endDateStr}` : targetDateStr
 
   try {
     const whereClause: {
@@ -181,17 +192,27 @@ export async function getDailyProductionSummary(params: { date?: string; line?: 
 
     if (reports.length === 0) {
       return {
-        date: targetDateStr,
-        message: `Tiada laporan harian produksi dijumpai untuk tarikh ${targetDateStr}.`,
+        date: rangeLabel,
+        message: `Tiada laporan harian produksi dijumpai untuk tarikh ${rangeLabel}.`,
         reportsCount: 0,
       }
     }
 
+    const totalBoxByProduct: Record<string, number> = {}
+    for (const r of reports) {
+      for (const p of r.productions) {
+        totalBoxByProduct[p.productType] = (totalBoxByProduct[p.productType] || 0) + (p.totalBox || 0)
+      }
+    }
+
     return {
-      date: targetDateStr,
+      date: rangeLabel,
       reportsCount: reports.length,
+      totalBox: Object.values(totalBoxByProduct).reduce((sum, n) => sum + n, 0),
+      totalBoxByProduct,
       reports: reports.map(r => ({
         id: r.id,
+        date: getMalaysiaDateStr(r.date),
         line: r.line,
         shift: r.shift,
         status: r.status,
@@ -201,7 +222,8 @@ export async function getDailyProductionSummary(params: { date?: string; line?: 
         productions: r.productions.map(p => ({
           productType: p.productType,
           totalBox: p.totalBox,
-          batches: p.batches.map(b => ({
+          // Batch-level detail is dropped for ranges to keep the payload small.
+          batches: isRange ? undefined : p.batches.map(b => ({
             batchNo: b.batchNo,
             qty: b.qty,
             type: b.type,

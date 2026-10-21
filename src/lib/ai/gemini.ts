@@ -5,6 +5,10 @@ try {
 
 export const GEMINI_MODEL = "gemini-3.1-flash-lite"
 export const GEMINI_TTS_MODEL = "gemini-3.8-flash-lite-tts"
+// Aria (chatbot) runs on its own model: gemini-3.1-flash-lite was regularly
+// overloaded (503s, 60s+ hangs), which made replies take 1–2 minutes.
+export const ARIA_MODEL = "gemini-3.5-flash-lite"
+export const ARIA_FALLBACK_MODEL = "gemini-flash-lite-latest"
 
 const RETRY_DELAYS_MS = [2500, 7000]
 
@@ -38,6 +42,7 @@ function isTransient(message: string) {
     "network",
     "timed out",
     "timeout",
+    "request aborted",
     "valid json",
   ].some(token => value.includes(token))
 }
@@ -49,7 +54,7 @@ function retryDelay(error: unknown, attempt: number) {
   return Math.min(15_000, Math.max(RETRY_DELAYS_MS[attempt - 1] ?? 7000, requestedMs))
 }
 
-export function geminiUserMessage(error: unknown, fallback = "AI gagal memproses permintaan ini.") {
+export function geminiUserMessage(error: unknown, fallback = "AI gagal memproses permintaan ini.", model = GEMINI_MODEL) {
   const message = messageOf(error)
   const value = message.toLowerCase()
 
@@ -62,13 +67,13 @@ export function geminiUserMessage(error: unknown, fallback = "AI gagal memproses
   ) return message
 
   if (isDailyFreeTierQuota(message)) {
-    return `Kuota harian percuma untuk ${GEMINI_MODEL} telah habis. Cuba semula selepas kuota Google diperbaharui atau teruskan semakan secara manual buat sementara waktu.`
+    return `Kuota harian percuma untuk ${model} telah habis. Cuba semula selepas kuota Google diperbaharui atau teruskan semakan secara manual buat sementara waktu.`
   }
   if (value.includes("api key") || value.includes("api_key_invalid") || value.includes("permission denied")) {
     return "Tetapan AI belum sah. Sila minta pentadbir menyemak Gemini API key."
   }
   if (value.includes("404") || value.includes("model not found") || value.includes("not found for api version")) {
-    return `Model AI ${GEMINI_MODEL} belum tersedia untuk API key ini. Sila minta pentadbir menyemak akses model.`
+    return `Model AI ${model} belum tersedia untuk API key ini. Sila minta pentadbir menyemak akses model.`
   }
   if (value.includes("valid json")) {
     return "Respons AI tidak lengkap walaupun sistem sudah mencuba semula. Sila cuba sekali lagi."
@@ -82,6 +87,7 @@ export function geminiUserMessage(error: unknown, fallback = "AI gagal memproses
 export async function runGeminiRequest<T>(
   request: () => Promise<T>,
   onRetry?: (attempt: number) => Promise<void> | void,
+  model = GEMINI_MODEL,
 ): Promise<T> {
   let lastError: unknown
 
@@ -97,7 +103,7 @@ export async function runGeminiRequest<T>(
     }
   }
 
-  throw new Error(geminiUserMessage(lastError))
+  throw new Error(geminiUserMessage(lastError, undefined, model))
 }
 
 export function parseAiJsonResponse<T>(rawResponse: string): T {

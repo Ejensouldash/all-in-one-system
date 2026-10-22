@@ -47,9 +47,27 @@ export function useSpeechInput(onText: (text: string) => void) {
     recognitionRef.current?.stop()
   }, [])
 
-  const start = useCallback((baseText: string) => {
+  const start = useCallback(async (baseText: string) => {
     const Ctor = getRecognitionCtor()
     if (!Ctor || recognitionRef.current) return
+
+    // Explicitly prompt the user for microphone access if not yet granted.
+    // On mobile browsers (especially Chrome Android), SpeechRecognition often fails
+    // silently with 'not-allowed' without showing the browser's permission prompt.
+    // Calling getUserMedia reliably triggers the native permission prompt.
+    if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        // Immediately release tracks so SpeechRecognition has sole mic hardware access
+        stream.getTracks().forEach(track => track.stop())
+      } catch (err: any) {
+        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+          setError(ERROR_MESSAGES["not-allowed"])
+          setListening(false)
+          return
+        }
+      }
+    }
 
     const recognition = new Ctor()
     recognition.lang = "ms-MY"

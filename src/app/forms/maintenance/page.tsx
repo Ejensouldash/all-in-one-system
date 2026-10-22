@@ -295,14 +295,14 @@ export default async function MaintenanceDashboard() {
   const access = await getAccessInfo()
   if (!access) redirect("/login?callbackUrl=/forms/maintenance")
 
-  const canMaintenanceForms = hasAnyModule(access, ["MAINTENANCE_FORMS"])
+  const canMaintenanceForms = hasAnyModule(access, ["GMP_FORMS", "MAINTENANCE_FORMS"])
   const canPalletLedger = hasAnyModule(access, ["PALLET_LEDGER", "WAREHOUSE"])
 
   if (!canMaintenanceForms) {
     if (access.modules.includes("MAINTENANCE_DASHBOARD")) {
       redirect("/forms/maintenance/dashboard")
     }
-    if (access.modules.includes("MAINTENANCE_REPORTS")) {
+    if (access.modules.includes("GMP_REPORTS") || access.modules.includes("MAINTENANCE_REPORTS")) {
       redirect("/forms/maintenance/reports")
     }
     if (canPalletLedger) {

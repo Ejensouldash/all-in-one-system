@@ -29,8 +29,11 @@ export default async function GMPCompliancePage({ searchParams }: Props) {
   const canCompliance =
     access.isSuperAdmin ||
     hasAnyModule(access, [
+      "GMP_FORMS",
       "MAINTENANCE_FORMS",
+      "GMP_SUMMARY",
       "MAINTENANCE_SUMMARY",
+      "GMP_REPORTS",
       "MAINTENANCE_REPORTS",
       "MAINTENANCE_DASHBOARD",
     ])

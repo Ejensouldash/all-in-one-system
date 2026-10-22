@@ -25,7 +25,7 @@ export default async function ProductRecallPage() {
 
   const canAccess =
     access.isSuperAdmin ||
-    hasAnyModule(access, ["MAINTENANCE_FORMS", "FORMS", "MAINTENANCE_REPORTS"])
+    hasAnyModule(access, ["GMP_FORMS", "MAINTENANCE_FORMS", "FORMS", "GMP_REPORTS", "MAINTENANCE_REPORTS"])
 
   if (!canAccess) {
     redirect("/forms/maintenance")

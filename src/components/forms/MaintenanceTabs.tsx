@@ -13,13 +13,16 @@ export function MaintenanceTabs({ userModules = [] }: { userModules?: string[] }
   const isCompliance = pathname.startsWith("/forms/maintenance/compliance")
   const isForms = !isReports && !isSummary && !isPallet && !isCompliance
   
-  const hasForms = userModules.length === 0 || userModules.includes("MAINTENANCE_FORMS")
-  const hasReports = userModules.length === 0 || userModules.includes("MAINTENANCE_REPORTS")
-  const hasSummary = userModules.length === 0 || userModules.includes("MAINTENANCE_SUMMARY")
+  const hasForms = userModules.length === 0 || userModules.includes("GMP_FORMS") || userModules.includes("MAINTENANCE_FORMS")
+  const hasReports = userModules.length === 0 || userModules.includes("GMP_REPORTS") || userModules.includes("MAINTENANCE_REPORTS")
+  const hasSummary = userModules.length === 0 || userModules.includes("GMP_SUMMARY") || userModules.includes("MAINTENANCE_SUMMARY")
   const hasPallet = userModules.length === 0 || userModules.includes("PALLET_LEDGER") || userModules.includes("WAREHOUSE")
   const hasCompliance = userModules.length === 0 || 
+    userModules.includes("GMP_FORMS") || 
     userModules.includes("MAINTENANCE_FORMS") || 
+    userModules.includes("GMP_SUMMARY") || 
     userModules.includes("MAINTENANCE_SUMMARY") || 
+    userModules.includes("GMP_REPORTS") || 
     userModules.includes("MAINTENANCE_REPORTS") || 
     userModules.includes("MAINTENANCE_DASHBOARD")
 

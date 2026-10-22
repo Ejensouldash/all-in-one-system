@@ -27,10 +27,10 @@ export default async function FormsPage() {
   // Withdrawal-only users have exactly one screen; send them straight to it.
   if (modules.includes("RAW_MATERIAL_WITHDRAWAL")) redirect("/forms/warehouse/reports/raw-material")
   if (modules.includes("KBP")) redirect("/kbp")
-  if (modules.includes("MAINTENANCE_FORMS")) redirect("/forms/maintenance")
+  if (modules.includes("GMP_FORMS") || modules.includes("MAINTENANCE_FORMS")) redirect("/forms/maintenance")
   if (modules.includes("PALLET_LEDGER")) redirect("/forms/maintenance/pallet-transfer")
   if (modules.includes("MAINTENANCE_DASHBOARD")) redirect("/forms/maintenance/dashboard")
-  if (modules.includes("MAINTENANCE_REPORTS")) redirect("/forms/maintenance/reports")
+  if (modules.includes("GMP_REPORTS") || modules.includes("MAINTENANCE_REPORTS")) redirect("/forms/maintenance/reports")
   if (modules.includes("PRODUCTION_STOCK")) redirect("/forms/production/stock")
   if (modules.includes("TRANSFER_IN_HISTORY")) redirect("/forms/production/transfer-in/history")
   if (modules.includes("DATABASE_MANAGER")) redirect("/forms/database")

@@ -9,6 +9,9 @@ export const getSession = cache(async () => auth())
 export const FORM_MODULES = [
   "FORMS",
   "WAREHOUSE",
+  "GMP_FORMS",
+  "GMP_REPORTS",
+  "GMP_SUMMARY",
   "MAINTENANCE_FORMS",
   "MAINTENANCE_DASHBOARD",
   "MAINTENANCE_REPORTS",
@@ -163,6 +166,32 @@ export const CHATBOT_PRODUCTION_MODULE = "CHATBOT_PRODUCTION"
 export function canAccessProductionChatbot(access: AccessInfo | null): boolean {
   if (!access) return false
   return access.isSuperAdmin || access.modules.includes(CHATBOT_PRODUCTION_MODULE)
+}
+
+export const GMP_FORMS_MODULES = ["GMP_FORMS", "MAINTENANCE_FORMS"]
+export const GMP_REPORTS_MODULES = ["GMP_REPORTS", "MAINTENANCE_REPORTS"]
+export const GMP_SUMMARY_MODULES = ["GMP_SUMMARY", "MAINTENANCE_SUMMARY"]
+export const GMP_ALL_MODULES = [
+  ...GMP_FORMS_MODULES,
+  ...GMP_REPORTS_MODULES,
+  ...GMP_SUMMARY_MODULES,
+  "RETENTION_SAMPLE_MANAGE",
+  "PALLET_LEDGER",
+]
+
+export function canAccessGmpForms(access: AccessInfo | null): boolean {
+  if (!access) return false
+  return access.isSuperAdmin || hasAnyModule(access, GMP_FORMS_MODULES)
+}
+
+export function canAccessGmpReports(access: AccessInfo | null): boolean {
+  if (!access) return false
+  return access.isSuperAdmin || hasAnyModule(access, GMP_REPORTS_MODULES)
+}
+
+export function canAccessGmpSummary(access: AccessInfo | null): boolean {
+  if (!access) return false
+  return access.isSuperAdmin || hasAnyModule(access, GMP_SUMMARY_MODULES)
 }
 
 

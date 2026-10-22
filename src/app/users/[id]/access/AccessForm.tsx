@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { updateUserModules } from "@/app/actions/user"
 import {
   Save, Loader2, Search, CheckCircle2, RotateCcw, SearchX, AlertTriangle,
-  Wrench, ClipboardList, ArrowRightLeft,
+  Wrench, ClipboardList, ClipboardCheck, ArrowRightLeft,
   Warehouse, Boxes, History, Database, PackageOpen,
   CalendarDays, CalendarClock, Megaphone, QrCode,
   Users, Activity, Settings,
@@ -69,19 +69,28 @@ const MODULE_CATEGORIES: CategoryDef[] = [
   },
   {
     id: "MAINTENANCE",
-    name: "Maintenance & Inventory",
+    name: "Facilities Maintenance (FMS)",
     icon: Wrench,
     iconClass: "bg-cyan-50 text-cyan-600 border-cyan-100",
     modules: [
-      { id: "MAINTENANCE_FORMS", name: "Maintenance Forms", description: "Access to view and submit daily maintenance checklists.", icon: ClipboardList },
-      { id: "MAINTENANCE_DASHBOARD", name: "Maintenance Stock Dashboard", description: "Log stock check-ins, check-outs, and manage assets.", icon: LayoutDashboard },
-      { id: "MAINTENANCE_REPORTS", name: "Maintenance Reports", description: "Access to generate and print monthly maintenance reports.", icon: FileSpreadsheet },
-      { id: "MAINTENANCE_SUMMARY", name: "Maintenance Summary", description: "Access to view, edit, delete, and sign all submitted maintenance checklists.", icon: FileSpreadsheet },
-      { id: "RETENTION_SAMPLE_MANAGE", name: "Retention Sample Management", description: "Access to edit, correct, and void retention sample records (SGMP/21/RSR) with GMP audit trail.", icon: BookmarkCheck },
+      { id: "MAINTENANCE_DASHBOARD", name: "FMS Inventory Dashboard", description: "Log stock check-ins, check-outs, and manage assets.", icon: LayoutDashboard },
       { id: "MAINTENANCE_TICKETS_MANAGE", name: "FMS Work Requests & Management", description: "Access to manage, assign PIC, update status, and track KPI for facilities work requests (BOSB-FMS-850-001-QR01).", icon: Wrench },
       { id: "MAINTENANCE_INVENTORY_EDIT", name: "FMS Inventory Master Edit", description: "Authority to edit, rename, or update master item names and brand details in FMS Inventory.", icon: FilePenLine },
       { id: "MAINTENANCE_ASSETS", name: "FMS Asset (NRHO)", description: "Access to view, check-in, withdraw, and audit NRHO FMS asset ledger.", icon: Boxes },
       { id: "MAINTENANCE_TECHNICIAN", name: "FMS Technician Assignment", description: "Designate user as an internal technician eligible for work request assignments.", icon: UserCheck },
+    ],
+  },
+  {
+    id: "GMP_QUALITY",
+    name: "GMP & Quality",
+    icon: ClipboardCheck,
+    iconClass: "bg-teal-50 text-teal-600 border-teal-100",
+    modules: [
+      { id: "GMP_FORMS", name: "GMP Checklists & Forms", description: "Access to view and submit daily GMP compliance checklists and QA/QC forms.", icon: ClipboardList },
+      { id: "GMP_REPORTS", name: "GMP Reports", description: "Access to generate and print monthly GMP compliance reports.", icon: FileSpreadsheet },
+      { id: "GMP_SUMMARY", name: "GMP Checklists Summary & Sign-off", description: "Access to view, edit, delete, and sign all submitted GMP checklists.", icon: FileSpreadsheet },
+      { id: "RETENTION_SAMPLE_MANAGE", name: "Retention Sample Management", description: "Access to edit, correct, and void retention sample records (SGMP/21/RSR) with GMP audit trail.", icon: BookmarkCheck },
+      { id: "PALLET_LEDGER", name: "Returnable Pallet Ledger", description: "Maintain the separate wooden-pallet movement ledger under GMP.", icon: Boxes },
     ],
   },
   {
@@ -94,7 +103,6 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "GATEPASS_REQUESTER", name: "Gatepass Requester", description: "Create Gatepass planning requests and issue the secure customer form link. Does not move product stock.", icon: ClipboardList },
       { id: "WAREHOUSE_GATEPASS", name: "Warehouse Gatepass Operations", description: "Acknowledge, prepare and confirm loading for Gatepass requests. Does not change Production or InventoryBatch.", icon: Warehouse },
       { id: "SECURITY_GATEPASS", name: "Security Gatepass Check-In/Out", description: "Scan Gatepass QR and record vehicle check-in or check-out only.", icon: ShieldCheck },
-      { id: "PALLET_LEDGER", name: "Returnable Pallet Ledger", description: "Maintain the separate wooden-pallet movement ledger under GMP.", icon: Boxes },
       { id: "RAW_MATERIAL_WITHDRAWAL", name: "Ambil Bahan dari Warehouse", description: "Record raw material taken off the warehouse rack. Grants the Daily Raw Material screens only, not the rest of the warehouse module.", icon: PackageOpen },
       { id: "RAW_MATERIAL_WITHDRAWAL_BACKDATE", name: "Ambil Bahan — Rekod Tarikh Lepas", description: "Allows recording a withdrawal that was missed on the day, up to 7 days back, with a written reason. The generated DO is still posted with today's date so production can claim it.", icon: CalendarClock },
       { id: "PRODUCTION_STOCK", name: "Production Stock", description: "View and manage production stock balances.", icon: Boxes },

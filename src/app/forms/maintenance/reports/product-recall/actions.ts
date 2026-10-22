@@ -129,7 +129,9 @@ export async function getProductRecallReport(params: ProductRecallFilterParams) 
 
     const canManage =
       access.isSuperAdmin ||
+      access.modules.includes("GMP_FORMS") ||
       access.modules.includes("MAINTENANCE_FORMS") ||
+      access.modules.includes("GMP_REPORTS") ||
       access.modules.includes("MAINTENANCE_REPORTS")
 
     return {

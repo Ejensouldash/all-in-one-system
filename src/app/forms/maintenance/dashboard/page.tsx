@@ -16,10 +16,10 @@ export default async function Page() {
   if (!access) redirect("/login?callbackUrl=/forms/maintenance/dashboard")
 
   if (!hasAnyModule(access, ["MAINTENANCE_DASHBOARD"])) {
-    if (access.modules.includes("MAINTENANCE_FORMS")) {
+    if (access.modules.includes("GMP_FORMS") || access.modules.includes("MAINTENANCE_FORMS")) {
       redirect("/forms/maintenance")
     }
-    if (access.modules.includes("MAINTENANCE_REPORTS")) {
+    if (access.modules.includes("GMP_REPORTS") || access.modules.includes("MAINTENANCE_REPORTS")) {
       redirect("/forms/maintenance/reports")
     }
     // /forms re-routes the user to whichever section they DO have access to

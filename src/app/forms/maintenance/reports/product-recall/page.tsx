@@ -29,7 +29,9 @@ export default async function ProductRecallReportPage() {
 
   const hasReportAccess =
     isSuperAdmin ||
+    userModules.includes("GMP_REPORTS") ||
     userModules.includes("MAINTENANCE_REPORTS") ||
+    userModules.includes("GMP_FORMS") ||
     userModules.includes("MAINTENANCE_FORMS")
 
   if (!hasReportAccess) {
@@ -38,7 +40,9 @@ export default async function ProductRecallReportPage() {
 
   const canManage =
     isSuperAdmin ||
+    userModules.includes("GMP_FORMS") ||
     userModules.includes("MAINTENANCE_FORMS") ||
+    userModules.includes("GMP_REPORTS") ||
     userModules.includes("MAINTENANCE_REPORTS")
 
   const now = new Date()

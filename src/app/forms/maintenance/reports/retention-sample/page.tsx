@@ -24,7 +24,7 @@ export default async function RetentionSampleReportPage() {
   const userModules = dbUser?.modules || []
   const isSuperAdmin = role === "SUPERADMIN"
 
-  const hasReportAccess = isSuperAdmin || userModules.includes("MAINTENANCE_REPORTS") || userModules.includes("MAINTENANCE_FORMS")
+  const hasReportAccess = isSuperAdmin || userModules.includes("GMP_REPORTS") || userModules.includes("MAINTENANCE_REPORTS") || userModules.includes("GMP_FORMS") || userModules.includes("MAINTENANCE_FORMS")
   if (!hasReportAccess) {
     redirect("/forms/maintenance")
   }

@@ -20,7 +20,7 @@ export default async function Page() {
     if (access.modules.includes("MAINTENANCE_DASHBOARD")) {
       redirect("/forms/maintenance/dashboard")
     }
-    if (access.modules.includes("MAINTENANCE_FORMS")) {
+    if (access.modules.includes("GMP_FORMS") || access.modules.includes("MAINTENANCE_FORMS")) {
       redirect("/forms/maintenance")
     }
     redirect("/forms")

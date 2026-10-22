@@ -31,7 +31,7 @@ async function loadLogo(): Promise<string> {
 
 export async function GET(request: Request) {
   const access = await getAccessInfo()
-  if (!access || (!access.isSuperAdmin && !hasAnyModule(access, ["MAINTENANCE_FORMS", "FORMS"]))) {
+  if (!access || (!access.isSuperAdmin && !hasAnyModule(access, ["GMP_FORMS", "MAINTENANCE_FORMS", "FORMS"]))) {
     return NextResponse.json({ error: "Unauthorized access to export records." }, { status: 401 })
   }
 

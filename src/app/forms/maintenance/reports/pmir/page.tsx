@@ -12,7 +12,7 @@ export default async function PMIRReportsPage() {
 
   const isSuperAdmin = access.role === "SUPERADMIN"
 
-  if (!isSuperAdmin && !access.modules.includes("MAINTENANCE_REPORTS")) {
+  if (!isSuperAdmin && !access.modules.includes("GMP_REPORTS") && !access.modules.includes("MAINTENANCE_REPORTS")) {
     redirect("/dashboard")
   }
 

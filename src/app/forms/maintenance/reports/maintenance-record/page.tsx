@@ -19,11 +19,11 @@ export default async function MaintenanceRecordReportsPage() {
   const userModules = dbUser?.modules || []
   const isSuperAdmin = role === "SUPERADMIN"
 
-  if (!isSuperAdmin && !userModules.includes("MAINTENANCE_REPORTS")) {
+  if (!isSuperAdmin && !userModules.includes("GMP_REPORTS") && !userModules.includes("MAINTENANCE_REPORTS")) {
     redirect("/dashboard")
   }
 
-  const canVerify = isSuperAdmin || userModules.includes("MAINTENANCE_SUMMARY") || userModules.includes("MAINTENANCE_REPORTS") || role === "SUPERVISOR"
+  const canVerify = isSuperAdmin || userModules.includes("GMP_SUMMARY") || userModules.includes("MAINTENANCE_SUMMARY") || userModules.includes("GMP_REPORTS") || userModules.includes("MAINTENANCE_REPORTS") || role === "SUPERVISOR"
 
   return (
     <div className="bg-gray-50 min-h-screen pt-8 pb-24">

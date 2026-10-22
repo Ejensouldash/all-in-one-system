@@ -19,7 +19,7 @@ export default async function FBSRReportsPage() {
   const userModules = dbUser?.modules || []
   const isSuperAdmin = role === "SUPERADMIN"
 
-  if (!isSuperAdmin && !userModules.includes("MAINTENANCE_REPORTS")) {
+  if (!isSuperAdmin && !userModules.includes("GMP_REPORTS") && !userModules.includes("MAINTENANCE_REPORTS")) {
     redirect("/dashboard")
   }
 

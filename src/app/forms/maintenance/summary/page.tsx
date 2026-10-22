@@ -27,10 +27,10 @@ export default async function MaintenanceSummaryPage({ searchParams }: Props) {
   const userName = name || "Supervisor"
   const isSuperAdmin = role === "SUPERADMIN"
 
-  if (!isSuperAdmin && !userModules.includes("MAINTENANCE_SUMMARY")) {
-    if (userModules.includes("MAINTENANCE_FORMS")) redirect("/forms/maintenance")
+  if (!isSuperAdmin && !userModules.includes("GMP_SUMMARY") && !userModules.includes("MAINTENANCE_SUMMARY")) {
+    if (userModules.includes("GMP_FORMS") || userModules.includes("MAINTENANCE_FORMS")) redirect("/forms/maintenance")
     if (userModules.includes("MAINTENANCE_DASHBOARD")) redirect("/forms/maintenance/dashboard")
-    if (userModules.includes("MAINTENANCE_REPORTS")) redirect("/forms/maintenance/reports")
+    if (userModules.includes("GMP_REPORTS") || userModules.includes("MAINTENANCE_REPORTS")) redirect("/forms/maintenance/reports")
     redirect("/dashboard")
   }
 

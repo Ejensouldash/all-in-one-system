@@ -25,6 +25,7 @@ export function MaintenanceNavTabs({
     isTickets ||
     userModules.length === 0 || 
     userModules.includes("MAINTENANCE_TICKETS_MANAGE") ||
+    userModules.includes("GMP_FORMS") ||
     userModules.includes("MAINTENANCE_FORMS")
 
   // 2nd tier floor/department requests: Accessible to all
@@ -35,6 +36,7 @@ export function MaintenanceNavTabs({
     isDashboard ||
     userModules.length === 0 || 
     userModules.includes("MAINTENANCE_DASHBOARD") ||
+    userModules.includes("GMP_FORMS") ||
     userModules.includes("MAINTENANCE_FORMS") ||
     userModules.includes("MAINTENANCE_TICKETS_MANAGE")
 

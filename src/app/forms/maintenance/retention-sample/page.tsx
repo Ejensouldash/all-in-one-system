@@ -23,7 +23,7 @@ export default async function RetentionSamplePage() {
 
   const canAccess =
     access.isSuperAdmin ||
-    hasAnyModule(access, ["MAINTENANCE_FORMS", "FORMS", "RETENTION_SAMPLE_MANAGE"])
+    hasAnyModule(access, ["GMP_FORMS", "MAINTENANCE_FORMS", "FORMS", "RETENTION_SAMPLE_MANAGE"])
 
   if (!canAccess) {
     redirect("/forms/maintenance")

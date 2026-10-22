@@ -16,8 +16,8 @@ export default async function MaintenanceReportsDashboard() {
   const { role, modules: userModules } = access
   const isSuperAdmin = role === "SUPERADMIN"
 
-  if (!isSuperAdmin && !userModules.includes("MAINTENANCE_REPORTS")) {
-    if (userModules.includes("MAINTENANCE_FORMS")) {
+  if (!isSuperAdmin && !userModules.includes("GMP_REPORTS") && !userModules.includes("MAINTENANCE_REPORTS")) {
+    if (userModules.includes("GMP_FORMS") || userModules.includes("MAINTENANCE_FORMS")) {
       redirect("/forms/maintenance")
     }
     if (userModules.includes("MAINTENANCE_DASHBOARD")) {

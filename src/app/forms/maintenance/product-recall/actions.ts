@@ -139,7 +139,9 @@ export async function deleteProductRecall(id: string) {
     const access = await getAccessInfo()
     const canDelete =
       access?.isSuperAdmin ||
+      access?.modules?.includes("GMP_FORMS") ||
       access?.modules?.includes("MAINTENANCE_FORMS") ||
+      access?.modules?.includes("GMP_REPORTS") ||
       access?.modules?.includes("MAINTENANCE_REPORTS")
 
     if (!canDelete) {

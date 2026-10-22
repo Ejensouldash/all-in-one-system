@@ -40,8 +40,11 @@ export async function getComplianceMonthData(
     const canCompliance =
       access.isSuperAdmin ||
       hasAnyModule(access, [
+        "GMP_FORMS",
         "MAINTENANCE_FORMS",
+        "GMP_SUMMARY",
         "MAINTENANCE_SUMMARY",
+        "GMP_REPORTS",
         "MAINTENANCE_REPORTS",
         "MAINTENANCE_DASHBOARD",
       ])
@@ -175,9 +178,9 @@ export async function getComplianceMonthData(
       days,
       formsRegistry: GMP_FORM_REGISTRY,
       userPermissions: {
-        canForms: access.isSuperAdmin || access.modules.includes("MAINTENANCE_FORMS"),
-        canSummary: access.isSuperAdmin || access.modules.includes("MAINTENANCE_SUMMARY"),
-        canReports: access.isSuperAdmin || access.modules.includes("MAINTENANCE_REPORTS"),
+        canForms: access.isSuperAdmin || access.modules.includes("GMP_FORMS") || access.modules.includes("MAINTENANCE_FORMS"),
+        canSummary: access.isSuperAdmin || access.modules.includes("GMP_SUMMARY") || access.modules.includes("MAINTENANCE_SUMMARY"),
+        canReports: access.isSuperAdmin || access.modules.includes("GMP_REPORTS") || access.modules.includes("MAINTENANCE_REPORTS"),
         canDashboard: access.isSuperAdmin || access.modules.includes("MAINTENANCE_DASHBOARD"),
         isSuperAdmin: access.isSuperAdmin,
       },

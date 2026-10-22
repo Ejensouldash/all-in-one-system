@@ -101,7 +101,7 @@ const staffLinks: NavLink[] = [
     icon: Wrench,
     subLinks: [
       { name: "FMS Work Request", href: "/forms/maintenance/tickets", module: "MAINTENANCE_TICKETS_MANAGE" },
-      { name: "Service Request", href: "/forms/maintenance/tickets/service-requests", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS", "MAINTENANCE_SUMMARY", "FORMS"] },
+      { name: "Service Request", href: "/forms/maintenance/tickets/service-requests", modules: ["GMP_FORMS", "MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "GMP_REPORTS", "MAINTENANCE_REPORTS", "GMP_SUMMARY", "MAINTENANCE_SUMMARY", "FORMS"] },
       { name: "FMS Inventory", href: "/forms/maintenance/dashboard", module: "MAINTENANCE_DASHBOARD" },
       { name: "FMS Asset", href: "/forms/maintenance/assets", module: "MAINTENANCE_ASSETS" },
     ],
@@ -123,8 +123,8 @@ const staffLinks: NavLink[] = [
     name: "GMP & Quality",
     icon: ClipboardCheck,
     subLinks: [
-      { name: "GMP Checklists", href: "/forms/maintenance?_cache=bust", module: "MAINTENANCE_FORMS" },
-      { name: "GMP Reports", href: "/forms/maintenance/reports", module: "MAINTENANCE_REPORTS" },
+      { name: "GMP Checklists", href: "/forms/maintenance?_cache=bust", modules: ["GMP_FORMS", "MAINTENANCE_FORMS"] },
+      { name: "GMP Reports", href: "/forms/maintenance/reports", modules: ["GMP_REPORTS", "MAINTENANCE_REPORTS"] },
       { name: "Pallet Ledger", href: "/forms/maintenance/pallet-transfer", module: "PALLET_LEDGER" },
     ],
   },
@@ -176,7 +176,7 @@ const adminLinks: NavLink[] = [
     icon: Wrench,
     subLinks: [
       { name: "FMS Work Request", href: "/forms/maintenance/tickets", module: "MAINTENANCE_TICKETS_MANAGE" },
-      { name: "Service Request", href: "/forms/maintenance/tickets/service-requests", modules: ["MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "MAINTENANCE_REPORTS", "MAINTENANCE_SUMMARY", "FORMS"] },
+      { name: "Service Request", href: "/forms/maintenance/tickets/service-requests", modules: ["GMP_FORMS", "MAINTENANCE_FORMS", "MAINTENANCE_DASHBOARD", "GMP_REPORTS", "MAINTENANCE_REPORTS", "GMP_SUMMARY", "MAINTENANCE_SUMMARY", "FORMS"] },
       { name: "FMS Inventory", href: "/forms/maintenance/dashboard", module: "MAINTENANCE_DASHBOARD" },
       { name: "FMS Asset", href: "/forms/maintenance/assets", module: "MAINTENANCE_ASSETS" },
     ],
@@ -198,8 +198,8 @@ const adminLinks: NavLink[] = [
     name: "GMP & Quality",
     icon: ClipboardCheck,
     subLinks: [
-      { name: "GMP Checklists", href: "/forms/maintenance?_cache=bust", module: "MAINTENANCE_FORMS" },
-      { name: "GMP Reports", href: "/forms/maintenance/reports", module: "MAINTENANCE_REPORTS" },
+      { name: "GMP Checklists", href: "/forms/maintenance?_cache=bust", modules: ["GMP_FORMS", "MAINTENANCE_FORMS"] },
+      { name: "GMP Reports", href: "/forms/maintenance/reports", modules: ["GMP_REPORTS", "MAINTENANCE_REPORTS"] },
       { name: "Pallet Ledger", href: "/forms/maintenance/pallet-transfer", module: "PALLET_LEDGER" },
     ],
   },

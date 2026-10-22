@@ -47,9 +47,27 @@ export function useSpeechInput(onText: (text: string) => void) {
     recognitionRef.current?.stop()
   }, [])
 
-  const start = useCallback((baseText: string) => {
+  const start = useCallback(async (baseText: string) => {
     const Ctor = getRecognitionCtor()
     if (!Ctor || recognitionRef.current) return
+
+    // Explicitly prompt the user for microphone access if not yet granted.
+    // On mobile browsers (especially Chrome Android), SpeechRecognition often fails
+    // silently with 'not-allowed' without showing the browser's permission prompt.
+    // Calling getUserMedia reliably triggers the native permission prompt.
+    if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        // Immediately release tracks so SpeechRecognition has sole mic hardware access
+        stream.getTracks().forEach(track => track.stop())
+      } catch (err: any) {
+        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+          setError(ERROR_MESSAGES["not-allowed"])
+          setListening(false)
+          return
+        }
+      }
+    }
 
     const recognition = new Ctor()
     recognition.lang = "ms-MY"
@@ -61,15 +79,19 @@ export function useSpeechInput(onText: (text: string) => void) {
       const transcript = Array.from(event.results).map(result => result[0]?.transcript ?? "").join("")
       onTextRef.current(prefix + transcript)
     }
+    // Chrome on Android doesn't always fire onend after an error (e.g. a
+    // blocked mic), which left the button stuck on "listening". Reset here too.
+    const finish = () => {
+      if (recognitionRef.current === recognition) recognitionRef.current = null
+      setListening(false)
+    }
     recognition.onerror = event => {
       if (event.error !== "no-speech" && event.error !== "aborted") {
         setError(ERROR_MESSAGES[event.error] || "Pengecaman suara gagal. Cuba lagi.")
       }
+      finish()
     }
-    recognition.onend = () => {
-      recognitionRef.current = null
-      setListening(false)
-    }
+    recognition.onend = finish
 
     recognitionRef.current = recognition
     setError(null)

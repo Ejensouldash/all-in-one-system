@@ -34,7 +34,8 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           // Camera remains available for batch scanning. Geolocation is restricted to this origin
           // and requested only when a warehouse user performs a delivery milestone check-in.
-          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(self)' },
+          // Microphone is used by Aria's voice input (chatbot mic button).
+          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=(self)' },
         ],
       },
     ]

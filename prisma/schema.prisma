@@ -337,6 +337,8 @@ model MaintenanceTicket {
   picSignature        String?               @db.Text
   
   photoUrl        String?                   // Cloudflare R2 path or public URL (Legacy / complaint preview)
+  requestPdfUrl   String?                   // Cloudflare R2 path or public URL for uploaded intake PDF/memo
+  requestPdfName  String?                   // Original filename of uploaded PDF
   
   createdAt       DateTime                  @default(now())
   updatedAt       DateTime                  @updatedAt

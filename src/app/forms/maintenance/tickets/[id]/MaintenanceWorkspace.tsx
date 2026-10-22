@@ -606,6 +606,43 @@ export function MaintenanceWorkspace({
             {ticket.reasonOfWork}
           </div>
         )}
+
+        {ticket.requestPdfUrl && (
+          <div className="p-4 bg-blue-50/70 rounded-2xl border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <FileText className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 block">
+                  Attached Intake Document / Memo (PDF)
+                </span>
+                <p className="text-xs font-bold text-slate-900 truncate">
+                  {ticket.requestPdfName || "Intake Work Request Memo.pdf"}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <a
+                href={ticket.requestPdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                <span>View Original PDF</span>
+              </a>
+              <a
+                href={ticket.requestPdfUrl}
+                download={ticket.requestPdfName || "Work_Request_Memo.pdf"}
+                className="px-3.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span>Download</span>
+              </a>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* GATE 1: PIC Formal Acknowledgment (If still OPEN) */}

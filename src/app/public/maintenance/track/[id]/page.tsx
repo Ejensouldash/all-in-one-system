@@ -12,7 +12,8 @@ import {
   ShieldCheck,
   RotateCcw,
   Sparkles,
-  UserCheck
+  UserCheck,
+  ExternalLink
 } from "lucide-react"
 import { RequesterVerificationCard } from "./RequesterVerificationCard"
 
@@ -113,6 +114,34 @@ export default async function PublicTicketTrackPage(props: {
                     {new Date(ticket.requesterVerifiedAt).toLocaleDateString("en-GB")}
                   </span>
                 )}
+              </div>
+            )}
+
+            {/* Attached PDF Request Memo */}
+            {ticket.requestPdfUrl && (
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-9 w-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900">
+                      <span>Attached Work Order / Memo (PDF)</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                      {ticket.requestPdfName || "Intake Work Request Memo.pdf"}
+                    </p>
+                  </div>
+                </div>
+                <a
+                  href={ticket.requestPdfUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 text-slate-500" />
+                  <span>View Attached PDF</span>
+                </a>
               </div>
             )}
 

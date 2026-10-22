@@ -136,6 +136,8 @@ export function generateTicketCreatedEmailEn({
   requesterName,
   ticketUrl,
   trackUrl,
+  pdfUrl,
+  pdfName,
 }: {
   logNumber: string
   title: string
@@ -146,6 +148,8 @@ export function generateTicketCreatedEmailEn({
   requesterName: string
   ticketUrl?: string
   trackUrl?: string
+  pdfUrl?: string | null
+  pdfName?: string | null
 }) {
   return `
     <div style="font-family: Arial, sans-serif; padding: 24px; color: #1e293b; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
@@ -178,6 +182,12 @@ export function generateTicketCreatedEmailEn({
             <td style="padding: 10px 8px; color: #64748b;">Description</td>
             <td style="padding: 10px 8px; color: #0f172a; font-weight: 600;">${title}</td>
           </tr>
+          ${pdfUrl ? `
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 10px 8px; color: #64748b;">Attached Memo / PDF</td>
+            <td style="padding: 10px 8px;"><a href="${pdfUrl}" target="_blank" style="color: #2563eb; font-weight: bold; text-decoration: underline;">${pdfName || 'Download Attached Document'}</a></td>
+          </tr>
+          ` : ''}
         </table>
 
         ${ticketUrl ? `
@@ -216,6 +226,8 @@ export function generateTicketRequesterCreatedEmailEn({
   specificArea,
   requesterName,
   trackUrl,
+  pdfUrl,
+  pdfName,
 }: {
   logNumber: string
   title: string
@@ -225,6 +237,8 @@ export function generateTicketRequesterCreatedEmailEn({
   specificArea?: string | null
   requesterName: string
   trackUrl?: string
+  pdfUrl?: string | null
+  pdfName?: string | null
 }) {
   return `
     <div style="font-family: Arial, sans-serif; padding: 24px; color: #1e293b; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
@@ -259,6 +273,12 @@ export function generateTicketRequesterCreatedEmailEn({
             <td style="padding: 10px 8px; color: #64748b;">Description</td>
             <td style="padding: 10px 8px; color: #0f172a; font-weight: 600;">${title}</td>
           </tr>
+          ${pdfUrl ? `
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 10px 8px; color: #64748b;">Attached Memo / PDF</td>
+            <td style="padding: 10px 8px;"><a href="${pdfUrl}" target="_blank" style="color: #0284c7; font-weight: bold; text-decoration: underline;">${pdfName || 'Download Attached Document'}</a></td>
+          </tr>
+          ` : ''}
         </table>
 
         ${trackUrl ? `

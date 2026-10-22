@@ -16,7 +16,9 @@ import {
   Image as ImageIcon,
   Check,
   Send,
-  Info
+  Info,
+  FileText,
+  ExternalLink
 } from "lucide-react"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
 
@@ -218,6 +220,34 @@ export function TechnicianWorkForm({
               This task is currently under review / verification. Thank you for completing the repair!
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Attached Request Memo / PDF */}
+      {ticket.requestPdfUrl && (
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-9 w-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <FileText className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                Attached Work Request Memo
+              </h4>
+              <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                {ticket.requestPdfName || "Intake Work Request Memo.pdf"}
+              </p>
+            </div>
+          </div>
+          <a
+            href={ticket.requestPdfUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0"
+          >
+            <ExternalLink className="h-3.5 w-3.5 text-slate-500" />
+            <span>View PDF</span>
+          </a>
         </div>
       )}
 

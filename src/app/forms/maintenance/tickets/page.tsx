@@ -62,6 +62,8 @@ export default async function MaintenanceTicketsPage() {
       kpiRepairHours: true,
       jobSheetNumber: true,
       photoUrl: true,
+      requestPdfUrl: true,
+      requestPdfName: true,
       photos: true,
       createdAt: true,
       assigneeName: true,

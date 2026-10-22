@@ -21,7 +21,10 @@ import {
   X,
   Plus,
   ImageIcon,
-  Camera
+  Camera,
+  Paperclip,
+  Trash2,
+  ExternalLink
 } from "lucide-react"
 import Link from "next/link"
 
@@ -101,6 +104,20 @@ interface PhotoItem {
   previewUrl: string
 }
 
+interface AttachedPdf {
+  url?: string
+  name: string
+  size: number
+  file?: File
+}
+
+function formatFileSize(bytes?: number): string {
+  if (!bytes || bytes === 0) return ""
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 export function MaintenanceTicketCreateForm({
   defaultName = "",
   defaultEmail = "",
@@ -111,8 +128,10 @@ export function MaintenanceTicketCreateForm({
   const router = useRouter()
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
+  const pdfInputRef = useRef<HTMLInputElement>(null)
 
   const [activeTab, setActiveTab] = useState<"MANUAL" | "PDF">("MANUAL")
+  const [attachedPdf, setAttachedPdf] = useState<AttachedPdf | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isExtractingPdf, setIsExtractingPdf] = useState(false)
   const [isCompressingImage, setIsCompressingImage] = useState(false)
@@ -216,11 +235,41 @@ export function MaintenanceTicketCreateForm({
         setCustomLocation(d.location)
       }
 
+      // Save uploaded PDF as attachment
+      setAttachedPdf({
+        url: res.pdfUrl,
+        name: res.pdfName || file.name,
+        size: res.pdfSize || file.size,
+        file,
+      })
+
       setPdfExtractionWarnings(d.warnings || [])
       setActiveTab("MANUAL")
     } else {
       setError(res.error || "Failed to extract PDF data.")
     }
+  }
+
+  const handleDirectPdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.type !== "application/pdf") {
+      setError("Please select a valid PDF document.")
+      return
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      setError("PDF document exceeds 15MB limit.")
+      return
+    }
+
+    setAttachedPdf({
+      name: file.name,
+      size: file.size,
+      file,
+    })
+    e.target.value = ""
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -249,6 +298,17 @@ export function MaintenanceTicketCreateForm({
     })
     if (photoItems.length > 0) {
       formData.set("photo", photoItems[0].file)
+    }
+
+    // Attach PDF if uploaded
+    if (attachedPdf?.url) {
+      formData.set("requestPdfUrl", attachedPdf.url)
+    }
+    if (attachedPdf?.name) {
+      formData.set("requestPdfName", attachedPdf.name)
+    }
+    if (attachedPdf?.file && !attachedPdf.url) {
+      formData.set("pdfFile", attachedPdf.file)
     }
 
     const res = await createMaintenanceTicket(formData)
@@ -311,11 +371,11 @@ export function MaintenanceTicketCreateForm({
           </div>
           <h3 className="text-sm font-bold text-slate-900">Upload Work Order or Breakdown Memo</h3>
           <p className="text-xs text-slate-500 max-w-md mx-auto">
-            Our Gemini AI will scan the document and pre-fill all maintenance form fields for your review.
+            Our Gemini AI will scan the document, pre-fill all form fields, and automatically attach the PDF to this work request.
           </p>
           <label className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow-sm transition-all">
             <Upload className="h-4 w-4" />
-            <span>{isExtractingPdf ? "Analyzing Document..." : "Choose PDF Document"}</span>
+            <span>{isExtractingPdf ? "Analyzing Document & Attaching PDF..." : "Choose PDF Document"}</span>
             <input
               type="file"
               accept="application/pdf"
@@ -506,6 +566,106 @@ export function MaintenanceTicketCreateForm({
               )
             })}
           </div>
+        </div>
+
+        {/* Attached Document / PDF Memo */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+              Attached Document / Work Order Memo <span className="text-slate-400 text-[10px] font-normal">(PDF, Max 15MB)</span>
+            </label>
+            {attachedPdf && (
+              <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5" /> PDF Attached
+              </span>
+            )}
+          </div>
+
+          <input
+            ref={pdfInputRef}
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={handleDirectPdfChange}
+          />
+
+          {attachedPdf ? (
+            <div className="p-4 bg-blue-50/70 border border-blue-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                  <FileText className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-900 truncate">
+                    {attachedPdf.name}
+                  </p>
+                  <p className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                    {attachedPdf.size > 0 && <span>{formatFileSize(attachedPdf.size)}</span>}
+                    {attachedPdf.size > 0 && <span>•</span>}
+                    <span className="text-blue-700 font-semibold">Saved as work request attachment</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {(attachedPdf.url || attachedPdf.file) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (attachedPdf.url) {
+                        window.open(attachedPdf.url, "_blank")
+                      } else if (attachedPdf.file) {
+                        const blobUrl = URL.createObjectURL(attachedPdf.file)
+                        window.open(blobUrl, "_blank")
+                      }
+                    }}
+                    className="px-3 py-1.5 text-xs font-bold rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 transition-colors flex items-center gap-1.5 shadow-xs"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 text-slate-500" />
+                    <span>Preview</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => pdfInputRef.current?.click()}
+                  className="px-3 py-1.5 text-xs font-bold rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 transition-colors flex items-center gap-1.5 shadow-xs"
+                >
+                  <Upload className="h-3.5 w-3.5 text-slate-500" />
+                  <span>Replace</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAttachedPdf(null)}
+                  className="p-1.5 text-xs font-bold rounded-xl bg-white border border-slate-300 hover:bg-red-50 hover:text-red-600 text-slate-500 transition-colors shadow-xs"
+                  title="Remove PDF attachment"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div
+              onClick={() => pdfInputRef.current?.click()}
+              className="border-2 border-dashed border-slate-200 hover:border-blue-400 hover:bg-blue-50/30 rounded-2xl p-4 flex items-center justify-between cursor-pointer transition-all group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-slate-100 group-hover:bg-blue-100 group-hover:text-blue-600 text-slate-500 flex items-center justify-center transition-colors">
+                  <Paperclip className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-700 group-hover:text-blue-800 transition-colors">
+                    Upload PDF memo or work order
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    PDF will be saved as an official attachment with this work request
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-blue-600 group-hover:underline px-2">
+                + Choose PDF
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Site/Item Photos */}

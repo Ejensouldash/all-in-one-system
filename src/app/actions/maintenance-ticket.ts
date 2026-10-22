@@ -42,6 +42,8 @@ export async function extractMaintenancePdfAction(formData: FormData): Promise<{
   success: boolean
   data?: ExtractedMaintenanceData
   pdfUrl?: string
+  pdfName?: string
+  pdfSize?: number
   error?: string
 }> {
   try {
@@ -66,6 +68,8 @@ export async function extractMaintenancePdfAction(formData: FormData): Promise<{
       success: true,
       data,
       pdfUrl,
+      pdfName: file.name,
+      pdfSize: file.size,
     }
   } catch (err: any) {
     console.error("extractMaintenancePdfAction error:", err)
@@ -96,6 +100,24 @@ export async function publicCreateMaintenanceTicket(formData: FormData) {
 
   // Secure token for private requester status & acceptance
   const requesterToken = crypto.randomBytes(16).toString("hex")
+
+  // Handle PDF Attachment (from AI Scan or manual upload)
+  let requestPdfUrl = (formData.get("requestPdfUrl") as string)?.trim() || null
+  let requestPdfName = (formData.get("requestPdfName") as string)?.trim() || null
+
+  const pdfFile = formData.get("pdfFile") as File | null
+  if (pdfFile && pdfFile instanceof File && pdfFile.size > 0 && !requestPdfUrl) {
+    if (pdfFile.size <= 15 * 1024 * 1024) {
+      try {
+        const buffer = Buffer.from(await pdfFile.arrayBuffer())
+        const uploaded = await uploadMaintenancePdfToR2(buffer, pdfFile.name)
+        requestPdfUrl = uploaded.url
+        requestPdfName = pdfFile.name
+      } catch (e: any) {
+        console.error("Failed to upload request PDF to R2:", e)
+      }
+    }
+  }
 
   // Handle Photo Uploads (Support multiple images)
   let photoUrl: string | null = null
@@ -139,13 +161,17 @@ export async function publicCreateMaintenanceTicket(formData: FormData) {
         requesterToken,
         createdById: null, // Public anonymous guest
         photoUrl,
+        requestPdfUrl,
+        requestPdfName,
         status: MaintenanceTicketStatus.OPEN,
         activityLogs: {
           create: {
             actorName: requesterName,
             actorRole: "REQUESTER",
             action: "REQUEST_LOGGED",
-            details: `Work request submitted via Public QR01 intake form. Category: ${ticketType}, Priority: ${priority}.`,
+            details: requestPdfName
+              ? `Work request submitted via Public QR01 intake form with attached document (${requestPdfName}). Category: ${ticketType}, Priority: ${priority}.`
+              : `Work request submitted via Public QR01 intake form. Category: ${ticketType}, Priority: ${priority}.`,
             isPublic: true,
           },
         },
@@ -181,6 +207,8 @@ export async function publicCreateMaintenanceTicket(formData: FormData) {
         requesterName,
         ticketUrl,
         trackUrl,
+        pdfUrl: requestPdfUrl,
+        pdfName: requestPdfName,
       })
 
       for (const email of alertEmails) {
@@ -203,6 +231,8 @@ export async function publicCreateMaintenanceTicket(formData: FormData) {
           specificArea,
           requesterName,
           trackUrl,
+          pdfUrl: requestPdfUrl,
+          pdfName: requestPdfName,
         })
         await queueMaintenanceEmailNotification({
           ticketId: ticket.id,
@@ -252,6 +282,24 @@ export async function createMaintenanceTicket(formData: FormData) {
 
   const requesterToken = crypto.randomBytes(16).toString("hex")
 
+  // Handle PDF Attachment (from AI Scan or manual upload)
+  let requestPdfUrl = (formData.get("requestPdfUrl") as string)?.trim() || null
+  let requestPdfName = (formData.get("requestPdfName") as string)?.trim() || null
+
+  const pdfFile = formData.get("pdfFile") as File | null
+  if (pdfFile && pdfFile instanceof File && pdfFile.size > 0 && !requestPdfUrl) {
+    if (pdfFile.size <= 15 * 1024 * 1024) {
+      try {
+        const buffer = Buffer.from(await pdfFile.arrayBuffer())
+        const uploaded = await uploadMaintenancePdfToR2(buffer, pdfFile.name)
+        requestPdfUrl = uploaded.url
+        requestPdfName = pdfFile.name
+      } catch (e: any) {
+        console.error("Failed to upload request PDF to R2:", e)
+      }
+    }
+  }
+
   // Handle Photo Uploads (Support multiple images)
   let photoUrl: string | null = null
   const photoUploadInfos: { key: string; url: string; size: number; name: string }[] = []
@@ -294,13 +342,17 @@ export async function createMaintenanceTicket(formData: FormData) {
         requesterToken,
         createdById: session.user.id,
         photoUrl,
+        requestPdfUrl,
+        requestPdfName,
         status: MaintenanceTicketStatus.OPEN,
         activityLogs: {
           create: {
             actorName: session.user.name || "Staff",
             actorRole: "STAFF",
             action: "REQUEST_LOGGED",
-            details: `Internal work request submitted. Category: ${ticketType}, Priority: ${priority}.`,
+            details: requestPdfName
+              ? `Internal work request submitted with attached document (${requestPdfName}). Category: ${ticketType}, Priority: ${priority}.`
+              : `Internal work request submitted. Category: ${ticketType}, Priority: ${priority}.`,
             isPublic: true,
           },
         },
@@ -335,6 +387,8 @@ export async function createMaintenanceTicket(formData: FormData) {
         requesterName,
         ticketUrl,
         trackUrl,
+        pdfUrl: requestPdfUrl,
+        pdfName: requestPdfName,
       })
 
       for (const email of alertEmails) {
@@ -357,6 +411,8 @@ export async function createMaintenanceTicket(formData: FormData) {
           specificArea,
           requesterName,
           trackUrl,
+          pdfUrl: requestPdfUrl,
+          pdfName: requestPdfName,
         })
         await queueMaintenanceEmailNotification({
           ticketId: ticket.id,

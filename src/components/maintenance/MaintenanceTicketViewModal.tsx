@@ -130,6 +130,34 @@ export function MaintenanceTicketViewModal({
             </div>
           </div>
 
+          {/* Attached Document / Memo */}
+          {ticket.requestPdfUrl && (
+            <div className="p-4 bg-blue-50/70 rounded-xl border border-blue-200 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="h-9 w-9 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
+                  <FileText className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 block">
+                    Attached Document / Work Memo
+                  </span>
+                  <p className="text-xs font-bold text-slate-800 truncate">
+                    {ticket.requestPdfName || "Intake Work Request Memo.pdf"}
+                  </p>
+                </div>
+              </div>
+              <a
+                href={ticket.requestPdfUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs transition-all flex items-center gap-1.5 shrink-0"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                <span>View PDF</span>
+              </a>
+            </div>
+          )}
+
           {/* Location & Requester Info */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="p-4 bg-white rounded-xl border border-slate-200">

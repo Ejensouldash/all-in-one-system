@@ -19,7 +19,8 @@ import {
   ChevronRight,
   FileText,
   RotateCcw,
-  DollarSign
+  DollarSign,
+  Paperclip
 } from "lucide-react"
 import { MaintenanceTicketViewModal } from "./MaintenanceTicketViewModal"
 
@@ -256,6 +257,17 @@ export function MaintenanceTicketTable({
                       {/* Actions */}
                       <td className="px-5 py-3.5 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
+                          {ticket.requestPdfUrl && (
+                            <a
+                              href={ticket.requestPdfUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-1.5 rounded-lg text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 transition-colors"
+                              title={`View Attached PDF Memo: ${ticket.requestPdfName || "Work Request PDF"}`}
+                            >
+                              <Paperclip className="h-4 w-4" />
+                            </a>
+                          )}
                           {ticket.jobSheetNumber && (
                             <a
                               href={`/api/public/maintenance/jobsheet/${ticket.jobSheetNumber}`}

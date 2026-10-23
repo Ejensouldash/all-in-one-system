@@ -5,7 +5,8 @@ import Link from "next/link"
 import { 
   Plus, Minus, FileText, Search, PackageOpen, AlertCircle, 
   Trash2, ArrowUpDown, RefreshCw, X, Calendar, Printer, User, MessageSquare,
-  Image as ImageIcon, Upload, Tag, Pencil, Briefcase, HeartHandshake, Box, Layers, Camera
+  Image as ImageIcon, Upload, Tag, Pencil, Briefcase, HeartHandshake, Box, Layers, Camera,
+  FileSpreadsheet, FileDown
 } from "lucide-react"
 import { 
   addMarketingStock, 
@@ -15,6 +16,8 @@ import {
   uploadMarketingItemPhotoAction,
   editMarketingItemMaster
 } from "@/app/actions/marketing-inventory"
+import { exportMarketingStockMovementExcel } from "@/lib/excel/exportMarketingStockMovementExcel"
+import { generateMarketingStockMovementPdf } from "@/lib/pdf/generateMarketingStockMovementPdf"
 
 type Item = {
   id: string
@@ -195,6 +198,8 @@ export function MarketingInventoryClient({
   const [reportEndDate, setReportEndDate] = useState("")
   const [reportLogs, setReportLogs] = useState<StockLog[]>([])
   const [loadingReport, setLoadingReport] = useState(false)
+  const [exportingExcel, setExportingExcel] = useState(false)
+  const [exportingPdf, setExportingPdf] = useState(false)
 
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState("")
@@ -582,6 +587,46 @@ export function MarketingInventoryClient({
     }
   }
 
+  const handleExportExcel = async () => {
+    if (reportLogs.length === 0) {
+      triggerMessage("error", "No stock movement records to export.")
+      return
+    }
+    setExportingExcel(true)
+    try {
+      await exportMarketingStockMovementExcel(reportLogs as any, {
+        startDate: reportStartDate,
+        endDate: reportEndDate,
+      })
+      triggerMessage("success", "Excel report downloaded successfully!")
+    } catch (err: any) {
+      console.error(err)
+      triggerMessage("error", err?.message || "Failed to generate Excel report.")
+    } finally {
+      setExportingExcel(false)
+    }
+  }
+
+  const handleExportPdf = async () => {
+    if (reportLogs.length === 0) {
+      triggerMessage("error", "No stock movement records to export.")
+      return
+    }
+    setExportingPdf(true)
+    try {
+      await generateMarketingStockMovementPdf(reportLogs as any, {
+        startDate: reportStartDate,
+        endDate: reportEndDate,
+      })
+      triggerMessage("success", "PDF report downloaded successfully!")
+    } catch (err: any) {
+      console.error(err)
+      triggerMessage("error", err?.message || "Failed to generate PDF report.")
+    } finally {
+      setExportingPdf(false)
+    }
+  }
+
   return (
     <div className="bg-slate-50 min-h-screen pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
@@ -716,14 +761,36 @@ export function MarketingInventoryClient({
         {/* Report Section */}
         {isReportSectionOpen && (
           <div className="mb-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 animate-in fade-in">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
                 <Printer className="h-4 w-4 text-blue-600" />
                 Marketing Stock Audit Report &amp; History
               </h3>
-              <button onClick={() => setIsReportSectionOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportExcel}
+                  disabled={exportingExcel || loadingReport || reportLogs.length === 0}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                  title="Download Excel"
+                >
+                  {exportingExcel ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />}
+                  <span>Excel</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportPdf}
+                  disabled={exportingPdf || loadingReport || reportLogs.length === 0}
+                  className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                  title="Download PDF"
+                >
+                  {exportingPdf ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
+                  <span>PDF</span>
+                </button>
+                <button onClick={() => setIsReportSectionOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

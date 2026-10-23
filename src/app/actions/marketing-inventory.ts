@@ -381,6 +381,9 @@ export async function getMarketingStockReport(filters: {
   startDate?: string
   endDate?: string
   category?: string
+  type?: string
+  itemId?: string
+  search?: string
 }) {
   try {
     const where: any = {}
@@ -403,10 +406,30 @@ export async function getMarketingStockReport(filters: {
       }
     }
 
+    if (filters.type && filters.type !== "ALL") {
+      where.type = filters.type
+    }
+
+    if (filters.itemId && filters.itemId !== "ALL") {
+      where.itemId = filters.itemId
+    }
+
+    if (filters.search && filters.search.trim()) {
+      const q = filters.search.trim()
+      where.OR = [
+        { item: { name: { contains: q, mode: "insensitive" } } },
+        { variantName: { contains: q, mode: "insensitive" } },
+        { handledBy: { contains: q, mode: "insensitive" } },
+        { remarks: { contains: q, mode: "insensitive" } },
+        { department: { contains: q, mode: "insensitive" } },
+      ]
+    }
+
     const logs = await prisma.marketingStockLog.findMany({
       where,
       include: {
         item: true,
+        variant: true,
       },
       orderBy: { createdAt: "desc" },
     })

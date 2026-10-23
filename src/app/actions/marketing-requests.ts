@@ -1,0 +1,427 @@
+"use server"
+
+import { prisma } from "@/lib/prisma"
+import { revalidatePath } from "next/cache"
+import { getAccessInfo, canAccessMarketingAssets, canAccessMarketingInventory } from "@/lib/access"
+import { logUserAction } from "./audit"
+
+export interface MarketingAvailableItem {
+  id: string
+  name: string
+  category: string
+  type: "ASSET" | "INVENTORY"
+  availableQuantity: number
+  totalQuantity?: number
+  unit: string
+  imageUrl?: string | null
+  brand?: string | null
+  location: string
+  condition?: string
+}
+
+// Public or Internal fetch of all visible assets and inventory items
+export async function getAvailableMarketingItemsAndAssets() {
+  try {
+    // 1. Fetch reusable Marketing Assets
+    const assets = await prisma.marketingAsset.findMany({
+      where: {
+        condition: { not: "Damaged" },
+      },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        assetCode: true,
+        name: true,
+        category: true,
+        brand: true,
+        location: true,
+        availableQuantity: true,
+        totalQuantity: true,
+        unit: true,
+        imageUrl: true,
+        condition: true,
+      },
+    })
+
+    // 2. Fetch Marketing Inventory (Merchandise / Collaterals / POSM)
+    const inventoryItems = await prisma.marketingItem.findMany({
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        brand: true,
+        location: true,
+        quantity: true,
+        unit: true,
+        imageUrl: true,
+      },
+    })
+
+    const combinedList: MarketingAvailableItem[] = [
+      ...assets.map((a) => ({
+        id: a.id,
+        name: a.name,
+        category: a.category || "FURNITURE",
+        type: "ASSET" as const,
+        availableQuantity: a.availableQuantity,
+        totalQuantity: a.totalQuantity,
+        unit: a.unit || "units",
+        imageUrl: a.imageUrl,
+        brand: a.brand,
+        location: a.location || "HQ Store",
+        condition: a.condition,
+      })),
+      ...inventoryItems.map((i) => ({
+        id: i.id,
+        name: i.name,
+        category: i.category || "MERCHANDISE",
+        type: "INVENTORY" as const,
+        availableQuantity: i.quantity,
+        totalQuantity: i.quantity,
+        unit: i.unit || "pcs",
+        imageUrl: i.imageUrl,
+        brand: i.brand,
+        location: i.location || "HQ Store",
+      })),
+    ]
+
+    return { success: true, data: combinedList }
+  } catch (error: any) {
+    console.error("Failed to fetch available marketing items:", error)
+    return { success: false, error: error.message, data: [] }
+  }
+}
+
+export interface RequisitionItemInput {
+  itemId: string
+  itemType: "ASSET" | "INVENTORY"
+  quantity: number
+}
+
+export interface SubmitRequisitionPayload {
+  name: string
+  staffId: string
+  phone: string
+  email: string
+  department: string
+  purpose: string
+  pickupDate: string // YYYY-MM-DD
+  items: RequisitionItemInput[]
+}
+
+// Generate unique sequential requisition batch code (REQ-MKT-YYYY-XXXX)
+async function generateRequisitionBatchCode(): Promise<string> {
+  const currentYear = new Date().getFullYear()
+  const prefix = `REQ-MKT-${currentYear}-`
+
+  const [lastLoan, lastMerch] = await Promise.all([
+    prisma.marketingAssetLoan.findFirst({
+      where: { remarks: { contains: prefix } },
+      orderBy: { createdAt: "desc" },
+      select: { remarks: true },
+    }),
+    prisma.marketingMerchandiseRequest.findFirst({
+      where: { requestNumber: { startsWith: prefix } },
+      orderBy: { createdAt: "desc" },
+      select: { requestNumber: true },
+    }),
+  ])
+
+  let maxNum = 0
+  const parseNum = (str: string | null | undefined) => {
+    if (!str) return
+    const match = str.match(/REQ-MKT-\d{4}-(\d+)/)
+    if (match) {
+      const n = parseInt(match[1], 10)
+      if (!isNaN(n) && n > maxNum) maxNum = n
+    }
+  }
+
+  parseNum(lastLoan?.remarks)
+  parseNum(lastMerch?.requestNumber)
+
+  const nextNum = maxNum + 1
+  return `${prefix}${nextNum.toString().padStart(4, "0")}`
+}
+
+// Generate Loan Number: LN-MKT-YYYY-XXXX
+async function generateLoanNumber(): Promise<string> {
+  const currentYear = new Date().getFullYear()
+  const prefix = `LN-MKT-${currentYear}-`
+
+  const lastLoan = await prisma.marketingAssetLoan.findFirst({
+    where: { loanNumber: { startsWith: prefix } },
+    orderBy: { loanNumber: "desc" },
+    select: { loanNumber: true },
+  })
+
+  let nextNum = 1
+  if (lastLoan?.loanNumber) {
+    const parts = lastLoan.loanNumber.split("-")
+    const lastSeq = parseInt(parts[parts.length - 1], 10)
+    if (!isNaN(lastSeq)) nextNum = lastSeq + 1
+  }
+
+  return `${prefix}${nextNum.toString().padStart(4, "0")}`
+}
+
+// Generate Merchandise Request Number: MR-MKT-YYYY-XXXX
+async function generateMerchandiseReqNumber(): Promise<string> {
+  const currentYear = new Date().getFullYear()
+  const prefix = `MR-MKT-${currentYear}-`
+
+  const lastReq = await prisma.marketingMerchandiseRequest.findFirst({
+    where: { requestNumber: { startsWith: prefix } },
+    orderBy: { requestNumber: "desc" },
+    select: { requestNumber: true },
+  })
+
+  let nextNum = 1
+  if (lastReq?.requestNumber) {
+    const parts = lastReq.requestNumber.split("-")
+    const lastSeq = parseInt(parts[parts.length - 1], 10)
+    if (!isNaN(lastSeq)) nextNum = lastSeq + 1
+  }
+
+  return `${prefix}${nextNum.toString().padStart(4, "0")}`
+}
+
+// Submit Requisition from QR Form
+export async function submitMarketingRequisition(payload: SubmitRequisitionPayload) {
+  try {
+    const { name, staffId, phone, email, department, purpose, pickupDate, items } = payload
+
+    if (!name?.trim()) return { success: false, error: "Name is required." }
+    if (!staffId?.trim()) return { success: false, error: "Staff ID is required." }
+    if (!phone?.trim()) return { success: false, error: "Phone number is required." }
+    if (!email?.trim()) return { success: false, error: "Email address is required." }
+    if (!department?.trim()) return { success: false, error: "Department is required." }
+    if (!purpose?.trim()) return { success: false, error: "Purpose is required." }
+    if (!pickupDate) return { success: false, error: "Pickup date is required." }
+    if (!items || items.length === 0) return { success: false, error: "Please select at least one item." }
+
+    const pickupDateTime = new Date(pickupDate)
+    if (isNaN(pickupDateTime.getTime())) {
+      return { success: false, error: "Invalid pickup date provided." }
+    }
+
+    const batchCode = await generateRequisitionBatchCode()
+
+    // Validate quantities and item existence
+    for (const item of items) {
+      if (!item.quantity || item.quantity <= 0) {
+        return { success: false, error: `Invalid quantity for selected item.` }
+      }
+
+      if (item.itemType === "ASSET") {
+        const asset = await prisma.marketingAsset.findUnique({ where: { id: item.itemId } })
+        if (!asset) return { success: false, error: "Requested asset could not be found." }
+        if (asset.availableQuantity < item.quantity) {
+          return {
+            success: false,
+            error: `Not enough units available for "${asset.name}". Available: ${asset.availableQuantity} ${asset.unit}.`,
+          }
+        }
+      } else {
+        const inventoryItem = await prisma.marketingItem.findUnique({ where: { id: item.itemId } })
+        if (!inventoryItem) return { success: false, error: "Requested inventory item could not be found." }
+        if (inventoryItem.quantity < item.quantity) {
+          return {
+            success: false,
+            error: `Not enough stock available for "${inventoryItem.name}". Available: ${inventoryItem.quantity} ${inventoryItem.unit}.`,
+          }
+        }
+      }
+    }
+
+    // Process all items in database transaction
+    await prisma.$transaction(async (tx) => {
+      for (const item of items) {
+        if (item.itemType === "ASSET") {
+          const loanNo = await generateLoanNumber()
+          const returnDate = new Date(pickupDateTime.getTime() + 3 * 24 * 60 * 60 * 1000)
+
+          await tx.marketingAssetLoan.create({
+            data: {
+              loanNumber: loanNo,
+              assetId: item.itemId,
+              quantity: item.quantity,
+              borrowerName: name.trim(),
+              borrowerStaffId: staffId.trim(),
+              borrowerContact: phone.trim(),
+              borrowerEmail: email.trim().toLowerCase(),
+              borrowerDepartment: department.trim(),
+              destination: `${department.trim()} / ${purpose.trim().substring(0, 50)}`,
+              purpose: purpose.trim(),
+              borrowDateTime: pickupDateTime,
+              expectedReturn: returnDate,
+              status: "PENDING",
+              remarks: `Requisition Batch: ${batchCode} | Staff ID: ${staffId.trim()} | Email: ${email.trim()}`,
+            },
+          })
+        } else {
+          const reqNo = await generateMerchandiseReqNumber()
+
+          await tx.marketingMerchandiseRequest.create({
+            data: {
+              requestNumber: reqNo,
+              itemId: item.itemId,
+              quantity: item.quantity,
+              requesterName: name.trim(),
+              requesterStaffId: staffId.trim(),
+              requesterPhone: phone.trim(),
+              requesterEmail: email.trim().toLowerCase(),
+              requesterDepartment: department.trim(),
+              purpose: purpose.trim(),
+              pickupDate: pickupDateTime,
+              status: "PENDING",
+              remarks: `Requisition Batch: ${batchCode}`,
+            },
+          })
+        }
+      }
+    })
+
+    revalidatePath("/marketing/assets")
+    revalidatePath("/marketing/inventory")
+    revalidatePath("/marketing/forms")
+
+    return {
+      success: true,
+      batchCode,
+      itemCount: items.length,
+      requesterName: name.trim(),
+      pickupDate: pickupDate,
+    }
+  } catch (error: any) {
+    console.error("Failed to submit marketing requisition:", error)
+    return { success: false, error: error.message || "Failed to submit requisition." }
+  }
+}
+
+// Fetch all merchandise requests for marketing inventory management
+export async function getMarketingMerchandiseRequests() {
+  try {
+    const access = await getAccessInfo()
+    if (!canAccessMarketingInventory(access)) {
+      return { success: false, error: "Unauthorized access." }
+    }
+
+    const requests = await prisma.marketingMerchandiseRequest.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        item: true,
+      },
+    })
+
+    return { success: true, data: requests }
+  } catch (error: any) {
+    console.error("Failed to fetch merchandise requests:", error)
+    return { success: false, error: error.message }
+  }
+}
+
+// Approve and dispense merchandise request (deducts stock and records OUT log)
+export async function approveMarketingMerchandiseRequest(requestId: string, handledBy: string) {
+  try {
+    const access = await getAccessInfo()
+    if (!canAccessMarketingInventory(access)) {
+      return { success: false, error: "Unauthorized access." }
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const req = await tx.marketingMerchandiseRequest.findUnique({
+        where: { id: requestId },
+        include: { item: true },
+      })
+
+      if (!req) throw new Error("Request not found.")
+      if (req.status !== "PENDING") {
+        throw new Error(`Request is already ${req.status}.`)
+      }
+
+      if (req.item.quantity < req.quantity) {
+        throw new Error(
+          `Insufficient stock in HQ Store for "${req.item.name}". Available: ${req.item.quantity}, Requested: ${req.quantity}`
+        )
+      }
+
+      // Decrement item quantity
+      await tx.marketingItem.update({
+        where: { id: req.itemId },
+        data: {
+          quantity: { decrement: req.quantity },
+        },
+      })
+
+      // Create Stock Log OUT
+      const totalCost = Number(((req.item.pricePerUnit || 0) * req.quantity).toFixed(2))
+      await tx.marketingStockLog.create({
+        data: {
+          itemId: req.itemId,
+          type: "OUT",
+          quantity: req.quantity,
+          totalPrice: totalCost,
+          pricePerUnit: req.item.pricePerUnit || 0,
+          department: req.requesterDepartment || "MARKETING",
+          handledBy: handledBy || "Marketing PIC",
+          remarks: `Requisition ${req.requestNumber} dispensed to ${req.requesterName} (${req.requesterDepartment}). Purpose: ${req.purpose}`,
+        },
+      })
+
+      // Update request status
+      const updatedReq = await tx.marketingMerchandiseRequest.update({
+        where: { id: requestId },
+        data: {
+          status: "DISPATCHED",
+          approvedBy: handledBy,
+          approvedAt: new Date(),
+          dispatchedBy: handledBy,
+          dispatchedAt: new Date(),
+        },
+      })
+
+      return updatedReq
+    })
+
+    revalidatePath("/marketing/inventory")
+    revalidatePath("/business-development/marketing/inventory")
+
+    await logUserAction(
+      "Approved Marketing Merchandise Requisition",
+      `Dispensed ${result.quantity} units for Requisition ${result.requestNumber} to ${result.requesterName} (${result.requesterDepartment}).`
+    )
+
+    return { success: true, data: result }
+  } catch (error: any) {
+    console.error("Failed to approve merchandise request:", error)
+    return { success: false, error: error.message }
+  }
+}
+
+// Reject merchandise request
+export async function rejectMarketingMerchandiseRequest(requestId: string, reason: string, handledBy: string) {
+  try {
+    const access = await getAccessInfo()
+    if (!canAccessMarketingInventory(access)) {
+      return { success: false, error: "Unauthorized access." }
+    }
+
+    const updated = await prisma.marketingMerchandiseRequest.update({
+      where: { id: requestId },
+      data: {
+        status: "REJECTED",
+        rejectionReason: reason || "Rejected by Marketing",
+        approvedBy: handledBy,
+        approvedAt: new Date(),
+      },
+    })
+
+    revalidatePath("/marketing/inventory")
+    return { success: true, data: updated }
+  } catch (error: any) {
+    console.error("Failed to reject merchandise request:", error)
+    return { success: false, error: error.message }
+  }
+}

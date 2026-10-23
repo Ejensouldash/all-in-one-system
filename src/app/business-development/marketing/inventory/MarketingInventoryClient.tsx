@@ -5,7 +5,7 @@ import Link from "next/link"
 import { 
   Plus, Minus, FileText, Search, PackageOpen, AlertCircle, 
   Trash2, ArrowUpDown, RefreshCw, X, Calendar, Printer, User, MessageSquare,
-  Image as ImageIcon, Upload, Tag, Pencil, Briefcase, HeartHandshake, Box, Layers
+  Image as ImageIcon, Upload, Tag, Pencil, Briefcase, HeartHandshake, Box, Layers, Camera
 } from "lucide-react"
 import { 
   addMarketingStock, 
@@ -74,6 +74,68 @@ const LOCATIONS = [
   "Event Venue / On-site",
   "Other / Partner Location"
 ]
+
+/**
+ * Automatically compress photos on mobile before upload to prevent network timeouts
+ * and payload rejection, converting 15MB camera files into crisp ~500KB JPEG images.
+ */
+async function compressImageFile(file: File, maxDimension = 1600, quality = 0.82): Promise<File> {
+  if (!file.type.startsWith("image/") && !file.name.match(/\.(jpg|jpeg|png|webp|heic|heif)$/i)) {
+    return file
+  }
+  if (file.size < 400 * 1024 && (file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/webp")) {
+    return file
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new window.Image()
+      img.onload = () => {
+        let width = img.width
+        let height = img.height
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width)
+            width = maxDimension
+          } else {
+            width = Math.round((width * maxDimension) / height)
+            height = maxDimension
+          }
+        }
+
+        const canvas = document.createElement("canvas")
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext("2d")
+        if (!ctx) {
+          resolve(file)
+          return
+        }
+
+        ctx.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file)
+              return
+            }
+            const cleanName = file.name.replace(/\.[^/.]+$/, "") + ".jpg"
+            const compressed = new File([blob], cleanName, { type: "image/jpeg" })
+            resolve(compressed)
+          },
+          "image/jpeg",
+          quality
+        )
+      }
+      img.onerror = () => resolve(file)
+      img.src = e.target?.result as string
+    }
+    reader.onerror = () => resolve(file)
+    reader.readAsDataURL(file)
+  })
+}
 
 export function MarketingInventoryClient({ 
   initialItems, 
@@ -177,11 +239,11 @@ export function MarketingInventoryClient({
     }, 4000)
   }
 
-  const handleAddPhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] || null
-    if (!file) return
+  const handleAddPhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFile = event.target.files?.[0] || null
+    if (!rawFile) return
 
-    if (!file.type.startsWith("image/")) {
+    if (!rawFile.type.startsWith("image/") && !rawFile.name.match(/\.(jpg|jpeg|png|webp|heic|heif)$/i)) {
       setAddPhotoFile(null)
       setAddPhotoPreview(null)
       setErrorMsg("Please select an image file.")
@@ -189,17 +251,18 @@ export function MarketingInventoryClient({
       return
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      setAddPhotoFile(null)
-      setAddPhotoPreview(null)
-      setErrorMsg("Image size must be less than 10MB.")
+    try {
+      const file = await compressImageFile(rawFile)
+      setErrorMsg("")
+      setAddPhotoFile(file)
+      setAddPhotoPreview(URL.createObjectURL(file))
+    } catch {
+      setErrorMsg("")
+      setAddPhotoFile(rawFile)
+      setAddPhotoPreview(URL.createObjectURL(rawFile))
+    } finally {
       event.target.value = ""
-      return
     }
-
-    setErrorMsg("")
-    setAddPhotoFile(file)
-    setAddPhotoPreview(URL.createObjectURL(file))
   }
 
   // Handle Add Stock (IN)
@@ -406,11 +469,11 @@ export function MarketingInventoryClient({
     setIsEditModalOpen(true)
   }
 
-  const handleEditPhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] || null
-    if (!file) return
+  const handleEditPhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFile = event.target.files?.[0] || null
+    if (!rawFile) return
 
-    if (!file.type.startsWith("image/")) {
+    if (!rawFile.type.startsWith("image/") && !rawFile.name.match(/\.(jpg|jpeg|png|webp|heic|heif)$/i)) {
       setEditPhotoFile(null)
       setEditPhotoPreview(null)
       setErrorMsg("Please select an image file.")
@@ -418,18 +481,20 @@ export function MarketingInventoryClient({
       return
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      setEditPhotoFile(null)
-      setEditPhotoPreview(null)
-      setErrorMsg("Image size must be less than 10MB.")
+    try {
+      const file = await compressImageFile(rawFile)
+      setErrorMsg("")
+      setEditPhotoFile(file)
+      setEditPhotoPreview(URL.createObjectURL(file))
+      setEditPhotoRemoved(false)
+    } catch {
+      setErrorMsg("")
+      setEditPhotoFile(rawFile)
+      setEditPhotoPreview(URL.createObjectURL(rawFile))
+      setEditPhotoRemoved(false)
+    } finally {
       event.target.value = ""
-      return
     }
-
-    setErrorMsg("")
-    setEditPhotoFile(file)
-    setEditPhotoPreview(URL.createObjectURL(file))
-    setEditPhotoRemoved(false)
   }
 
   const handleSaveEditMaster = async (e: React.FormEvent) => {
@@ -1024,37 +1089,60 @@ export function MarketingInventoryClient({
               )}
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Item Image (Optional)</label>
-                <div className="flex items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3">
-                  {addPhotoDisplayUrl ? (
-                    <img src={addPhotoDisplayUrl} alt="Marketing item preview" className="h-16 w-16 rounded-lg border border-slate-200 object-cover" />
-                  ) : (
-                    <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
-                      <ImageIcon className="h-6 w-6" aria-hidden="true" />
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1.5">Item Image (Optional)</label>
+                <div className="rounded-2xl border border-dashed border-slate-300 p-3 bg-slate-50/50 space-y-2.5">
+                  {addPhotoDisplayUrl && (
+                    <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-slate-200">
+                      <img src={addPhotoDisplayUrl} alt="Marketing item preview" className="h-14 w-14 rounded-lg border border-slate-200 object-cover shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-slate-800 truncate">
+                          {addPhotoFile?.name || (!isNewItem && selectedAddItem?.imageUrl ? "Current item image" : "Selected photo")}
+                        </p>
+                        <p className="text-[10px] text-emerald-600 font-semibold">
+                          {addPhotoFile ? `${(addPhotoFile.size / 1024).toFixed(0)} KB • Ready to upload` : "Attached to item"}
+                        </p>
+                      </div>
+                      {(addPhotoFile || (!isNewItem && selectedAddItem?.imageUrl)) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAddPhotoFile(null)
+                            setAddPhotoPreview(null)
+                          }}
+                          className="px-2.5 py-1 text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      )}
                     </div>
                   )}
-                  <div className="min-w-0 flex-1">
-                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
-                      <Upload className="h-4 w-4" aria-hidden="true" />
-                      {addPhotoFile ? "Change image" : !isNewItem && selectedAddItem?.imageUrl ? "Replace image" : "Choose image"}
-                      <input type="file" accept="image/*" onChange={handleAddPhotoChange} className="sr-only" />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer bg-white hover:bg-blue-50/40 transition-all shadow-xs">
+                      <Camera className="h-4 w-4 text-blue-600 shrink-0" />
+                      <span className="text-xs font-bold text-slate-700">Take Photo (Camera)</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={handleAddPhotoChange}
+                      />
                     </label>
-                    <p className="mt-1 truncate text-[10px] text-slate-500">
-                      {addPhotoFile?.name || (!isNewItem && selectedAddItem?.imageUrl ? "Current image" : "Image files up to 10 MB")}
-                    </p>
+                    <label className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer bg-white hover:bg-blue-50/40 transition-all shadow-xs">
+                      <ImageIcon className="h-4 w-4 text-slate-600 shrink-0" />
+                      <span className="text-xs font-bold text-slate-700">Choose from Gallery</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleAddPhotoChange}
+                      />
+                    </label>
                   </div>
-                  {addPhotoFile && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAddPhotoFile(null)
-                        setAddPhotoPreview(null)
-                      }}
-                      className="text-xs font-semibold text-rose-600 hover:text-rose-700"
-                    >
-                      Remove
-                    </button>
-                  )}
+                  <p className="text-[10px] text-slate-400 text-center">
+                    Auto-compressed for mobile upload &bull; Supports direct camera or gallery selection
+                  </p>
                 </div>
               </div>
 
@@ -1242,42 +1330,63 @@ export function MarketingInventoryClient({
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Item Image</label>
-                <div className="flex items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3">
-                  {editPhotoPreview || (!editPhotoRemoved && editingItem.imageUrl) ? (
-                    <img
-                      src={editPhotoPreview || editingItem.imageUrl || ""}
-                      alt={editingItem.name}
-                      className="h-16 w-16 shrink-0 rounded-lg border border-slate-200 object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
-                      <ImageIcon className="h-6 w-6" aria-hidden="true" />
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1.5">Item Image</label>
+                <div className="rounded-2xl border border-dashed border-slate-300 p-3 bg-slate-50/50 space-y-2.5">
+                  {(editPhotoPreview || (!editPhotoRemoved && editingItem.imageUrl)) && (
+                    <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-slate-200">
+                      <img
+                        src={editPhotoPreview || editingItem.imageUrl || ""}
+                        alt={editingItem.name}
+                        className="h-14 w-14 shrink-0 rounded-lg border border-slate-200 object-cover"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-slate-800 truncate">
+                          {editPhotoFile?.name || "Current item image"}
+                        </p>
+                        <p className="text-[10px] text-emerald-600 font-semibold">
+                          {editPhotoFile ? `${(editPhotoFile.size / 1024).toFixed(0)} KB • Ready to upload` : "Current master image"}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditPhotoFile(null)
+                          setEditPhotoPreview(null)
+                          setEditPhotoRemoved(true)
+                        }}
+                        className="px-2.5 py-1 text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                      >
+                        Remove
+                      </button>
                     </div>
                   )}
-                  <div className="min-w-0 flex-1">
-                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
-                      <Upload className="h-4 w-4" aria-hidden="true" />
-                      {editPhotoFile ? "Change image" : editingItem.imageUrl && !editPhotoRemoved ? "Replace image" : "Choose image"}
-                      <input type="file" accept="image/*" onChange={handleEditPhotoChange} className="sr-only" />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer bg-white hover:bg-blue-50/40 transition-all shadow-xs">
+                      <Camera className="h-4 w-4 text-blue-600 shrink-0" />
+                      <span className="text-xs font-bold text-slate-700">Take Photo (Camera)</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={handleEditPhotoChange}
+                      />
                     </label>
-                    <p className="mt-1 truncate text-[10px] text-slate-500">
-                      {editPhotoFile?.name || (!editPhotoRemoved && editingItem.imageUrl ? "Current image" : "Image files up to 10 MB")}
-                    </p>
+                    <label className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer bg-white hover:bg-blue-50/40 transition-all shadow-xs">
+                      <ImageIcon className="h-4 w-4 text-slate-600 shrink-0" />
+                      <span className="text-xs font-bold text-slate-700">Choose from Gallery</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleEditPhotoChange}
+                      />
+                    </label>
                   </div>
-                  {(editPhotoFile || (editingItem.imageUrl && !editPhotoRemoved)) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditPhotoFile(null)
-                        setEditPhotoPreview(null)
-                        setEditPhotoRemoved(true)
-                      }}
-                      className="text-xs font-semibold text-rose-600 hover:text-rose-700"
-                    >
-                      Remove
-                    </button>
-                  )}
+                  <p className="text-[10px] text-slate-400 text-center">
+                    Auto-compressed for mobile upload &bull; Supports direct camera or gallery selection
+                  </p>
                 </div>
               </div>
 

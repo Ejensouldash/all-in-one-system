@@ -6,7 +6,7 @@ import {
   Plus, Minus, FileText, Search, PackageOpen, AlertCircle, 
   Trash2, ArrowUpDown, RefreshCw, X, Calendar, Printer, User, MessageSquare,
   Image as ImageIcon, Upload, Tag, Pencil, Briefcase, HeartHandshake, Box, Layers, QrCode, CheckCircle2, XCircle, Clock, Send, Camera,
-  ChevronDown, ChevronRight, Sparkles, PlusCircle, Check
+  ChevronDown, ChevronRight, Sparkles, PlusCircle, Check, FileSpreadsheet, FileDown, RotateCcw, Filter
 } from "lucide-react"
 import {
   getMarketingItems,
@@ -17,6 +17,8 @@ import {
   uploadMarketingItemPhotoAction,
   editMarketingItemMaster
 } from "@/app/actions/marketing-inventory"
+import { exportMarketingStockMovementExcel } from "@/lib/excel/exportMarketingStockMovementExcel"
+import { generateMarketingStockMovementPdf } from "@/lib/pdf/generateMarketingStockMovementPdf"
 import { MarketingNavTabs } from "@/components/marketing/MarketingNavTabs"
 import { 
   getMarketingMerchandiseRequests, 
@@ -69,11 +71,19 @@ type StockLog = {
   remarks: string | null
   createdAt: Date
   item: {
+    id?: string
     name: string
     unit: string
     location: string
     category?: string | null
+    brand?: string | null
+    pricePerUnit?: number | null
   }
+  variant?: {
+    id: string
+    variantName: string
+    sku?: string | null
+  } | null
 }
 
 type Props = {
@@ -419,8 +429,12 @@ export function MarketingInventoryClient({
   const [reportStartDate, setReportStartDate] = useState("")
   const [reportEndDate, setReportEndDate] = useState("")
   const [reportCategory, setReportCategory] = useState("ALL")
+  const [reportType, setReportType] = useState("ALL")
+  const [reportSearch, setReportSearch] = useState("")
   const [reportLogs, setReportLogs] = useState<StockLog[]>([])
   const [loadingReport, setLoadingReport] = useState(false)
+  const [exportingExcel, setExportingExcel] = useState(false)
+  const [exportingPdf, setExportingPdf] = useState(false)
 
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState("")
@@ -853,12 +867,26 @@ export function MarketingInventoryClient({
   }
 
   // Fetch Report
-  const handleGenerateReport = async () => {
+  const handleGenerateReport = async (overrideFilters?: {
+    startDate?: string
+    endDate?: string
+    category?: string
+    type?: string
+    search?: string
+  }) => {
     setLoadingReport(true)
+    const activeStart = overrideFilters?.startDate !== undefined ? overrideFilters.startDate : reportStartDate
+    const activeEnd = overrideFilters?.endDate !== undefined ? overrideFilters.endDate : reportEndDate
+    const activeCat = overrideFilters?.category !== undefined ? overrideFilters.category : reportCategory
+    const activeType = overrideFilters?.type !== undefined ? overrideFilters.type : reportType
+    const activeSearch = overrideFilters?.search !== undefined ? overrideFilters.search : reportSearch
+
     const res = await getMarketingStockReport({
-      startDate: reportStartDate || undefined,
-      endDate: reportEndDate || undefined,
-      category: reportCategory !== "ALL" ? reportCategory : undefined,
+      startDate: activeStart || undefined,
+      endDate: activeEnd || undefined,
+      category: activeCat !== "ALL" ? activeCat : undefined,
+      type: activeType !== "ALL" ? activeType : undefined,
+      search: activeSearch || undefined,
     })
     setLoadingReport(false)
 
@@ -866,6 +894,65 @@ export function MarketingInventoryClient({
       setReportLogs(res.data as any)
     } else {
       triggerMessage("error", res.error || "Failed to fetch report.")
+    }
+  }
+
+  const handleResetReportFilters = () => {
+    setReportStartDate("")
+    setReportEndDate("")
+    setReportCategory("ALL")
+    setReportType("ALL")
+    setReportSearch("")
+    handleGenerateReport({
+      startDate: "",
+      endDate: "",
+      category: "ALL",
+      type: "ALL",
+      search: "",
+    })
+  }
+
+  const handleExportExcel = async () => {
+    if (reportLogs.length === 0) {
+      triggerMessage("error", "No stock movement records to export.")
+      return
+    }
+    setExportingExcel(true)
+    try {
+      await exportMarketingStockMovementExcel(reportLogs as any, {
+        startDate: reportStartDate,
+        endDate: reportEndDate,
+        type: reportType,
+        searchTerm: reportSearch,
+      })
+      triggerMessage("success", "Excel report downloaded successfully!")
+    } catch (err: any) {
+      console.error(err)
+      triggerMessage("error", err?.message || "Failed to generate Excel report.")
+    } finally {
+      setExportingExcel(false)
+    }
+  }
+
+  const handleExportPdf = async () => {
+    if (reportLogs.length === 0) {
+      triggerMessage("error", "No stock movement records to export.")
+      return
+    }
+    setExportingPdf(true)
+    try {
+      await generateMarketingStockMovementPdf(reportLogs as any, {
+        startDate: reportStartDate,
+        endDate: reportEndDate,
+        type: reportType,
+        searchTerm: reportSearch,
+      })
+      triggerMessage("success", "PDF report downloaded successfully!")
+    } catch (err: any) {
+      console.error(err)
+      triggerMessage("error", err?.message || "Failed to generate PDF report.")
+    } finally {
+      setExportingPdf(false)
     }
   }
 
@@ -985,7 +1072,7 @@ export function MarketingInventoryClient({
             <tbody>
               {reportLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="border border-gray-400 p-4 text-center font-medium text-gray-500">
+                  <td colSpan={8} className="border border-gray-400 p-4 text-center font-medium text-gray-500">
                     No stock logs recorded for the selected criteria.
                   </td>
                 </tr>
@@ -993,7 +1080,9 @@ export function MarketingInventoryClient({
                 reportLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-gray-50/50">
                     <td className="border border-gray-400 p-2 break-words whitespace-normal">{new Date(log.createdAt).toLocaleString("en-GB")}</td>
-                    <td className="border border-gray-400 p-2 font-semibold break-words whitespace-normal">{log.item?.name}</td>
+                    <td className="border border-gray-400 p-2 font-semibold break-words whitespace-normal">
+                      {log.item?.name} {log.variantName ? `(${log.variantName})` : ""}
+                    </td>
                     <td className="border border-gray-400 p-2 break-words whitespace-normal">{log.item?.category || "-"}</td>
                     <td className="border border-gray-400 p-2 font-semibold break-words whitespace-normal">{log.item?.location}</td>
                     <td className="border border-gray-400 p-2 text-center break-words whitespace-normal">
@@ -1003,9 +1092,16 @@ export function MarketingInventoryClient({
                         {log.type}
                       </span>
                     </td>
-                    <td className="border border-gray-400 p-2 text-right font-semibold break-words whitespace-normal">{log.quantity} {log.item?.unit}</td>
-                    <td className="border border-gray-400 p-2 text-right break-words whitespace-normal">RM {log.totalPrice ? log.totalPrice.toFixed(2) : "0.00"}</td>
-                    <td className="border border-gray-400 p-2 font-medium break-words whitespace-normal">{log.handledBy}</td>
+                    <td className="border border-gray-400 p-2 text-right font-semibold break-words whitespace-normal">
+                      {log.type === "IN" ? `+${log.quantity}` : `-${log.quantity}`} {log.item?.unit}
+                    </td>
+                    <td className="border border-gray-400 p-2 text-right break-words whitespace-normal">
+                      RM {log.totalPrice ? log.totalPrice.toFixed(2) : ((log.quantity * (log.pricePerUnit || log.item?.pricePerUnit || 0)).toFixed(2))}
+                    </td>
+                    <td className="border border-gray-400 p-2 font-medium break-words whitespace-normal">
+                      <div>{log.handledBy}</div>
+                      {log.remarks && <div className="text-[10px] text-gray-500 italic mt-0.5">{log.remarks}</div>}
+                    </td>
                   </tr>
                 ))
               )}
@@ -1148,8 +1244,9 @@ export function MarketingInventoryClient({
             <div className="flex justify-end">
               <button
                 onClick={() => {
-                  setIsReportSectionOpen(!isReportSectionOpen)
-                  if (!isReportSectionOpen) handleGenerateReport()
+                  const nextState = !isReportSectionOpen
+                  setIsReportSectionOpen(nextState)
+                  if (nextState) handleGenerateReport()
                 }}
                 className={`px-4 py-2 rounded-xl border font-bold text-xs shadow-xs transition-all flex items-center gap-2 cursor-pointer ${
                   isReportSectionOpen 
@@ -1161,6 +1258,273 @@ export function MarketingInventoryClient({
                 <span>{isReportSectionOpen ? "Close Stock Movement Report" : "Generate Stock Movement Report"}</span>
               </button>
             </div>
+
+            {/* Stock Movement Report Section (Preview, Filter, Excel & PDF Export) */}
+            {isReportSectionOpen && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-top-3 duration-200">
+                {/* Section Header */}
+                <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-300 shrink-0">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-base font-black tracking-tight text-white">Merchandise Stock Movement Report</h2>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-500/30 text-blue-200 border border-blue-400/30">
+                          Audit Trail
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 mt-0.5">Filter, preview, and generate PDF or Excel reports for merchandise stock movements</p>
+                    </div>
+                  </div>
+
+                  {/* Export Action Buttons */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleExportExcel}
+                      disabled={exportingExcel || loadingReport || reportLogs.length === 0}
+                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      title="Download stock movement report in Excel (.xlsx) format"
+                    >
+                      {exportingExcel ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />}
+                      <span>{exportingExcel ? "Generating..." : "Download Excel"}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleExportPdf}
+                      disabled={exportingPdf || loadingReport || reportLogs.length === 0}
+                      className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      title="Download stock movement report in PDF (.pdf) format"
+                    >
+                      {exportingPdf ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
+                      <span>{exportingPdf ? "Generating..." : "Download PDF"}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handlePrintReport}
+                      disabled={loadingReport || reportLogs.length === 0}
+                      className="px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      title="Print official report"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>Print</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsReportSectionOpen(false)}
+                      className="p-2 rounded-xl hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                      title="Close Report Section"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Metric Stat Summary Pills */}
+                {(() => {
+                  const inQty = reportLogs.filter(l => l.type === "IN").reduce((sum, l) => sum + (Number(l.quantity) || 0), 0)
+                  const outQty = reportLogs.filter(l => l.type === "OUT").reduce((sum, l) => sum + (Number(l.quantity) || 0), 0)
+                  const netQty = inQty - outQty
+
+                  const inVal = reportLogs.filter(l => l.type === "IN").reduce((sum, l) => sum + (Number(l.totalPrice) || ((Number(l.quantity) || 0) * (Number(l.pricePerUnit) || Number(l.item?.pricePerUnit) || 0))), 0)
+                  const outVal = reportLogs.filter(l => l.type === "OUT").reduce((sum, l) => sum + (Number(l.totalPrice) || ((Number(l.quantity) || 0) * (Number(l.pricePerUnit) || Number(l.item?.pricePerUnit) || 0))), 0)
+                  const netVal = inVal - outVal
+
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-slate-50 border-b border-slate-100">
+                      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Movement Logs</span>
+                        <span className="text-lg font-black text-slate-900 mt-0.5 block">{reportLogs.length}</span>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">Recorded transactions</span>
+                      </div>
+                      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Stock IN</span>
+                        <span className="text-lg font-black text-emerald-600 mt-0.5 block">+{inQty.toLocaleString()} pcs</span>
+                        <span className="text-[10px] font-semibold text-emerald-700/80 block mt-0.5">Inward: RM {inVal.toFixed(2)}</span>
+                      </div>
+                      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Stock OUT</span>
+                        <span className="text-lg font-black text-rose-600 mt-0.5 block">-{outQty.toLocaleString()} pcs</span>
+                        <span className="text-[10px] font-semibold text-rose-700/80 block mt-0.5">Dispatched: RM {outVal.toFixed(2)}</span>
+                      </div>
+                      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Net Movement Value</span>
+                        <span className="text-lg font-black text-blue-600 mt-0.5 block">RM {netVal.toFixed(2)}</span>
+                        <span className="text-[10px] font-medium text-slate-500 block mt-0.5">Net units: {netQty > 0 ? `+${netQty}` : netQty} pcs (In − Out)</span>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Filter Controls Bar */}
+                <div className="p-4 bg-white border-b border-slate-100">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Start Date</label>
+                      <input
+                        type="date"
+                        value={reportStartDate}
+                        onChange={(e) => setReportStartDate(e.target.value)}
+                        className="w-full text-xs px-3 py-2 border rounded-xl border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">End Date</label>
+                      <input
+                        type="date"
+                        value={reportEndDate}
+                        onChange={(e) => setReportEndDate(e.target.value)}
+                        className="w-full text-xs px-3 py-2 border rounded-xl border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Movement Type</label>
+                      <select
+                        value={reportType}
+                        onChange={(e) => setReportType(e.target.value)}
+                        className="w-full text-xs px-3 py-2 border rounded-xl border-slate-200 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      >
+                        <option value="ALL">All Types (IN &amp; OUT)</option>
+                        <option value="IN">Stock IN (Inward / Restock)</option>
+                        <option value="OUT">Stock OUT (Dispatched / Request)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Search Keyword</label>
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                        <input
+                          type="text"
+                          value={reportSearch}
+                          onChange={(e) => setReportSearch(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handleGenerateReport()}
+                          placeholder="Item, variant, handler, remarks..."
+                          className="w-full text-xs pl-8 pr-3 py-2 border rounded-xl border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleGenerateReport()}
+                        disabled={loadingReport}
+                        className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
+                      >
+                        {loadingReport ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Filter className="w-3.5 h-3.5" />}
+                        <span>Filter</span>
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={handleResetReportFilters}
+                        disabled={loadingReport}
+                        className="p-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                        title="Reset Filters"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Report Data Table Preview */}
+                <div className="max-h-96 overflow-y-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider sticky top-0 border-b border-slate-200 shadow-2xs">
+                      <tr>
+                        <th className="px-4 py-3">Date &amp; Time</th>
+                        <th className="px-4 py-3 text-center">Type</th>
+                        <th className="px-4 py-3">Item &amp; Variant</th>
+                        <th className="px-4 py-3 text-right">Quantity</th>
+                        <th className="px-4 py-3 text-right">Price / Unit</th>
+                        <th className="px-4 py-3 text-right">Total Value</th>
+                        <th className="px-4 py-3">Department</th>
+                        <th className="px-4 py-3">Handled By</th>
+                        <th className="px-4 py-3">Remarks / Purpose</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {loadingReport ? (
+                        <tr>
+                          <td colSpan={9} className="px-4 py-12 text-center text-slate-400">
+                            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
+                            <p className="font-semibold text-xs">Loading merchandise stock movements...</p>
+                          </td>
+                        </tr>
+                      ) : reportLogs.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="px-4 py-12 text-center text-slate-400">
+                            <FileText className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                            <p className="font-bold text-slate-600 text-xs">No stock movement logs found</p>
+                            <p className="text-[11px] text-slate-400 mt-0.5">Try adjusting your date range or search keyword</p>
+                          </td>
+                        </tr>
+                      ) : (
+                        reportLogs.map((log) => {
+                          const unitPrice = typeof log.pricePerUnit === "number" ? log.pricePerUnit : (log.item?.pricePerUnit ?? 0)
+                          const lineTotal = typeof log.totalPrice === "number" ? log.totalPrice : (log.quantity * unitPrice)
+                          const variantName = log.variantName || log.variant?.variantName
+
+                          return (
+                            <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="px-4 py-2.5 text-slate-500 whitespace-nowrap">
+                                {log.createdAt ? new Date(log.createdAt).toLocaleString("en-GB") : "-"}
+                              </td>
+                              <td className="px-4 py-2.5 text-center whitespace-nowrap">
+                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                                  log.type === "IN" 
+                                    ? "bg-emerald-100 text-emerald-800 border border-emerald-200" 
+                                    : "bg-rose-100 text-rose-800 border border-rose-200"
+                                }`}>
+                                  {log.type}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2.5 whitespace-nowrap">
+                                <span className="font-bold text-slate-900">{log.item?.name}</span>
+                                {variantName && (
+                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                    {variantName}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-2.5 text-right font-black whitespace-nowrap">
+                                <span className={log.type === "IN" ? "text-emerald-700" : "text-rose-700"}>
+                                  {log.type === "IN" ? `+${log.quantity}` : `-${log.quantity}`} {log.item?.unit || "pcs"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2.5 text-right font-medium text-slate-600 whitespace-nowrap">
+                                RM {unitPrice.toFixed(2)}
+                              </td>
+                              <td className="px-4 py-2.5 text-right font-bold text-slate-900 whitespace-nowrap">
+                                RM {lineTotal.toFixed(2)}
+                              </td>
+                              <td className="px-4 py-2.5 text-slate-600 font-medium whitespace-nowrap">
+                                {log.department || "MARKETING"}
+                              </td>
+                              <td className="px-4 py-2.5 font-semibold text-slate-800 whitespace-nowrap">
+                                {log.handledBy}
+                              </td>
+                              <td className="px-4 py-2.5 text-slate-500 max-w-xs truncate" title={log.remarks || ""}>
+                                {log.remarks || "—"}
+                              </td>
+                            </tr>
+                          )
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* Active Merchandise Table Section */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">

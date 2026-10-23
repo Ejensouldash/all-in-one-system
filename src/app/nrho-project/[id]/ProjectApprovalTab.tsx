@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { formatMalaysiaDate } from "@/lib/dateTime"
 import { submitNrhoProjectForApproval, reviewNrhoProjectApproval } from "@/app/actions/nrho-project"
 import { 
   Send, 
@@ -231,7 +232,7 @@ export function ProjectApprovalTab({
                 Project Approved by Leadership
               </h4>
               <p className="text-xs text-slate-500">
-                Approved on {project.approvedAt ? new Date(project.approvedAt).toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" }) : "N/A"}
+                Approved on {project.approvedAt ? formatMalaysiaDate(project.approvedAt, "medium") : "N/A"}
                 {project.approvedBy?.name && ` by ${project.approvedBy.name}`}.
               </p>
             </div>

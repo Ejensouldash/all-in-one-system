@@ -9,6 +9,7 @@ import {
 } from "@/lib/maintenance-r2"
 import { prisma } from "@/lib/prisma"
 import { getSignatureBufferFromR2 } from "@/lib/signature-storage"
+import { formatMalaysiaDateTime } from "@/lib/dateTime"
 
 /**
  * Resolves a ticket photo record into a Base64 Data URI string
@@ -251,9 +252,9 @@ export async function generateAndSaveMaintenanceJobSheet(ticketId: string): Prom
     requesterEmail: ticket.requesterEmail,
     picName: ticket.closedBy?.name || ticket.acknowledgedBy?.name || "Maintenance Lead",
     technicianName: ticket.assignee?.name || ticket.assigneeName || "In-house Technician",
-    startedAt: ticket.startedAt ? new Date(ticket.startedAt).toLocaleString("en-GB") : null,
-    completedAt: ticket.workCompletedAt ? new Date(ticket.workCompletedAt).toLocaleString("en-GB") : null,
-    closedAt: new Date(ticket.closedAt || new Date()).toLocaleString("en-GB"),
+    startedAt: ticket.startedAt ? formatMalaysiaDateTime(ticket.startedAt) : null,
+    completedAt: ticket.workCompletedAt ? formatMalaysiaDateTime(ticket.workCompletedAt) : null,
+    closedAt: formatMalaysiaDateTime(ticket.closedAt || new Date()),
     kpiStatus: ticket.kpiStatus,
     kpiRepairHours: ticket.kpiRepairHours,
     rootCause: ticket.rootCause,

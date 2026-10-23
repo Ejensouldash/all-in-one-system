@@ -42,6 +42,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { SignaturePadClient } from "@/components/ui/SignaturePadClient"
+import { formatMalaysiaDateTime, formatMalaysiaDate } from "@/lib/dateTime"
 
 const CATEGORY_CONFIG: Record<string, { label: string; icon: any; color: string }> = {
   MECHANICAL: { label: "Mechanical", icon: Cog, color: "text-blue-700 bg-blue-50 border-blue-200" },
@@ -589,12 +590,12 @@ export function MaintenanceWorkspace({
             </div>
             <div className="flex justify-between text-slate-500">
               <span>Logged:</span>
-              <span className="text-slate-700">{new Date(ticket.createdAt).toLocaleDateString("en-GB")}</span>
+              <span className="text-slate-700">{formatMalaysiaDate(ticket.createdAt)}</span>
             </div>
             {ticket.targetDateline && (
               <div className="flex justify-between text-blue-700 font-semibold pt-1 border-t border-slate-200">
                 <span>Target:</span>
-                <span>{new Date(ticket.targetDateline).toLocaleDateString("en-GB")}</span>
+                <span>{formatMalaysiaDate(ticket.targetDateline)}</span>
               </div>
             )}
           </div>
@@ -1302,7 +1303,7 @@ export function MaintenanceWorkspace({
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-slate-900">{log.action.replace("_", " ")}</span>
                   <span className="text-[10px] text-slate-400 font-mono">
-                    {new Date(log.createdAt).toLocaleString("en-GB")}
+                    {formatMalaysiaDateTime(log.createdAt)}
                   </span>
                 </div>
                 <p className="text-slate-600 mt-0.5">{log.details}</p>

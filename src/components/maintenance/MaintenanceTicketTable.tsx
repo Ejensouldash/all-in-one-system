@@ -23,6 +23,7 @@ import {
   Paperclip
 } from "lucide-react"
 import { MaintenanceTicketViewModal } from "./MaintenanceTicketViewModal"
+import { formatMalaysiaDate } from "@/lib/dateTime"
 
 function getPaginationItems(currentPage: number, totalPages: number): (number | string)[] {
   const items: (number | string)[] = []
@@ -411,7 +412,7 @@ export function MaintenanceTicketTable({
 
                       {/* Date */}
                       <td className="px-5 py-3.5 whitespace-nowrap text-slate-500">
-                        {new Date(ticket.createdAt).toLocaleDateString("en-GB")}
+                        {formatMalaysiaDate(ticket.createdAt)}
                       </td>
 
                       {/* Log No */}

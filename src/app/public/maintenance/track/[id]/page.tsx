@@ -16,6 +16,7 @@ import {
   ExternalLink
 } from "lucide-react"
 import { RequesterVerificationCard } from "./RequesterVerificationCard"
+import { formatMalaysiaDateTime, formatMalaysiaDate } from "@/lib/dateTime"
 
 export async function generateMetadata(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params
@@ -111,7 +112,7 @@ export default async function PublicTicketTrackPage(props: {
                 </div>
                 {ticket.requesterVerifiedAt && (
                   <span className="text-[11px] text-emerald-700">
-                    {new Date(ticket.requesterVerifiedAt).toLocaleDateString("en-GB")}
+                    {formatMalaysiaDate(ticket.requesterVerifiedAt)}
                   </span>
                 )}
               </div>
@@ -185,7 +186,7 @@ export default async function PublicTicketTrackPage(props: {
                     <h3 className="text-xs font-bold text-slate-900">Work Request Logged</h3>
                     <p className="text-[11px] text-slate-500">
                       Logged into BubblesO2 maintenance ledger on{" "}
-                      {new Date(ticket.createdAt).toLocaleString("en-GB")}.
+                      {formatMalaysiaDateTime(ticket.createdAt)}.
                     </p>
                   </div>
                 </div>
@@ -207,14 +208,14 @@ export default async function PublicTicketTrackPage(props: {
                     </h3>
                     <p className="text-[11px] text-slate-500">
                       {ticket.acknowledgedAt ? (
-                        <>Acknowledged by <strong className="text-slate-700">{ticket.acknowledgedBy?.name || "Maintenance Lead"}</strong> on {new Date(ticket.acknowledgedAt).toLocaleString("en-GB")}.</>
+                        <>Acknowledged by <strong className="text-slate-700">{ticket.acknowledgedBy?.name || "Maintenance Lead"}</strong> on {formatMalaysiaDateTime(ticket.acknowledgedAt)}.</>
                       ) : (
                         "Pending engineering PIC acknowledgment."
                       )}
                     </p>
                     {ticket.targetDateline && (
                       <p className="text-[11px] text-blue-700 font-semibold mt-0.5">
-                        Target Completion Deadline: {new Date(ticket.targetDateline).toLocaleString("en-GB")}
+                        Target Completion Deadline: {formatMalaysiaDateTime(ticket.targetDateline)}
                       </p>
                     )}
                   </div>
@@ -286,7 +287,7 @@ export default async function PublicTicketTrackPage(props: {
                     </h3>
                     {ticket.workCompletedAt && (
                       <p className="text-[11px] text-slate-500">
-                        Work finished on {new Date(ticket.workCompletedAt).toLocaleString("en-GB")}
+                        Work finished on {formatMalaysiaDateTime(ticket.workCompletedAt)}
                         {ticket.kpiRepairHours ? ` (${ticket.kpiRepairHours}h repair time)` : ""}
                       </p>
                     )}

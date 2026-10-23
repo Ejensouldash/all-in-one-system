@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { formatMalaysiaDate } from "@/lib/dateTime"
 import {
   generateNrhoProjectAiSummary,
   updateNrhoProjectAiSummary,
@@ -201,7 +202,7 @@ export function ProjectFullReportTab({ projectId, project }: ProjectFullReportTa
             Gemini 3.1 Flash-Lite
           </div>
           <div className="text-[11px] text-slate-500 mt-1">
-            {project.aiGeneratedAt ? `Updated ${new Date(project.aiGeneratedAt).toLocaleDateString()}` : "Not yet generated"}
+            {project.aiGeneratedAt ? `Updated ${formatMalaysiaDate(project.aiGeneratedAt, "medium")}` : "Not yet generated"}
           </div>
         </div>
       </div>

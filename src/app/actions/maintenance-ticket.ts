@@ -1,6 +1,7 @@
 "use server"
 
 import { prisma } from "@/lib/prisma"
+import { formatMalaysiaDateTime } from "@/lib/dateTime"
 import { auth } from "@/auth"
 import { revalidatePath } from "next/cache"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
@@ -515,7 +516,7 @@ export async function acknowledgeMaintenanceTicket(id: string, formData: FormDat
             actorName: session.user.name || "PIC",
             actorRole: "PIC",
             action: "ACKNOWLEDGED",
-            details: `Ticket formally acknowledged by ${session.user.name || 'PIC'}. Category: ${ticketTypeToUse}, Priority: ${priorityToUse}. Response time: ${responseMinutes} minutes. Target deadline set to ${targetEnd.toLocaleString('en-GB')}.`,
+            details: `Ticket formally acknowledged by ${session.user.name || 'PIC'}. Category: ${ticketTypeToUse}, Priority: ${priorityToUse}. Response time: ${responseMinutes} minutes. Target deadline set to ${formatMalaysiaDateTime(targetEnd)}.`,
             isPublic: true,
           },
         },

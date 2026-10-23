@@ -17,6 +17,7 @@ import {
   Building2,
   Phone
 } from "lucide-react"
+import { formatMalaysiaDateTime } from "@/lib/dateTime"
 
 export function MaintenanceTicketViewModal({
   ticket,
@@ -308,7 +309,7 @@ export function MaintenanceTicketViewModal({
         {/* Footer */}
         <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between flex-shrink-0">
           <span className="text-xs text-slate-400">
-            Created: {new Date(ticket.createdAt).toLocaleString("en-GB")}
+            Created: {formatMalaysiaDateTime(ticket.createdAt)}
           </span>
           <div className="flex gap-2">
             <button

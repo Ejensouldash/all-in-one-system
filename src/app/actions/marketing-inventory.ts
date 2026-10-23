@@ -6,6 +6,7 @@ import { auth } from "@/auth"
 import { getAccessInfo, canAccessMarketingInventory } from "@/lib/access"
 import { logUserAction } from "./audit"
 import { uploadMaintenanceItemPhoto } from "@/lib/maintenance-r2"
+import { randomUUID } from "crypto"
 
 export async function getMarketingItems() {
   try {
@@ -76,7 +77,7 @@ export async function addMarketingStock(data: {
     const brandUpper = data.brand?.trim().toUpperCase() || null
 
     const result = await prisma.$transaction(async (tx) => {
-      let item
+      let item: any
       let isNew = false
 
       if (data.itemId) {
@@ -176,36 +177,44 @@ export async function addMarketingStock(data: {
         })
         isNew = true
 
-        if (hasVariants && data.variants) {
-          for (const v of data.variants) {
+        if (hasVariants && data.variants && data.variants.length > 0) {
+          const variantRecords = data.variants.map((v) => {
+            const variantId = randomUUID()
             const vPrice = v.pricePerUnit && v.pricePerUnit > 0 ? v.pricePerUnit : calculatedUnitPrice
-            const createdVariant = await tx.marketingItemVariant.create({
-              data: {
-                itemId: item.id,
-                variantName: v.variantName,
-                attributes: v.attributes as any,
-                sku: v.sku || null,
-                quantity: v.quantity,
-                pricePerUnit: vPrice,
-              },
-            })
-
-            if (v.quantity > 0) {
-              await tx.marketingStockLog.create({
-                data: {
-                  itemId: item.id,
-                  variantId: createdVariant.id,
-                  variantName: v.variantName,
-                  type: "IN",
-                  quantity: v.quantity,
-                  totalPrice: Number((vPrice * v.quantity).toFixed(2)),
-                  pricePerUnit: vPrice,
-                  department: departmentVal,
-                  handledBy: data.handledBy,
-                  remarks: `Initial stock for ${v.variantName}`,
-                },
-              })
+            return {
+              id: variantId,
+              itemId: item.id,
+              variantName: v.variantName,
+              attributes: v.attributes as any,
+              sku: v.sku || null,
+              quantity: v.quantity,
+              pricePerUnit: vPrice,
             }
+          })
+
+          await tx.marketingItemVariant.createMany({
+            data: variantRecords,
+          })
+
+          const stockLogRecords = variantRecords
+            .filter((v) => v.quantity > 0)
+            .map((v) => ({
+              itemId: item.id,
+              variantId: v.id,
+              variantName: v.variantName,
+              type: "IN",
+              quantity: v.quantity,
+              totalPrice: Number((v.pricePerUnit * v.quantity).toFixed(2)),
+              pricePerUnit: v.pricePerUnit,
+              department: departmentVal,
+              handledBy: data.handledBy,
+              remarks: `Initial stock for ${v.variantName}`,
+            }))
+
+          if (stockLogRecords.length > 0) {
+            await tx.marketingStockLog.createMany({
+              data: stockLogRecords,
+            })
           }
         } else {
           // Create top-level Stock Log
@@ -230,6 +239,9 @@ export async function addMarketingStock(data: {
       }
 
       return { item, isNew, unitPrice: calculatedUnitPrice }
+    }, {
+      maxWait: 15000,
+      timeout: 30000,
     })
 
     revalidatePath("/business-development/marketing/inventory")

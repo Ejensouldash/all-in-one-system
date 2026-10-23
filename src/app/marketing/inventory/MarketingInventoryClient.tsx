@@ -260,15 +260,25 @@ export function MarketingInventoryClient({
   }
 
   const handleAddOptionToAttribute = (attrIndex: number) => {
-    const val = (newAttrOptionInputs[attrIndex] || "").trim()
-    if (!val) return
+    const rawVal = (newAttrOptionInputs[attrIndex] || "").trim()
+    if (!rawVal) return
+    // Support comma-separated options: e.g. "Collar, Round Neck" or "Putih, Hijau, Hitam"
+    const parsedOptions = rawVal
+      .split(",")
+      .map(s => s.trim())
+      .filter(s => s.length > 0)
+
+    if (parsedOptions.length === 0) return
+
     setAddAttributes(prev => {
       const copy = [...prev]
       const attr = { ...copy[attrIndex] }
-      if (!attr.options.includes(val)) {
-        attr.options = [...attr.options, val]
-        copy[attrIndex] = attr
+      const currentOpts = new Set(attr.options)
+      for (const opt of parsedOptions) {
+        currentOpts.add(opt)
       }
+      attr.options = Array.from(currentOpts)
+      copy[attrIndex] = attr
       return copy
     })
     setNewAttrOptionInputs(prev => ({ ...prev, [attrIndex]: "" }))
@@ -513,6 +523,22 @@ export function MarketingInventoryClient({
       setErrorMsg("Total price is mandatory and must be greater than RM 0.00.")
       setSubmitting(false)
       return
+    }
+
+    if (isNewItem && addHasVariants) {
+      if (newAttrName.trim()) {
+        setErrorMsg(`You have an unadded attribute "${newAttrName.trim()}". Please click "+ Add Attribute" or clear it before submitting.`)
+        setSubmitting(false)
+        return
+      }
+      for (let idx = 0; idx < addAttributes.length; idx++) {
+        const pending = (newAttrOptionInputs[idx] || "").trim()
+        if (pending) {
+          setErrorMsg(`You have an unadded option "${pending}" under "${addAttributes[idx].name}". Please click "+ Add" or clear it before submitting.`)
+          setSubmitting(false)
+          return
+        }
+      }
     }
 
     const qtyNum = isNewItem && addHasVariants ? totalVariantQty : Number(addQty)
@@ -1880,7 +1906,7 @@ export function MarketingInventoryClient({
                                       handleAddOptionToAttribute(attrIdx)
                                     }
                                   }}
-                                  placeholder={`Add option for ${attr.name} & press Enter`}
+                                  placeholder={`Add options (e.g. Collar, Round Neck) & press Enter`}
                                   className="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-slate-200"
                                 />
                                 <button

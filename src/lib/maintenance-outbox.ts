@@ -2,6 +2,7 @@ import "server-only"
 
 import { prisma } from "@/lib/prisma"
 import { sendEmailNotification } from "@/lib/email"
+import { formatMalaysiaDateTime } from "@/lib/dateTime"
 
 export interface OutboxEmailPayload {
   ticketId?: string
@@ -330,7 +331,7 @@ export function generateTechnicianAssignedEmailEn({
   targetDateline?: Date | null
   workSheetUrl: string
 }) {
-  const deadlineStr = targetDateline ? new Date(targetDateline).toLocaleString("en-GB") : "Pending confirmation"
+  const deadlineStr = targetDateline ? formatMalaysiaDateTime(targetDateline) : "Pending confirmation"
   return `
     <div style="font-family: Arial, sans-serif; padding: 24px; color: #1e293b; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
       <div style="background-color: #0f172a; padding: 18px 24px; border-radius: 8px 8px 0 0; color: white;">
@@ -409,7 +410,7 @@ export function generateTicketAcknowledgedEmailEn({
   targetDateline?: Date | null
   trackUrl?: string
 }) {
-  const deadlineStr = targetDateline ? new Date(targetDateline).toLocaleString("en-GB") : "Pending target confirmation"
+  const deadlineStr = targetDateline ? formatMalaysiaDateTime(targetDateline) : "Pending target confirmation"
   return `
     <div style="font-family: Arial, sans-serif; padding: 24px; color: #1e293b; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
       <div style="background-color: #0f172a; padding: 18px 24px; border-radius: 8px 8px 0 0; color: white;">

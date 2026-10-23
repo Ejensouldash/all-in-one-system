@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { formatMalaysiaDate } from "@/lib/dateTime"
 import { 
   Building2, 
   ArrowLeft, 
@@ -164,9 +165,9 @@ export function ProjectDetailsClient({ project, initialTab }: ProjectDetailsClie
               <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
                 <Calendar className="w-3.5 h-3.5 text-amber-600" />
                 <span className="font-medium">
-                  {project.startDate ? new Date(project.startDate).toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" }) : "Start: TBD"}
+                  {project.startDate ? formatMalaysiaDate(project.startDate, "medium") : "Start: TBD"}
                   {" → "}
-                  {project.targetCompletionDate ? new Date(project.targetCompletionDate).toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" }) : "Target: TBD"}
+                  {project.targetCompletionDate ? formatMalaysiaDate(project.targetCompletionDate, "medium") : "Target: TBD"}
                 </span>
               </div>
             </div>

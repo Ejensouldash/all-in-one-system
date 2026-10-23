@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef } from "react"
+import { formatMalaysiaDate } from "@/lib/dateTime"
 import { uploadNrhoBlueprint, deleteNrhoBlueprint } from "@/app/actions/nrho-project"
 import { 
   FileText, 
@@ -283,11 +284,7 @@ export function ProjectBlueprintsTab({ projectId, blueprints = [] }: ProjectBlue
                         <span>{formatFileSize(bp.fileSize)}</span>
                         <span>•</span>
                         <span>
-                          {new Date(bp.createdAt).toLocaleDateString("en-US", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric"
-                          })}
+                          {formatMalaysiaDate(bp.createdAt, "medium")}
                         </span>
                       </div>
                       {bp.uploadedBy && (
@@ -354,7 +351,7 @@ export function ProjectBlueprintsTab({ projectId, blueprints = [] }: ProjectBlue
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">{previewBlueprint.title}</h3>
                   <p className="text-xs text-slate-500">
-                    Uploaded on {new Date(previewBlueprint.createdAt).toLocaleDateString("en-US")} • {formatFileSize(previewBlueprint.fileSize)}
+                    Uploaded on {formatMalaysiaDate(previewBlueprint.createdAt, "medium")} • {formatFileSize(previewBlueprint.fileSize)}
                   </p>
                 </div>
               </div>

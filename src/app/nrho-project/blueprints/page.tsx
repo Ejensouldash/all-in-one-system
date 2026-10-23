@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { formatMalaysiaDate } from "@/lib/dateTime"
 import { getAllNrhoBlueprintsOverview } from "@/app/actions/nrho-project"
 import { 
   Layers, 
@@ -123,7 +124,7 @@ export default async function NrhoBlueprintsOverviewPage() {
 
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
                       <span className="text-[11px] text-slate-500">
-                        {new Date(bp.createdAt).toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" })}
+                        {formatMalaysiaDate(bp.createdAt, "medium")}
                       </span>
 
                       <div className="flex items-center gap-2">

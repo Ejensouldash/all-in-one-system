@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { formatMalaysiaDate } from "@/lib/dateTime"
 import { 
   createNrhoPO, 
   createNrhoDO, 
@@ -459,11 +460,7 @@ export function ProjectFinancialTab({ projectId, project }: ProjectFinancialTabP
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-slate-500">
-                        {new Date(po.issueDate || po.createdAt).toLocaleDateString("en-US", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric"
-                        })}
+                        {formatMalaysiaDate(po.issueDate || po.createdAt, "medium")}
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-900">
                         RM {po.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -544,11 +541,7 @@ export function ProjectFinancialTab({ projectId, project }: ProjectFinancialTabP
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-slate-500">
-                        {new Date(doItem.receivedDate || doItem.createdAt).toLocaleDateString("en-US", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric"
-                        })}
+                        {formatMalaysiaDate(doItem.receivedDate || doItem.createdAt, "medium")}
                       </td>
                       <td className="py-3.5 px-4 text-slate-800 font-medium">
                         {doItem.receivedBy}
@@ -630,20 +623,10 @@ export function ProjectFinancialTab({ projectId, project }: ProjectFinancialTabP
                           </div>
                         </td>
                         <td className="py-3.5 px-4 text-slate-500">
-                          {new Date(inv.invoiceDate || inv.createdAt).toLocaleDateString("en-US", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric"
-                          })}
+                          {formatMalaysiaDate(inv.invoiceDate || inv.createdAt, "medium")}
                         </td>
                         <td className="py-3.5 px-4 text-slate-500">
-                          {inv.dueDate
-                            ? new Date(inv.dueDate).toLocaleDateString("en-US", {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric"
-                              })
-                            : "-"}
+                          {inv.dueDate ? formatMalaysiaDate(inv.dueDate, "medium") : "-"}
                         </td>
                         <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-900">
                           RM {inv.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

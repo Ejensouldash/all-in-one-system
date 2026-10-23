@@ -5,7 +5,7 @@ import { MarketingInventoryClient } from "./MarketingInventoryClient"
 import { getAccessInfo, canAccessMarketingInventory } from "@/lib/access"
 
 export const metadata = {
-  title: "Marketing Inventory Management | Bubbles O2",
+  title: "Marketing Merchandise Management | Bubbles O2",
 }
 
 export default async function Page() {
@@ -22,6 +22,14 @@ export default async function Page() {
   // Fetch all Marketing Items
   const items = await prisma.marketingItem.findMany({
     orderBy: { name: "asc" },
+  })
+
+  // Fetch all Merchandise Requests
+  const requests = await prisma.marketingMerchandiseRequest.findMany({
+    orderBy: { createdAt: "desc" },
+    include: {
+      item: true,
+    },
   })
 
   // Get recent stock logs (last 30 days)
@@ -42,6 +50,7 @@ export default async function Page() {
     <MarketingInventoryClient
       initialItems={items}
       initialLogs={recentLogs}
+      initialRequests={requests}
       userName={session.user.name || "Unknown"}
       userModules={access.modules}
       isSuperAdmin={access.isSuperAdmin}

@@ -28,7 +28,7 @@ export function MarketingNavTabs({ userModules, isSuperAdmin = false }: Marketin
       active: pathname.startsWith("/marketing/assets"),
     },
     {
-      name: "Inventory Management",
+      name: "Merchandise Management",
       href: "/marketing/inventory",
       module: "MARKETING_INVENTORY",
       icon: Box,

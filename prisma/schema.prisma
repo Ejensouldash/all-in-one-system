@@ -1405,6 +1405,7 @@ model MarketingItem {
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
   logs         MarketingStockLog[]
+  requests     MarketingMerchandiseRequest[]
 
   @@unique([name, location])
 }
@@ -1454,6 +1455,8 @@ model MarketingAssetLoan {
   
   // Requester & Borrowing details
   borrowerName       String
+  borrowerStaffId    String?
+  borrowerEmail      String?
   borrowerDepartment String?
   borrowerContact    String?
 
@@ -1479,6 +1482,42 @@ model MarketingAssetLoan {
   department         String?        @default("MARKETING")
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
+}
+
+
+model MarketingMerchandiseRequest {
+  id                  String         @id @default(uuid())
+  requestNumber       String         @unique
+  itemId              String
+  item                MarketingItem  @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  quantity            Int            @default(1)
+
+  // Requester details
+  requesterName       String
+  requesterStaffId    String?
+  requesterPhone      String?
+  requesterEmail      String?
+  requesterDepartment String
+
+  // Purpose & Schedule
+  purpose             String
+  pickupDate          DateTime
+  remarks             String?
+
+  // Workflow status
+  status              String         @default("PENDING") // PENDING, APPROVED, DISPATCHED, REJECTED, CANCELLED
+  rejectionReason     String?
+  approvedBy          String?
+  approvedAt          DateTime?
+  dispatchedBy        String?
+  dispatchedAt        DateTime?
+
+  department          String?        @default("MARKETING")
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@index([status])
+  @@index([requesterDepartment])
 }
 
 model MaintenancePurchaseRequest {

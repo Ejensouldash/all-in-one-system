@@ -2,6 +2,7 @@
 
 import React, { useState } from "react"
 import Image from "next/image"
+import Link from "next/link"
 import { MarketingNavTabs } from "@/components/marketing/MarketingNavTabs"
 import { 
   Layers, Plus, Search, Calendar, Clock, MapPin, 
@@ -9,7 +10,7 @@ import {
   Trash2, Edit3, Eye, Filter, RefreshCw, Send, Check, 
   RotateCcw, Info, Sparkles, Building, Phone, FileText,
   Monitor, Sofa, Utensils, AlertCircle, X, ShieldAlert,
-  Upload, Image as ImageIcon
+  Upload, Image as ImageIcon, QrCode, Camera
 } from "lucide-react"
 import { 
   addMarketingAsset, 
@@ -49,8 +50,10 @@ type Loan = {
   asset: Asset
   quantity: number
   borrowerName: string
+  borrowerStaffId?: string | null
   borrowerDepartment?: string | null
   borrowerContact?: string | null
+  borrowerEmail?: string | null
   destination: string
   purpose?: string | null
   borrowDateTime: Date | string
@@ -84,6 +87,68 @@ const ASSET_CATEGORIES = [
   { id: "BOOTH_FIXTURE", label: "BOOTH FIXTURES & COUNTERS" },
   { id: "OTHER", label: "OTHER ASSETS" },
 ]
+
+/**
+ * Automatically compress photos on mobile before upload to prevent network timeouts
+ * and payload rejection, converting 15MB camera files into crisp ~500KB JPEG images.
+ */
+async function compressImageFile(file: File, maxDimension = 1600, quality = 0.82): Promise<File> {
+  if (!file.type.startsWith("image/") && !file.name.match(/\.(jpg|jpeg|png|webp|heic|heif)$/i)) {
+    return file
+  }
+  if (file.size < 400 * 1024 && (file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/webp")) {
+    return file
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new window.Image()
+      img.onload = () => {
+        let width = img.width
+        let height = img.height
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width)
+            width = maxDimension
+          } else {
+            width = Math.round((width * maxDimension) / height)
+            height = maxDimension
+          }
+        }
+
+        const canvas = document.createElement("canvas")
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext("2d")
+        if (!ctx) {
+          resolve(file)
+          return
+        }
+
+        ctx.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file)
+              return
+            }
+            const cleanName = file.name.replace(/\.[^/.]+$/, "") + ".jpg"
+            const compressed = new File([blob], cleanName, { type: "image/jpeg" })
+            resolve(compressed)
+          },
+          "image/jpeg",
+          quality
+        )
+      }
+      img.onerror = () => resolve(file)
+      img.src = e.target?.result as string
+    }
+    reader.onerror = () => resolve(file)
+    reader.readAsDataURL(file)
+  })
+}
 
 export function MarketingAssetsClient({ 
   initialAssets, 
@@ -180,11 +245,35 @@ export function MarketingAssetsClient({
   const overdueCount = overdueLoans.length
 
   // Helper for photo upload
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFile = e.target.files?.[0]
+    if (!rawFile) return
+    try {
+      const file = await compressImageFile(rawFile)
       setAssetPhotoFile(file)
       setAssetPhotoPreview(URL.createObjectURL(file))
+    } catch {
+      setAssetPhotoFile(rawFile)
+      setAssetPhotoPreview(URL.createObjectURL(rawFile))
+    } finally {
+      e.target.value = ""
+    }
+  }
+
+  const handleEditPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFile = e.target.files?.[0]
+    if (!rawFile) return
+    try {
+      const file = await compressImageFile(rawFile)
+      setEditPhotoFile(file)
+      setEditPhotoPreview(URL.createObjectURL(file))
+      setEditPhotoRemoved(false)
+    } catch {
+      setEditPhotoFile(rawFile)
+      setEditPhotoPreview(URL.createObjectURL(rawFile))
+      setEditPhotoRemoved(false)
+    } finally {
+      e.target.value = ""
     }
   }
 
@@ -545,6 +634,14 @@ export function MarketingAssetsClient({
           </div>
 
           <div className="flex items-center gap-3">
+            <Link
+              href="/marketing/assets/qr"
+              className="py-2.5 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-black uppercase tracking-wider transition flex items-center gap-2 shadow-xs cursor-pointer"
+              title="Print Marketing Requisition QR Poster for Department Offices"
+            >
+              <QrCode className="w-4 h-4 text-blue-600" />
+              Print QR Poster
+            </Link>
             <button
               onClick={() => setIsNewLoanOpen(true)}
               className="py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-wider transition flex items-center gap-2 shadow-sm"
@@ -771,7 +868,7 @@ export function MarketingAssetsClient({
 
                           <td className="py-4 px-4">
                             <span className="font-bold text-slate-800 block">
-                              {loan.borrowerName}
+                              {loan.borrowerName} {loan.borrowerStaffId && <span className="text-[10px] text-slate-400 font-mono font-normal">({loan.borrowerStaffId})</span>}
                             </span>
                             <span className="text-[10px] text-slate-500 block">
                               {loan.borrowerDepartment || "Staff"} {loan.borrowerContact && `• ${loan.borrowerContact}`}
@@ -1373,42 +1470,62 @@ export function MarketingAssetsClient({
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Asset Image (Optional)</label>
-                  <div className="flex items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3 bg-slate-50/50">
-                    {assetPhotoPreview ? (
-                      <img
-                        src={assetPhotoPreview}
-                        alt="Preview"
-                        className="h-16 w-16 shrink-0 rounded-lg border border-slate-200 object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
-                        <ImageIcon className="h-6 w-6" />
+                  <label className="text-xs font-bold text-slate-700 block mb-1.5">Asset Image (Optional)</label>
+                  <div className="rounded-2xl border border-dashed border-slate-300 p-3 bg-slate-50/50 space-y-2.5">
+                    {assetPhotoPreview && (
+                      <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-slate-200">
+                        <img
+                          src={assetPhotoPreview}
+                          alt="Preview"
+                          className="h-14 w-14 shrink-0 rounded-lg border border-slate-200 object-cover"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-slate-800 truncate">{assetPhotoFile?.name || "Selected photo"}</p>
+                          <p className="text-[10px] text-emerald-600 font-semibold">
+                            {assetPhotoFile ? `${(assetPhotoFile.size / 1024).toFixed(0)} KB • Ready to upload` : "Asset photo"}
+                          </p>
+                        </div>
+                        {assetPhotoFile && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAssetPhotoFile(null)
+                              setAssetPhotoPreview(null)
+                            }}
+                            className="px-2.5 py-1 text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                        )}
                       </div>
                     )}
-                    <div className="flex-1 min-w-0">
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-xs">
-                        <Upload className="h-3.5 w-3.5" />
-                        {assetPhotoFile ? "Change photo" : "Choose photo"}
-                        <input type="file" accept="image/*" onChange={handlePhotoUpload} className="sr-only" />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <label className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer bg-white hover:bg-blue-50/40 transition-all shadow-xs">
+                        <Camera className="h-4 w-4 text-blue-600 shrink-0" />
+                        <span className="text-xs font-bold text-slate-700">Take Photo (Camera)</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          onChange={handlePhotoUpload}
+                        />
                       </label>
-                      <p className="mt-1 truncate text-[10px] text-slate-500">
-                        {assetPhotoFile ? assetPhotoFile.name : "JPEG, PNG, WebP up to 10MB"}
-                      </p>
+                      <label className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer bg-white hover:bg-blue-50/40 transition-all shadow-xs">
+                        <ImageIcon className="h-4 w-4 text-slate-600 shrink-0" />
+                        <span className="text-xs font-bold text-slate-700">Choose from Gallery</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handlePhotoUpload}
+                        />
+                      </label>
                     </div>
-                    {assetPhotoFile && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAssetPhotoFile(null)
-                          setAssetPhotoPreview(null)
-                        }}
-                        className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition"
-                        title="Remove photo"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
+                    <p className="text-[10px] text-slate-400 text-center">
+                      Auto-compressed for mobile upload &bull; Supports direct camera or gallery selection
+                    </p>
                   </div>
                 </div>
 
@@ -1526,55 +1643,63 @@ export function MarketingAssetsClient({
 
                 {/* Edit Asset Photo */}
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Asset Image</label>
-                  <div className="flex items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3 bg-slate-50/50">
-                    {editPhotoPreview || (!editPhotoRemoved && editingAsset.imageUrl) ? (
-                      <img
-                        src={editPhotoPreview || editingAsset.imageUrl || ""}
-                        alt={editingAsset.name}
-                        className="h-16 w-16 shrink-0 rounded-lg border border-slate-200 object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
-                        <ImageIcon className="h-6 w-6" />
+                  <label className="text-xs font-bold text-slate-700 block mb-1.5">Asset Image</label>
+                  <div className="rounded-2xl border border-dashed border-slate-300 p-3 bg-slate-50/50 space-y-2.5">
+                    {(editPhotoPreview || (!editPhotoRemoved && editingAsset.imageUrl)) && (
+                      <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-slate-200">
+                        <img
+                          src={editPhotoPreview || editingAsset.imageUrl || ""}
+                          alt={editingAsset.name}
+                          className="h-14 w-14 shrink-0 rounded-lg border border-slate-200 object-cover"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-slate-800 truncate">
+                            {editPhotoFile?.name || "Current asset photo"}
+                          </p>
+                          <p className="text-[10px] text-emerald-600 font-semibold">
+                            {editPhotoFile ? `${(editPhotoFile.size / 1024).toFixed(0)} KB • Ready to upload` : "Current asset photo"}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditPhotoFile(null)
+                            setEditPhotoPreview(null)
+                            setEditPhotoRemoved(true)
+                          }}
+                          className="px-2.5 py-1 text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                        >
+                          Remove
+                        </button>
                       </div>
                     )}
-                    <div className="flex-1 min-w-0">
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-xs">
-                        <Upload className="h-3.5 w-3.5" />
-                        {editPhotoFile ? "Change photo" : editingAsset.imageUrl && !editPhotoRemoved ? "Replace photo" : "Choose photo"}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <label className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer bg-white hover:bg-blue-50/40 transition-all shadow-xs">
+                        <Camera className="h-4 w-4 text-blue-600 shrink-0" />
+                        <span className="text-xs font-bold text-slate-700">Take Photo (Camera)</span>
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) {
-                              setEditPhotoFile(file)
-                              setEditPhotoPreview(URL.createObjectURL(file))
-                              setEditPhotoRemoved(false)
-                            }
-                          }}
-                          className="sr-only"
+                          capture="environment"
+                          className="hidden"
+                          onChange={handleEditPhotoUpload}
                         />
                       </label>
-                      <p className="mt-1 truncate text-[10px] text-slate-500">
-                        {editPhotoFile?.name || (!editPhotoRemoved && editingAsset.imageUrl ? "Current asset photo" : "JPEG, PNG, WebP up to 10MB")}
-                      </p>
+                      <label className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer bg-white hover:bg-blue-50/40 transition-all shadow-xs">
+                        <ImageIcon className="h-4 w-4 text-slate-600 shrink-0" />
+                        <span className="text-xs font-bold text-slate-700">Choose from Gallery</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleEditPhotoUpload}
+                        />
+                      </label>
                     </div>
-                    {(editPhotoFile || (!editPhotoRemoved && editingAsset.imageUrl)) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditPhotoFile(null)
-                          setEditPhotoPreview(null)
-                          setEditPhotoRemoved(true)
-                        }}
-                        className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition"
-                        title="Remove photo"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
+                    <p className="text-[10px] text-slate-400 text-center">
+                      Auto-compressed for mobile upload &bull; Supports direct camera or gallery selection
+                    </p>
                   </div>
                 </div>
 

@@ -17,6 +17,12 @@ export interface MarketingAvailableItem {
   brand?: string | null
   location: string
   condition?: string
+  hasVariants?: boolean
+  variants?: Array<{
+    id: string
+    variantName: string
+    quantity: number
+  }>
 }
 
 // Public or Internal fetch of all visible assets and inventory items
@@ -55,6 +61,15 @@ export async function getAvailableMarketingItemsAndAssets() {
         quantity: true,
         unit: true,
         imageUrl: true,
+        hasVariants: true,
+        variants: {
+          select: {
+            id: true,
+            variantName: true,
+            quantity: true,
+          },
+          orderBy: { variantName: "asc" },
+        },
       },
     })
 
@@ -83,6 +98,8 @@ export async function getAvailableMarketingItemsAndAssets() {
         imageUrl: i.imageUrl,
         brand: i.brand,
         location: i.location || "HQ Store",
+        hasVariants: i.hasVariants,
+        variants: i.variants,
       })),
     ]
 
@@ -97,6 +114,8 @@ export interface RequisitionItemInput {
   itemId: string
   itemType: "ASSET" | "INVENTORY"
   quantity: number
+  variantId?: string | null
+  variantName?: string | null
 }
 
 export interface SubmitRequisitionPayload {
@@ -224,12 +243,27 @@ export async function submitMarketingRequisition(payload: SubmitRequisitionPaylo
           }
         }
       } else {
-        const inventoryItem = await prisma.marketingItem.findUnique({ where: { id: item.itemId } })
+        const inventoryItem = await prisma.marketingItem.findUnique({
+          where: { id: item.itemId },
+          include: { variants: true },
+        })
         if (!inventoryItem) return { success: false, error: "Requested inventory item could not be found." }
-        if (inventoryItem.quantity < item.quantity) {
-          return {
-            success: false,
-            error: `Not enough stock available for "${inventoryItem.name}". Available: ${inventoryItem.quantity} ${inventoryItem.unit}.`,
+
+        if (item.variantId) {
+          const variant = inventoryItem.variants.find((v) => v.id === item.variantId)
+          if (!variant) return { success: false, error: "Requested item variant could not be found." }
+          if (variant.quantity < item.quantity) {
+            return {
+              success: false,
+              error: `Not enough stock available for "${inventoryItem.name} (${variant.variantName})". Available: ${variant.quantity} ${inventoryItem.unit}.`,
+            }
+          }
+        } else {
+          if (inventoryItem.quantity < item.quantity) {
+            return {
+              success: false,
+              error: `Not enough stock available for "${inventoryItem.name}". Available: ${inventoryItem.quantity} ${inventoryItem.unit}.`,
+            }
           }
         }
       }
@@ -267,6 +301,8 @@ export async function submitMarketingRequisition(payload: SubmitRequisitionPaylo
             data: {
               requestNumber: reqNo,
               itemId: item.itemId,
+              variantId: item.variantId || null,
+              variantName: item.variantName || null,
               quantity: item.quantity,
               requesterName: name.trim(),
               requesterStaffId: staffId.trim(),
@@ -312,6 +348,7 @@ export async function getMarketingMerchandiseRequests() {
       orderBy: { createdAt: "desc" },
       include: {
         item: true,
+        variant: true,
       },
     })
 
@@ -333,7 +370,7 @@ export async function approveMarketingMerchandiseRequest(requestId: string, hand
     const result = await prisma.$transaction(async (tx) => {
       const req = await tx.marketingMerchandiseRequest.findUnique({
         where: { id: requestId },
-        include: { item: true },
+        include: { item: true, variant: true },
       })
 
       if (!req) throw new Error("Request not found.")
@@ -341,10 +378,38 @@ export async function approveMarketingMerchandiseRequest(requestId: string, hand
         throw new Error(`Request is already ${req.status}.`)
       }
 
-      if (req.item.quantity < req.quantity) {
-        throw new Error(
-          `Insufficient stock in HQ Store for "${req.item.name}". Available: ${req.item.quantity}, Requested: ${req.quantity}`
-        )
+      let unitPrice = req.item.pricePerUnit || 0
+
+      // If this request is for a specific variant
+      if (req.variantId) {
+        const variant = await tx.marketingItemVariant.findUnique({
+          where: { id: req.variantId },
+        })
+
+        if (!variant) throw new Error("Requested variant not found.")
+        if (variant.quantity < req.quantity) {
+          throw new Error(
+            `Insufficient stock for "${variant.variantName}". Available: ${variant.quantity}, Requested: ${req.quantity}`
+          )
+        }
+
+        if (variant.pricePerUnit && variant.pricePerUnit > 0) {
+          unitPrice = variant.pricePerUnit
+        }
+
+        // Decrement variant quantity
+        await tx.marketingItemVariant.update({
+          where: { id: req.variantId },
+          data: {
+            quantity: { decrement: req.quantity },
+          },
+        })
+      } else {
+        if (req.item.quantity < req.quantity) {
+          throw new Error(
+            `Insufficient stock in HQ Store for "${req.item.name}". Available: ${req.item.quantity}, Requested: ${req.quantity}`
+          )
+        }
       }
 
       // Decrement item quantity
@@ -356,17 +421,19 @@ export async function approveMarketingMerchandiseRequest(requestId: string, hand
       })
 
       // Create Stock Log OUT
-      const totalCost = Number(((req.item.pricePerUnit || 0) * req.quantity).toFixed(2))
+      const totalCost = Number((unitPrice * req.quantity).toFixed(2))
       await tx.marketingStockLog.create({
         data: {
           itemId: req.itemId,
+          variantId: req.variantId || null,
+          variantName: req.variant?.variantName || req.variantName || null,
           type: "OUT",
           quantity: req.quantity,
           totalPrice: totalCost,
-          pricePerUnit: req.item.pricePerUnit || 0,
+          pricePerUnit: unitPrice,
           department: req.requesterDepartment || "MARKETING",
           handledBy: handledBy || "Marketing PIC",
-          remarks: `Requisition ${req.requestNumber} dispensed to ${req.requesterName} (${req.requesterDepartment}). Purpose: ${req.purpose}`,
+          remarks: `Requisition ${req.requestNumber} dispensed to ${req.requesterName} (${req.requesterDepartment}).${req.variantName ? ` [${req.variantName}]` : ""} Purpose: ${req.purpose}`,
         },
       })
 

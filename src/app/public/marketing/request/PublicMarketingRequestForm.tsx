@@ -55,6 +55,8 @@ const DEPARTMENTS = [
 interface RequestedItemRow {
   selectedItemId: string
   quantity: number
+  variantId?: string | null
+  variantName?: string | null
 }
 
 export function PublicMarketingRequestForm() {
@@ -119,9 +121,26 @@ export function PublicMarketingRequestForm() {
 
   // Update row item selection
   const handleRowItemChange = (index: number, itemId: string) => {
+    const item = availableItems.find(i => i.id === itemId)
+    const firstVariant = item?.hasVariants && item.variants && item.variants.length > 0 ? item.variants[0] : null
+
     setRequestedRows(prev => {
       const next = [...prev]
-      next[index] = { ...next[index], selectedItemId: itemId, quantity: 1 }
+      next[index] = {
+        selectedItemId: itemId,
+        quantity: 1,
+        variantId: firstVariant?.id || null,
+        variantName: firstVariant?.variantName || null,
+      }
+      return next
+    })
+  }
+
+  // Update row variant selection
+  const handleRowVariantChange = (index: number, variantId: string, variantName: string | null) => {
+    setRequestedRows(prev => {
+      const next = [...prev]
+      next[index] = { ...next[index], variantId: variantId || null, variantName: variantName || null }
       return next
     })
   }
@@ -177,7 +196,19 @@ export function PublicMarketingRequestForm() {
     // Check stock quantities
     for (const row of validItems) {
       const item = getItemDetails(row.selectedItemId)
-      if (item && row.quantity > item.availableQuantity) {
+      if (!item) continue
+
+      if (item.hasVariants && item.variants && item.variants.length > 0) {
+        if (!row.variantId) {
+          return setErrorMsg(`Please select a specific size/variant for "${item.name}".`)
+        }
+        const v = item.variants.find(varItem => varItem.id === row.variantId)
+        if (v && row.quantity > v.quantity) {
+          return setErrorMsg(
+            `Requested quantity for "${item.name} (${v.variantName})" exceeds available stock (${v.quantity} ${item.unit}).`
+          )
+        }
+      } else if (row.quantity > item.availableQuantity) {
         return setErrorMsg(
           `Requested quantity for "${item.name}" exceeds available stock (${item.availableQuantity} ${item.unit}).`
         )
@@ -191,6 +222,8 @@ export function PublicMarketingRequestForm() {
         itemId: item.id,
         itemType: item.type,
         quantity: r.quantity,
+        variantId: r.variantId || null,
+        variantName: r.variantName || null,
       }
     })
 
@@ -509,7 +542,8 @@ export function PublicMarketingRequestForm() {
             <div className="space-y-3">
               {requestedRows.map((row, index) => {
                 const selectedItem = getItemDetails(row.selectedItemId)
-                const maxAvailable = selectedItem ? selectedItem.availableQuantity : 999
+                const selectedVariant = selectedItem?.variants?.find((v) => v.id === row.variantId)
+                const maxAvailable = selectedVariant ? selectedVariant.quantity : selectedItem ? selectedItem.availableQuantity : 999
 
                 return (
                   <div
@@ -524,7 +558,7 @@ export function PublicMarketingRequestForm() {
                         <button
                           type="button"
                           onClick={() => handleRemoveRow(index)}
-                          className="text-slate-400 hover:text-rose-600 transition p-1"
+                          className="text-slate-400 hover:text-rose-600 transition p-1 cursor-pointer"
                           title="Remove row"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -534,7 +568,7 @@ export function PublicMarketingRequestForm() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       {/* Item Dropdown */}
-                      <div className="sm:col-span-2">
+                      <div className={selectedItem?.hasVariants ? "sm:col-span-1" : "sm:col-span-2"}>
                         <label className="block text-[11px] font-bold text-slate-600 mb-1">
                           Select Item / Asset <span className="text-rose-500">*</span>
                         </label>
@@ -559,12 +593,38 @@ export function PublicMarketingRequestForm() {
                               .filter((i) => i.type === "INVENTORY")
                               .map((item) => (
                                 <option key={item.id} value={item.id}>
-                                  {item.name} (Stock: {item.availableQuantity} {item.unit})
+                                  {item.name} {item.hasVariants ? "(Multiple sizes/options)" : `(Stock: ${item.availableQuantity} ${item.unit})`}
                                 </option>
                               ))}
                           </optgroup>
                         </select>
                       </div>
+
+                      {/* Variant Dropdown if item has variants */}
+                      {selectedItem?.hasVariants && (
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                            Size / Color / Variant <span className="text-rose-500">*</span>
+                          </label>
+                          <select
+                            required
+                            value={row.variantId || ""}
+                            onChange={(e) => {
+                              const vId = e.target.value
+                              const found = selectedItem.variants?.find((v) => v.id === vId)
+                              handleRowVariantChange(index, vId, found?.variantName || null)
+                            }}
+                            className="w-full text-xs font-bold px-3.5 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50/50 text-indigo-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none transition cursor-pointer"
+                          >
+                            <option value="">-- Select Variant --</option>
+                            {selectedItem.variants?.map((v) => (
+                              <option key={v.id} value={v.id} disabled={v.quantity <= 0}>
+                                {v.variantName} {v.quantity > 0 ? `(${v.quantity} in stock)` : "(Out of stock)"}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
 
                       {/* Quantity Input */}
                       <div>
@@ -602,12 +662,12 @@ export function PublicMarketingRequestForm() {
                         </span>
                         <span
                           className={`font-mono font-bold ${
-                            selectedItem.availableQuantity > 0
+                            maxAvailable > 0
                               ? "text-emerald-700"
                               : "text-rose-600"
                           }`}
                         >
-                          {selectedItem.availableQuantity} {selectedItem.unit} in store
+                          {selectedVariant ? `${selectedVariant.quantity} ${selectedItem.unit} in store for this variant` : `${selectedItem.availableQuantity} ${selectedItem.unit} total in store`}
                         </span>
                       </div>
                     )}

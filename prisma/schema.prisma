@@ -1402,18 +1402,44 @@ model MarketingItem {
   pricePerUnit Float               @default(0)
   imageUrl     String?
   department   String?             @default("MARKETING")
+  hasVariants  Boolean             @default(false)
+  variantConfig Json?              // User-defined attributes: e.g. [{"name": "Size", "options": ["S", "M", "L"]}]
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
   logs         MarketingStockLog[]
   requests     MarketingMerchandiseRequest[]
+  variants     MarketingItemVariant[]
 
   @@unique([name, location])
 }
 
-model MarketingStockLog {
+model MarketingItemVariant {
   id           String        @id @default(uuid())
   itemId       String
   item         MarketingItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  variantName  String        // e.g. "Size: M / Color: Navy Blue"
+  attributes   Json          // Key-value pairs: {"Size": "M", "Color": "Navy Blue"}
+  sku          String?
+  quantity     Int           @default(0)
+  pricePerUnit Float?        @default(0)
+  imageUrl     String?
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  logs         MarketingStockLog[]
+  requests     MarketingMerchandiseRequest[]
+
+  @@index([itemId])
+}
+
+model MarketingStockLog {
+  id           String                @id @default(uuid())
+  itemId       String
+  item         MarketingItem         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  variantId    String?
+  variant      MarketingItemVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  variantName  String?
   type         String        // IN | OUT
   quantity     Int
   totalPrice   Float?
@@ -1486,11 +1512,14 @@ model MarketingAssetLoan {
 
 
 model MarketingMerchandiseRequest {
-  id                  String         @id @default(uuid())
-  requestNumber       String         @unique
+  id                  String                @id @default(uuid())
+  requestNumber       String                @unique
   itemId              String
-  item                MarketingItem  @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  quantity            Int            @default(1)
+  item                MarketingItem         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  variantId           String?
+  variant             MarketingItemVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  variantName         String?
+  quantity            Int                   @default(1)
 
   // Requester details
   requesterName       String

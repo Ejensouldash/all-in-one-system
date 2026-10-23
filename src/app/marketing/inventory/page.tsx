@@ -22,6 +22,11 @@ export default async function Page() {
   // Fetch all Marketing Items
   const items = await prisma.marketingItem.findMany({
     orderBy: { name: "asc" },
+    include: {
+      variants: {
+        orderBy: { variantName: "asc" },
+      },
+    },
   })
 
   // Fetch all Merchandise Requests
@@ -29,6 +34,7 @@ export default async function Page() {
     orderBy: { createdAt: "desc" },
     include: {
       item: true,
+      variant: true,
     },
   })
 
@@ -42,6 +48,7 @@ export default async function Page() {
     },
     include: {
       item: true,
+      variant: true,
     },
     orderBy: { createdAt: "desc" },
   })

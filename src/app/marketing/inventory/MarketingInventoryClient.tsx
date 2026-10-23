@@ -5,7 +5,8 @@ import Link from "next/link"
 import { 
   Plus, Minus, FileText, Search, PackageOpen, AlertCircle, 
   Trash2, ArrowUpDown, RefreshCw, X, Calendar, Printer, User, MessageSquare,
-  Image as ImageIcon, Upload, Tag, Pencil, Briefcase, HeartHandshake, Box, Layers, QrCode, CheckCircle2, XCircle, Clock, Send, Camera
+  Image as ImageIcon, Upload, Tag, Pencil, Briefcase, HeartHandshake, Box, Layers, QrCode, CheckCircle2, XCircle, Clock, Send, Camera,
+  ChevronDown, ChevronRight, Sparkles, PlusCircle, Check
 } from "lucide-react"
 import {
   getMarketingItems,
@@ -23,6 +24,19 @@ import {
   rejectMarketingMerchandiseRequest 
 } from "@/app/actions/marketing-requests"
 
+export type ItemVariant = {
+  id: string
+  itemId: string
+  variantName: string
+  attributes: any
+  sku?: string | null
+  quantity: number
+  pricePerUnit?: number | null
+  imageUrl?: string | null
+  createdAt?: Date
+  updatedAt?: Date
+}
+
 type Item = {
   id: string
   name: string
@@ -34,6 +48,9 @@ type Item = {
   unit: string
   pricePerUnit: number
   imageUrl?: string | null
+  hasVariants?: boolean
+  variantConfig?: Array<{ name: string; options: string[] }> | any
+  variants?: ItemVariant[]
   createdAt: Date
   updatedAt: Date
 }
@@ -41,6 +58,8 @@ type Item = {
 type StockLog = {
   id: string
   itemId: string
+  variantId?: string | null
+  variantName?: string | null
   type: string
   quantity: number
   totalPrice?: number | null
@@ -194,9 +213,119 @@ export function MarketingInventoryClient({
   // Withdraw Stock Modal State
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false)
   const [selectedWithdrawItemId, setSelectedWithdrawItemId] = useState("")
+  const [selectedWithdrawVariantId, setSelectedWithdrawVariantId] = useState("")
   const [withdrawQty, setWithdrawQty] = useState(1)
   const [withdrawHandledBy, setWithdrawHandledBy] = useState(userName)
   const [withdrawRemarks, setWithdrawRemarks] = useState("")
+
+  // Variant Management States
+  const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(new Set())
+  const toggleExpandItem = (itemId: string) => {
+    setExpandedItemIds(prev => {
+      const next = new Set(prev)
+      if (next.has(itemId)) next.delete(itemId)
+      else next.add(itemId)
+      return next
+    })
+  }
+
+  // Add Stock Modal - Variants
+  const [addHasVariants, setAddHasVariants] = useState(false)
+  const [addAttributes, setAddAttributes] = useState<Array<{ name: string; options: string[] }>>([
+    { name: "Size", options: ["S", "M", "L", "XL"] }
+  ])
+  const [newAttrName, setNewAttrName] = useState("")
+  const [newAttrOptionInputs, setNewAttrOptionInputs] = useState<Record<number, string>>({})
+  const [variantMatrix, setVariantMatrix] = useState<Array<{
+    variantName: string
+    attributes: Record<string, string>
+    sku: string
+    quantity: number
+  }>>([])
+  const [selectedRestockVariantId, setSelectedRestockVariantId] = useState("")
+
+  const handleAddAttribute = () => {
+    const trimmed = newAttrName.trim()
+    if (!trimmed) return
+    if (addAttributes.some(a => a.name.toLowerCase() === trimmed.toLowerCase())) {
+      triggerMessage("error", `Attribute "${trimmed}" already exists.`)
+      return
+    }
+    setAddAttributes(prev => [...prev, { name: trimmed, options: [] }])
+    setNewAttrName("")
+  }
+
+  const handleRemoveAttribute = (attrIndex: number) => {
+    setAddAttributes(prev => prev.filter((_, idx) => idx !== attrIndex))
+  }
+
+  const handleAddOptionToAttribute = (attrIndex: number) => {
+    const val = (newAttrOptionInputs[attrIndex] || "").trim()
+    if (!val) return
+    setAddAttributes(prev => {
+      const copy = [...prev]
+      const attr = { ...copy[attrIndex] }
+      if (!attr.options.includes(val)) {
+        attr.options = [...attr.options, val]
+        copy[attrIndex] = attr
+      }
+      return copy
+    })
+    setNewAttrOptionInputs(prev => ({ ...prev, [attrIndex]: "" }))
+  }
+
+  const handleRemoveOptionFromAttribute = (attrIndex: number, optionToRemove: string) => {
+    setAddAttributes(prev => {
+      const copy = [...prev]
+      const attr = { ...copy[attrIndex] }
+      attr.options = attr.options.filter(o => o !== optionToRemove)
+      copy[attrIndex] = attr
+      return copy
+    })
+  }
+
+  // Recalculate variant combinations when attributes change
+  useEffect(() => {
+    if (!addHasVariants) {
+      setVariantMatrix([])
+      return
+    }
+
+    const validAttrs = addAttributes.filter(a => a.name.trim() && a.options.length > 0)
+    if (validAttrs.length === 0) {
+      setVariantMatrix([])
+      return
+    }
+
+    let combinations: Array<{ nameParts: string[]; attrs: Record<string, string> }> = [{ nameParts: [], attrs: {} }]
+    for (const attr of validAttrs) {
+      const nextCombos: Array<{ nameParts: string[]; attrs: Record<string, string> }> = []
+      for (const prev of combinations) {
+        for (const opt of attr.options) {
+          nextCombos.push({
+            nameParts: [...prev.nameParts, opt],
+            attrs: { ...prev.attrs, [attr.name]: opt }
+          })
+        }
+      }
+      combinations = nextCombos
+    }
+
+    setVariantMatrix(prevMatrix => {
+      return combinations.map(combo => {
+        const variantName = combo.nameParts.join(" / ")
+        const existing = prevMatrix.find(p => p.variantName === variantName)
+        return {
+          variantName,
+          attributes: combo.attrs,
+          sku: existing?.sku || "",
+          quantity: existing ? existing.quantity : 0
+        }
+      })
+    })
+  }, [addAttributes, addHasVariants])
+
+  const totalVariantQty = variantMatrix.reduce((sum, v) => sum + (Number(v.quantity) || 0), 0)
 
   // Detail & Ledger Modal State
   const [selectedDetailItem, setSelectedDetailItem] = useState<Item | null>(null)
@@ -386,9 +515,15 @@ export function MarketingInventoryClient({
       return
     }
 
-    const qtyNum = Number(addQty)
+    const qtyNum = isNewItem && addHasVariants ? totalVariantQty : Number(addQty)
     if (isNaN(qtyNum) || qtyNum <= 0) {
-      setErrorMsg("Quantity must be at least 1.")
+      setErrorMsg(isNewItem && addHasVariants ? "Total variant quantity must be at least 1." : "Quantity must be at least 1.")
+      setSubmitting(false)
+      return
+    }
+
+    if (!isNewItem && selectedAddItem?.hasVariants && selectedAddItem.variants?.length && !selectedRestockVariantId) {
+      setErrorMsg("Please select which variant to restock.")
       setSubmitting(false)
       return
     }
@@ -409,6 +544,16 @@ export function MarketingInventoryClient({
 
     const payload = {
       itemId: isNewItem ? null : selectedAddItemId,
+      variantId: !isNewItem && selectedAddItem?.hasVariants ? selectedRestockVariantId : undefined,
+      hasVariants: isNewItem ? addHasVariants : undefined,
+      variantConfig: isNewItem && addHasVariants ? addAttributes : undefined,
+      variants: isNewItem && addHasVariants ? variantMatrix.map(v => ({
+        variantName: v.variantName,
+        attributes: v.attributes,
+        sku: v.sku.trim() || undefined,
+        quantity: Number(v.quantity) || 0,
+        pricePerUnit: Number((priceNum / (qtyNum || 1)).toFixed(4)),
+      })) : undefined,
       name: isNewItem ? newItemName.trim().toUpperCase() : "",
       brand: isNewItem ? (addBrand.trim().toUpperCase() || null) : undefined,
       category: isNewItem ? addCategory : undefined,
@@ -446,6 +591,10 @@ export function MarketingInventoryClient({
       const newLog: StockLog = {
         id: Math.random().toString(),
         itemId: res.data.id,
+        variantId: !isNewItem && selectedAddItem?.hasVariants ? selectedRestockVariantId : undefined,
+        variantName: !isNewItem && selectedAddItem?.hasVariants 
+          ? selectedAddItem.variants?.find(v => v.id === selectedRestockVariantId)?.variantName 
+          : isNewItem && addHasVariants ? "VARIANTS CREATED" : undefined,
         type: "IN",
         quantity: qtyNum,
         totalPrice: priceNum,
@@ -468,6 +617,10 @@ export function MarketingInventoryClient({
       setAddBrand("")
       setAddCategory("MERCHANDISE")
       setSelectedAddItemId("")
+      setSelectedRestockVariantId("")
+      setAddHasVariants(false)
+      setAddAttributes([{ name: "Size", options: ["S", "M", "L", "XL"] }])
+      setVariantMatrix([])
       setAddQty(1)
       setAddTotalPrice("")
       setAddRemarks("")
@@ -490,6 +643,13 @@ export function MarketingInventoryClient({
       return
     }
 
+    const targetItem = items.find(i => i.id === selectedWithdrawItemId)
+    if (targetItem?.hasVariants && targetItem.variants && targetItem.variants.length > 0 && !selectedWithdrawVariantId) {
+      setErrorMsg("Please select which variant to withdraw.")
+      setSubmitting(false)
+      return
+    }
+
     const qtyNum = Number(withdrawQty)
     if (isNaN(qtyNum) || qtyNum <= 0) {
       setErrorMsg("Quantity must be at least 1.")
@@ -499,6 +659,7 @@ export function MarketingInventoryClient({
 
     const res = await withdrawMarketingStock({
       itemId: selectedWithdrawItemId,
+      variantId: targetItem?.hasVariants ? selectedWithdrawVariantId : undefined,
       quantity: qtyNum,
       handledBy: withdrawHandledBy.trim() || userName,
       remarks: withdrawRemarks.trim() || undefined,
@@ -520,11 +681,13 @@ export function MarketingInventoryClient({
         return prev
       })
 
-      const targetItem = items.find(i => i.id === selectedWithdrawItemId)
+      const targetVariant = targetItem?.variants?.find(v => v.id === selectedWithdrawVariantId)
       const withdrawalTotal = Number(((targetItem?.pricePerUnit || 0) * qtyNum).toFixed(2))
       const newLog: StockLog = {
         id: Math.random().toString(),
         itemId: res.data.id,
+        variantId: targetVariant ? targetVariant.id : undefined,
+        variantName: targetVariant ? targetVariant.variantName : undefined,
         type: "OUT",
         quantity: qtyNum,
         totalPrice: withdrawalTotal,
@@ -543,6 +706,7 @@ export function MarketingInventoryClient({
       setLogs(prev => [newLog, ...prev])
 
       setSelectedWithdrawItemId("")
+      setSelectedWithdrawVariantId("")
       setWithdrawQty(1)
       setWithdrawRemarks("")
     } else {
@@ -1017,93 +1181,201 @@ export function MarketingInventoryClient({
                       </tr>
                     ) : (
                       filteredItems.map((item) => (
-                        <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                          {/* Name & Photo */}
-                          <td className="px-5 py-3.5">
-                            <div className="flex items-center gap-3">
-                              {item.imageUrl ? (
-                                <img src={item.imageUrl} alt={item.name} className="h-9 w-9 rounded-lg object-cover border border-slate-200 shrink-0" />
-                              ) : (
-                                <div className="h-9 w-9 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200 shrink-0">
-                                  <Box className="h-4 w-4" />
+                        <React.Fragment key={item.id}>
+                          <tr className={`hover:bg-slate-50/80 transition-colors ${expandedItemIds.has(item.id) ? "bg-slate-50/60" : ""}`}>
+                            {/* Name & Photo */}
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-3">
+                                {item.imageUrl ? (
+                                  <img src={item.imageUrl} alt={item.name} className="h-9 w-9 rounded-lg object-cover border border-slate-200 shrink-0" />
+                                ) : (
+                                  <div className="h-9 w-9 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200 shrink-0">
+                                    <Box className="h-4 w-4" />
+                                  </div>
+                                )}
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (item.hasVariants) {
+                                          toggleExpandItem(item.id)
+                                        } else {
+                                          setSelectedDetailItem(item)
+                                          setIsDetailModalOpen(true)
+                                        }
+                                      }}
+                                      className="font-bold text-slate-900 hover:text-blue-600 text-left transition-colors cursor-pointer flex items-center gap-1.5"
+                                    >
+                                      {item.name}
+                                      {item.hasVariants && (
+                                        expandedItemIds.has(item.id) ? (
+                                          <ChevronDown className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                        ) : (
+                                          <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                        )
+                                      )}
+                                    </button>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <span className="text-[10px] text-slate-400 font-mono">ID: {item.id.slice(0, 8)}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedDetailItem(item)
+                                        setIsDetailModalOpen(true)
+                                      }}
+                                      className="text-[10px] text-slate-400 hover:text-blue-600 font-medium underline cursor-pointer"
+                                    >
+                                      Details
+                                    </button>
+                                  </div>
                                 </div>
-                              )}
-                              <div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedDetailItem(item)
-                                    setIsDetailModalOpen(true)
-                                  }}
-                                  className="font-bold text-slate-900 hover:text-blue-600 text-left transition-colors cursor-pointer"
-                                >
-                                  {item.name}
-                                </button>
-                                <span className="block text-[10px] text-slate-400 font-mono">ID: {item.id.slice(0, 8)}</span>
                               </div>
-                            </div>
-                          </td>
+                            </td>
 
-                          {/* Brand */}
-                          <td className="px-5 py-3.5 font-medium text-slate-600">
-                            {item.brand || "—"}
-                          </td>
+                            {/* Brand */}
+                            <td className="px-5 py-3.5 font-medium text-slate-600">
+                              {item.brand || "—"}
+                            </td>
 
-                          {/* Location */}
-                          <td className="px-5 py-3.5 text-slate-600 font-medium">
-                            {item.location}
-                          </td>
+                            {/* Location */}
+                            <td className="px-5 py-3.5 text-slate-600 font-medium">
+                              {item.location}
+                            </td>
 
-                          {/* Stock Qty */}
-                          <td className="px-5 py-3.5">
-                            <span className={`font-black text-sm ${item.quantity > 5 ? "text-slate-900" : item.quantity > 0 ? "text-amber-600" : "text-rose-600"}`}>
-                              {item.quantity}
-                            </span>
-                          </td>
+                            {/* Stock Qty */}
+                            <td className="px-5 py-3.5">
+                              <span className={`font-black text-sm ${item.quantity > 5 ? "text-slate-900" : item.quantity > 0 ? "text-amber-600" : "text-rose-600"}`}>
+                                {item.quantity}
+                              </span>
+                            </td>
 
-                          {/* Unit */}
-                          <td className="px-5 py-3.5 text-slate-500 font-medium">
-                            {item.unit}
-                          </td>
+                            {/* Unit */}
+                            <td className="px-5 py-3.5 text-slate-500 font-medium">
+                              {item.unit}
+                            </td>
 
-                          {/* Price */}
-                          <td className="px-5 py-3.5 text-right font-mono font-semibold text-slate-700">
-                            RM {item.pricePerUnit ? item.pricePerUnit.toFixed(2) : "0.00"}
-                          </td>
+                            {/* Price */}
+                            <td className="px-5 py-3.5 text-right font-mono font-semibold text-slate-700">
+                              RM {item.pricePerUnit ? item.pricePerUnit.toFixed(2) : "0.00"}
+                            </td>
 
-                          {/* Actions */}
-                          <td className="px-5 py-3.5 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={() => {
-                                  setSelectedWithdrawItemId(item.id)
-                                  setWithdrawQty(1)
-                                  setIsWithdrawModalOpen(true)
-                                }}
-                                className="p-1.5 rounded-lg text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer"
-                                title="Withdraw (OUT)"
+                            {/* Actions */}
+                            <td className="px-5 py-3.5 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    setSelectedWithdrawItemId(item.id)
+                                    setSelectedWithdrawVariantId(item.variants?.[0]?.id || "")
+                                    setWithdrawQty(1)
+                                    setIsWithdrawModalOpen(true)
+                                  }}
+                                  className="p-1.5 rounded-lg text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer"
+                                  title="Withdraw (OUT)"
+                                >
+                                  <Minus className="h-4 w-4" />
+                                </button>
+
+                                <button
+                                  onClick={() => handleOpenEditModal(item)}
+                                  className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+                                  title="Edit Master"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </button>
+
+                                <button
+                                  onClick={() => handleDeleteItem(item.id, item.name)}
+                                  className="p-1.5 rounded-lg text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer"
+                                  title="Delete Item"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+
+                          {/* Expanded Variants: Rendered Row by Row */}
+                          {item.hasVariants && expandedItemIds.has(item.id) && item.variants && item.variants.length > 0 && (
+                            item.variants.map((v, vIdx) => (
+                              <tr 
+                                key={v.id} 
+                                className="bg-slate-50/70 hover:bg-indigo-50/40 border-t border-slate-100 transition-colors"
                               >
-                                <Minus className="h-4 w-4" />
-                              </button>
+                                {/* Name & Tree Branch */}
+                                <td className="px-5 py-2.5 pl-14">
+                                  <div className="flex items-center gap-2.5">
+                                    <span className="text-slate-300 font-mono text-sm select-none">
+                                      {vIdx === item.variants!.length - 1 ? "└─" : "├─"}
+                                    </span>
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-bold text-slate-800 text-xs">
+                                          {v.variantName}
+                                        </span>
+                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                          Variant
+                                        </span>
+                                      </div>
+                                      {v.sku && (
+                                        <span className="block text-[10px] text-slate-400 font-mono">
+                                          SKU: {v.sku}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
 
-                              <button
-                                onClick={() => handleOpenEditModal(item)}
-                                className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
-                                title="Edit Master"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
+                                {/* Brand */}
+                                <td className="px-5 py-2.5 text-slate-400 font-medium text-xs">
+                                  {item.brand || "—"}
+                                </td>
 
-                              <button
-                                onClick={() => handleDeleteItem(item.id, item.name)}
-                                className="p-1.5 rounded-lg text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer"
-                                title="Delete Item"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+                                {/* Location */}
+                                <td className="px-5 py-2.5 text-slate-500 font-medium text-xs">
+                                  {item.location}
+                                </td>
+
+                                {/* Stock Qty */}
+                                <td className="px-5 py-2.5">
+                                  <span className={`font-black text-sm ${v.quantity > 5 ? "text-slate-900" : v.quantity > 0 ? "text-amber-600" : "text-rose-600"}`}>
+                                    {v.quantity}
+                                  </span>
+                                </td>
+
+                                {/* Unit */}
+                                <td className="px-5 py-2.5 text-slate-500 font-medium text-xs">
+                                  {item.unit}
+                                </td>
+
+                                {/* Price / Unit */}
+                                <td className="px-5 py-2.5 text-right font-mono font-semibold text-slate-700 text-xs">
+                                  RM {(v.pricePerUnit ? v.pricePerUnit : (item.pricePerUnit || 0)).toFixed(2)}
+                                </td>
+
+                                {/* Actions */}
+                                <td className="px-5 py-2.5 text-right">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedWithdrawItemId(item.id)
+                                        setSelectedWithdrawVariantId(v.id)
+                                        setWithdrawQty(1)
+                                        setIsWithdrawModalOpen(true)
+                                      }}
+                                      className="p-1.5 rounded-lg text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer"
+                                      title={`Withdraw (OUT) ${v.variantName}`}
+                                    >
+                                      <Minus className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </React.Fragment>
                       ))
                     )}
                   </tbody>
@@ -1194,8 +1466,13 @@ export function MarketingInventoryClient({
                                 <span className="font-black text-slate-800 block">
                                   {req.item?.name || "Merchandise"}
                                 </span>
-                                <span className="text-[10px] font-bold text-indigo-600">
-                                  Qty: {req.quantity} {req.item?.unit || "pcs"} • Available: {req.item?.quantity ?? 0} in store
+                                {req.variantName && (
+                                  <span className="inline-block mt-0.5 px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                                    Variant: {req.variantName}
+                                  </span>
+                                )}
+                                <span className="text-[10px] font-bold text-indigo-600 block mt-0.5">
+                                  Qty: {req.quantity} {req.item?.unit || "pcs"} • Available: {req.variant ? req.variant.quantity : (req.item?.quantity ?? 0)} in store
                                 </span>
                               </div>
                             </div>
@@ -1421,7 +1698,10 @@ export function MarketingInventoryClient({
                   <select
                     required
                     value={selectedAddItemId}
-                    onChange={(e) => setSelectedAddItemId(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedAddItemId(e.target.value)
+                      setSelectedRestockVariantId("")
+                    }}
                     className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white"
                   >
                     <option value="">-- Select Marketing Item --</option>
@@ -1431,6 +1711,28 @@ export function MarketingInventoryClient({
                       </option>
                     ))}
                   </select>
+
+                  {selectedAddItem?.hasVariants && selectedAddItem.variants && selectedAddItem.variants.length > 0 && (
+                    <div className="mt-3 bg-indigo-50/60 p-3 rounded-xl border border-indigo-100">
+                      <label className="block text-xs font-bold uppercase text-indigo-900 mb-1 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                        Select Variant to Restock *
+                      </label>
+                      <select
+                        required
+                        value={selectedRestockVariantId}
+                        onChange={(e) => setSelectedRestockVariantId(e.target.value)}
+                        className="w-full text-xs px-3 py-2 rounded-lg border border-indigo-200 bg-white font-medium"
+                      >
+                        <option value="">-- Choose Variant --</option>
+                        {selectedAddItem.variants.map((v) => (
+                          <option key={v.id} value={v.id}>
+                            {v.variantName} (Current: {v.quantity} {selectedAddItem.unit})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -1497,6 +1799,184 @@ export function MarketingInventoryClient({
                       />
                     </div>
                   </div>
+
+                  {/* Variant toggle & builder */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-3">
+                    <label className="flex items-center gap-3 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={addHasVariants}
+                        onChange={(e) => setAddHasVariants(e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div>
+                        <span className="text-xs font-bold text-slate-900 block">
+                          Has Multiple Sizes, Colors, or Custom Attributes
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          Enable to define attributes and individual stock per variant
+                        </span>
+                      </div>
+                    </label>
+
+                    {addHasVariants && (
+                      <div className="space-y-3 pt-2 border-t border-slate-200">
+                        {/* Dynamic Attributes Builder */}
+                        <div className="space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                              Define Attributes &amp; Options
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              e.g. Size, Color, Edition
+                            </span>
+                          </div>
+
+                          {/* Existing Attributes */}
+                          {addAttributes.map((attr, attrIdx) => (
+                            <div key={attrIdx} className="bg-white p-2.5 rounded-xl border border-slate-200 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-black text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                                  <Tag className="w-3 h-3 text-indigo-600" />
+                                  {attr.name}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveAttribute(attrIdx)}
+                                  className="text-[10px] font-bold text-rose-600 hover:text-rose-800 cursor-pointer"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+
+                              {/* Options Chips */}
+                              <div className="flex flex-wrap gap-1.5">
+                                {attr.options.map((opt) => (
+                                  <span
+                                    key={opt}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-slate-100 text-slate-800 border border-slate-200"
+                                  >
+                                    {opt}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveOptionFromAttribute(attrIdx, opt)}
+                                      className="text-slate-400 hover:text-rose-600 cursor-pointer"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+
+                              {/* Add Option Input */}
+                              <div className="flex gap-1.5">
+                                <input
+                                  type="text"
+                                  value={newAttrOptionInputs[attrIdx] || ""}
+                                  onChange={(e) => setNewAttrOptionInputs(prev => ({ ...prev, [attrIdx]: e.target.value }))}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault()
+                                      handleAddOptionToAttribute(attrIdx)
+                                    }
+                                  }}
+                                  placeholder={`Add option for ${attr.name} & press Enter`}
+                                  className="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-slate-200"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddOptionToAttribute(attrIdx)}
+                                  className="px-2.5 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition cursor-pointer"
+                                >
+                                  + Add
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+
+                          {/* Add New Attribute Name */}
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={newAttrName}
+                              onChange={(e) => setNewAttrName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault()
+                                  handleAddAttribute()
+                                }
+                              }}
+                              placeholder="New Attribute Name (e.g. Size, Color)"
+                              className="flex-1 text-xs px-3 py-2 rounded-xl border border-slate-200"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleAddAttribute}
+                              className="px-3 py-2 text-xs font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition cursor-pointer"
+                            >
+                              + Add Attribute
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Variant Matrix Table */}
+                        {variantMatrix.length > 0 && (
+                          <div className="space-y-2 pt-2 border-t border-slate-200">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                                Generated Variants ({variantMatrix.length})
+                              </span>
+                              <span className="text-[10px] text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
+                                Total Qty: {totalVariantQty}
+                              </span>
+                            </div>
+
+                            <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100 bg-white">
+                              {variantMatrix.map((v, idx) => (
+                                <div key={idx} className="p-2.5 flex items-center justify-between gap-3 hover:bg-slate-50 text-xs">
+                                  <div className="min-w-0 flex-1">
+                                    <span className="font-bold text-slate-900 block truncate">{v.variantName}</span>
+                                    <input
+                                      type="text"
+                                      placeholder="SKU / Barcode (Optional)"
+                                      value={v.sku}
+                                      onChange={(e) => {
+                                        const val = e.target.value
+                                        setVariantMatrix(prev => {
+                                          const copy = [...prev]
+                                          copy[idx] = { ...copy[idx], sku: val }
+                                          return copy
+                                        })
+                                      }}
+                                      className="mt-1 text-[11px] px-2 py-0.5 rounded border border-slate-200 w-full font-mono text-slate-600"
+                                    />
+                                  </div>
+                                  <div className="w-24 shrink-0">
+                                    <label className="block text-[9px] font-bold uppercase text-slate-400 mb-0.5">Initial Stock</label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      value={v.quantity}
+                                      onChange={(e) => {
+                                        const val = Number(e.target.value) || 0
+                                        setVariantMatrix(prev => {
+                                          const copy = [...prev]
+                                          copy[idx] = { ...copy[idx], quantity: val }
+                                          return copy
+                                        })
+                                      }}
+                                      className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 font-black text-center"
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1561,14 +2041,17 @@ export function MarketingInventoryClient({
               {/* Quantity & Total Price */}
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Quantity (IN) *</label>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                    Quantity (IN) * {isNewItem && addHasVariants && <span className="text-indigo-600 text-[10px] font-normal lowercase">(sum of variants)</span>}
+                  </label>
                   <input
                     type="number"
                     min={1}
                     required
-                    value={addQty}
+                    readOnly={isNewItem && addHasVariants}
+                    value={isNewItem && addHasVariants ? totalVariantQty : addQty}
                     onChange={(e) => setAddQty(Number(e.target.value))}
-                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 font-bold"
+                    className={`w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 font-bold ${isNewItem && addHasVariants ? "bg-slate-100 text-slate-600 cursor-not-allowed" : ""}`}
                   />
                 </div>
 
@@ -1651,7 +2134,12 @@ export function MarketingInventoryClient({
                 <select
                   required
                   value={selectedWithdrawItemId}
-                  onChange={(e) => setSelectedWithdrawItemId(e.target.value)}
+                  onChange={(e) => {
+                    const id = e.target.value
+                    setSelectedWithdrawItemId(id)
+                    const found = items.find(i => i.id === id)
+                    setSelectedWithdrawVariantId(found?.variants?.[0]?.id || "")
+                  }}
                   className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white"
                 >
                   <option value="">-- Choose Item --</option>
@@ -1663,17 +2151,57 @@ export function MarketingInventoryClient({
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Withdraw Quantity *</label>
-                <input
-                  type="number"
-                  min={1}
-                  required
-                  value={withdrawQty}
-                  onChange={(e) => setWithdrawQty(Number(e.target.value))}
-                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 font-bold"
-                />
-              </div>
+              {(() => {
+                const selectedWithdrawItem = items.find(i => i.id === selectedWithdrawItemId)
+                const selectedWithdrawVariant = selectedWithdrawItem?.variants?.find(v => v.id === selectedWithdrawVariantId)
+                const maxStock = selectedWithdrawVariant ? selectedWithdrawVariant.quantity : (selectedWithdrawItem?.quantity || 1)
+
+                return (
+                  <>
+                    {selectedWithdrawItem?.hasVariants && selectedWithdrawItem.variants && selectedWithdrawItem.variants.length > 0 && (
+                      <div className="bg-rose-50/60 p-3 rounded-xl border border-rose-100">
+                        <label className="block text-xs font-bold uppercase text-rose-900 mb-1 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-rose-600" />
+                          Select Variant to Withdraw *
+                        </label>
+                        <select
+                          required
+                          value={selectedWithdrawVariantId}
+                          onChange={(e) => setSelectedWithdrawVariantId(e.target.value)}
+                          className="w-full text-xs px-3 py-2 rounded-lg border border-rose-200 bg-white font-medium"
+                        >
+                          <option value="">-- Choose Variant --</option>
+                          {selectedWithdrawItem.variants.map((v) => (
+                            <option key={v.id} value={v.id}>
+                              {v.variantName} (Available: {v.quantity} {selectedWithdrawItem.unit})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-bold uppercase text-slate-700">Withdraw Quantity *</label>
+                        {selectedWithdrawItem && (
+                          <span className="text-[10px] text-slate-500 font-bold">
+                            Available: {selectedWithdrawVariant ? `${selectedWithdrawVariant.quantity} ${selectedWithdrawItem.unit}` : `${selectedWithdrawItem.quantity} ${selectedWithdrawItem.unit}`}
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="number"
+                        min={1}
+                        max={maxStock > 0 ? maxStock : undefined}
+                        required
+                        value={withdrawQty}
+                        onChange={(e) => setWithdrawQty(Number(e.target.value))}
+                        className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 font-bold"
+                      />
+                    </div>
+                  </>
+                )
+              })()}
 
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Handled By *</label>
@@ -1931,6 +2459,31 @@ export function MarketingInventoryClient({
               </div>
             </div>
 
+            {selectedDetailItem.hasVariants && selectedDetailItem.variants && selectedDetailItem.variants.length > 0 && (
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    Variant Breakdown ({selectedDetailItem.variants.length} types)
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    Total: <strong className="text-slate-900">{selectedDetailItem.quantity} {selectedDetailItem.unit}</strong>
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {selectedDetailItem.variants.map((v) => (
+                    <div key={v.id} className="p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-xs">
+                      <div className="font-bold text-slate-900 truncate">{v.variantName}</div>
+                      {v.sku && <div className="text-[10px] font-mono text-slate-400">SKU: {v.sku}</div>}
+                      <div className={`mt-1 text-xs font-black ${v.quantity > 5 ? "text-slate-800" : v.quantity > 0 ? "text-amber-600" : "text-rose-600"}`}>
+                        {v.quantity} {selectedDetailItem.unit}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div>
               <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">Stock Movement History</h4>
               <div className="max-h-60 overflow-y-auto border border-slate-200 rounded-xl">
@@ -1939,6 +2492,7 @@ export function MarketingInventoryClient({
                     <tr>
                       <th className="px-4 py-2">Date</th>
                       <th className="px-4 py-2">Type</th>
+                      <th className="px-4 py-2">Variant</th>
                       <th className="px-4 py-2">Qty</th>
                       <th className="px-4 py-2">Handled By</th>
                       <th className="px-4 py-2">Remarks</th>
@@ -1947,7 +2501,7 @@ export function MarketingInventoryClient({
                   <tbody className="divide-y divide-slate-100">
                     {logs.filter(l => l.itemId === selectedDetailItem.id).length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-4 py-6 text-center text-slate-400">No stock logs for this item.</td>
+                        <td colSpan={6} className="px-4 py-6 text-center text-slate-400">No stock logs for this item.</td>
                       </tr>
                     ) : (
                       logs.filter(l => l.itemId === selectedDetailItem.id).map(log => (
@@ -1957,6 +2511,13 @@ export function MarketingInventoryClient({
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${log.type === "IN" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>
                               {log.type}
                             </span>
+                          </td>
+                          <td className="px-4 py-2 text-slate-700 font-semibold text-[11px]">
+                            {log.variantName ? (
+                              <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 font-bold">
+                                {log.variantName}
+                              </span>
+                            ) : "—"}
                           </td>
                           <td className="px-4 py-2 font-bold">{log.quantity}</td>
                           <td className="px-4 py-2 text-slate-700">{log.handledBy}</td>

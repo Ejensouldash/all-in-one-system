@@ -11,12 +11,31 @@ export async function getMarketingItems() {
   try {
     const items = await prisma.marketingItem.findMany({
       orderBy: { name: "asc" },
+      include: {
+        variants: {
+          orderBy: { variantName: "asc" },
+        },
+      },
     })
     return { success: true, data: items }
   } catch (error: any) {
     console.error("Failed to fetch marketing items:", error)
     return { success: false, error: error.message }
   }
+}
+
+export type VariantInput = {
+  id?: string
+  variantName: string
+  attributes: Record<string, string>
+  sku?: string
+  quantity: number
+  pricePerUnit?: number
+}
+
+export type VariantConfigItem = {
+  name: string
+  options: string[]
 }
 
 export async function addMarketingStock(data: {
@@ -32,6 +51,10 @@ export async function addMarketingStock(data: {
   location?: string
   department?: string
   imageUrl?: string | null
+  hasVariants?: boolean
+  variantConfig?: VariantConfigItem[]
+  variants?: VariantInput[]
+  variantId?: string | null
 }) {
   try {
     const access = await getAccessInfo()
@@ -57,7 +80,16 @@ export async function addMarketingStock(data: {
       let isNew = false
 
       if (data.itemId) {
-        // Increment existing item
+        // Restock existing item
+        const existingItem = await tx.marketingItem.findUnique({
+          where: { id: data.itemId },
+          include: { variants: true },
+        })
+
+        if (!existingItem) {
+          throw new Error("Marketing item not found.")
+        }
+
         const updateData: any = {
           quantity: { increment: data.quantity },
           pricePerUnit: calculatedUnitPrice,
@@ -67,9 +99,44 @@ export async function addMarketingStock(data: {
         if (brandUpper) updateData.brand = brandUpper
         if (data.imageUrl) updateData.imageUrl = data.imageUrl
 
+        // If restocking a specific variant
+        let restockedVariantName: string | null = null
+        if (data.variantId) {
+          const targetVariant = await tx.marketingItemVariant.findUnique({
+            where: { id: data.variantId },
+          })
+          if (targetVariant) {
+            restockedVariantName = targetVariant.variantName
+            await tx.marketingItemVariant.update({
+              where: { id: data.variantId },
+              data: {
+                quantity: { increment: data.quantity },
+                pricePerUnit: calculatedUnitPrice,
+              },
+            })
+          }
+        }
+
         item = await tx.marketingItem.update({
           where: { id: data.itemId },
           data: updateData,
+          include: { variants: true },
+        })
+
+        // Create Stock Log
+        await tx.marketingStockLog.create({
+          data: {
+            itemId: item.id,
+            variantId: data.variantId || null,
+            variantName: restockedVariantName,
+            type: "IN",
+            quantity: data.quantity,
+            totalPrice: data.totalPrice,
+            pricePerUnit: calculatedUnitPrice,
+            department: item.department || departmentVal,
+            handledBy: data.handledBy,
+            remarks: data.remarks || (restockedVariantName ? `Restocked variant: ${restockedVariantName}` : null),
+          },
         })
       } else {
         // Create new item
@@ -90,6 +157,8 @@ export async function addMarketingStock(data: {
           )
         }
 
+        const hasVariants = !!data.hasVariants && Array.isArray(data.variants) && data.variants.length > 0
+
         item = await tx.marketingItem.create({
           data: {
             name: normalizedName,
@@ -101,24 +170,64 @@ export async function addMarketingStock(data: {
             unit: data.unit || "pcs",
             pricePerUnit: calculatedUnitPrice,
             imageUrl: data.imageUrl || null,
+            hasVariants,
+            variantConfig: hasVariants && data.variantConfig ? (data.variantConfig as any) : undefined,
           },
         })
         isNew = true
-      }
 
-      // Create Stock Log
-      await tx.marketingStockLog.create({
-        data: {
-          itemId: item.id,
-          type: "IN",
-          quantity: data.quantity,
-          totalPrice: data.totalPrice,
-          pricePerUnit: calculatedUnitPrice,
-          department: item.department || departmentVal,
-          handledBy: data.handledBy,
-          remarks: data.remarks || null,
-        },
-      })
+        if (hasVariants && data.variants) {
+          for (const v of data.variants) {
+            const vPrice = v.pricePerUnit && v.pricePerUnit > 0 ? v.pricePerUnit : calculatedUnitPrice
+            const createdVariant = await tx.marketingItemVariant.create({
+              data: {
+                itemId: item.id,
+                variantName: v.variantName,
+                attributes: v.attributes as any,
+                sku: v.sku || null,
+                quantity: v.quantity,
+                pricePerUnit: vPrice,
+              },
+            })
+
+            if (v.quantity > 0) {
+              await tx.marketingStockLog.create({
+                data: {
+                  itemId: item.id,
+                  variantId: createdVariant.id,
+                  variantName: v.variantName,
+                  type: "IN",
+                  quantity: v.quantity,
+                  totalPrice: Number((vPrice * v.quantity).toFixed(2)),
+                  pricePerUnit: vPrice,
+                  department: departmentVal,
+                  handledBy: data.handledBy,
+                  remarks: `Initial stock for ${v.variantName}`,
+                },
+              })
+            }
+          }
+        } else {
+          // Create top-level Stock Log
+          await tx.marketingStockLog.create({
+            data: {
+              itemId: item.id,
+              type: "IN",
+              quantity: data.quantity,
+              totalPrice: data.totalPrice,
+              pricePerUnit: calculatedUnitPrice,
+              department: departmentVal,
+              handledBy: data.handledBy,
+              remarks: data.remarks || null,
+            },
+          })
+        }
+
+        item = await tx.marketingItem.findUnique({
+          where: { id: item.id },
+          include: { variants: true },
+        })
+      }
 
       return { item, isNew, unitPrice: calculatedUnitPrice }
     })
@@ -126,11 +235,15 @@ export async function addMarketingStock(data: {
     revalidatePath("/business-development/marketing/inventory")
     revalidatePath("/marketing/inventory")
 
+    if (!result.item) {
+      throw new Error("Failed to retrieve updated marketing item.")
+    }
+
     // Log the user activity
     if (result.isNew) {
       await logUserAction(
         "Registered Marketing Asset/Item",
-        `Created new marketing item: ${result.item.name} (${result.item.location}) with initial quantity of ${data.quantity} ${result.item.unit} at RM ${data.totalPrice.toFixed(2)}. Handled by: ${data.handledBy}.`
+        `Created new marketing item: ${result.item.name} (${result.item.location}) with ${data.hasVariants ? "variants and " : ""}total quantity of ${data.quantity} ${result.item.unit} at RM ${data.totalPrice.toFixed(2)}. Handled by: ${data.handledBy}.`
       )
     } else {
       await logUserAction(
@@ -148,6 +261,7 @@ export async function addMarketingStock(data: {
 
 export async function withdrawMarketingStock(data: {
   itemId: string
+  variantId?: string | null
   quantity: number
   handledBy: string
   remarks?: string
@@ -165,16 +279,49 @@ export async function withdrawMarketingStock(data: {
     const result = await prisma.$transaction(async (tx) => {
       const item = await tx.marketingItem.findUnique({
         where: { id: data.itemId },
+        include: { variants: true },
       })
 
       if (!item) {
         throw new Error("Marketing item not found.")
       }
 
-      if (item.quantity < data.quantity) {
-        throw new Error(
-          `Insufficient stock. Available: ${item.quantity} ${item.unit}, requested withdrawal: ${data.quantity} ${item.unit}.`
-        )
+      let variantName: string | null = null
+      let unitPrice = item.pricePerUnit
+
+      if (data.variantId) {
+        const variant = await tx.marketingItemVariant.findUnique({
+          where: { id: data.variantId },
+        })
+
+        if (!variant || variant.itemId !== data.itemId) {
+          throw new Error("Specified variant not found.")
+        }
+
+        if (variant.quantity < data.quantity) {
+          throw new Error(
+            `Insufficient stock for "${variant.variantName}". Available: ${variant.quantity} ${item.unit}, requested: ${data.quantity} ${item.unit}.`
+          )
+        }
+
+        variantName = variant.variantName
+        if (variant.pricePerUnit && variant.pricePerUnit > 0) {
+          unitPrice = variant.pricePerUnit
+        }
+
+        // Decrement variant stock
+        await tx.marketingItemVariant.update({
+          where: { id: data.variantId },
+          data: {
+            quantity: { decrement: data.quantity },
+          },
+        })
+      } else {
+        if (item.quantity < data.quantity) {
+          throw new Error(
+            `Insufficient stock. Available: ${item.quantity} ${item.unit}, requested withdrawal: ${data.quantity} ${item.unit}.`
+          )
+        }
       }
 
       const updatedItem = await tx.marketingItem.update({
@@ -182,22 +329,25 @@ export async function withdrawMarketingStock(data: {
         data: {
           quantity: { decrement: data.quantity },
         },
+        include: { variants: true },
       })
 
-      const withdrawalTotal = Number((item.pricePerUnit * data.quantity).toFixed(2))
+      const withdrawalTotal = Number((unitPrice * data.quantity).toFixed(2))
       await tx.marketingStockLog.create({
         data: {
           itemId: item.id,
+          variantId: data.variantId || null,
+          variantName,
           type: "OUT",
           quantity: data.quantity,
-          pricePerUnit: item.pricePerUnit,
+          pricePerUnit: unitPrice,
           totalPrice: withdrawalTotal,
           handledBy: data.handledBy,
-          remarks: data.remarks || null,
+          remarks: data.remarks || (variantName ? `Withdrew variant: ${variantName}` : null),
         },
       })
 
-      return updatedItem
+      return { item: updatedItem, variantName }
     })
 
     revalidatePath("/business-development/marketing/inventory")
@@ -205,10 +355,10 @@ export async function withdrawMarketingStock(data: {
 
     await logUserAction(
       "Withdrew Marketing Stock",
-      `Withdrew ${data.quantity} ${result.unit} from marketing item: ${result.name} (${result.location}). Handled by: ${data.handledBy}. Remarks: ${data.remarks || "-"}`
+      `Withdrew ${data.quantity} ${result.item.unit} from marketing item: ${result.item.name} (${result.item.location})${result.variantName ? ` [${result.variantName}]` : ""}. Handled by: ${data.handledBy}. Remarks: ${data.remarks || "-"}`
     )
 
-    return { success: true, data: result }
+    return { success: true, data: result.item }
   } catch (error: any) {
     console.error("Failed to withdraw marketing stock:", error)
     return { success: false, error: error.message }
@@ -292,6 +442,9 @@ export async function getMarketingItemHistory(itemId: string) {
     const item = await prisma.marketingItem.findUnique({
       where: { id: itemId },
       include: {
+        variants: {
+          orderBy: { variantName: "asc" },
+        },
         logs: {
           orderBy: { createdAt: "desc" },
         },

@@ -50,6 +50,7 @@ const FORM_TYPES: { value: string; label: string }[] = [
   { value: "fuv", label: "SGMP-19 FUV (Hazard & Process Control)" },
   { value: "finished-goods", label: "SGMP/21/FIR - Finished Goods" },
   { value: "retention-sample", label: "SGMP-21 RSR (Retention Sample)" },
+  { value: "uv-machine-3-in-1", label: "UV Machine 3 In 1 Checklist" },
 ]
 
 const FIELD_CONFIG: Record<string, FieldConfig[]> = {
@@ -243,6 +244,14 @@ const FIELD_CONFIG: Record<string, FieldConfig[]> = {
     { key: "batchNo", label: "No Batch", type: "text" },
     { key: "preparedByName", label: "Prepared By", type: "text" },
     { key: "remarks", label: "Remarks", type: "text" },
+  ],
+  "uv-machine-3-in-1": [
+    { key: "line1Intensity", label: "L1 Intensity", type: "text" },
+    { key: "line1OperatingHours", label: "L1 Hours", type: "text" },
+    { key: "line1RunningDays", label: "L1 Days", type: "text" },
+    { key: "line1Pic", label: "L1 PIC", type: "text" },
+    { key: "line2MachineStatus", label: "L2 Status", type: "text" },
+    { key: "line2Pic", label: "L2 PIC", type: "text" },
   ],
 }
 

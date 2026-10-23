@@ -1917,6 +1917,37 @@ model ProductionWaterQualityRO {
   @@index([dateTime])
 }
 
+model ProductionUVMachineChecklist {
+  id                  String   @id @default(uuid())
+  date                DateTime
+
+  // LINE 1 (800ML) - UV Sterilizer Operational Status
+  line1Intensity      String?
+  line1OperatingHours String?
+  line1RunningDays    String?
+  line1Time           String?
+  line1Pic            String?
+  line1Signature      String?  @db.Text
+  line1Remarks        String?
+
+  // LINE 2 (425ML) - UV Machine Status
+  line2MachineStatus  String?  // "Green Light" | "Red Light"
+  line2Time           String?
+  line2Pic            String?
+  line2Signature      String?  @db.Text
+  line2Remarks        String?
+
+  // Verification
+  verifiedBy          String?
+  verifiedSignature   String?  @db.Text
+  verifiedAt          DateTime?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([date])
+}
+
 // ============================================================
 // Reminder Calendar (scheduled email reminders)
 // ============================================================
@@ -2154,7 +2185,7 @@ model MaintenanceFPIR {
 model MaintenanceWQTR {
   id                 String   @id @default(uuid())
   date               DateTime
-  rows               Json // [{ time, phUnfiltered, phFiltered, turbidity, colour }]
+  rows               Json // [{ time, phUnfiltered, phFiltered, tdsUnfiltered, tdsFiltered, turbidity, colour }]
   checkedBy          String
   performedSignature String?
   verifiedBy         String?

@@ -3,11 +3,13 @@
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 
-// pH is read twice per sample: before and after filtration.
+// pH and TDS are read twice per sample: before and after filtration.
 export type WQTRRow = {
   time: string
   phUnfiltered: string
   phFiltered: string
+  tdsUnfiltered?: string
+  tdsFiltered?: string
   turbidity: string
   colour: string
 }

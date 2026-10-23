@@ -8,7 +8,15 @@ import { useMaintenanceDraft } from "../_components/useMaintenanceDraft"
 import { DraftBanner, SaveDraftButton } from "../_components/DraftControls"
 import { createWQTR, type WQTRRow } from "./actions"
 
-const EMPTY_ROW: WQTRRow = { time: "", phUnfiltered: "", phFiltered: "", turbidity: "", colour: "" }
+const EMPTY_ROW: WQTRRow = {
+  time: "",
+  phUnfiltered: "",
+  phFiltered: "",
+  tdsUnfiltered: "",
+  tdsFiltered: "",
+  turbidity: "",
+  colour: "",
+}
 
 export function WQTRForm({ userName }: { userName: string }) {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
@@ -103,7 +111,7 @@ export function WQTRForm({ userName }: { userName: string }) {
                 </div>
               </div>
               <h1 className="text-2xl sm:text-4xl font-black tracking-tight mb-2 uppercase">Water Quality Testing Record</h1>
-              <p className="text-slate-400 font-medium">Record pH before and after filtration, turbidity and colour per reading.</p>
+              <p className="text-slate-400 font-medium">Record pH and TDS before and after filtration, turbidity and colour per reading.</p>
             </div>
           </div>
         </div>
@@ -151,18 +159,21 @@ export function WQTRForm({ userName }: { userName: string }) {
             </div>
 
             <div className="overflow-x-auto rounded-2xl border border-gray-200 shadow-sm">
-              <table className="w-full text-sm text-left min-w-[800px]">
+              <table className="w-full text-sm text-left min-w-[950px]">
                 <thead className="bg-slate-50 border-b border-gray-200">
                   <tr>
                     <th className="px-4 py-3 font-black uppercase tracking-wider text-xs text-slate-600" rowSpan={2}>Time</th>
                     <th className="px-4 py-3 font-black uppercase tracking-wider text-xs text-slate-600 text-center border-b border-gray-200" colSpan={2}>pH</th>
+                    <th className="px-4 py-3 font-black uppercase tracking-wider text-xs text-slate-600 text-center border-b border-gray-200" colSpan={2}>TDS</th>
                     <th className="px-4 py-3 font-black uppercase tracking-wider text-xs text-slate-600" rowSpan={2}>Turbidity</th>
                     <th className="px-4 py-3 font-black uppercase tracking-wider text-xs text-slate-600" rowSpan={2}>Colour</th>
                     <th className="px-2 py-3 w-10" rowSpan={2}></th>
                   </tr>
                   <tr>
-                    <th className="px-4 py-2 font-black uppercase tracking-wider text-[10px] text-slate-500">Unfiltered</th>
-                    <th className="px-4 py-2 font-black uppercase tracking-wider text-[10px] text-slate-500">Filtered</th>
+                    <th className="px-4 py-2 font-black uppercase tracking-wider text-[10px] text-slate-500 text-center">Unfiltered</th>
+                    <th className="px-4 py-2 font-black uppercase tracking-wider text-[10px] text-slate-500 text-center">Filtered</th>
+                    <th className="px-4 py-2 font-black uppercase tracking-wider text-[10px] text-slate-500 text-center">Unfiltered</th>
+                    <th className="px-4 py-2 font-black uppercase tracking-wider text-[10px] text-slate-500 text-center">Filtered</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -193,6 +204,26 @@ export function WQTRForm({ userName }: { userName: string }) {
                           value={row.phFiltered}
                           onChange={(e) => updateRow(index, "phFiltered", e.target.value)}
                           placeholder="7.00"
+                          className="w-full p-2 outline-none bg-transparent focus:bg-blue-50 font-medium text-slate-700 rounded-lg"
+                        />
+                      </td>
+                      <td className="p-1 border-r border-gray-100">
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={row.tdsUnfiltered || ""}
+                          onChange={(e) => updateRow(index, "tdsUnfiltered", e.target.value)}
+                          placeholder="e.g. 150"
+                          className="w-full p-2 outline-none bg-transparent focus:bg-blue-50 font-medium text-slate-700 rounded-lg"
+                        />
+                      </td>
+                      <td className="p-1 border-r border-gray-100">
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={row.tdsFiltered || ""}
+                          onChange={(e) => updateRow(index, "tdsFiltered", e.target.value)}
+                          placeholder="e.g. 120"
                           className="w-full p-2 outline-none bg-transparent focus:bg-blue-50 font-medium text-slate-700 rounded-lg"
                         />
                       </td>

@@ -109,6 +109,9 @@ export async function getMaintenanceSummaryRecords(
       case "fuv":
         data = await prisma.maintenanceHazardProcessControl.findMany({ where, orderBy: { date: "desc" } })
         break
+      case "uv-machine-3-in-1":
+        data = await prisma.productionUVMachineChecklist.findMany({ where, orderBy: { date: "desc" } })
+        break
       case "retention-sample": {
         const sampleWhere: any = {}
         if (startDate && endDate) {
@@ -247,6 +250,11 @@ export async function updateMaintenanceRecord(formType: string, id: string, data
         await prisma.retentionSampleRecord.update({ where: { id }, data })
         revalidatePath("/forms/maintenance/reports/retention-sample")
         break
+      case "uv-machine-3-in-1":
+        await prisma.productionUVMachineChecklist.update({ where: { id }, data })
+        revalidatePath("/forms/maintenance/reports/uv-machine-3-in-1")
+        revalidatePath("/forms/maintenance/uv-machine-3-in-1")
+        break
       default:
         return { success: false, error: "Invalid form type" }
     }
@@ -361,6 +369,11 @@ export async function deleteMaintenanceRecord(formType: string, id: string) {
       case "retention-sample":
         await prisma.retentionSampleRecord.delete({ where: { id } })
         revalidatePath("/forms/maintenance/reports/retention-sample")
+        break
+      case "uv-machine-3-in-1":
+        await prisma.productionUVMachineChecklist.delete({ where: { id } })
+        revalidatePath("/forms/maintenance/reports/uv-machine-3-in-1")
+        revalidatePath("/forms/maintenance/uv-machine-3-in-1")
         break
       default:
         return { success: false, error: "Invalid form type" }
@@ -504,6 +517,18 @@ export async function verifyMaintenanceRecord(
           },
         })
         revalidatePath("/forms/maintenance/reports/retention-sample")
+        break
+      case "uv-machine-3-in-1":
+        await prisma.productionUVMachineChecklist.update({
+          where: { id },
+          data: {
+            verifiedBy,
+            verifiedSignature,
+            verifiedAt: new Date(),
+          },
+        })
+        revalidatePath("/forms/maintenance/reports/uv-machine-3-in-1")
+        revalidatePath("/forms/maintenance/uv-machine-3-in-1")
         break
       default:
         return { success: false, error: "Invalid form type" }
@@ -652,6 +677,14 @@ export async function batchVerifyMaintenanceRecords(
           data: { verifiedBy, verifiedSignature, verifiedAt: new Date() },
         })
         revalidatePath("/forms/maintenance/reports/retention-sample")
+        break
+      case "uv-machine-3-in-1":
+        await prisma.productionUVMachineChecklist.updateMany({
+          where: { id: { in: ids } },
+          data: { verifiedBy, verifiedSignature, verifiedAt: new Date() },
+        })
+        revalidatePath("/forms/maintenance/reports/uv-machine-3-in-1")
+        revalidatePath("/forms/maintenance/uv-machine-3-in-1")
         break
       default:
         return { success: false, error: "Invalid form type" }

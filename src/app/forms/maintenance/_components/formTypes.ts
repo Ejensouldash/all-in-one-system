@@ -36,6 +36,7 @@ export const MAINTENANCE_FORM_TYPES = [
   "waste-management",
   "water-quality-ro",
   "well-flowrate",
+  "uv-machine-3-in-1",
   "wqtr",
 ] as const
 

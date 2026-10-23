@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, ClipboardList, FileSpreadsheet, Brush, ClipboardCheck, Bug, Droplets, BookmarkCheck, RotateCcw } from "lucide-react"
+import { Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, ClipboardList, FileSpreadsheet, Brush, ClipboardCheck, Bug, Droplets, BookmarkCheck, RotateCcw, Zap } from "lucide-react"
 import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
 
 import { getAccessInfo } from "@/lib/access"
@@ -220,6 +220,14 @@ export default async function MaintenanceReportsDashboard() {
       href: "/forms/maintenance/reports/well-flowrate",
       gradient: "from-sky-950 via-cyan-900 to-slate-900",
       accent: "bg-cyan-400"
+    },
+    {
+      title: "UV MACHINE 3 IN 1 CHECKLIST",
+      description: "UV Machine 3 In 1 Daily Records & Machine Status Reports",
+      icon: <Zap className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/uv-machine-3-in-1",
+      gradient: "from-blue-950 via-indigo-900 to-slate-900",
+      accent: "bg-blue-400"
     },
     {
       title: "WATER QUALITY TESTING RO",

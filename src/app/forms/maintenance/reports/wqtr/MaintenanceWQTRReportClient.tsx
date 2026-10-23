@@ -124,10 +124,13 @@ export function MaintenanceWQTRReportClient() {
                     <tr className="bg-gray-200 print:bg-gray-200 text-center">
                       <th className="border border-black p-1" rowSpan={2}>TIME</th>
                       <th className="border border-black p-1" colSpan={2}>pH</th>
+                      <th className="border border-black p-1" colSpan={2}>TDS</th>
                       <th className="border border-black p-1" rowSpan={2}>TURBIDITY</th>
                       <th className="border border-black p-1" rowSpan={2}>COLOUR</th>
                     </tr>
                     <tr className="bg-gray-200 print:bg-gray-200 text-center">
+                      <th className="border border-black p-1">UNFILTERED</th>
+                      <th className="border border-black p-1">FILTERED</th>
                       <th className="border border-black p-1">UNFILTERED</th>
                       <th className="border border-black p-1">FILTERED</th>
                     </tr>
@@ -138,12 +141,14 @@ export function MaintenanceWQTRReportClient() {
                         <td className="border border-black p-2">{row.time || ""}</td>
                         <td className="border border-black p-2">{row.phUnfiltered || ""}</td>
                         <td className="border border-black p-2">{row.phFiltered || ""}</td>
+                        <td className="border border-black p-2">{row.tdsUnfiltered || ""}</td>
+                        <td className="border border-black p-2">{row.tdsFiltered || ""}</td>
                         <td className="border border-black p-2">{row.turbidity || ""}</td>
                         <td className="border border-black p-2">{row.colour || ""}</td>
                       </tr>
                     )) : (
                       <tr>
-                        <td colSpan={5} className="border border-black p-4 text-center">No readings recorded</td>
+                        <td colSpan={7} className="border border-black p-4 text-center">No readings recorded</td>
                       </tr>
                     )}
                   </tbody>

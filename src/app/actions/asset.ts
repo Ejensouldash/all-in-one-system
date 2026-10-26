@@ -9,7 +9,7 @@ import { getAccessInfo, hasAnyModule } from "@/lib/access"
 import { MAX_BLANK_QR_BATCH_SIZE } from "@/lib/asset-constants"
 
 async function lockAssetTagSequence(tx: Prisma.TransactionClient) {
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(1747986918, 1)`
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(1747986918, 1)`
 }
 
 async function getNextAssetTagInTransaction(tx: Prisma.TransactionClient): Promise<string> {
@@ -129,7 +129,7 @@ export async function createBlankAssetQrs(departmentId: string, quantity: number
     return { success: true as const, assets: createdAssets }
   } catch (error) {
     console.error("Failed to create blank asset QR codes:", error)
-    return { success: false as const, error: "Failed to create blank QR codes. Please try again." }
+    return { success: false as const, error: error instanceof Error ? `Failed to create blank QR codes: ${error.message}` : "Failed to create blank QR codes. Please try again." }
   }
 }
 

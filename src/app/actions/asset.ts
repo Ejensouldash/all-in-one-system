@@ -3,7 +3,32 @@
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { AssetStatus, AssetType } from "@prisma/client"
+import type { Prisma } from "@prisma/client"
 import { uploadMaintenanceItemPhoto } from "@/lib/maintenance-r2"
+import { getAccessInfo, hasAnyModule } from "@/lib/access"
+import { MAX_BLANK_QR_BATCH_SIZE } from "@/lib/asset-constants"
+
+async function lockAssetTagSequence(tx: Prisma.TransactionClient) {
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(1747986918, 1)`
+}
+
+async function getNextAssetTagInTransaction(tx: Prisma.TransactionClient): Promise<string> {
+  const assets = await tx.asset.findMany({
+    where: { assetTag: { startsWith: "AST-" } },
+    select: { assetTag: true },
+  })
+
+  let highestNumber = BigInt(0)
+  for (const asset of assets) {
+    const match = /^AST-(\d+)$/.exec(asset.assetTag)
+    if (!match) continue
+
+    const number = BigInt(match[1])
+    if (number > highestNumber) highestNumber = number
+  }
+
+  return `AST-${String(highestNumber + BigInt(1)).padStart(4, "0")}`
+}
 
 export async function getNextAssetTag(): Promise<string> {
   try {
@@ -44,6 +69,70 @@ export async function generateAssetTag(departmentId: string | null, assetType: s
   }
 }
 
+export async function createBlankAssetQrs(departmentId: string, quantity: number) {
+  const access = await getAccessInfo()
+  if (!access || !hasAnyModule(access, ["ASSETS"])) {
+    return { success: false as const, error: "Unauthorized" }
+  }
+
+  if (!departmentId || typeof departmentId !== "string") {
+    return { success: false as const, error: "Select a department." }
+  }
+
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_BLANK_QR_BATCH_SIZE) {
+    return { success: false as const, error: `Quantity must be between 1 and ${MAX_BLANK_QR_BATCH_SIZE}.` }
+  }
+
+  try {
+    const department = await prisma.department.findUnique({
+      where: { id: departmentId },
+      select: { id: true },
+    })
+    if (!department) {
+      return { success: false as const, error: "The selected department was not found." }
+    }
+
+    const createdAssets = await prisma.$transaction(async tx => {
+      await lockAssetTagSequence(tx)
+
+      const firstTag = await getNextAssetTagInTransaction(tx)
+      let nextNumber = BigInt(firstTag.replace("AST-", ""))
+      const tags: string[] = []
+      for (let index = 0; index < quantity; index++) {
+        tags.push(`AST-${String(nextNumber).padStart(4, "0")}`)
+        nextNumber += BigInt(1)
+      }
+
+      await tx.asset.createMany({
+        data: tags.map(assetTag => ({
+          assetTag,
+          name: "[Blank QR - Ready to Register]",
+          condition: "Unregistered",
+          description: "Blank QR code sticker pre-allocated for on-site tagging and registration.",
+          departmentId: department.id,
+          status: AssetStatus.AVAILABLE,
+          type: AssetType.OTHER,
+        })),
+      })
+
+      return tx.asset.findMany({
+        where: { assetTag: { in: tags } },
+        include: { department: true, location: true },
+        orderBy: { assetTag: "asc" },
+      })
+    })
+
+    revalidatePath("/dashboard/assets")
+    revalidatePath("/dashboard/assets/list")
+    revalidatePath("/dashboard/assets/qr")
+
+    return { success: true as const, assets: createdAssets }
+  } catch (error) {
+    console.error("Failed to create blank asset QR codes:", error)
+    return { success: false as const, error: "Failed to create blank QR codes. Please try again." }
+  }
+}
+
 export async function uploadAssetPhotoAction(formData: FormData): Promise<{ success: boolean; url?: string; error?: string }> {
   try {
     const file = formData.get("photo") as File
@@ -63,32 +152,38 @@ export async function uploadAssetPhotoAction(formData: FormData): Promise<{ succ
 
 export async function createAsset(data: any) {
   try {
-    const tag = data.assetTag || (await getNextAssetTag())
-
     let status = (data.status as AssetStatus) || AssetStatus.AVAILABLE
     if (!data.status && data.condition) {
       if (data.condition === "Bad") status = AssetStatus.MAINTENANCE
       else if (data.condition === "Unused") status = AssetStatus.RETIRED
     }
 
-    const asset = await prisma.asset.create({
-      data: {
-        assetTag: tag,
-        name: data.name,
-        brand: data.brand || null,
-        model: data.model || null,
-        serialNumber: data.serialNumber || null,
-        description: data.description || null,
-        condition: data.condition || null,
-        imageUrl: data.imageUrl || null,
-        purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : null,
-        price: data.price ? parseFloat(data.price) : null,
-        plateNumber: data.plateNumber || null,
-        status: status,
-        type: (data.type as AssetType) || AssetType.OTHER,
-        departmentId: data.departmentId || null,
-        locationId: data.locationId || null,
+    const asset = await prisma.$transaction(async tx => {
+      let tag = data.assetTag
+      if (!tag) {
+        await lockAssetTagSequence(tx)
+        tag = await getNextAssetTagInTransaction(tx)
       }
+
+      return tx.asset.create({
+        data: {
+          assetTag: tag,
+          name: data.name,
+          brand: data.brand || null,
+          model: data.model || null,
+          serialNumber: data.serialNumber || null,
+          description: data.description || null,
+          condition: data.condition || null,
+          imageUrl: data.imageUrl || null,
+          purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : null,
+          price: data.price ? parseFloat(data.price) : null,
+          plateNumber: data.plateNumber || null,
+          status: status,
+          type: (data.type as AssetType) || AssetType.OTHER,
+          departmentId: data.departmentId || null,
+          locationId: data.locationId || null,
+        }
+      })
     })
 
     revalidatePath("/dashboard/assets")

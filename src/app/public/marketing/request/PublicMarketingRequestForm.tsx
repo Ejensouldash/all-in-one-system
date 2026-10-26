@@ -53,10 +53,12 @@ const DEPARTMENTS = [
 ]
 
 interface RequestedItemRow {
+  category: "ASSET" | "INVENTORY" | ""
   selectedItemId: string
   quantity: number
   variantId?: string | null
   variantName?: string | null
+  returnDate?: string
 }
 
 export function PublicMarketingRequestForm() {
@@ -75,7 +77,7 @@ export function PublicMarketingRequestForm() {
 
   // Multiple item rows
   const [requestedRows, setRequestedRows] = useState<RequestedItemRow[]>([
-    { selectedItemId: "", quantity: 1 }
+    { category: "", selectedItemId: "", quantity: 1, returnDate: "" }
   ])
 
   // Submission states
@@ -107,16 +109,33 @@ export function PublicMarketingRequestForm() {
 
   // Handle adding another item row
   const handleAddRow = () => {
-    setRequestedRows(prev => [...prev, { selectedItemId: "", quantity: 1 }])
+    setRequestedRows(prev => [...prev, { category: "", selectedItemId: "", quantity: 1, returnDate: "" }])
   }
 
   // Handle removing an item row
   const handleRemoveRow = (index: number) => {
     if (requestedRows.length === 1) {
-      setRequestedRows([{ selectedItemId: "", quantity: 1 }])
+      setRequestedRows([{ category: "", selectedItemId: "", quantity: 1, returnDate: "" }])
       return
     }
     setRequestedRows(prev => prev.filter((_, i) => i !== index))
+  }
+
+  // Update row category selection
+  const handleRowCategoryChange = (index: number, category: "ASSET" | "INVENTORY" | "") => {
+    setRequestedRows(prev => {
+      const next = [...prev]
+      next[index] = {
+        ...next[index],
+        category,
+        selectedItemId: "",
+        variantId: null,
+        variantName: null,
+        returnDate: "",
+        quantity: 1,
+      }
+      return next
+    })
   }
 
   // Update row item selection
@@ -127,10 +146,13 @@ export function PublicMarketingRequestForm() {
     setRequestedRows(prev => {
       const next = [...prev]
       next[index] = {
+        ...next[index],
         selectedItemId: itemId,
+        category: item ? item.type : next[index].category,
         quantity: 1,
         variantId: firstVariant?.id || null,
         variantName: firstVariant?.variantName || null,
+        returnDate: item?.type === "ASSET" ? next[index].returnDate || "" : "",
       }
       return next
     })
@@ -141,6 +163,15 @@ export function PublicMarketingRequestForm() {
     setRequestedRows(prev => {
       const next = [...prev]
       next[index] = { ...next[index], variantId: variantId || null, variantName: variantName || null }
+      return next
+    })
+  }
+
+  // Update row return date (for assets)
+  const handleRowReturnDateChange = (index: number, returnDate: string) => {
+    setRequestedRows(prev => {
+      const next = [...prev]
+      next[index] = { ...next[index], returnDate }
       return next
     })
   }
@@ -186,6 +217,29 @@ export function PublicMarketingRequestForm() {
       return setErrorMsg("Please select at least one item from the catalog.")
     }
 
+    // Check category selection
+    for (let i = 0; i < requestedRows.length; i++) {
+      const row = requestedRows[i]
+      if (row.selectedItemId && !row.category) {
+        return setErrorMsg(`Please select a category for Item #${i + 1}.`)
+      }
+    }
+
+    // Check return date for asset items
+    for (let i = 0; i < requestedRows.length; i++) {
+      const row = requestedRows[i]
+      if (!row.selectedItemId) continue
+      const item = getItemDetails(row.selectedItemId)
+      if (row.category === "ASSET" || item?.type === "ASSET") {
+        if (!row.returnDate) {
+          return setErrorMsg(`Please specify a return date for "${item?.name || `Item #${i + 1}`}".`)
+        }
+        if (pickupDate && row.returnDate < pickupDate) {
+          return setErrorMsg(`Return date for "${item?.name || `Item #${i + 1}`}" cannot be earlier than pickup date (${pickupDate}).`)
+        }
+      }
+    }
+
     // Check for duplicate item selections
     const selectedIds = validItems.map(r => r.selectedItemId)
     const hasDuplicates = new Set(selectedIds).size !== selectedIds.length
@@ -224,6 +278,7 @@ export function PublicMarketingRequestForm() {
         quantity: r.quantity,
         variantId: r.variantId || null,
         variantName: r.variantName || null,
+        returnDate: item.type === "ASSET" ? r.returnDate || null : null,
       }
     })
 
@@ -256,7 +311,7 @@ export function PublicMarketingRequestForm() {
         setDepartment("")
         setPurpose("")
         setPickupDate("")
-        setRequestedRows([{ selectedItemId: "", quantity: 1 }])
+        setRequestedRows([{ category: "", selectedItemId: "", quantity: 1, returnDate: "" }])
       } else {
         setErrorMsg(res.error || "Failed to submit requisition.")
       }
@@ -544,6 +599,8 @@ export function PublicMarketingRequestForm() {
                 const selectedItem = getItemDetails(row.selectedItemId)
                 const selectedVariant = selectedItem?.variants?.find((v) => v.id === row.variantId)
                 const maxAvailable = selectedVariant ? selectedVariant.quantity : selectedItem ? selectedItem.availableQuantity : 999
+                const isAsset = row.category === "ASSET" || selectedItem?.type === "ASSET"
+                const isMerchandise = row.category === "INVENTORY" || selectedItem?.type === "INVENTORY"
 
                 return (
                   <div
@@ -551,9 +608,21 @@ export function PublicMarketingRequestForm() {
                     className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-black uppercase text-slate-500 tracking-wider">
-                        Item #{index + 1}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-black uppercase text-slate-500 tracking-wider">
+                          Item #{index + 1}
+                        </span>
+                        {isAsset && (
+                          <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold">
+                            Asset (Loan)
+                          </span>
+                        )}
+                        {isMerchandise && (
+                          <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold">
+                            Merchandise
+                          </span>
+                        )}
+                      </div>
                       {requestedRows.length > 1 && (
                         <button
                           type="button"
@@ -566,45 +635,93 @@ export function PublicMarketingRequestForm() {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {/* Item Dropdown */}
-                      <div className={selectedItem?.hasVariants ? "sm:col-span-1" : "sm:col-span-2"}>
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                      {/* Category Selection */}
+                      <div className="sm:col-span-3">
                         <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                          Select Item / Asset <span className="text-rose-500">*</span>
+                          Category <span className="text-rose-500">*</span>
                         </label>
                         <select
                           required
-                          value={row.selectedItemId}
-                          onChange={(e) => handleRowItemChange(index, e.target.value)}
-                          className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none transition cursor-pointer"
+                          value={row.category || ""}
+                          onChange={(e) => handleRowCategoryChange(index, e.target.value as "ASSET" | "INVENTORY" | "")}
+                          className="w-full text-xs font-semibold px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none transition cursor-pointer"
                         >
-                          <option value="">-- Choose an Asset or Merchandise --</option>
-                          <optgroup label="🛋️ MARKETING ASSETS">
-                            {availableItems
-                              .filter((i) => i.type === "ASSET")
-                              .map((item) => (
-                                <option key={item.id} value={item.id}>
-                                  {item.name} (Available: {item.availableQuantity} {item.unit})
-                                </option>
-                              ))}
-                          </optgroup>
-                          <optgroup label="📦 MARKETING MERCHANDISE">
-                            {availableItems
-                              .filter((i) => i.type === "INVENTORY")
-                              .map((item) => (
-                                <option key={item.id} value={item.id}>
-                                  {item.name} {item.hasVariants ? "(Multiple sizes/options)" : `(Stock: ${item.availableQuantity} ${item.unit})`}
-                                </option>
-                              ))}
-                          </optgroup>
+                          <option value="">-- Category --</option>
+                          <option value="ASSET">Asset</option>
+                          <option value="INVENTORY">Merchandise</option>
                         </select>
                       </div>
 
-                      {/* Variant Dropdown if item has variants */}
-                      {selectedItem?.hasVariants && (
-                        <div>
+                      {/* Select Item / Asset */}
+                      <div
+                        className={
+                          !row.category
+                            ? "sm:col-span-6"
+                            : isAsset
+                            ? "sm:col-span-4"
+                            : selectedItem?.hasVariants
+                            ? "sm:col-span-4"
+                            : "sm:col-span-6"
+                        }
+                      >
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                          Select {row.category === "ASSET" ? "Asset" : row.category === "INVENTORY" ? "Merchandise" : "Item / Asset"}{" "}
+                          <span className="text-rose-500">*</span>
+                        </label>
+                        {!row.category ? (
+                          <select
+                            disabled
+                            className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
+                          >
+                            <option value="">-- Select Category First --</option>
+                          </select>
+                        ) : (
+                          <select
+                            required
+                            value={row.selectedItemId}
+                            onChange={(e) => handleRowItemChange(index, e.target.value)}
+                            className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none transition cursor-pointer"
+                          >
+                            <option value="">
+                              {row.category === "ASSET" ? "-- Choose an Asset --" : "-- Choose Merchandise --"}
+                            </option>
+                            {availableItems
+                              .filter((i) => i.type === row.category)
+                              .map((item) => (
+                                <option key={item.id} value={item.id}>
+                                  {item.name}{" "}
+                                  {item.hasVariants
+                                    ? "(Multiple sizes/options)"
+                                    : `(Available: ${item.availableQuantity} ${item.unit})`}
+                                </option>
+                              ))}
+                          </select>
+                        )}
+                      </div>
+
+                      {/* Return Date (Asset only) */}
+                      {isAsset && (
+                        <div className="sm:col-span-3">
                           <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                            Size / Color / Variant <span className="text-rose-500">*</span>
+                            Return Date <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="date"
+                            required
+                            min={pickupDate || todayStr}
+                            value={row.returnDate || ""}
+                            onChange={(e) => handleRowReturnDateChange(index, e.target.value)}
+                            className="w-full text-xs font-semibold px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none transition"
+                          />
+                        </div>
+                      )}
+
+                      {/* Variant Dropdown if merchandise has variants */}
+                      {isMerchandise && selectedItem?.hasVariants && (
+                        <div className="sm:col-span-3">
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                            Size / Variant <span className="text-rose-500">*</span>
                           </label>
                           <select
                             required
@@ -627,7 +744,15 @@ export function PublicMarketingRequestForm() {
                       )}
 
                       {/* Quantity Input */}
-                      <div>
+                      <div
+                        className={
+                          !row.category
+                            ? "sm:col-span-3"
+                            : isAsset || selectedItem?.hasVariants
+                            ? "sm:col-span-2"
+                            : "sm:col-span-3"
+                        }
+                      >
                         <label className="block text-[11px] font-bold text-slate-600 mb-1">
                           Quantity {selectedItem && `(${selectedItem.unit})`} <span className="text-rose-500">*</span>
                         </label>
@@ -645,8 +770,8 @@ export function PublicMarketingRequestForm() {
 
                     {/* Stock status indicator pill */}
                     {selectedItem && (
-                      <div className="flex items-center justify-between text-[11px] pt-1">
-                        <span className="inline-flex items-center gap-1 font-bold">
+                      <div className="flex flex-wrap items-center justify-between text-[11px] pt-1 gap-2">
+                        <span className="inline-flex items-center gap-2 font-bold">
                           {selectedItem.type === "ASSET" ? (
                             <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 uppercase text-[10px]">
                               Reusable Asset Loan
@@ -659,6 +784,11 @@ export function PublicMarketingRequestForm() {
                           <span className="text-slate-500 font-medium">
                             Location: {selectedItem.location}
                           </span>
+                          {selectedItem.type === "ASSET" && row.returnDate && (
+                            <span className="text-blue-700 font-semibold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                              Return by: {new Date(row.returnDate).toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric" })}
+                            </span>
+                          )}
                         </span>
                         <span
                           className={`font-mono font-bold ${

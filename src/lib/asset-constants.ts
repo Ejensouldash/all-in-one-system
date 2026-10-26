@@ -1,0 +1,1 @@
+export const MAX_BLANK_QR_BATCH_SIZE = 100

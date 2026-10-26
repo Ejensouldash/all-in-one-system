@@ -116,6 +116,7 @@ export interface RequisitionItemInput {
   quantity: number
   variantId?: string | null
   variantName?: string | null
+  returnDate?: string | null
 }
 
 export interface SubmitRequisitionPayload {
@@ -234,6 +235,12 @@ export async function submitMarketingRequisition(payload: SubmitRequisitionPaylo
       }
 
       if (item.itemType === "ASSET") {
+        if (item.returnDate) {
+          const returnDateTime = new Date(item.returnDate)
+          if (isNaN(returnDateTime.getTime())) {
+            return { success: false, error: "Invalid return date specified for asset." }
+          }
+        }
         const asset = await prisma.marketingAsset.findUnique({ where: { id: item.itemId } })
         if (!asset) return { success: false, error: "Requested asset could not be found." }
         if (asset.availableQuantity < item.quantity) {
@@ -274,7 +281,9 @@ export async function submitMarketingRequisition(payload: SubmitRequisitionPaylo
       for (const item of items) {
         if (item.itemType === "ASSET") {
           const loanNo = await generateLoanNumber()
-          const returnDate = new Date(pickupDateTime.getTime() + 3 * 24 * 60 * 60 * 1000)
+          const returnDate = item.returnDate
+            ? new Date(item.returnDate)
+            : new Date(pickupDateTime.getTime() + 3 * 24 * 60 * 60 * 1000)
 
           await tx.marketingAssetLoan.create({
             data: {

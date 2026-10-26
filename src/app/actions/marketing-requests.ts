@@ -4,6 +4,12 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getAccessInfo, canAccessMarketingAssets, canAccessMarketingInventory } from "@/lib/access"
 import { logUserAction } from "./audit"
+import {
+  lockMarketingRequisitionNumbers,
+  loanNumberSequence,
+  merchandiseRequestNumberSequence,
+  nextRequisitionBatchCode,
+} from "@/lib/marketing/requisition-numbers"
 
 export interface MarketingAvailableItem {
   id: string
@@ -130,83 +136,6 @@ export interface SubmitRequisitionPayload {
   items: RequisitionItemInput[]
 }
 
-// Generate unique sequential requisition batch code (REQ-MKT-YYYY-XXXX)
-async function generateRequisitionBatchCode(): Promise<string> {
-  const currentYear = new Date().getFullYear()
-  const prefix = `REQ-MKT-${currentYear}-`
-
-  const [lastLoan, lastMerch] = await Promise.all([
-    prisma.marketingAssetLoan.findFirst({
-      where: { remarks: { contains: prefix } },
-      orderBy: { createdAt: "desc" },
-      select: { remarks: true },
-    }),
-    prisma.marketingMerchandiseRequest.findFirst({
-      where: { requestNumber: { startsWith: prefix } },
-      orderBy: { createdAt: "desc" },
-      select: { requestNumber: true },
-    }),
-  ])
-
-  let maxNum = 0
-  const parseNum = (str: string | null | undefined) => {
-    if (!str) return
-    const match = str.match(/REQ-MKT-\d{4}-(\d+)/)
-    if (match) {
-      const n = parseInt(match[1], 10)
-      if (!isNaN(n) && n > maxNum) maxNum = n
-    }
-  }
-
-  parseNum(lastLoan?.remarks)
-  parseNum(lastMerch?.requestNumber)
-
-  const nextNum = maxNum + 1
-  return `${prefix}${nextNum.toString().padStart(4, "0")}`
-}
-
-// Generate Loan Number: LN-MKT-YYYY-XXXX
-async function generateLoanNumber(): Promise<string> {
-  const currentYear = new Date().getFullYear()
-  const prefix = `LN-MKT-${currentYear}-`
-
-  const lastLoan = await prisma.marketingAssetLoan.findFirst({
-    where: { loanNumber: { startsWith: prefix } },
-    orderBy: { loanNumber: "desc" },
-    select: { loanNumber: true },
-  })
-
-  let nextNum = 1
-  if (lastLoan?.loanNumber) {
-    const parts = lastLoan.loanNumber.split("-")
-    const lastSeq = parseInt(parts[parts.length - 1], 10)
-    if (!isNaN(lastSeq)) nextNum = lastSeq + 1
-  }
-
-  return `${prefix}${nextNum.toString().padStart(4, "0")}`
-}
-
-// Generate Merchandise Request Number: MR-MKT-YYYY-XXXX
-async function generateMerchandiseReqNumber(): Promise<string> {
-  const currentYear = new Date().getFullYear()
-  const prefix = `MR-MKT-${currentYear}-`
-
-  const lastReq = await prisma.marketingMerchandiseRequest.findFirst({
-    where: { requestNumber: { startsWith: prefix } },
-    orderBy: { requestNumber: "desc" },
-    select: { requestNumber: true },
-  })
-
-  let nextNum = 1
-  if (lastReq?.requestNumber) {
-    const parts = lastReq.requestNumber.split("-")
-    const lastSeq = parseInt(parts[parts.length - 1], 10)
-    if (!isNaN(lastSeq)) nextNum = lastSeq + 1
-  }
-
-  return `${prefix}${nextNum.toString().padStart(4, "0")}`
-}
-
 // Submit Requisition from QR Form
 export async function submitMarketingRequisition(payload: SubmitRequisitionPayload) {
   try {
@@ -225,8 +154,6 @@ export async function submitMarketingRequisition(payload: SubmitRequisitionPaylo
     if (isNaN(pickupDateTime.getTime())) {
       return { success: false, error: "Invalid pickup date provided." }
     }
-
-    const batchCode = await generateRequisitionBatchCode()
 
     // Validate quantities and item existence
     for (const item of items) {
@@ -277,10 +204,16 @@ export async function submitMarketingRequisition(payload: SubmitRequisitionPaylo
     }
 
     // Process all items in database transaction
-    await prisma.$transaction(async (tx) => {
+    const batchCode = await prisma.$transaction(async (tx) => {
+      const year = new Date().getFullYear()
+      await lockMarketingRequisitionNumbers(tx, year)
+      const batchCode = await nextRequisitionBatchCode(tx, year)
+      const nextLoanNumber = await loanNumberSequence(tx, year)
+      const nextRequestNumber = await merchandiseRequestNumberSequence(tx, year)
+
       for (const item of items) {
         if (item.itemType === "ASSET") {
-          const loanNo = await generateLoanNumber()
+          const loanNo = nextLoanNumber()
           const returnDate = item.returnDate
             ? new Date(item.returnDate)
             : new Date(pickupDateTime.getTime() + 3 * 24 * 60 * 60 * 1000)
@@ -304,7 +237,7 @@ export async function submitMarketingRequisition(payload: SubmitRequisitionPaylo
             },
           })
         } else {
-          const reqNo = await generateMerchandiseReqNumber()
+          const reqNo = nextRequestNumber()
 
           await tx.marketingMerchandiseRequest.create({
             data: {
@@ -326,6 +259,8 @@ export async function submitMarketingRequisition(payload: SubmitRequisitionPaylo
           })
         }
       }
+
+      return batchCode
     })
 
     revalidatePath("/marketing/assets")

@@ -4,6 +4,7 @@ import React, { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { MarketingNavTabs } from "@/components/marketing/MarketingNavTabs"
+import { TablePagination } from "@/components/ui/TablePagination"
 import { 
   Layers, Plus, Search, Calendar, Clock, MapPin, 
   User, CheckCircle2, XCircle, AlertTriangle, ArrowRight, 
@@ -171,6 +172,12 @@ export function MarketingAssetsClient({
   const [catalogCategory, setCatalogCategory] = useState("ALL")
   const [loanStatusFilter, setLoanStatusFilter] = useState("ALL")
   const [trackingSearch, setTrackingSearch] = useState("")
+
+  // Pagination states
+  const [catalogPage, setCatalogPage] = useState(1)
+  const [catalogPageSize, setCatalogPageSize] = useState(10)
+  const [loansPage, setLoansPage] = useState(1)
+  const [loansPageSize, setLoansPageSize] = useState(10)
 
   // --- Modal States ---
   // 1. Add Asset Modal
@@ -576,6 +583,16 @@ export function MarketingAssetsClient({
     return loan.status === loanStatusFilter
   })
 
+  const paginatedCatalog = filteredCatalog.slice(
+    (catalogPage - 1) * catalogPageSize,
+    catalogPage * catalogPageSize
+  )
+
+  const paginatedLoans = filteredLoans.slice(
+    (loansPage - 1) * loansPageSize,
+    loansPage * loansPageSize
+  )
+
   const activeTrackingLoans = loans.filter((loan) => {
     const isActive = loan.status === "LENT_OUT" || loan.status === "APPROVED"
     if (!isActive) return false
@@ -788,7 +805,10 @@ export function MarketingAssetsClient({
                 {["ALL", "PENDING", "APPROVED", "LENT_OUT", "RETURNED", "OVERDUE", "REJECTED"].map((st) => (
                   <button
                     key={st}
-                    onClick={() => setLoanStatusFilter(st)}
+                    onClick={() => {
+                      setLoanStatusFilter(st)
+                      setLoansPage(1)
+                    }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-colors ${
                       loanStatusFilter === st
                         ? "bg-blue-600 text-white shadow-sm"
@@ -821,7 +841,7 @@ export function MarketingAssetsClient({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
-                    {filteredLoans.map((loan) => {
+                    {paginatedLoans.map((loan) => {
                       const isPastDue =
                         (loan.status === "LENT_OUT" || loan.status === "APPROVED") &&
                         new Date(loan.expectedReturn) < now
@@ -1016,6 +1036,18 @@ export function MarketingAssetsClient({
                   <p className="text-xs text-slate-400 mt-0.5">Use the "Request Asset Loan" button to submit a request.</p>
                 </div>
               )}
+
+              {filteredLoans.length > 0 && (
+                <TablePagination
+                  currentPage={loansPage}
+                  totalItems={filteredLoans.length}
+                  pageSize={loansPageSize}
+                  onPageChange={setLoansPage}
+                  onPageSizeChange={setLoansPageSize}
+                  pageSizeOptions={[10, 20, 50]}
+                  itemName="requests"
+                />
+              )}
             </div>
           </div>
         )}
@@ -1170,7 +1202,10 @@ export function MarketingAssetsClient({
                     type="text"
                     placeholder="Search marketing assets by name, code, brand..."
                     value={catalogSearch}
-                    onChange={(e) => setCatalogSearch(e.target.value)}
+                    onChange={(e) => {
+                      setCatalogSearch(e.target.value)
+                      setCatalogPage(1)
+                    }}
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-blue-600 focus:outline-none"
                   />
                 </div>
@@ -1180,7 +1215,10 @@ export function MarketingAssetsClient({
                 {ASSET_CATEGORIES.map((cat) => (
                   <button
                     key={cat.id}
-                    onClick={() => setCatalogCategory(cat.id)}
+                    onClick={() => {
+                      setCatalogCategory(cat.id)
+                      setCatalogPage(1)
+                    }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition-colors ${
                       catalogCategory === cat.id
                         ? "bg-slate-900 text-white shadow-sm"
@@ -1209,7 +1247,7 @@ export function MarketingAssetsClient({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
-                    {filteredCatalog.map((asset) => {
+                    {paginatedCatalog.map((asset) => {
                       const lentOut = asset.totalQuantity - asset.availableQuantity
 
                       return (
@@ -1350,6 +1388,18 @@ export function MarketingAssetsClient({
                   <p className="text-sm font-bold text-slate-600">No assets found</p>
                   <p className="text-xs text-slate-400 mt-0.5">Click "Register Asset" to add new equipment.</p>
                 </div>
+              )}
+
+              {filteredCatalog.length > 0 && (
+                <TablePagination
+                  currentPage={catalogPage}
+                  totalItems={filteredCatalog.length}
+                  pageSize={catalogPageSize}
+                  onPageChange={setCatalogPage}
+                  onPageSizeChange={setCatalogPageSize}
+                  pageSizeOptions={[10, 20, 50]}
+                  itemName="assets"
+                />
               )}
             </div>
           </div>

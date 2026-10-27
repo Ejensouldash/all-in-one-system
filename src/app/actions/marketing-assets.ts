@@ -152,15 +152,38 @@ export async function addMarketingAsset(data: {
     // Generate asset code if not provided
     let code = data.assetCode?.trim().toUpperCase()
     if (!code) {
-      const count = await prisma.marketingAsset.count()
-      code = `MKT-AST-${String(count + 1).padStart(4, "0")}`
-    }
-
-    const existingCode = await prisma.marketingAsset.findUnique({
-      where: { assetCode: code },
-    })
-    if (existingCode) {
-      return { success: false, error: `Asset code ${code} is already in use. Please enter a unique code.` }
+      const allAssets = await prisma.marketingAsset.findMany({
+        select: { assetCode: true },
+      })
+      let maxNum = 0
+      for (const a of allAssets) {
+        const match = a.assetCode?.match(/^MKT-AST-(\d+)$/i)
+        if (match) {
+          const num = parseInt(match[1], 10)
+          if (!isNaN(num) && num > maxNum) {
+            maxNum = num
+          }
+        }
+      }
+      let candidateNum = maxNum + 1
+      while (true) {
+        const candidateCode = `MKT-AST-${String(candidateNum).padStart(4, "0")}`
+        const exists = await prisma.marketingAsset.findUnique({
+          where: { assetCode: candidateCode },
+        })
+        if (!exists) {
+          code = candidateCode
+          break
+        }
+        candidateNum++
+      }
+    } else {
+      const existingCode = await prisma.marketingAsset.findUnique({
+        where: { assetCode: code },
+      })
+      if (existingCode) {
+        return { success: false, error: `Asset code ${code} is already in use. Please enter a unique code.` }
+      }
     }
 
     const existingName = await prisma.marketingAsset.findUnique({

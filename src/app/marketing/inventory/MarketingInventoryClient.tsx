@@ -20,6 +20,7 @@ import {
 import { exportMarketingStockMovementExcel } from "@/lib/excel/exportMarketingStockMovementExcel"
 import { generateMarketingStockMovementPdf } from "@/lib/pdf/generateMarketingStockMovementPdf"
 import { MarketingNavTabs } from "@/components/marketing/MarketingNavTabs"
+import { TablePagination } from "@/components/ui/TablePagination"
 import { 
   getMarketingMerchandiseRequests, 
   approveMarketingMerchandiseRequest, 
@@ -189,6 +190,12 @@ export function MarketingInventoryClient({
   const [merchandiseRequests, setMerchandiseRequests] = useState<any[]>(initialRequests)
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("ALL")
+  
+  // Pagination
+  const [merchandisePage, setMerchandisePage] = useState(1)
+  const [merchandisePageSize, setMerchandisePageSize] = useState(10)
+  const [requisitionsPage, setRequisitionsPage] = useState(1)
+  const [requisitionsPageSize, setRequisitionsPageSize] = useState(10)
   
   // Add Stock Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -466,6 +473,16 @@ export function MarketingInventoryClient({
     if (reqFilterStatus === "ALL") return true
     return r.status === reqFilterStatus
   })
+
+  const paginatedItems = filteredItems.slice(
+    (merchandisePage - 1) * merchandisePageSize,
+    merchandisePage * merchandisePageSize
+  )
+
+  const paginatedRequests = filteredRequests.slice(
+    (requisitionsPage - 1) * requisitionsPageSize,
+    requisitionsPage * requisitionsPageSize
+  )
 
   const totalUniqueItems = items.length
   const totalStockQty = items.reduce((sum, item) => sum + item.quantity, 0)
@@ -1540,7 +1557,10 @@ export function MarketingInventoryClient({
                   <input
                     type="text"
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value)
+                      setMerchandisePage(1)
+                    }}
                     placeholder="Search merchandise name or brand..."
                     className="w-full text-xs pl-9 pr-3 py-2 border rounded-xl border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   />
@@ -1570,7 +1590,7 @@ export function MarketingInventoryClient({
                         </td>
                       </tr>
                     ) : (
-                      filteredItems.map((item) => (
+                      paginatedItems.map((item) => (
                         <React.Fragment key={item.id}>
                           <tr className={`hover:bg-slate-50/80 transition-colors ${expandedItemIds.has(item.id) ? "bg-slate-50/60" : ""}`}>
                             {/* Name & Photo */}
@@ -1771,6 +1791,19 @@ export function MarketingInventoryClient({
                   </tbody>
                 </table>
               </div>
+
+              {/* Table Pagination */}
+              {filteredItems.length > 0 && (
+                <TablePagination
+                  currentPage={merchandisePage}
+                  totalItems={filteredItems.length}
+                  pageSize={merchandisePageSize}
+                  onPageChange={setMerchandisePage}
+                  onPageSizeChange={setMerchandisePageSize}
+                  pageSizeOptions={[10, 20, 50]}
+                  itemName="merchandise items"
+                />
+              )}
             </div>
           </div>
         )}
@@ -1784,7 +1817,10 @@ export function MarketingInventoryClient({
                 {["ALL", "PENDING", "DISPATCHED", "REJECTED"].map((st) => (
                   <button
                     key={st}
-                    onClick={() => setReqFilterStatus(st)}
+                    onClick={() => {
+                      setReqFilterStatus(st)
+                      setRequisitionsPage(1)
+                    }}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-colors cursor-pointer ${
                       reqFilterStatus === st
                         ? "bg-blue-600 text-white shadow-sm"
@@ -1830,7 +1866,7 @@ export function MarketingInventoryClient({
                         </td>
                       </tr>
                     ) : (
-                      filteredRequests.map((req: any) => (
+                      paginatedRequests.map((req: any) => (
                         <tr key={req.id} className="hover:bg-slate-50/60 transition-colors">
                           <td className="py-4 px-4 font-mono font-bold text-slate-900">
                             <div>{req.requestNumber}</div>
@@ -1944,6 +1980,19 @@ export function MarketingInventoryClient({
                   </tbody>
                 </table>
               </div>
+
+              {/* Table Pagination */}
+              {filteredRequests.length > 0 && (
+                <TablePagination
+                  currentPage={requisitionsPage}
+                  totalItems={filteredRequests.length}
+                  pageSize={requisitionsPageSize}
+                  onPageChange={setRequisitionsPage}
+                  onPageSizeChange={setRequisitionsPageSize}
+                  pageSizeOptions={[10, 20, 50]}
+                  itemName="requisitions"
+                />
+              )}
             </div>
           </div>
         )}

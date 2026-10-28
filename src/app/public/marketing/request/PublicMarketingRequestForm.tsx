@@ -55,7 +55,7 @@ const DEPARTMENTS = [
 interface RequestedItemRow {
   category: "ASSET" | "INVENTORY" | ""
   selectedItemId: string
-  quantity: number
+  quantity: number | ""
   variantId?: string | null
   variantName?: string | null
   returnDate?: string
@@ -177,10 +177,10 @@ export function PublicMarketingRequestForm() {
   }
 
   // Update row quantity
-  const handleRowQtyChange = (index: number, qty: number) => {
+  const handleRowQtyChange = (index: number, qty: number | "") => {
     setRequestedRows(prev => {
       const next = [...prev]
-      next[index] = { ...next[index], quantity: Math.max(1, qty) }
+      next[index] = { ...next[index], quantity: qty }
       return next
     })
   }
@@ -255,17 +255,22 @@ export function PublicMarketingRequestForm() {
       const item = getItemDetails(row.selectedItemId)
       if (!item) continue
 
+      const qty = typeof row.quantity === "number" ? row.quantity : parseInt(String(row.quantity))
+      if (!qty || isNaN(qty) || qty <= 0) {
+        return setErrorMsg(`Please enter a valid quantity for "${item.name}".`)
+      }
+
       if (item.hasVariants && item.variants && item.variants.length > 0) {
         if (!row.variantId) {
           return setErrorMsg(`Please select a specific size/variant for "${item.name}".`)
         }
         const v = item.variants.find(varItem => varItem.id === row.variantId)
-        if (v && row.quantity > v.quantity) {
+        if (v && qty > v.quantity) {
           return setErrorMsg(
             `Requested quantity for "${item.name} (${v.variantName})" exceeds available stock (${v.quantity} ${item.unit}).`
           )
         }
-      } else if (row.quantity > item.availableQuantity) {
+      } else if (qty > item.availableQuantity) {
         return setErrorMsg(
           `Requested quantity for "${item.name}" exceeds available stock (${item.availableQuantity} ${item.unit}).`
         )
@@ -278,7 +283,7 @@ export function PublicMarketingRequestForm() {
       return {
         itemId: item.id,
         itemType: item.type,
-        quantity: r.quantity,
+        quantity: typeof r.quantity === "number" ? r.quantity : parseInt(String(r.quantity)) || 1,
         variantId: r.variantId || null,
         variantName: r.variantName || null,
         returnDate: item.type === "ASSET" ? r.returnDate || null : null,
@@ -765,7 +770,20 @@ export function PublicMarketingRequestForm() {
                           min={1}
                           max={maxAvailable}
                           value={row.quantity}
-                          onChange={(e) => handleRowQtyChange(index, parseInt(e.target.value) || 1)}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            if (val === "") {
+                              handleRowQtyChange(index, "")
+                            } else {
+                              const parsed = parseInt(val)
+                              handleRowQtyChange(index, isNaN(parsed) ? "" : parsed)
+                            }
+                          }}
+                          onBlur={() => {
+                            if (row.quantity === "" || Number(row.quantity) < 1) {
+                              handleRowQtyChange(index, 1)
+                            }
+                          }}
                           className="w-full text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none transition"
                         />
                       </div>

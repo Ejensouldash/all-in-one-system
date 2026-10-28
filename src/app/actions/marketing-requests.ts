@@ -136,97 +136,6 @@ export interface SubmitRequisitionPayload {
   items: RequisitionItemInput[]
 }
 
-// Generate unique sequential requisition batch code (REQ-MKT-YYYY-XXXX)
-async function generateRequisitionBatchCode(client: any = prisma): Promise<string> {
-  const currentYear = new Date().getFullYear()
-  const prefix = `REQ-MKT-${currentYear}-`
-
-  const [loans, requests] = await Promise.all([
-    client.marketingAssetLoan.findMany({
-      where: { remarks: { contains: prefix } },
-      select: { remarks: true },
-    }),
-    client.marketingMerchandiseRequest.findMany({
-      where: { remarks: { contains: prefix } },
-      select: { remarks: true },
-    }),
-  ])
-
-  let maxNum = 0
-  const parseNum = (str: string | null | undefined) => {
-    if (!str) return
-    const match = str.match(/REQ-MKT-\d{4}-(\d+)/)
-    if (match) {
-      const n = parseInt(match[1], 10)
-      if (!isNaN(n) && n > maxNum) maxNum = n
-    }
-  }
-
-  loans.forEach((l: any) => parseNum(l.remarks))
-  requests.forEach((r: any) => parseNum(r.remarks))
-
-  const nextNum = maxNum + 1
-  return `${prefix}${nextNum.toString().padStart(4, "0")}`
-}
-
-// Get next sequential integer for Loan Number: LN-MKT-YYYY-XXXX
-async function getNextLoanSequence(client: any = prisma): Promise<number> {
-  const currentYear = new Date().getFullYear()
-  const prefix = `LN-MKT-${currentYear}-`
-
-  const loans = await client.marketingAssetLoan.findMany({
-    where: { loanNumber: { startsWith: prefix } },
-    select: { loanNumber: true },
-  })
-
-  let maxNum = 0
-  for (const l of loans) {
-    if (l.loanNumber) {
-      const parts = l.loanNumber.split("-")
-      const seq = parseInt(parts[parts.length - 1], 10)
-      if (!isNaN(seq) && seq > maxNum) maxNum = seq
-    }
-  }
-
-  return maxNum + 1
-}
-
-// Generate Loan Number: LN-MKT-YYYY-XXXX
-async function generateLoanNumber(client: any = prisma): Promise<string> {
-  const currentYear = new Date().getFullYear()
-  const nextNum = await getNextLoanSequence(client)
-  return `LN-MKT-${currentYear}-${nextNum.toString().padStart(4, "0")}`
-}
-
-// Get next sequential integer for Merchandise Request Number: MR-MKT-YYYY-XXXX
-async function getNextMerchandiseReqSequence(client: any = prisma): Promise<number> {
-  const currentYear = new Date().getFullYear()
-  const prefix = `MR-MKT-${currentYear}-`
-
-  const reqs = await client.marketingMerchandiseRequest.findMany({
-    where: { requestNumber: { startsWith: prefix } },
-    select: { requestNumber: true },
-  })
-
-  let maxNum = 0
-  for (const r of reqs) {
-    if (r.requestNumber) {
-      const parts = r.requestNumber.split("-")
-      const seq = parseInt(parts[parts.length - 1], 10)
-      if (!isNaN(seq) && seq > maxNum) maxNum = seq
-    }
-  }
-
-  return maxNum + 1
-}
-
-// Generate Merchandise Request Number: MR-MKT-YYYY-XXXX
-async function generateMerchandiseReqNumber(client: any = prisma): Promise<string> {
-  const currentYear = new Date().getFullYear()
-  const nextNum = await getNextMerchandiseReqSequence(client)
-  return `MR-MKT-${currentYear}-${nextNum.toString().padStart(4, "0")}`
-}
-
 // Submit Requisition from QR Form
 export async function submitMarketingRequisition(payload: SubmitRequisitionPayload) {
   try {
@@ -295,14 +204,6 @@ export async function submitMarketingRequisition(payload: SubmitRequisitionPaylo
     }
 
     // Process all items in database transaction
-    await prisma.$transaction(async (tx) => {
-      const currentYear = new Date().getFullYear()
-      let nextLoanSeq = await getNextLoanSequence(tx)
-      let nextMerchSeq = await getNextMerchandiseReqSequence(tx)
-
-      for (const item of items) {
-        if (item.itemType === "ASSET") {
-          const loanNo = `LN-MKT-${currentYear}-${(nextLoanSeq++).toString().padStart(4, "0")}`
     const batchCode = await prisma.$transaction(async (tx) => {
       const year = new Date().getFullYear()
       await lockMarketingRequisitionNumbers(tx, year)
@@ -336,7 +237,6 @@ export async function submitMarketingRequisition(payload: SubmitRequisitionPaylo
             },
           })
         } else {
-          const reqNo = `MR-MKT-${currentYear}-${(nextMerchSeq++).toString().padStart(4, "0")}`
           const reqNo = nextRequestNumber()
 
           await tx.marketingMerchandiseRequest.create({
@@ -423,8 +323,8 @@ export async function approveMarketingMerchandiseRequest(requestId: string, hand
       }
 
       let unitPrice = req.item.pricePerUnit || 0
-      let costPerUnit = Number(req.item.costPerUnit || 0)
-      let sellingPricePerUnit = Number(req.item.sellingPricePerUnit || unitPrice)
+      let costPerUnit = Number((req.item as any)?.costPerUnit ?? (req.item as any)?.pricePerUnit ?? 0)
+      let sellingPricePerUnit = Number((req.item as any)?.sellingPricePerUnit ?? unitPrice)
 
       // If this request is for a specific variant
       if (req.variantId) {
@@ -442,11 +342,11 @@ export async function approveMarketingMerchandiseRequest(requestId: string, hand
         if (variant.pricePerUnit && variant.pricePerUnit > 0) {
           unitPrice = variant.pricePerUnit
         }
-        if (variant.costPerUnit != null) {
-          costPerUnit = Number(variant.costPerUnit)
+        if ((variant as any)?.costPerUnit != null) {
+          costPerUnit = Number((variant as any).costPerUnit)
         }
-        if (variant.sellingPricePerUnit != null) {
-          sellingPricePerUnit = Number(variant.sellingPricePerUnit)
+        if ((variant as any)?.sellingPricePerUnit != null) {
+          sellingPricePerUnit = Number((variant as any).sellingPricePerUnit)
         }
 
         // Decrement variant quantity
@@ -490,7 +390,7 @@ export async function approveMarketingMerchandiseRequest(requestId: string, hand
           department: req.requesterDepartment || "MARKETING",
           handledBy: handledBy || "Marketing PIC",
           remarks: `Requisition ${req.requestNumber} dispensed to ${req.requesterName} (${req.requesterDepartment}).${req.variantName ? ` [${req.variantName}]` : ""} Purpose: ${req.purpose}`,
-        },
+        } as any,
       })
 
       // Update request status

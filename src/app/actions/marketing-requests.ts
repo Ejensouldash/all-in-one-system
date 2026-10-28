@@ -131,20 +131,18 @@ export interface SubmitRequisitionPayload {
 }
 
 // Generate unique sequential requisition batch code (REQ-MKT-YYYY-XXXX)
-async function generateRequisitionBatchCode(): Promise<string> {
+async function generateRequisitionBatchCode(client: any = prisma): Promise<string> {
   const currentYear = new Date().getFullYear()
   const prefix = `REQ-MKT-${currentYear}-`
 
-  const [lastLoan, lastMerch] = await Promise.all([
-    prisma.marketingAssetLoan.findFirst({
+  const [loans, requests] = await Promise.all([
+    client.marketingAssetLoan.findMany({
       where: { remarks: { contains: prefix } },
-      orderBy: { createdAt: "desc" },
       select: { remarks: true },
     }),
-    prisma.marketingMerchandiseRequest.findFirst({
-      where: { requestNumber: { startsWith: prefix } },
-      orderBy: { createdAt: "desc" },
-      select: { requestNumber: true },
+    client.marketingMerchandiseRequest.findMany({
+      where: { remarks: { contains: prefix } },
+      select: { remarks: true },
     }),
   ])
 
@@ -158,53 +156,69 @@ async function generateRequisitionBatchCode(): Promise<string> {
     }
   }
 
-  parseNum(lastLoan?.remarks)
-  parseNum(lastMerch?.requestNumber)
+  loans.forEach((l: any) => parseNum(l.remarks))
+  requests.forEach((r: any) => parseNum(r.remarks))
 
   const nextNum = maxNum + 1
   return `${prefix}${nextNum.toString().padStart(4, "0")}`
 }
 
-// Generate Loan Number: LN-MKT-YYYY-XXXX
-async function generateLoanNumber(): Promise<string> {
+// Get next sequential integer for Loan Number: LN-MKT-YYYY-XXXX
+async function getNextLoanSequence(client: any = prisma): Promise<number> {
   const currentYear = new Date().getFullYear()
   const prefix = `LN-MKT-${currentYear}-`
 
-  const lastLoan = await prisma.marketingAssetLoan.findFirst({
+  const loans = await client.marketingAssetLoan.findMany({
     where: { loanNumber: { startsWith: prefix } },
-    orderBy: { loanNumber: "desc" },
     select: { loanNumber: true },
   })
 
-  let nextNum = 1
-  if (lastLoan?.loanNumber) {
-    const parts = lastLoan.loanNumber.split("-")
-    const lastSeq = parseInt(parts[parts.length - 1], 10)
-    if (!isNaN(lastSeq)) nextNum = lastSeq + 1
+  let maxNum = 0
+  for (const l of loans) {
+    if (l.loanNumber) {
+      const parts = l.loanNumber.split("-")
+      const seq = parseInt(parts[parts.length - 1], 10)
+      if (!isNaN(seq) && seq > maxNum) maxNum = seq
+    }
   }
 
-  return `${prefix}${nextNum.toString().padStart(4, "0")}`
+  return maxNum + 1
 }
 
-// Generate Merchandise Request Number: MR-MKT-YYYY-XXXX
-async function generateMerchandiseReqNumber(): Promise<string> {
+// Generate Loan Number: LN-MKT-YYYY-XXXX
+async function generateLoanNumber(client: any = prisma): Promise<string> {
+  const currentYear = new Date().getFullYear()
+  const nextNum = await getNextLoanSequence(client)
+  return `LN-MKT-${currentYear}-${nextNum.toString().padStart(4, "0")}`
+}
+
+// Get next sequential integer for Merchandise Request Number: MR-MKT-YYYY-XXXX
+async function getNextMerchandiseReqSequence(client: any = prisma): Promise<number> {
   const currentYear = new Date().getFullYear()
   const prefix = `MR-MKT-${currentYear}-`
 
-  const lastReq = await prisma.marketingMerchandiseRequest.findFirst({
+  const reqs = await client.marketingMerchandiseRequest.findMany({
     where: { requestNumber: { startsWith: prefix } },
-    orderBy: { requestNumber: "desc" },
     select: { requestNumber: true },
   })
 
-  let nextNum = 1
-  if (lastReq?.requestNumber) {
-    const parts = lastReq.requestNumber.split("-")
-    const lastSeq = parseInt(parts[parts.length - 1], 10)
-    if (!isNaN(lastSeq)) nextNum = lastSeq + 1
+  let maxNum = 0
+  for (const r of reqs) {
+    if (r.requestNumber) {
+      const parts = r.requestNumber.split("-")
+      const seq = parseInt(parts[parts.length - 1], 10)
+      if (!isNaN(seq) && seq > maxNum) maxNum = seq
+    }
   }
 
-  return `${prefix}${nextNum.toString().padStart(4, "0")}`
+  return maxNum + 1
+}
+
+// Generate Merchandise Request Number: MR-MKT-YYYY-XXXX
+async function generateMerchandiseReqNumber(client: any = prisma): Promise<string> {
+  const currentYear = new Date().getFullYear()
+  const nextNum = await getNextMerchandiseReqSequence(client)
+  return `MR-MKT-${currentYear}-${nextNum.toString().padStart(4, "0")}`
 }
 
 // Submit Requisition from QR Form
@@ -278,9 +292,13 @@ export async function submitMarketingRequisition(payload: SubmitRequisitionPaylo
 
     // Process all items in database transaction
     await prisma.$transaction(async (tx) => {
+      const currentYear = new Date().getFullYear()
+      let nextLoanSeq = await getNextLoanSequence(tx)
+      let nextMerchSeq = await getNextMerchandiseReqSequence(tx)
+
       for (const item of items) {
         if (item.itemType === "ASSET") {
-          const loanNo = await generateLoanNumber()
+          const loanNo = `LN-MKT-${currentYear}-${(nextLoanSeq++).toString().padStart(4, "0")}`
           const returnDate = item.returnDate
             ? new Date(item.returnDate)
             : new Date(pickupDateTime.getTime() + 3 * 24 * 60 * 60 * 1000)
@@ -304,7 +322,7 @@ export async function submitMarketingRequisition(payload: SubmitRequisitionPaylo
             },
           })
         } else {
-          const reqNo = await generateMerchandiseReqNumber()
+          const reqNo = `MR-MKT-${currentYear}-${(nextMerchSeq++).toString().padStart(4, "0")}`
 
           await tx.marketingMerchandiseRequest.create({
             data: {
@@ -388,6 +406,8 @@ export async function approveMarketingMerchandiseRequest(requestId: string, hand
       }
 
       let unitPrice = req.item.pricePerUnit || 0
+      let costPerUnit = Number(req.item.costPerUnit || 0)
+      let sellingPricePerUnit = Number(req.item.sellingPricePerUnit || unitPrice)
 
       // If this request is for a specific variant
       if (req.variantId) {
@@ -404,6 +424,12 @@ export async function approveMarketingMerchandiseRequest(requestId: string, hand
 
         if (variant.pricePerUnit && variant.pricePerUnit > 0) {
           unitPrice = variant.pricePerUnit
+        }
+        if (variant.costPerUnit != null) {
+          costPerUnit = Number(variant.costPerUnit)
+        }
+        if (variant.sellingPricePerUnit != null) {
+          sellingPricePerUnit = Number(variant.sellingPricePerUnit)
         }
 
         // Decrement variant quantity
@@ -430,7 +456,8 @@ export async function approveMarketingMerchandiseRequest(requestId: string, hand
       })
 
       // Create Stock Log OUT
-      const totalCost = Number((unitPrice * req.quantity).toFixed(2))
+      const totalCostVal = Number((costPerUnit * req.quantity).toFixed(2))
+      const totalPriceVal = Number(((sellingPricePerUnit || unitPrice) * req.quantity).toFixed(2))
       await tx.marketingStockLog.create({
         data: {
           itemId: req.itemId,
@@ -438,8 +465,11 @@ export async function approveMarketingMerchandiseRequest(requestId: string, hand
           variantName: req.variant?.variantName || req.variantName || null,
           type: "OUT",
           quantity: req.quantity,
-          totalPrice: totalCost,
-          pricePerUnit: unitPrice,
+          totalPrice: totalPriceVal,
+          pricePerUnit: sellingPricePerUnit || unitPrice,
+          totalCost: totalCostVal,
+          costPerUnit: costPerUnit,
+          sellingPricePerUnit: sellingPricePerUnit,
           department: req.requesterDepartment || "MARKETING",
           handledBy: handledBy || "Marketing PIC",
           remarks: `Requisition ${req.requestNumber} dispensed to ${req.requesterName} (${req.requesterDepartment}).${req.variantName ? ` [${req.variantName}]` : ""} Purpose: ${req.purpose}`,

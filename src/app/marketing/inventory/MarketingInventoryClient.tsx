@@ -35,6 +35,8 @@ export type ItemVariant = {
   sku?: string | null
   quantity: number
   pricePerUnit?: number | null
+  costPerUnit?: number | null
+  sellingPricePerUnit?: number | null
   imageUrl?: string | null
   createdAt?: Date
   updatedAt?: Date
@@ -50,6 +52,8 @@ type Item = {
   quantity: number
   unit: string
   pricePerUnit: number
+  costPerUnit?: number | null
+  sellingPricePerUnit?: number | null
   imageUrl?: string | null
   hasVariants?: boolean
   variantConfig?: Array<{ name: string; options: string[] }> | any
@@ -66,7 +70,10 @@ type StockLog = {
   type: string
   quantity: number
   totalPrice?: number | null
+  totalCost?: number | null
   pricePerUnit?: number | null
+  costPerUnit?: number | null
+  sellingPricePerUnit?: number | null
   department?: string | null
   handledBy: string
   remarks: string | null
@@ -79,6 +86,8 @@ type StockLog = {
     category?: string | null
     brand?: string | null
     pricePerUnit?: number | null
+    costPerUnit?: number | null
+    sellingPricePerUnit?: number | null
   }
   variant?: {
     id: string
@@ -206,6 +215,7 @@ export function MarketingInventoryClient({
   const [addCategory, setAddCategory] = useState("MERCHANDISE")
   const [addQty, setAddQty] = useState(1)
   const [addTotalPrice, setAddTotalPrice] = useState("")
+  const [addSellingPricePerUnit, setAddSellingPricePerUnit] = useState("")
   const [addPhotoFile, setAddPhotoFile] = useState<File | null>(null)
   const [addPhotoPreview, setAddPhotoPreview] = useState<string | null>(null)
   const [addUnit, setAddUnit] = useState("pcs")
@@ -222,6 +232,8 @@ export function MarketingInventoryClient({
   const [editLocation, setEditLocation] = useState("HQ Store")
   const [editUnit, setEditUnit] = useState("pcs")
   const [editPricePerUnit, setEditPricePerUnit] = useState("0")
+  const [editCostPerUnit, setEditCostPerUnit] = useState("0")
+  const [editSellingPricePerUnit, setEditSellingPricePerUnit] = useState("0")
   const [editPhotoFile, setEditPhotoFile] = useState<File | null>(null)
   const [editPhotoPreview, setEditPhotoPreview] = useState<string | null>(null)
   const [editPhotoRemoved, setEditPhotoRemoved] = useState(false)
@@ -465,7 +477,17 @@ export function MarketingInventoryClient({
     return matchesSearch && matchesCat
   })
 
-  const totalInventoryValue = items.reduce((acc, curr) => acc + (curr.quantity * (curr.pricePerUnit || 0)), 0)
+  const totalStockQty = items.reduce((acc, curr) => acc + curr.quantity, 0)
+  const totalCostValue = items.reduce((acc, curr) => {
+    const cost = curr.costPerUnit !== undefined && curr.costPerUnit !== null ? curr.costPerUnit : (curr.pricePerUnit || 0)
+    return acc + (curr.quantity * cost)
+  }, 0)
+  const totalSellingValue = items.reduce((acc, curr) => {
+    const selling = curr.sellingPricePerUnit !== undefined && curr.sellingPricePerUnit !== null ? curr.sellingPricePerUnit : 0
+    return acc + (curr.quantity * selling)
+  }, 0)
+  const totalEstimatedMargin = totalSellingValue - totalCostValue
+  const totalInventoryValue = totalCostValue
   const pendingRequestsCount = merchandiseRequests.filter((r: any) => r.status === "PENDING").length
   const dispatchedRequestsCount = merchandiseRequests.filter((r: any) => r.status === "DISPATCHED").length
 
@@ -485,7 +507,6 @@ export function MarketingInventoryClient({
   )
 
   const totalUniqueItems = items.length
-  const totalStockQty = items.reduce((sum, item) => sum + item.quantity, 0)
   const recentInCount = logs.filter(l => l.type === "IN").reduce((sum, l) => sum + l.quantity, 0)
   const recentOutCount = logs.filter(l => l.type === "OUT").reduce((sum, l) => sum + l.quantity, 0)
   const selectedAddItem = items.find(item => item.id === selectedAddItemId)
@@ -551,7 +572,14 @@ export function MarketingInventoryClient({
 
     const priceNum = parseFloat(addTotalPrice)
     if (isNaN(priceNum) || priceNum <= 0) {
-      setErrorMsg("Total price is mandatory and must be greater than RM 0.00.")
+      setErrorMsg("Total cost is mandatory and must be greater than RM 0.00.")
+      setSubmitting(false)
+      return
+    }
+
+    const sellingPriceNum = addSellingPricePerUnit.trim() ? parseFloat(addSellingPricePerUnit) : 0
+    if (isNaN(sellingPriceNum) || sellingPriceNum < 0) {
+      setErrorMsg("Selling price per unit must be zero or greater.")
       setSubmitting(false)
       return
     }
@@ -610,12 +638,16 @@ export function MarketingInventoryClient({
         sku: v.sku.trim() || undefined,
         quantity: Number(v.quantity) || 0,
         pricePerUnit: Number((priceNum / (qtyNum || 1)).toFixed(4)),
+        costPerUnit: Number((priceNum / (qtyNum || 1)).toFixed(4)),
+        sellingPricePerUnit: sellingPriceNum,
       })) : undefined,
       name: isNewItem ? newItemName.trim().toUpperCase() : "",
       brand: isNewItem ? (addBrand.trim().toUpperCase() || null) : undefined,
       category: isNewItem ? addCategory : undefined,
       quantity: qtyNum,
       totalPrice: priceNum,
+      costPerUnit: Number((priceNum / (qtyNum || 1)).toFixed(4)),
+      sellingPricePerUnit: sellingPriceNum,
       unit: isNewItem ? addUnit : "",
       handledBy: addHandledBy.trim() || userName,
       remarks: addRemarks.trim() || undefined,
@@ -655,7 +687,10 @@ export function MarketingInventoryClient({
         type: "IN",
         quantity: qtyNum,
         totalPrice: priceNum,
+        totalCost: priceNum,
         pricePerUnit: calculatedUnit,
+        costPerUnit: calculatedUnit,
+        sellingPricePerUnit: sellingPriceNum,
         department: "MARKETING",
         handledBy: addHandledBy.trim() || userName,
         remarks: addRemarks.trim() || null,
@@ -680,6 +715,7 @@ export function MarketingInventoryClient({
       setVariantMatrix([])
       setAddQty(1)
       setAddTotalPrice("")
+      setAddSellingPricePerUnit("")
       setAddRemarks("")
       setAddPhotoFile(null)
       setAddPhotoPreview(null)
@@ -779,7 +815,10 @@ export function MarketingInventoryClient({
     setEditCategory(item.category || "MERCHANDISE")
     setEditLocation(item.location || "HQ Store")
     setEditUnit(item.unit || "pcs")
-    setEditPricePerUnit(String(item.pricePerUnit ?? 0))
+    const itemCost = item.costPerUnit !== undefined && item.costPerUnit !== null ? item.costPerUnit : (item.pricePerUnit ?? 0)
+    setEditPricePerUnit(String(itemCost))
+    setEditCostPerUnit(String(itemCost))
+    setEditSellingPricePerUnit(String(item.sellingPricePerUnit ?? 0))
     setEditPhotoFile(null)
     setEditPhotoPreview(null)
     setEditPhotoRemoved(false)
@@ -821,9 +860,16 @@ export function MarketingInventoryClient({
     setEditSubmitting(true)
     setErrorMsg("")
 
-    const pricePerUnit = Number(editPricePerUnit)
-    if (!Number.isFinite(pricePerUnit) || pricePerUnit < 0) {
-      setErrorMsg("Price per unit must be zero or greater.")
+    const costPerUnit = Number(editCostPerUnit)
+    if (!Number.isFinite(costPerUnit) || costPerUnit < 0) {
+      setErrorMsg("Cost per unit must be zero or greater.")
+      setEditSubmitting(false)
+      return
+    }
+
+    const sellingPricePerUnit = Number(editSellingPricePerUnit)
+    if (!Number.isFinite(sellingPricePerUnit) || sellingPricePerUnit < 0) {
+      setErrorMsg("Selling price per unit must be zero or greater.")
       setEditSubmitting(false)
       return
     }
@@ -849,7 +895,9 @@ export function MarketingInventoryClient({
       category: editCategory,
       location: editLocation,
       unit: editUnit,
-      pricePerUnit,
+      pricePerUnit: costPerUnit,
+      costPerUnit,
+      sellingPricePerUnit,
       ...(imageUrl !== undefined ? { imageUrl } : {}),
     })
 
@@ -962,6 +1010,7 @@ export function MarketingInventoryClient({
         startDate: reportStartDate,
         endDate: reportEndDate,
         type: reportType,
+        category: reportCategory,
         searchTerm: reportSearch,
       })
       triggerMessage("success", "PDF report downloaded successfully!")
@@ -973,12 +1022,32 @@ export function MarketingInventoryClient({
     }
   }
 
-  // Print Report
-  const handlePrintReport = () => {
-    const originalTitle = document.title
-    document.title = `Marketing_Stock_Report_${new Date().toISOString().split('T')[0]}`
-    window.print()
-    document.title = originalTitle
+  // Print Report (Generates the exact same Level 4 PDF and triggers the print dialog)
+  const handlePrintReport = async () => {
+    if (reportLogs.length === 0) {
+      triggerMessage("error", "No stock movement records to print.")
+      return
+    }
+    setExportingPdf(true)
+    try {
+      await generateMarketingStockMovementPdf(reportLogs as any, {
+        startDate: reportStartDate,
+        endDate: reportEndDate,
+        type: reportType,
+        category: reportCategory,
+        searchTerm: reportSearch,
+        autoPrint: true,
+      })
+    } catch (err: any) {
+      console.error(err)
+      // Fallback to browser window.print() if autoPrint fails
+      const originalTitle = document.title
+      document.title = `Marketing_Stock_Report_${new Date().toISOString().split('T')[0]}`
+      window.print()
+      document.title = originalTitle
+    } finally {
+      setExportingPdf(false)
+    }
   }
 
   return (
@@ -1076,51 +1145,71 @@ export function MarketingInventoryClient({
           <table className="w-full border-collapse border border-gray-400 text-xs table-fixed">
             <thead>
               <tr className="bg-gray-100">
-                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[15%]">Date &amp; Time</th>
-                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[20%]">Item Name</th>
-                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[12%]">Category</th>
-                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[12%]">Location</th>
+                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[11%]">Date &amp; Time</th>
+                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[13%]">Item Name</th>
+                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[8%]">Category</th>
+                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[7%]">Location</th>
                 <th className="border border-gray-400 p-2 text-center font-bold uppercase w-[8%]">Type</th>
-                <th className="border border-gray-400 p-2 text-right font-bold uppercase w-[10%]">Quantity</th>
-                <th className="border border-gray-400 p-2 text-right font-bold uppercase w-[11%]">Total Value</th>
-                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[12%]">Handled By</th>
+                <th className="border border-gray-400 p-2 text-right font-bold uppercase w-[7%]">Quantity</th>
+                <th className="border border-gray-400 p-2 text-right font-bold uppercase w-[7%]">Cost / Unit</th>
+                <th className="border border-gray-400 p-2 text-right font-bold uppercase w-[8%]">Total Cost</th>
+                <th className="border border-gray-400 p-2 text-right font-bold uppercase w-[7%]">Selling / Unit</th>
+                <th className="border border-gray-400 p-2 text-right font-bold uppercase w-[9%]">Total Selling</th>
+                <th className="border border-gray-400 p-2 text-left font-bold uppercase w-[15%]">Handled By</th>
               </tr>
             </thead>
             <tbody>
               {reportLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="border border-gray-400 p-4 text-center font-medium text-gray-500">
+                  <td colSpan={11} className="border border-gray-400 p-4 text-center font-medium text-gray-500">
                     No stock logs recorded for the selected criteria.
                   </td>
                 </tr>
               ) : (
-                reportLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-gray-50/50">
-                    <td className="border border-gray-400 p-2 break-words whitespace-normal">{new Date(log.createdAt).toLocaleString("en-GB")}</td>
-                    <td className="border border-gray-400 p-2 font-semibold break-words whitespace-normal">
-                      {log.item?.name} {log.variantName ? `(${log.variantName})` : ""}
-                    </td>
-                    <td className="border border-gray-400 p-2 break-words whitespace-normal">{log.item?.category || "-"}</td>
-                    <td className="border border-gray-400 p-2 font-semibold break-words whitespace-normal">{log.item?.location}</td>
-                    <td className="border border-gray-400 p-2 text-center break-words whitespace-normal">
-                      <span className={`px-2 py-0.5 rounded font-black ${
-                        log.type === "IN" ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"
-                      }`}>
-                        {log.type}
-                      </span>
-                    </td>
-                    <td className="border border-gray-400 p-2 text-right font-semibold break-words whitespace-normal">
-                      {log.type === "IN" ? `+${log.quantity}` : `-${log.quantity}`} {log.item?.unit}
-                    </td>
-                    <td className="border border-gray-400 p-2 text-right break-words whitespace-normal">
-                      RM {log.totalPrice ? log.totalPrice.toFixed(2) : ((log.quantity * (log.pricePerUnit || log.item?.pricePerUnit || 0)).toFixed(2))}
-                    </td>
-                    <td className="border border-gray-400 p-2 font-medium break-words whitespace-normal">
-                      <div>{log.handledBy}</div>
-                      {log.remarks && <div className="text-[10px] text-gray-500 italic mt-0.5">{log.remarks}</div>}
-                    </td>
-                  </tr>
-                ))
+                reportLogs.map((log) => {
+                  const qty = Number(log.quantity) || 0
+                  const costPerUnit = Number(log.costPerUnit ?? (log.item as any)?.costPerUnit ?? (log.type === "IN" ? (log.pricePerUnit ?? (log.item as any)?.pricePerUnit ?? 0) : 0))
+                  const totalCost = Number(log.totalCost ?? (costPerUnit * qty))
+                  const sellingPricePerUnit = Number(log.sellingPricePerUnit ?? (log.item as any)?.sellingPricePerUnit ?? (log.type === "OUT" ? (log.pricePerUnit ?? (log.item as any)?.pricePerUnit ?? 0) : ((log.item as any)?.sellingPricePerUnit ?? 0)))
+                  const totalSelling = sellingPricePerUnit * qty
+
+                  return (
+                    <tr key={log.id} className="hover:bg-gray-50/50">
+                      <td className="border border-gray-400 p-1.5 break-words whitespace-normal">{new Date(log.createdAt).toLocaleString("en-GB")}</td>
+                      <td className="border border-gray-400 p-1.5 font-semibold break-words whitespace-normal">
+                        {log.item?.name} {log.variantName ? `(${log.variantName})` : ""}
+                      </td>
+                      <td className="border border-gray-400 p-1.5 break-words whitespace-normal">{log.item?.category || "-"}</td>
+                      <td className="border border-gray-400 p-1.5 font-semibold break-words whitespace-normal">{log.item?.location}</td>
+                      <td className="border border-gray-400 p-1.5 text-center">
+                        <span className={`px-2 py-0.5 rounded font-black whitespace-nowrap inline-block text-[11px] min-w-[32px] ${
+                          log.type === "IN" ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"
+                        }`}>
+                          {log.type}
+                        </span>
+                      </td>
+                      <td className="border border-gray-400 p-1.5 text-right font-semibold whitespace-nowrap">
+                        {log.type === "IN" ? `+${log.quantity}` : `-${log.quantity}`} {log.item?.unit}
+                      </td>
+                      <td className="border border-gray-400 p-1.5 text-right whitespace-nowrap">
+                        RM {costPerUnit.toFixed(2)}
+                      </td>
+                      <td className="border border-gray-400 p-1.5 text-right font-medium whitespace-nowrap">
+                        RM {totalCost.toFixed(2)}
+                      </td>
+                      <td className="border border-gray-400 p-1.5 text-right whitespace-nowrap">
+                        RM {sellingPricePerUnit.toFixed(2)}
+                      </td>
+                      <td className="border border-gray-400 p-1.5 text-right font-semibold whitespace-nowrap">
+                        RM {totalSelling.toFixed(2)}
+                      </td>
+                      <td className="border border-gray-400 p-1.5 font-medium break-words whitespace-normal">
+                        <div>{log.handledBy}</div>
+                        {log.remarks && <div className="text-[10px] text-gray-500 italic mt-0.5">{log.remarks}</div>}
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
@@ -1175,49 +1264,64 @@ export function MarketingInventoryClient({
           </div>
         </div>
 
-        {/* 4 Metric Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider block">TOTAL MERCHANDISE UNITS</span>
-              <span className="text-3xl font-black text-slate-900 mt-1 block">{totalStockQty}</span>
-              <span className="text-[10px] font-bold text-slate-500 mt-0.5 block">{totalUniqueItems} unique item types</span>
+        {/* Marketing Summary Metric Dashboard */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4 mb-6">
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+            <div className="min-w-0 flex-1 pr-2">
+              <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-400 uppercase tracking-wider block truncate">TOTAL UNITS</span>
+              <span className="text-2xl sm:text-3xl font-black text-slate-900 mt-1 block">{totalStockQty}</span>
+              <span className="text-[10px] font-bold text-slate-500 mt-0.5 block truncate">{totalUniqueItems} unique item types</span>
             </div>
-            <div className="h-11 w-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+            <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0">
               <Box className="w-5 h-5" />
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider block">TOTAL VALUATION</span>
-              <span className="text-3xl font-black text-slate-900 mt-1 block">RM {totalInventoryValue.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              <span className="text-[10px] font-bold text-slate-500 mt-0.5 block">HQ Store Stock Valuation</span>
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+            <div className="min-w-0 flex-1 pr-2">
+              <span className="text-[10px] sm:text-[11px] font-extrabold text-indigo-500 uppercase tracking-wider block truncate">TOTAL STOCK COST</span>
+              <span className="text-xl sm:text-2xl font-black text-slate-900 mt-1 block truncate">RM {totalCostValue.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span className="text-[10px] font-bold text-slate-500 mt-0.5 block truncate">Acquisition &amp; item costs</span>
             </div>
-            <div className="h-11 w-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+            <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0">
+              <Tag className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+            <div className="min-w-0 flex-1 pr-2">
+              <span className="text-[10px] sm:text-[11px] font-extrabold text-emerald-600 uppercase tracking-wider block truncate">TOTAL SELLING VALUE</span>
+              <span className="text-xl sm:text-2xl font-black text-emerald-700 mt-1 block truncate">RM {totalSellingValue.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span className="text-[10px] font-bold text-slate-500 mt-0.5 block truncate">Retail / sales value</span>
+            </div>
+            <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0">
               <Layers className="w-5 h-5" />
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider block">PENDING REQUISITIONS</span>
-              <span className={`text-3xl font-black mt-1 block ${pendingRequestsCount > 0 ? "text-amber-600" : "text-slate-900"}`}>{pendingRequestsCount}</span>
-              <span className="text-[10px] font-bold text-slate-500 mt-0.5 block">Waiting for marketing approval</span>
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+            <div className="min-w-0 flex-1 pr-2">
+              <span className="text-[10px] sm:text-[11px] font-extrabold text-purple-600 uppercase tracking-wider block truncate">ESTIMATED MARGIN</span>
+              <span className={`text-xl sm:text-2xl font-black mt-1 block truncate ${totalEstimatedMargin >= 0 ? "text-purple-700" : "text-rose-600"}`}>
+                RM {totalEstimatedMargin.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+              <span className="text-[10px] font-bold text-slate-500 mt-0.5 block truncate">
+                {totalCostValue > 0 ? `${((totalEstimatedMargin / totalCostValue) * 100).toFixed(0)}% markup over cost` : "Sales minus total cost"}
+              </span>
             </div>
-            <div className={`h-11 w-11 rounded-xl flex items-center justify-center ${pendingRequestsCount > 0 ? "bg-amber-50 text-amber-600 animate-pulse" : "bg-slate-100 text-slate-400"}`}>
-              <Clock className="w-5 h-5" />
+            <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold shrink-0">
+              <ArrowUpDown className="w-5 h-5" />
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider block">OUTWARD DISPATCHED</span>
-              <span className="text-3xl font-black text-slate-900 mt-1 block">-{recentOutCount}</span>
-              <span className="text-[10px] font-bold text-slate-500 mt-0.5 block">Units out (last 30 days)</span>
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between col-span-2 sm:col-span-1">
+            <div className="min-w-0 flex-1 pr-2">
+              <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-400 uppercase tracking-wider block truncate">PENDING REQUISITIONS</span>
+              <span className={`text-2xl sm:text-3xl font-black mt-1 block ${pendingRequestsCount > 0 ? "text-amber-600" : "text-slate-900"}`}>{pendingRequestsCount}</span>
+              <span className="text-[10px] font-bold text-slate-500 mt-0.5 block truncate">Marketing approval</span>
             </div>
-            <div className="h-11 w-11 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
-              <Minus className="w-5 h-5" />
+            <div className={`h-10 w-10 sm:h-11 sm:w-11 rounded-xl flex items-center justify-center shrink-0 ${pendingRequestsCount > 0 ? "bg-amber-50 text-amber-600 animate-pulse" : "bg-slate-100 text-slate-400"}`}>
+              <Clock className="w-5 h-5" />
             </div>
           </div>
         </div>
@@ -1348,9 +1452,30 @@ export function MarketingInventoryClient({
                   const outQty = reportLogs.filter(l => l.type === "OUT").reduce((sum, l) => sum + (Number(l.quantity) || 0), 0)
                   const netQty = inQty - outQty
 
-                  const inVal = reportLogs.filter(l => l.type === "IN").reduce((sum, l) => sum + (Number(l.totalPrice) || ((Number(l.quantity) || 0) * (Number(l.pricePerUnit) || Number(l.item?.pricePerUnit) || 0))), 0)
-                  const outVal = reportLogs.filter(l => l.type === "OUT").reduce((sum, l) => sum + (Number(l.totalPrice) || ((Number(l.quantity) || 0) * (Number(l.pricePerUnit) || Number(l.item?.pricePerUnit) || 0))), 0)
-                  const netVal = inVal - outVal
+                  const inCost = reportLogs.filter(l => l.type === "IN").reduce((sum, l) => {
+                    const costPerUnit = Number(logCost(l))
+                    return sum + Number(l.totalCost ?? (costPerUnit * (Number(l.quantity) || 0)))
+                  }, 0)
+
+                  const outSelling = reportLogs.filter(l => l.type === "OUT").reduce((sum, l) => {
+                    const sellingPrice = Number(logSelling(l))
+                    return sum + (sellingPrice * (Number(l.quantity) || 0))
+                  }, 0)
+
+                  const outCost = reportLogs.filter(l => l.type === "OUT").reduce((sum, l) => {
+                    const costPerUnit = Number(logCost(l))
+                    return sum + Number(l.totalCost ?? (costPerUnit * (Number(l.quantity) || 0)))
+                  }, 0)
+
+                  const netVal = inCost - outCost
+
+                  function logCost(log: any) {
+                    return log.costPerUnit ?? log.item?.costPerUnit ?? (log.type === "IN" ? (log.pricePerUnit ?? log.item?.pricePerUnit ?? 0) : 0)
+                  }
+
+                  function logSelling(log: any) {
+                    return log.sellingPricePerUnit ?? log.item?.sellingPricePerUnit ?? (log.type === "OUT" ? (log.pricePerUnit ?? log.item?.pricePerUnit ?? 0) : (log.item?.sellingPricePerUnit ?? 0))
+                  }
 
                   return (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-slate-50 border-b border-slate-100">
@@ -1360,17 +1485,17 @@ export function MarketingInventoryClient({
                         <span className="text-[10px] text-slate-400 block mt-0.5">Recorded transactions</span>
                       </div>
                       <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Stock IN</span>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Stock IN (Cost)</span>
                         <span className="text-lg font-black text-emerald-600 mt-0.5 block">+{inQty.toLocaleString()} pcs</span>
-                        <span className="text-[10px] font-semibold text-emerald-700/80 block mt-0.5">Inward: RM {inVal.toFixed(2)}</span>
+                        <span className="text-[10px] font-semibold text-emerald-700/80 block mt-0.5">Inward: RM {inCost.toFixed(2)}</span>
                       </div>
                       <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Stock OUT</span>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Stock OUT (Selling)</span>
                         <span className="text-lg font-black text-rose-600 mt-0.5 block">-{outQty.toLocaleString()} pcs</span>
-                        <span className="text-[10px] font-semibold text-rose-700/80 block mt-0.5">Dispatched: RM {outVal.toFixed(2)}</span>
+                        <span className="text-[10px] font-semibold text-rose-700/80 block mt-0.5">Dispatched: RM {outSelling.toFixed(2)}</span>
                       </div>
                       <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Net Movement Value</span>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Net Inventory Cost</span>
                         <span className="text-lg font-black text-blue-600 mt-0.5 block">RM {netVal.toFixed(2)}</span>
                         <span className="text-[10px] font-medium text-slate-500 block mt-0.5">Net units: {netQty > 0 ? `+${netQty}` : netQty} pcs (In − Out)</span>
                       </div>
@@ -1458,28 +1583,30 @@ export function MarketingInventoryClient({
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider sticky top-0 border-b border-slate-200 shadow-2xs">
                       <tr>
-                        <th className="px-4 py-3">Date &amp; Time</th>
-                        <th className="px-4 py-3 text-center">Type</th>
-                        <th className="px-4 py-3">Item &amp; Variant</th>
-                        <th className="px-4 py-3 text-right">Quantity</th>
-                        <th className="px-4 py-3 text-right">Price / Unit</th>
-                        <th className="px-4 py-3 text-right">Total Value</th>
-                        <th className="px-4 py-3">Department</th>
-                        <th className="px-4 py-3">Handled By</th>
-                        <th className="px-4 py-3">Remarks / Purpose</th>
+                        <th className="px-3 py-3">Date &amp; Time</th>
+                        <th className="px-3 py-3 text-center">Type</th>
+                        <th className="px-3 py-3">Item &amp; Variant</th>
+                        <th className="px-3 py-3 text-right">Quantity</th>
+                        <th className="px-3 py-3 text-right">Cost / Unit</th>
+                        <th className="px-3 py-3 text-right">Total Cost</th>
+                        <th className="px-3 py-3 text-right">Selling / Unit</th>
+                        <th className="px-3 py-3 text-right">Total Selling</th>
+                        <th className="px-3 py-3">Department</th>
+                        <th className="px-3 py-3">Handled By</th>
+                        <th className="px-3 py-3">Remarks / Purpose</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {loadingReport ? (
                         <tr>
-                          <td colSpan={9} className="px-4 py-12 text-center text-slate-400">
+                          <td colSpan={11} className="px-4 py-12 text-center text-slate-400">
                             <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
                             <p className="font-semibold text-xs">Loading merchandise stock movements...</p>
                           </td>
                         </tr>
                       ) : reportLogs.length === 0 ? (
                         <tr>
-                          <td colSpan={9} className="px-4 py-12 text-center text-slate-400">
+                          <td colSpan={11} className="px-4 py-12 text-center text-slate-400">
                             <FileText className="w-8 h-8 mx-auto mb-2 text-slate-300" />
                             <p className="font-bold text-slate-600 text-xs">No stock movement logs found</p>
                             <p className="text-[11px] text-slate-400 mt-0.5">Try adjusting your date range or search keyword</p>
@@ -1487,17 +1614,20 @@ export function MarketingInventoryClient({
                         </tr>
                       ) : (
                         reportLogs.map((log) => {
-                          const unitPrice = typeof log.pricePerUnit === "number" ? log.pricePerUnit : (log.item?.pricePerUnit ?? 0)
-                          const lineTotal = typeof log.totalPrice === "number" ? log.totalPrice : (log.quantity * unitPrice)
+                          const qty = Number(log.quantity) || 0
+                          const costPerUnit = Number(log.costPerUnit ?? (log.item as any)?.costPerUnit ?? (log.type === "IN" ? (log.pricePerUnit ?? (log.item as any)?.pricePerUnit ?? 0) : 0))
+                          const totalCost = Number(log.totalCost ?? (costPerUnit * qty))
+                          const sellingPricePerUnit = Number(log.sellingPricePerUnit ?? (log.item as any)?.sellingPricePerUnit ?? (log.type === "OUT" ? (log.pricePerUnit ?? (log.item as any)?.pricePerUnit ?? 0) : ((log.item as any)?.sellingPricePerUnit ?? 0)))
+                          const totalSelling = sellingPricePerUnit * qty
                           const variantName = log.variantName || log.variant?.variantName
 
                           return (
                             <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
-                              <td className="px-4 py-2.5 text-slate-500 whitespace-nowrap">
+                              <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">
                                 {log.createdAt ? new Date(log.createdAt).toLocaleString("en-GB") : "-"}
                               </td>
-                              <td className="px-4 py-2.5 text-center whitespace-nowrap">
-                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                              <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider inline-block min-w-[34px] ${
                                   log.type === "IN" 
                                     ? "bg-emerald-100 text-emerald-800 border border-emerald-200" 
                                     : "bg-rose-100 text-rose-800 border border-rose-200"
@@ -1505,7 +1635,7 @@ export function MarketingInventoryClient({
                                   {log.type}
                                 </span>
                               </td>
-                              <td className="px-4 py-2.5 whitespace-nowrap">
+                              <td className="px-3 py-2.5 whitespace-nowrap">
                                 <span className="font-bold text-slate-900">{log.item?.name}</span>
                                 {variantName && (
                                   <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
@@ -1513,24 +1643,30 @@ export function MarketingInventoryClient({
                                   </span>
                                 )}
                               </td>
-                              <td className="px-4 py-2.5 text-right font-black whitespace-nowrap">
+                              <td className="px-3 py-2.5 text-right font-black whitespace-nowrap">
                                 <span className={log.type === "IN" ? "text-emerald-700" : "text-rose-700"}>
                                   {log.type === "IN" ? `+${log.quantity}` : `-${log.quantity}`} {log.item?.unit || "pcs"}
                                 </span>
                               </td>
-                              <td className="px-4 py-2.5 text-right font-medium text-slate-600 whitespace-nowrap">
-                                RM {unitPrice.toFixed(2)}
+                              <td className="px-3 py-2.5 text-right font-medium text-slate-600 whitespace-nowrap">
+                                RM {costPerUnit.toFixed(2)}
                               </td>
-                              <td className="px-4 py-2.5 text-right font-bold text-slate-900 whitespace-nowrap">
-                                RM {lineTotal.toFixed(2)}
+                              <td className="px-3 py-2.5 text-right font-medium text-slate-900 whitespace-nowrap">
+                                RM {totalCost.toFixed(2)}
                               </td>
-                              <td className="px-4 py-2.5 text-slate-600 font-medium whitespace-nowrap">
+                              <td className="px-3 py-2.5 text-right font-medium text-slate-600 whitespace-nowrap">
+                                RM {sellingPricePerUnit.toFixed(2)}
+                              </td>
+                              <td className="px-3 py-2.5 text-right font-bold text-blue-700 whitespace-nowrap">
+                                RM {totalSelling.toFixed(2)}
+                              </td>
+                              <td className="px-3 py-2.5 text-slate-600 font-medium whitespace-nowrap">
                                 {log.department || "MARKETING"}
                               </td>
-                              <td className="px-4 py-2.5 font-semibold text-slate-800 whitespace-nowrap">
+                              <td className="px-3 py-2.5 font-semibold text-slate-800 whitespace-nowrap">
                                 {log.handledBy}
                               </td>
-                              <td className="px-4 py-2.5 text-slate-500 max-w-xs truncate" title={log.remarks || ""}>
+                              <td className="px-3 py-2.5 text-slate-500 max-w-xs truncate" title={log.remarks || ""}>
                                 {log.remarks || "—"}
                               </td>
                             </tr>
@@ -1573,24 +1709,33 @@ export function MarketingInventoryClient({
                   <thead className="bg-slate-50 text-slate-500 text-[11px] font-bold uppercase tracking-wider border-b border-slate-200">
                     <tr>
                       <th className="px-5 py-3.5">Item Name</th>
-                      <th className="px-5 py-3.5">Brand</th>
-                      <th className="px-5 py-3.5">Location</th>
-                      <th className="px-5 py-3.5">Current Stock</th>
-                      <th className="px-5 py-3.5">Unit</th>
-                      <th className="px-5 py-3.5 text-right">Price / Unit</th>
+                      <th className="px-4 py-3.5">Brand</th>
+                      <th className="px-4 py-3.5">Location</th>
+                      <th className="px-4 py-3.5 text-center">Current Stock</th>
+                      <th className="px-3 py-3.5 text-center">Unit</th>
+                      <th className="px-4 py-3.5 text-right">Cost / Unit</th>
+                      <th className="px-4 py-3.5 text-right">Total Cost</th>
+                      <th className="px-4 py-3.5 text-right">Selling / Unit</th>
+                      <th className="px-4 py-3.5 text-right">Total Selling Price</th>
                       <th className="px-5 py-3.5 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {filteredItems.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
+                        <td colSpan={10} className="px-6 py-12 text-center text-slate-400">
                           <Box className="h-8 w-8 mx-auto mb-2 text-slate-300" />
                           No marketing merchandise items matching criteria.
                         </td>
                       </tr>
                     ) : (
-                      paginatedItems.map((item) => (
+                      paginatedItems.map((item) => {
+                        const itemCost = item.costPerUnit !== undefined && item.costPerUnit !== null ? item.costPerUnit : (item.pricePerUnit || 0)
+                        const itemTotalCost = item.quantity * itemCost
+                        const itemSelling = item.sellingPricePerUnit !== undefined && item.sellingPricePerUnit !== null ? item.sellingPricePerUnit : 0
+                        const itemTotalSelling = item.quantity * itemSelling
+
+                        return (
                         <React.Fragment key={item.id}>
                           <tr className={`hover:bg-slate-50/80 transition-colors ${expandedItemIds.has(item.id) ? "bg-slate-50/60" : ""}`}>
                             {/* Name & Photo */}
@@ -1645,30 +1790,45 @@ export function MarketingInventoryClient({
                             </td>
 
                             {/* Brand */}
-                            <td className="px-5 py-3.5 font-medium text-slate-600">
+                            <td className="px-4 py-3.5 font-medium text-slate-600">
                               {item.brand || "—"}
                             </td>
 
                             {/* Location */}
-                            <td className="px-5 py-3.5 text-slate-600 font-medium">
+                            <td className="px-4 py-3.5 text-slate-600 font-medium">
                               {item.location}
                             </td>
 
                             {/* Stock Qty */}
-                            <td className="px-5 py-3.5">
+                            <td className="px-4 py-3.5 text-center">
                               <span className={`font-black text-sm ${item.quantity > 5 ? "text-slate-900" : item.quantity > 0 ? "text-amber-600" : "text-rose-600"}`}>
                                 {item.quantity}
                               </span>
                             </td>
 
                             {/* Unit */}
-                            <td className="px-5 py-3.5 text-slate-500 font-medium">
+                            <td className="px-3 py-3.5 text-slate-500 font-medium text-center">
                               {item.unit}
                             </td>
 
-                            {/* Price */}
-                            <td className="px-5 py-3.5 text-right font-mono font-semibold text-slate-700">
-                              RM {item.pricePerUnit ? item.pricePerUnit.toFixed(2) : "0.00"}
+                            {/* Cost / Unit */}
+                            <td className="px-4 py-3.5 text-right font-mono font-semibold text-slate-700">
+                              RM {itemCost.toFixed(2)}
+                            </td>
+
+                            {/* Total Cost */}
+                            <td className="px-4 py-3.5 text-right font-mono font-black text-indigo-900 bg-indigo-50/30">
+                              RM {itemTotalCost.toFixed(2)}
+                            </td>
+
+                            {/* Selling / Unit */}
+                            <td className="px-4 py-3.5 text-right font-mono font-semibold text-slate-700">
+                              RM {itemSelling.toFixed(2)}
+                            </td>
+
+                            {/* Total Selling Price */}
+                            <td className="px-4 py-3.5 text-right font-mono font-black text-emerald-700 bg-emerald-50/40">
+                              RM {itemTotalSelling.toFixed(2)}
                             </td>
 
                             {/* Actions */}
@@ -1708,85 +1868,108 @@ export function MarketingInventoryClient({
 
                           {/* Expanded Variants: Rendered Row by Row */}
                           {item.hasVariants && expandedItemIds.has(item.id) && item.variants && item.variants.length > 0 && (
-                            item.variants.map((v, vIdx) => (
-                              <tr 
-                                key={v.id} 
-                                className="bg-slate-50/70 hover:bg-indigo-50/40 border-t border-slate-100 transition-colors"
-                              >
-                                {/* Name & Tree Branch */}
-                                <td className="px-5 py-2.5 pl-14">
-                                  <div className="flex items-center gap-2.5">
-                                    <span className="text-slate-300 font-mono text-sm select-none">
-                                      {vIdx === item.variants!.length - 1 ? "└─" : "├─"}
-                                    </span>
-                                    <div>
-                                      <div className="flex items-center gap-2">
-                                        <span className="font-bold text-slate-800 text-xs">
-                                          {v.variantName}
-                                        </span>
-                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                          Variant
-                                        </span>
+                            item.variants.map((v, vIdx) => {
+                              const vCost = v.costPerUnit !== undefined && v.costPerUnit !== null ? v.costPerUnit : (v.pricePerUnit || itemCost)
+                              const vTotalCost = v.quantity * vCost
+                              const vSelling = v.sellingPricePerUnit !== undefined && v.sellingPricePerUnit !== null ? v.sellingPricePerUnit : itemSelling
+                              const vTotalSelling = v.quantity * vSelling
+
+                              return (
+                                <tr 
+                                  key={v.id} 
+                                  className="bg-slate-50/70 hover:bg-indigo-50/40 border-t border-slate-100 transition-colors"
+                                >
+                                  {/* Name & Tree Branch */}
+                                  <td className="px-5 py-2.5 pl-14">
+                                    <div className="flex items-center gap-2.5">
+                                      <span className="text-slate-300 font-mono text-sm select-none">
+                                        {vIdx === item.variants!.length - 1 ? "└─" : "├─"}
+                                      </span>
+                                      <div>
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-bold text-slate-800 text-xs">
+                                            {v.variantName}
+                                          </span>
+                                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                            Variant
+                                          </span>
+                                        </div>
+                                        {v.sku && (
+                                          <span className="block text-[10px] text-slate-400 font-mono">
+                                            SKU: {v.sku}
+                                          </span>
+                                        )}
                                       </div>
-                                      {v.sku && (
-                                        <span className="block text-[10px] text-slate-400 font-mono">
-                                          SKU: {v.sku}
-                                        </span>
-                                      )}
                                     </div>
-                                  </div>
-                                </td>
+                                  </td>
 
-                                {/* Brand */}
-                                <td className="px-5 py-2.5 text-slate-400 font-medium text-xs">
-                                  {item.brand || "—"}
-                                </td>
+                                  {/* Brand */}
+                                  <td className="px-4 py-2.5 text-slate-400 font-medium text-xs">
+                                    {item.brand || "—"}
+                                  </td>
 
-                                {/* Location */}
-                                <td className="px-5 py-2.5 text-slate-500 font-medium text-xs">
-                                  {item.location}
-                                </td>
+                                  {/* Location */}
+                                  <td className="px-4 py-2.5 text-slate-500 font-medium text-xs">
+                                    {item.location}
+                                  </td>
 
-                                {/* Stock Qty */}
-                                <td className="px-5 py-2.5">
-                                  <span className={`font-black text-sm ${v.quantity > 5 ? "text-slate-900" : v.quantity > 0 ? "text-amber-600" : "text-rose-600"}`}>
-                                    {v.quantity}
-                                  </span>
-                                </td>
+                                  {/* Stock Qty */}
+                                  <td className="px-4 py-2.5 text-center">
+                                    <span className={`font-black text-sm ${v.quantity > 5 ? "text-slate-900" : v.quantity > 0 ? "text-amber-600" : "text-rose-600"}`}>
+                                      {v.quantity}
+                                    </span>
+                                  </td>
 
-                                {/* Unit */}
-                                <td className="px-5 py-2.5 text-slate-500 font-medium text-xs">
-                                  {item.unit}
-                                </td>
+                                  {/* Unit */}
+                                  <td className="px-3 py-2.5 text-slate-500 font-medium text-xs text-center">
+                                    {item.unit}
+                                  </td>
 
-                                {/* Price / Unit */}
-                                <td className="px-5 py-2.5 text-right font-mono font-semibold text-slate-700 text-xs">
-                                  RM {(v.pricePerUnit ? v.pricePerUnit : (item.pricePerUnit || 0)).toFixed(2)}
-                                </td>
+                                  {/* Cost / Unit */}
+                                  <td className="px-4 py-2.5 text-right font-mono font-semibold text-slate-700 text-xs">
+                                    RM {vCost.toFixed(2)}
+                                  </td>
 
-                                {/* Actions */}
-                                <td className="px-5 py-2.5 text-right">
-                                  <div className="flex items-center justify-end gap-1.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedWithdrawItemId(item.id)
-                                        setSelectedWithdrawVariantId(v.id)
-                                        setWithdrawQty(1)
-                                        setIsWithdrawModalOpen(true)
-                                      }}
-                                      className="p-1.5 rounded-lg text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer"
-                                      title={`Withdraw (OUT) ${v.variantName}`}
-                                    >
-                                      <Minus className="h-4 w-4" />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))
+                                  {/* Total Cost */}
+                                  <td className="px-4 py-2.5 text-right font-mono font-black text-indigo-900 bg-indigo-50/30 text-xs">
+                                    RM {vTotalCost.toFixed(2)}
+                                  </td>
+
+                                  {/* Selling / Unit */}
+                                  <td className="px-4 py-2.5 text-right font-mono font-semibold text-slate-700 text-xs">
+                                    RM {vSelling.toFixed(2)}
+                                  </td>
+
+                                  {/* Total Selling Price */}
+                                  <td className="px-4 py-2.5 text-right font-mono font-black text-emerald-700 bg-emerald-50/40 text-xs">
+                                    RM {vTotalSelling.toFixed(2)}
+                                  </td>
+
+                                  {/* Actions */}
+                                  <td className="px-5 py-2.5 text-right">
+                                    <div className="flex items-center justify-end gap-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedWithdrawItemId(item.id)
+                                          setSelectedWithdrawVariantId(v.id)
+                                          setWithdrawQty(1)
+                                          setIsWithdrawModalOpen(true)
+                                        }}
+                                        className="p-1.5 rounded-lg text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer"
+                                        title={`Withdraw (OUT) ${v.variantName}`}
+                                      >
+                                        <Minus className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })
                           )}
                         </React.Fragment>
-                      ))
+                      )
+                    })
                     )}
                   </tbody>
                 </table>
@@ -2138,8 +2321,13 @@ export function MarketingInventoryClient({
                     required
                     value={selectedAddItemId}
                     onChange={(e) => {
-                      setSelectedAddItemId(e.target.value)
+                      const id = e.target.value
+                      setSelectedAddItemId(id)
                       setSelectedRestockVariantId("")
+                      const it = items.find(i => i.id === id)
+                      if (it && it.sellingPricePerUnit !== undefined && it.sellingPricePerUnit !== null && it.sellingPricePerUnit > 0) {
+                        setAddSellingPricePerUnit(String(it.sellingPricePerUnit))
+                      }
                     }}
                     className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white"
                   >
@@ -2477,8 +2665,8 @@ export function MarketingInventoryClient({
                 </div>
               </div>
 
-              {/* Quantity & Total Price */}
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              {/* Quantity, Total Cost & Selling Price */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
                     Quantity (IN) * {isNewItem && addHasVariants && <span className="text-indigo-600 text-[10px] font-normal lowercase">(sum of variants)</span>}
@@ -2504,10 +2692,58 @@ export function MarketingInventoryClient({
                     value={addTotalPrice}
                     onChange={(e) => setAddTotalPrice(e.target.value)}
                     placeholder="e.g. 250.00"
-                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 font-bold"
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 font-bold text-indigo-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Selling / Unit (RM)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={addSellingPricePerUnit}
+                    onChange={(e) => setAddSellingPricePerUnit(e.target.value)}
+                    placeholder="e.g. 25.00"
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 font-bold text-emerald-700"
                   />
                 </div>
               </div>
+
+              {/* Live Cost vs Selling Auto-Calculations */}
+              {(() => {
+                const currentQty = isNewItem && addHasVariants ? totalVariantQty : Number(addQty || 0)
+                const currentTotalCost = parseFloat(addTotalPrice) || 0
+                const currentSellingUnit = parseFloat(addSellingPricePerUnit) || 0
+                const currentUnitCost = currentQty > 0 && currentTotalCost > 0 ? (currentTotalCost / currentQty) : 0
+                const currentTotalSelling = currentQty * currentSellingUnit
+                const currentMargin = currentTotalSelling - currentTotalCost
+
+                if (currentQty <= 0 && currentTotalCost <= 0) return null
+
+                return (
+                  <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 grid grid-cols-3 gap-2 text-center text-xs">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Unit Cost</span>
+                      <span className="font-mono font-bold text-indigo-900">
+                        RM {currentUnitCost.toFixed(2)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Selling</span>
+                      <span className="font-mono font-bold text-emerald-700">
+                        RM {currentTotalSelling.toFixed(2)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Margin</span>
+                      <span className={`font-mono font-bold ${currentMargin >= 0 ? "text-purple-700" : "text-rose-600"}`}>
+                        RM {currentMargin.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* Handled By & Remarks */}
               <div>
@@ -2817,20 +3053,55 @@ export function MarketingInventoryClient({
                     className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200"
                   />
                 </div>
+              </div>
 
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Price / Unit (RM)</label>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Cost / Unit (RM) *</label>
                   <input
                     type="number"
                     min="0"
                     step="0.0001"
                     required
-                    value={editPricePerUnit}
-                    onChange={(e) => setEditPricePerUnit(e.target.value)}
-                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200"
+                    value={editCostPerUnit}
+                    onChange={(e) => {
+                      setEditCostPerUnit(e.target.value)
+                      setEditPricePerUnit(e.target.value)
+                    }}
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 font-bold text-indigo-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Selling Price / Unit (RM)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editSellingPricePerUnit}
+                    onChange={(e) => setEditSellingPricePerUnit(e.target.value)}
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 font-bold text-emerald-700"
                   />
                 </div>
               </div>
+
+              {/* Total preview in Edit Modal */}
+              {editingItem && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 grid grid-cols-2 gap-3 text-center text-xs">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Stock Cost</span>
+                    <span className="font-mono font-bold text-indigo-900">
+                      RM {(editingItem.quantity * Number(editCostPerUnit || 0)).toFixed(2)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Selling Value</span>
+                    <span className="font-mono font-bold text-emerald-700">
+                      RM {(editingItem.quantity * Number(editSellingPricePerUnit || 0)).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               <div className="pt-4 flex gap-3">
                 <button
@@ -2883,20 +3154,43 @@ export function MarketingInventoryClient({
               </button>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center">
-              <div>
-                <span className="text-[10px] text-slate-400 font-bold block uppercase">Current Stock</span>
-                <span className="text-xl font-black text-slate-900">{selectedDetailItem.quantity} {selectedDetailItem.unit}</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400 font-bold block uppercase">Price / Unit</span>
-                <span className="text-xl font-black text-slate-900">RM {selectedDetailItem.pricePerUnit ? selectedDetailItem.pricePerUnit.toFixed(2) : "0.00"}</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400 font-bold block uppercase">Total Stock Value</span>
-                <span className="text-xl font-black text-emerald-600">RM {(selectedDetailItem.quantity * (selectedDetailItem.pricePerUnit || 0)).toFixed(2)}</span>
-              </div>
-            </div>
+            {(() => {
+              const dCost = selectedDetailItem.costPerUnit !== undefined && selectedDetailItem.costPerUnit !== null 
+                ? selectedDetailItem.costPerUnit 
+                : (selectedDetailItem.pricePerUnit || 0)
+              const dTotalCost = selectedDetailItem.quantity * dCost
+              const dSelling = selectedDetailItem.sellingPricePerUnit !== undefined && selectedDetailItem.sellingPricePerUnit !== null
+                ? selectedDetailItem.sellingPricePerUnit
+                : 0
+              const dTotalSelling = selectedDetailItem.quantity * dSelling
+              const dMargin = dTotalSelling - dTotalCost
+
+              return (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center">
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase">Current Stock</span>
+                    <span className="text-lg font-black text-slate-900">{selectedDetailItem.quantity} {selectedDetailItem.unit}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase">Cost / Unit</span>
+                    <span className="text-lg font-black text-indigo-900">RM {dCost.toFixed(2)}</span>
+                    <span className="text-[9px] text-slate-400 block font-mono">Total: RM {dTotalCost.toFixed(2)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase">Selling / Unit</span>
+                    <span className="text-lg font-black text-emerald-700">RM {dSelling.toFixed(2)}</span>
+                    <span className="text-[9px] text-slate-400 block font-mono">Total: RM {dTotalSelling.toFixed(2)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase">Projected Margin</span>
+                    <span className={`text-lg font-black ${dMargin >= 0 ? "text-purple-700" : "text-rose-600"}`}>
+                      RM {dMargin.toFixed(2)}
+                    </span>
+                    <span className="text-[9px] text-slate-400 block">Potential profit</span>
+                  </div>
+                </div>
+              )
+            })()}
 
             {selectedDetailItem.hasVariants && selectedDetailItem.variants && selectedDetailItem.variants.length > 0 && (
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2.5">

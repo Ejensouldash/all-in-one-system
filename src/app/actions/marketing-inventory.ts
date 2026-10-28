@@ -32,6 +32,8 @@ export type VariantInput = {
   sku?: string
   quantity: number
   pricePerUnit?: number
+  costPerUnit?: number
+  sellingPricePerUnit?: number
 }
 
 export type VariantConfigItem = {
@@ -46,6 +48,8 @@ export async function addMarketingStock(data: {
   category?: string | null
   quantity: number
   totalPrice: number
+  costPerUnit?: number
+  sellingPricePerUnit?: number
   unit: string
   handledBy: string
   remarks?: string
@@ -94,6 +98,10 @@ export async function addMarketingStock(data: {
         const updateData: any = {
           quantity: { increment: data.quantity },
           pricePerUnit: calculatedUnitPrice,
+          costPerUnit: calculatedUnitPrice,
+        }
+        if (data.sellingPricePerUnit !== undefined && data.sellingPricePerUnit !== null && Number(data.sellingPricePerUnit) >= 0) {
+          updateData.sellingPricePerUnit = Number(data.sellingPricePerUnit)
         }
         if (data.department) updateData.department = departmentVal
         if (data.category) updateData.category = categoryVal
@@ -108,12 +116,17 @@ export async function addMarketingStock(data: {
           })
           if (targetVariant) {
             restockedVariantName = targetVariant.variantName
+            const vUpdateData: any = {
+              quantity: { increment: data.quantity },
+              pricePerUnit: calculatedUnitPrice,
+              costPerUnit: calculatedUnitPrice,
+            }
+            if (data.sellingPricePerUnit !== undefined && data.sellingPricePerUnit !== null && Number(data.sellingPricePerUnit) >= 0) {
+              vUpdateData.sellingPricePerUnit = Number(data.sellingPricePerUnit)
+            }
             await tx.marketingItemVariant.update({
               where: { id: data.variantId },
-              data: {
-                quantity: { increment: data.quantity },
-                pricePerUnit: calculatedUnitPrice,
-              },
+              data: vUpdateData,
             })
           }
         }
@@ -124,6 +137,10 @@ export async function addMarketingStock(data: {
           include: { variants: true },
         })
 
+        const effectiveSelling = data.sellingPricePerUnit !== undefined && data.sellingPricePerUnit !== null && Number(data.sellingPricePerUnit) >= 0
+          ? Number(data.sellingPricePerUnit)
+          : (existingItem.sellingPricePerUnit || 0)
+
         // Create Stock Log
         await tx.marketingStockLog.create({
           data: {
@@ -133,7 +150,10 @@ export async function addMarketingStock(data: {
             type: "IN",
             quantity: data.quantity,
             totalPrice: data.totalPrice,
+            totalCost: data.totalPrice,
             pricePerUnit: calculatedUnitPrice,
+            costPerUnit: calculatedUnitPrice,
+            sellingPricePerUnit: effectiveSelling,
             department: item.department || departmentVal,
             handledBy: data.handledBy,
             remarks: data.remarks || (restockedVariantName ? `Restocked variant: ${restockedVariantName}` : null),
@@ -159,6 +179,7 @@ export async function addMarketingStock(data: {
         }
 
         const hasVariants = !!data.hasVariants && Array.isArray(data.variants) && data.variants.length > 0
+        const sellingPriceVal = Number(data.sellingPricePerUnit || 0)
 
         item = await tx.marketingItem.create({
           data: {
@@ -170,6 +191,8 @@ export async function addMarketingStock(data: {
             quantity: data.quantity,
             unit: data.unit || "pcs",
             pricePerUnit: calculatedUnitPrice,
+            costPerUnit: calculatedUnitPrice,
+            sellingPricePerUnit: sellingPriceVal,
             imageUrl: data.imageUrl || null,
             hasVariants,
             variantConfig: hasVariants && data.variantConfig ? (data.variantConfig as any) : undefined,
@@ -180,7 +203,8 @@ export async function addMarketingStock(data: {
         if (hasVariants && data.variants && data.variants.length > 0) {
           const variantRecords = data.variants.map((v) => {
             const variantId = randomUUID()
-            const vPrice = v.pricePerUnit && v.pricePerUnit > 0 ? v.pricePerUnit : calculatedUnitPrice
+            const vCost = v.costPerUnit && v.costPerUnit > 0 ? v.costPerUnit : (v.pricePerUnit && v.pricePerUnit > 0 ? v.pricePerUnit : calculatedUnitPrice)
+            const vSelling = v.sellingPricePerUnit !== undefined && v.sellingPricePerUnit !== null ? Number(v.sellingPricePerUnit) : sellingPriceVal
             return {
               id: variantId,
               itemId: item.id,
@@ -188,7 +212,9 @@ export async function addMarketingStock(data: {
               attributes: v.attributes as any,
               sku: v.sku || null,
               quantity: v.quantity,
-              pricePerUnit: vPrice,
+              pricePerUnit: vCost,
+              costPerUnit: vCost,
+              sellingPricePerUnit: vSelling,
             }
           })
 
@@ -204,8 +230,11 @@ export async function addMarketingStock(data: {
               variantName: v.variantName,
               type: "IN",
               quantity: v.quantity,
-              totalPrice: Number((v.pricePerUnit * v.quantity).toFixed(2)),
-              pricePerUnit: v.pricePerUnit,
+              totalPrice: Number((v.costPerUnit * v.quantity).toFixed(2)),
+              totalCost: Number((v.costPerUnit * v.quantity).toFixed(2)),
+              pricePerUnit: v.costPerUnit,
+              costPerUnit: v.costPerUnit,
+              sellingPricePerUnit: v.sellingPricePerUnit,
               department: departmentVal,
               handledBy: data.handledBy,
               remarks: `Initial stock for ${v.variantName}`,
@@ -224,7 +253,10 @@ export async function addMarketingStock(data: {
               type: "IN",
               quantity: data.quantity,
               totalPrice: data.totalPrice,
+              totalCost: data.totalPrice,
               pricePerUnit: calculatedUnitPrice,
+              costPerUnit: calculatedUnitPrice,
+              sellingPricePerUnit: sellingPriceVal,
               department: departmentVal,
               handledBy: data.handledBy,
               remarks: data.remarks || null,
@@ -526,7 +558,9 @@ export async function editMarketingItemMaster(
     category?: string | null
     location?: string
     unit?: string
-    pricePerUnit: number
+    pricePerUnit?: number
+    costPerUnit?: number
+    sellingPricePerUnit?: number
     imageUrl?: string | null
   }
 ) {
@@ -540,8 +574,14 @@ export async function editMarketingItemMaster(
 
   const nameUpper = data.name.trim().toUpperCase()
   if (!nameUpper) return { success: false, error: "Item name cannot be empty." }
-  if (!Number.isFinite(data.pricePerUnit) || data.pricePerUnit < 0) {
-    return { success: false, error: "Price per unit must be zero or greater." }
+
+  const costVal = Number(data.costPerUnit !== undefined ? data.costPerUnit : (data.pricePerUnit ?? 0))
+  if (!Number.isFinite(costVal) || costVal < 0) {
+    return { success: false, error: "Cost per unit must be zero or greater." }
+  }
+  const sellingPriceVal = Number(data.sellingPricePerUnit ?? 0)
+  if (!Number.isFinite(sellingPriceVal) || sellingPriceVal < 0) {
+    return { success: false, error: "Selling price per unit must be zero or greater." }
   }
 
   const locationVal = (data.location || "HQ Store").trim()
@@ -570,6 +610,16 @@ export async function editMarketingItemMaster(
       }
     }
 
+    // Update all variants belonging to this item so their unit cost and selling prices stay in sync
+    await prisma.marketingItemVariant.updateMany({
+      where: { itemId },
+      data: {
+        pricePerUnit: costVal,
+        costPerUnit: costVal,
+        sellingPricePerUnit: sellingPriceVal,
+      },
+    })
+
     const updated = await prisma.marketingItem.update({
       where: { id: itemId },
       data: {
@@ -578,9 +628,12 @@ export async function editMarketingItemMaster(
         category: categoryUpper,
         location: locationVal,
         unit: unitVal,
-        pricePerUnit: data.pricePerUnit,
+        pricePerUnit: costVal,
+        costPerUnit: costVal,
+        sellingPricePerUnit: sellingPriceVal,
         ...(data.imageUrl !== undefined ? { imageUrl: data.imageUrl } : {}),
       },
+      include: { variants: true },
     })
 
     revalidatePath("/business-development/marketing/inventory")
@@ -588,7 +641,7 @@ export async function editMarketingItemMaster(
 
     await logUserAction(
       "Edited Marketing Item Master",
-      `Renamed/updated marketing item ID ${itemId}: previous "${existing.name}" -> "${nameUpper}". Price/unit: RM ${existing.pricePerUnit.toFixed(4)} -> RM ${data.pricePerUnit.toFixed(4)}.${data.imageUrl === undefined ? "" : data.imageUrl ? " Image updated." : " Image removed."} Handled by: ${session.user.name || "User"}.`
+      `Renamed/updated marketing item ID ${itemId}: previous "${existing.name}" -> "${nameUpper}". Cost/unit: RM ${(existing.costPerUnit || existing.pricePerUnit || 0).toFixed(4)} -> RM ${costVal.toFixed(4)}. Selling/unit: RM ${(existing.sellingPricePerUnit || 0).toFixed(2)} -> RM ${sellingPriceVal.toFixed(2)}.${data.imageUrl === undefined ? "" : data.imageUrl ? " Image updated." : " Image removed."} Handled by: ${session.user.name || "User"}.`
     )
 
     return { success: true, data: updated }

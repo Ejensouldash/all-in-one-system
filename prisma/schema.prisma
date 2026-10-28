@@ -1399,7 +1399,9 @@ model MarketingItem {
   location     String              @default("HQ Store")
   quantity     Int                 @default(0)
   unit         String              @default("pcs")
-  pricePerUnit Float               @default(0)
+  pricePerUnit        Float               @default(0)
+  costPerUnit         Float               @default(0)
+  sellingPricePerUnit Float               @default(0)
   imageUrl     String?
   department   String?             @default("MARKETING")
   hasVariants  Boolean             @default(false)
@@ -1421,7 +1423,9 @@ model MarketingItemVariant {
   attributes   Json          // Key-value pairs: {"Size": "M", "Color": "Navy Blue"}
   sku          String?
   quantity     Int           @default(0)
-  pricePerUnit Float?        @default(0)
+  pricePerUnit        Float?        @default(0)
+  costPerUnit         Float?        @default(0)
+  sellingPricePerUnit Float?        @default(0)
   imageUrl     String?
 
   createdAt    DateTime      @default(now())
@@ -1442,8 +1446,11 @@ model MarketingStockLog {
   variantName  String?
   type         String        // IN | OUT
   quantity     Int
-  totalPrice   Float?
+  totalPrice          Float?
+  totalCost           Float?
   pricePerUnit Float?
+  costPerUnit         Float?
+  sellingPricePerUnit Float?
   department   String?       @default("MARKETING")
   handledBy    String
   remarks      String?

@@ -8,7 +8,10 @@ export interface MarketingStockMovementRecord {
   type: string
   quantity: number
   totalPrice?: number | null
+  totalCost?: number | null
   pricePerUnit?: number | null
+  costPerUnit?: number | null
+  sellingPricePerUnit?: number | null
   department?: string | null
   handledBy: string
   remarks?: string | null
@@ -21,11 +24,16 @@ export interface MarketingStockMovementRecord {
     location: string
     unit: string
     pricePerUnit?: number | null
+    costPerUnit?: number | null
+    sellingPricePerUnit?: number | null
   } | null
   variant?: {
     id: string
     variantName: string
     sku?: string | null
+    pricePerUnit?: number | null
+    costPerUnit?: number | null
+    sellingPricePerUnit?: number | null
   } | null
 }
 
@@ -134,8 +142,10 @@ export async function exportMarketingStockMovementExcel(
     "Location",
     "Movement Qty",
     "Unit",
-    "Unit Price (RM)",
-    "Total Value (RM)",
+    "Cost / Unit (RM)",
+    "Total Cost (RM)",
+    "Selling / Unit (RM)",
+    "Total Selling (RM)",
     "Department",
     "Handled By",
     "Remarks / Purpose",
@@ -164,13 +174,15 @@ export async function exportMarketingStockMovementExcel(
   // Set specific header alignments
   headerRow.getCell(4).alignment = { vertical: "middle", horizontal: "left" }
   headerRow.getCell(5).alignment = { vertical: "middle", horizontal: "left" }
-  headerRow.getCell(14).alignment = { vertical: "middle", horizontal: "left" }
+  headerRow.getCell(16).alignment = { vertical: "middle", horizontal: "left" }
 
   // 5. Data Rows
   let totalQtyIn = 0
   let totalQtyOut = 0
-  let totalValIn = 0
-  let totalValOut = 0
+  let totalCostIn = 0
+  let totalCostOut = 0
+  let totalSellingIn = 0
+  let totalSellingOut = 0
 
   records.forEach((rec, idx) => {
     const rowIdx = idx + 6
@@ -186,15 +198,26 @@ export async function exportMarketingStockMovementExcel(
     const category = rec.item?.category || "MERCHANDISE"
     const location = rec.item?.location || "HQ Store"
     const unit = rec.item?.unit || "pcs"
-    const unitPrice = typeof rec.pricePerUnit === "number" ? rec.pricePerUnit : (rec.item?.pricePerUnit ?? 0)
-    const lineTotal = typeof rec.totalPrice === "number" ? rec.totalPrice : (rec.quantity * unitPrice)
+
+    const costPerUnit = typeof rec.costPerUnit === "number" && rec.costPerUnit > 0
+      ? rec.costPerUnit
+      : (typeof rec.pricePerUnit === "number" && rec.pricePerUnit > 0 ? rec.pricePerUnit : (rec.item?.costPerUnit ?? rec.item?.pricePerUnit ?? 0))
+    const totalCost = typeof rec.totalCost === "number" && rec.totalCost > 0
+      ? rec.totalCost
+      : (typeof rec.totalPrice === "number" && rec.totalPrice > 0 ? rec.totalPrice : (rec.quantity * costPerUnit))
+    const sellingPricePerUnit = typeof rec.sellingPricePerUnit === "number" && rec.sellingPricePerUnit > 0
+      ? rec.sellingPricePerUnit
+      : (rec.item?.sellingPricePerUnit ?? 0)
+    const totalSelling = rec.quantity * sellingPricePerUnit
 
     if (rec.type === "IN") {
       totalQtyIn += Number(rec.quantity) || 0
-      totalValIn += Number(lineTotal) || 0
+      totalCostIn += Number(totalCost) || 0
+      totalSellingIn += Number(totalSelling) || 0
     } else {
       totalQtyOut += Number(rec.quantity) || 0
-      totalValOut += Number(lineTotal) || 0
+      totalCostOut += Number(totalCost) || 0
+      totalSellingOut += Number(totalSelling) || 0
     }
 
     row.values = [
@@ -207,8 +230,10 @@ export async function exportMarketingStockMovementExcel(
       location,
       rec.quantity,
       unit,
-      unitPrice,
-      lineTotal,
+      costPerUnit,
+      totalCost,
+      sellingPricePerUnit,
+      totalSelling,
       rec.department || "MARKETING",
       rec.handledBy || "-",
       rec.remarks || "-",
@@ -246,7 +271,7 @@ export async function exportMarketingStockMovementExcel(
         cell.numFmt = "#,##0"
         cell.font = { name: "Calibri", size: 9, bold: true }
       }
-      if (colNum === 10 || colNum === 11) {
+      if (colNum >= 10 && colNum <= 13) {
         cell.alignment = { vertical: "middle", horizontal: "right" }
         cell.numFmt = '"RM " #,##0.00'
       }
@@ -263,7 +288,9 @@ export async function exportMarketingStockMovementExcel(
     "", "", "", "TOTAL STOCK IN (INWARD)", "", "", "",
     totalQtyIn,
     "", "",
-    totalValIn,
+    totalCostIn,
+    "",
+    totalSellingIn,
     "", "", ""
   ]
   inRow.eachCell((cell) => {
@@ -274,6 +301,8 @@ export async function exportMarketingStockMovementExcel(
   inRow.getCell(8).alignment = { vertical: "middle", horizontal: "right" }
   inRow.getCell(11).numFmt = '"RM " #,##0.00'
   inRow.getCell(11).alignment = { vertical: "middle", horizontal: "right" }
+  inRow.getCell(13).numFmt = '"RM " #,##0.00'
+  inRow.getCell(13).alignment = { vertical: "middle", horizontal: "right" }
 
   // Row for Outward Total
   const outRow = ws.getRow(summaryStartRow + 1)
@@ -282,7 +311,9 @@ export async function exportMarketingStockMovementExcel(
     "", "", "", "TOTAL STOCK OUT (DISPATCHED)", "", "", "",
     totalQtyOut,
     "", "",
-    totalValOut,
+    totalCostOut,
+    "",
+    totalSellingOut,
     "", "", ""
   ]
   outRow.eachCell((cell) => {
@@ -293,6 +324,8 @@ export async function exportMarketingStockMovementExcel(
   outRow.getCell(8).alignment = { vertical: "middle", horizontal: "right" }
   outRow.getCell(11).numFmt = '"RM " #,##0.00'
   outRow.getCell(11).alignment = { vertical: "middle", horizontal: "right" }
+  outRow.getCell(13).numFmt = '"RM " #,##0.00'
+  outRow.getCell(13).alignment = { vertical: "middle", horizontal: "right" }
 
   // Grand Total Row
   const totalRow = ws.getRow(summaryStartRow + 2)
@@ -301,7 +334,9 @@ export async function exportMarketingStockMovementExcel(
     "", "", "", "NET MOVEMENT (IN − OUT)", "", "", "",
     totalQtyIn - totalQtyOut,
     "", "",
-    totalValIn - totalValOut,
+    totalCostIn - totalCostOut,
+    "",
+    totalSellingIn - totalSellingOut,
     "", "", ""
   ]
   totalRow.eachCell((cell) => {
@@ -317,6 +352,8 @@ export async function exportMarketingStockMovementExcel(
   totalRow.getCell(8).alignment = { vertical: "middle", horizontal: "right" }
   totalRow.getCell(11).numFmt = '"RM " #,##0.00'
   totalRow.getCell(11).alignment = { vertical: "middle", horizontal: "right" }
+  totalRow.getCell(13).numFmt = '"RM " #,##0.00'
+  totalRow.getCell(13).alignment = { vertical: "middle", horizontal: "right" }
 
   // 7. Column Widths
   const columnWidths = [
@@ -329,10 +366,12 @@ export async function exportMarketingStockMovementExcel(
     14, // Location
     14, // Movement Qty
     8,  // Unit
-    15, // Unit Price (RM)
-    16, // Total Value (RM)
-    18, // Department
-    16, // Handled By
+    15, // Cost / Unit (RM)
+    16, // Total Cost (RM)
+    15, // Selling / Unit (RM)
+    16, // Total Selling (RM)
+    16, // Department
+    18, // Handled By
     32, // Remarks / Purpose
   ]
 
@@ -341,7 +380,7 @@ export async function exportMarketingStockMovementExcel(
   })
 
   // 8. AutoFilter
-  ws.autoFilter = `A5:N${records.length + 5}`
+  ws.autoFilter = `A5:P${records.length + 5}`
 
   // 9. Download buffer
   const buffer = await wb.xlsx.writeBuffer()

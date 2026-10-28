@@ -37,7 +37,7 @@ export function canTransitionGatePass(from: GatePassStatus, to: GatePassStatus) 
 
 export function assertGatePassTransition(from: GatePassStatus, to: GatePassStatus) {
   if (!canTransitionGatePass(from, to)) {
-    throw new Error(`Status Gatepass tidak boleh ditukar daripada ${from} kepada ${to}.`)
+    throw new Error(`Gatepass status cannot be transitioned from ${from} to ${to}.`)
   }
 }
 
@@ -79,7 +79,7 @@ export function normalizeText(value: unknown, maxLength = 500) {
 export function positiveWholeNumber(value: unknown, label: string, allowZero = false) {
   const amount = Number(value)
   if (!Number.isSafeInteger(amount) || amount < (allowZero ? 0 : 1)) {
-    throw new Error(`${label} mesti nombor bulat ${allowZero ? "sifar atau lebih" : "lebih daripada sifar"}.`)
+    throw new Error(`${label} must be a whole number ${allowZero ? "zero or greater" : "greater than zero"}.`)
   }
   return amount
 }
@@ -88,13 +88,13 @@ export function positiveWholeNumber(value: unknown, label: string, allowZero = f
 // Malaysia, while the deployed server may run in UTC, so interpret timezone-less values as UTC+08.
 export function parseOperationalDate(value: string | Date, label: string) {
   if (value instanceof Date) {
-    if (Number.isNaN(value.getTime())) throw new Error(`${label} tidak sah.`)
+    if (Number.isNaN(value.getTime())) throw new Error(`${label} is invalid.`)
     return value
   }
   const textValue = normalizeText(value, 80)
   const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(textValue)
   const parsed = new Date(hasTimezone ? textValue : `${textValue}+08:00`)
-  if (Number.isNaN(parsed.getTime())) throw new Error(`${label} tidak sah.`)
+  if (Number.isNaN(parsed.getTime())) throw new Error(`${label} is invalid.`)
   return parsed
 }
 

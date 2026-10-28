@@ -90,6 +90,15 @@ export function ProductionHandoverForm({ userId, userName, eligibleReports }: { 
   const onSubmit = async (data: any) => {
     if (!data.dailyReportId) return alert("Please select a Daily Report.")
     
+    if (!data.items || data.items.length === 0) {
+      return alert("Laporan harian ini tidak mengandungi sebarang kumpulan pengeluaran (batch). Handover tidak boleh dicipta.")
+    }
+
+    const totalNet = data.items.reduce((sum: number, item: any) => sum + (Number(item.netToWarehousePcs) || 0), 0)
+    if (totalNet <= 0) {
+      return alert("Jumlah kuantiti bersih ke warehouse mesti melebihi 0.")
+    }
+
     // Check if any net is negative (should be handled by Math.max but just in case)
     const invalid = data.items.some((i: any) => i.netToWarehousePcs < 0 || i.totalProducedPcs < 0)
     if (invalid) return alert("Invalid quantities detected. Deductions cannot exceed total produced.")

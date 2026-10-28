@@ -74,11 +74,11 @@ export function GatePassCreateForm() {
             className="group mb-2 inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-cyan-800 transition-colors"
           >
             <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-            Kembali ke Senarai Gatepass
+            Back to Gatepass List
           </Link>
-          <h1 className="text-3xl font-black text-slate-950">Permintaan Gatepass Baharu</h1>
+          <h1 className="text-3xl font-black text-slate-950">New Gatepass Request</h1>
           <p className="text-xs md:text-sm text-slate-500 mt-1">
-            Rekod perancangan pengambilan lori dan muatan. Tiada stok produk ditolak di sini.
+            Record truck dispatch planning and load. No product stock is deducted here.
           </p>
         </div>
 
@@ -87,10 +87,10 @@ export function GatePassCreateForm() {
           variant="primary"
           size="lg"
           loading={pending}
-          loadingText="Sedang Menyimpan..."
+          loadingText="Saving..."
           icon={<Save className="h-4 w-4" />}
         >
-          Simpan Draf Permintaan
+          Save Draft Request
         </TactileButton>
       </div>
 
@@ -102,20 +102,20 @@ export function GatePassCreateForm() {
 
       {/* Movement & Destination Planning */}
       <section className="grid gap-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:grid-cols-2">
-        <Field label="Tujuan Pengambilan">
+        <Field label="Pickup Purpose">
           <input
             name="purpose"
             required
             className={inputClass}
-            placeholder="Cth: Customer pickup / Penghantaran cawangan"
+            placeholder="e.g. Customer pickup / Branch transfer"
           />
         </Field>
 
-        <Field label="Tarikh & Masa Pengambilan Dimohon">
+        <Field label="Requested Pickup Date & Time">
           <input name="requestedPickupAt" required type="datetime-local" className={inputClass} />
         </Field>
 
-        <Field label="Lokasi Pengambilan (Gudang)">
+        <Field label="Pickup Location (Warehouse)">
           <input
             name="pickupLocation"
             required
@@ -124,11 +124,11 @@ export function GatePassCreateForm() {
           />
         </Field>
 
-        <Field label="Destinasi Akhir">
+        <Field label="Final Destination">
           <input
             name="destination"
             required
-            placeholder="Cth: Gudang Utama Shah Alam / Premis Pelanggan"
+            placeholder="e.g. Shah Alam Main Warehouse / Customer Store"
             className={inputClass}
           />
         </Field>
@@ -136,27 +136,27 @@ export function GatePassCreateForm() {
 
       {/* Customer & Pallet Info */}
       <section className="grid gap-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:grid-cols-2">
-        <Field label="Nama Pelanggan / Syarikat">
-          <input name="customerName" required placeholder="Cth: AEON Big / Mydin" className={inputClass} />
+        <Field label="Customer / Company Name">
+          <input name="customerName" required placeholder="e.g. AEON Big / Mydin" className={inputClass} />
         </Field>
 
-        <Field label="No. Rujukan Pelanggan / PO (Pilihan)">
-          <input name="customerReference" placeholder="Cth: PO-2026-0881" className={inputClass} />
+        <Field label="Customer Reference No. / PO (Optional)">
+          <input name="customerReference" placeholder="e.g. PO-2026-0881" className={inputClass} />
         </Field>
 
-        <Field label="Pegawai Hubungan (Contact Person)">
-          <input name="customerContactName" placeholder="Nama PIC pelanggan..." className={inputClass} />
+        <Field label="Contact Person (PIC)">
+          <input name="customerContactName" placeholder="Customer PIC name..." className={inputClass} />
         </Field>
 
-        <Field label="No. Telefon PIC">
-          <input name="customerContactPhone" placeholder="Cth: 0123456789" className={inputClass} />
+        <Field label="PIC Phone Number">
+          <input name="customerContactPhone" placeholder="e.g. 0123456789" className={inputClass} />
         </Field>
 
-        <Field label="Emel PIC">
-          <input name="customerContactEmail" type="email" placeholder="pic@syarikat.com" className={inputClass} />
+        <Field label="PIC Email">
+          <input name="customerContactEmail" type="email" placeholder="pic@company.com" className={inputClass} />
         </Field>
 
-        <Field label="Anggaran Pallet Kayu (Wooden Pallets)">
+        <Field label="Estimated Wooden Pallets">
           <input
             name="plannedPalletQty"
             type="number"
@@ -172,10 +172,10 @@ export function GatePassCreateForm() {
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h3 className="font-black text-slate-900 flex items-center gap-2">
-              <PackageCheck className="h-5 w-5 text-cyan-700" /> Senarai Barangan Yang Dirancang
+              <PackageCheck className="h-5 w-5 text-cyan-700" /> Planned Item List
             </h3>
             <p className="text-xs text-slate-500">
-              Kuantiti perancangan awal sahaja; kuantiti sebenar akan disahkan oleh PIC Gudang semasa muat.
+              Preliminary planning quantities only; actual quantities will be confirmed by Warehouse PIC during loading.
             </p>
           </div>
 
@@ -186,7 +186,7 @@ export function GatePassCreateForm() {
             icon={<Plus className="h-4 w-4" />}
             className="bg-cyan-50 text-cyan-900 border-cyan-200"
           >
-            Tambah Item
+            Add Item
           </TactileButton>
         </div>
 
@@ -197,13 +197,13 @@ export function GatePassCreateForm() {
               className="grid gap-3 rounded-2xl bg-slate-50 p-3.5 border border-slate-200 md:grid-cols-[1fr_2fr_100px_120px_40px] items-center"
             >
               <select
-                aria-label={`SKU item ${index + 1}`}
+                aria-label={`Item ${index + 1} SKU`}
                 required
                 value={item.sku}
                 onChange={(event) => updateSku(index, event.target.value)}
                 className={inputClass}
               >
-                <option value="">— Pilih SKU —</option>
+                <option value="">— Select SKU —</option>
                 {SKU_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -212,16 +212,16 @@ export function GatePassCreateForm() {
               </select>
 
               <input
-                aria-label={`Penerangan item ${index + 1}`}
+                aria-label={`Item ${index + 1} description`}
                 required
                 readOnly
                 value={item.description}
                 className={`${inputClass} bg-slate-100 text-slate-600`}
-                placeholder="Penerangan automatik"
+                placeholder="Automatic description"
               />
 
               <input
-                aria-label={`UOM item ${index + 1}`}
+                aria-label={`Item ${index + 1} UOM`}
                 required
                 value={item.uom}
                 onChange={(event) => updateItem(index, "uom", event.target.value)}
@@ -229,7 +229,7 @@ export function GatePassCreateForm() {
               />
 
               <input
-                aria-label={`Kuantiti item ${index + 1}`}
+                aria-label={`Item ${index + 1} quantity`}
                 required
                 type="number"
                 min="1"
@@ -239,7 +239,7 @@ export function GatePassCreateForm() {
               />
 
               <button
-                aria-label={`Padam item ${index + 1}`}
+                aria-label={`Delete item ${index + 1}`}
                 type="button"
                 disabled={items.length === 1}
                 onClick={() => setItems((current) => current.filter((_, itemIndex) => itemIndex !== index))}
@@ -253,12 +253,12 @@ export function GatePassCreateForm() {
       </section>
 
       {/* Internal Remarks */}
-      <Field label="Catatan Dalaman Gudang (Internal Remarks)">
+      <Field label="Warehouse Internal Remarks">
         <textarea
           name="internalRemarks"
           rows={3}
           className={inputClass}
-          placeholder="Catatan persediaan dalaman untuk PIC Gudang. Tidak dipaparkan kepada pelanggan luar."
+          placeholder="Internal staging notes for Warehouse PIC. Not visible to external customers."
         />
       </Field>
     </form>

@@ -10,26 +10,40 @@ export default async function DistributionIndex() {
   if (!session) redirect("/login")
 
   const distributionOrders = await prisma.distributionOrder.findMany({
-    orderBy: { createdAt: 'desc' },
+    orderBy: { createdAt: "desc" },
     include: {
       createdBy: true,
       items: true,
-      trackingEvents: { orderBy: { recordedAt: 'desc' }, take: 1 }
-    }
+      trackingEvents: { orderBy: { recordedAt: "desc" }, take: 1 },
+    },
   })
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-black uppercase tracking-tight flex items-center">
-          <Truck className="w-5 h-5 mr-2 text-blue-600" />
-          Distribution Orders
-        </h2>
-        <Link 
+      {/* Page Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
+              <Truck className="h-4 w-4" />
+            </span>
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+              Outbound Logistics
+            </span>
+          </div>
+          <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+            Distribution Orders
+          </h2>
+          <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
+            Manage dispatches, track active transport routes, and generate proof of delivery (POD).
+          </p>
+        </div>
+
+        <Link
           href="/forms/warehouse/distribution/new"
-          className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px] transition-all text-sm uppercase tracking-wider"
+          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-slate-950 shadow-xs transition hover:bg-emerald-400"
         >
-          <Plus className="w-4 h-4 mr-2" />
+          <Plus className="h-4 w-4" />
           Create DO
         </Link>
       </div>

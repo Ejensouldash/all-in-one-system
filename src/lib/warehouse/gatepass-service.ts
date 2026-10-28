@@ -96,15 +96,15 @@ function validateDate(value: string | Date, label: string) {
 }
 
 function validateItems(items: GatePassItemInput[]) {
-  if (!Array.isArray(items) || items.length === 0) throw new Error("Sekurang-kurangnya satu item diperlukan.")
+  if (!Array.isArray(items) || items.length === 0) throw new Error("At least one item is required.")
   return items.map((item, index) => ({
     sku: normalizeText(item.sku, 80) || null,
     description: normalizeText(item.description, 240),
     uom: normalizeText(item.uom || "BOX", 20).toUpperCase(),
-    plannedQty: positiveWholeNumber(item.plannedQty, `Kuantiti item ${index + 1}`),
+    plannedQty: positiveWholeNumber(item.plannedQty, `Item ${index + 1} quantity`),
     sortOrder: index,
   })).map((item, index) => {
-    if (!item.description) throw new Error(`Penerangan item ${index + 1} diperlukan.`)
+    if (!item.description) throw new Error(`Item ${index + 1} description is required.`)
     return item
   })
 }
@@ -124,13 +124,13 @@ async function nextGatePassNo(tx: Prisma.TransactionClient, requestedPickupAt: D
 
 export async function createWarehouseGatePass(input: CreateGatePassInput) {
   const access = await requireWarehouseOperationAccess("REQUESTER")
-  const requestedPickupAt = validateDate(input.requestedPickupAt, "Tarikh/masa pengambilan")
+  const requestedPickupAt = validateDate(input.requestedPickupAt, "Pickup date/time")
   const purpose = normalizeText(input.purpose, 160)
   const pickupLocation = normalizeText(input.pickupLocation, 160)
   const destination = normalizeText(input.destination, 240)
   const customerName = normalizeText(input.customerName, 200)
   if (!purpose || !pickupLocation || !destination || !customerName) {
-    throw new Error("Purpose, pickup location, destination dan customer diperlukan.")
+    throw new Error("Purpose, pickup location, destination, and customer name are required.")
   }
   const items = validateItems(input.items)
   const plannedPalletQty = positiveWholeNumber(input.plannedPalletQty ?? 0, "Planned pallet", true)
@@ -187,9 +187,9 @@ export async function publishOrRegenerateGatePass(gatePassId: string) {
 
   const result = await prisma.$transaction(async tx => {
     const gatePass = await tx.warehouseGatePass.findUnique({ where: { id: gatePassId } })
-    if (!gatePass) throw new Error("Gatepass tidak ditemui.")
+    if (!gatePass) throw new Error("Gatepass not found.")
     if (!(["DRAFT", "AWAITING_CUSTOMER", "CUSTOMER_SUBMITTED"] as GatePassStatus[]).includes(gatePass.status)) {
-      throw new Error("Customer link tidak boleh dijana pada status semasa.")
+      throw new Error("Customer link cannot be generated in current status.")
     }
 
     await tx.gatePassExternalToken.updateMany({
@@ -303,7 +303,7 @@ export async function submitExternalGatePass(rawToken: string, input: ExternalGa
   const vehicleType = normalizeText(input.vehicleType, 80)
   const confirmedEta = validateDate(input.confirmedEta, "ETA")
   if (!transportCompany || !driverName || !driverPhone || !vehicleNo || !vehicleType) {
-    throw new Error("Semua butiran transporter, driver dan kenderaan diperlukan.")
+    throw new Error("All transporter, driver, and vehicle details are required.")
   }
 
   return prisma.$transaction(async tx => {
@@ -313,11 +313,11 @@ export async function submitExternalGatePass(rawToken: string, input: ExternalGa
       include: { gatePass: true },
     })
     if (!token || token.revokedAt || token.expiresAt.getTime() < Date.now()) {
-      throw new Error("Pautan tidak sah atau telah tamat tempoh.")
+      throw new Error("Link is invalid or has expired.")
     }
     if (token.submittedAt) return { gatePassNo: token.gatePass.gatePassNo, alreadySubmitted: true }
     if (token.gatePass.status !== "AWAITING_CUSTOMER") {
-      throw new Error("Pautan tidak sah atau telah tamat tempoh.")
+      throw new Error("Link is invalid or has expired.")
     }
 
     const now = new Date()
@@ -452,7 +452,7 @@ export async function transitionWarehouseGatePass(input: {
 }) {
   const actor = input.actor
   const access = await requireWarehouseOperationAccess(actor === "SECURITY" ? "SECURITY" : actor === "WAREHOUSE" ? "WAREHOUSE" : "REQUESTER")
-  if (!actorCanSetStatus(actor, input.toStatus)) throw new Error("Peranan anda tidak dibenarkan menetapkan status ini.")
+  if (!actorCanSetStatus(actor, input.toStatus)) throw new Error("Your role is not authorized to set this status.")
 
   return prisma.$transaction(async tx => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`warehouse-gatepass-transition:${input.gatePassId}`}))`
@@ -463,7 +463,7 @@ export async function transitionWarehouseGatePass(input: {
         palletTransfers: { where: { status: "POSTED", movementType: "ISSUE_OUT" }, select: { id: true } },
       },
     })
-    if (!gatePass) throw new Error("Gatepass tidak ditemui.")
+    if (!gatePass) throw new Error("Gatepass not found.")
     if (gatePass.status === input.toStatus) return gatePass
     assertGatePassTransition(gatePass.status, input.toStatus)
 
@@ -476,9 +476,9 @@ export async function transitionWarehouseGatePass(input: {
     if (input.toStatus === "CHECKED_IN") {
       const observedVehicleNo = normalizeVehicleNo(input.observedVehicleNo || gatePass.vehicleNo)
       const observedDriverName = normalizeText(input.observedDriverName || gatePass.driverName, 120)
-      if (!observedVehicleNo) throw new Error("Nombor kenderaan semasa check-in diperlukan.")
+      if (!observedVehicleNo) throw new Error("Vehicle plate number during check-in is required.")
       if (gatePass.vehicleNo && observedVehicleNo !== normalizeVehicleNo(gatePass.vehicleNo) && !remarks) {
-        throw new Error("Sebab perbezaan nombor kenderaan diperlukan.")
+        throw new Error("Discrepancy reason for vehicle plate number is required.")
       }
       updateData.checkedInVehicleNo = observedVehicleNo
       updateData.checkedInDriverName = observedDriverName || null
@@ -486,24 +486,24 @@ export async function transitionWarehouseGatePass(input: {
     }
 
     if (input.toStatus === "CHECKED_OUT") {
-      if (!gatePass.checkedInAt) throw new Error("Check-in diperlukan sebelum check-out.")
-      if (!gatePass.loadingCompletedAt) throw new Error("Warehouse belum mengesahkan loading selesai.")
-      if (!gatePass.deliveryOrders.length) throw new Error("Sekurang-kurangnya satu DO mesti dilink sebelum check-out.")
+      if (!gatePass.checkedInAt) throw new Error("Check-in is required before check-out.")
+      if (!gatePass.loadingCompletedAt) throw new Error("Warehouse has not confirmed loading completion.")
+      if (!gatePass.deliveryOrders.length) throw new Error("At least one DO must be linked before check-out.")
       if ((gatePass.actualPalletQty || 0) > 0 && !gatePass.palletTransfers.length) {
-        throw new Error("Pallet Transfer ISSUE_OUT mesti dipost sebelum check-out.")
+        throw new Error("Pallet Transfer ISSUE_OUT must be posted before check-out.")
       }
       if (remarks) updateData.securityRemarks = remarks
     }
 
     if (input.toStatus === "CANCELLED") {
-      if (!remarks) throw new Error("Sebab pembatalan diperlukan.")
+      if (!remarks) throw new Error("Cancellation reason is required.")
       updateData.cancellationReason = remarks
     }
     if (input.toStatus === "REJECTED") {
-      if (!remarks) throw new Error("Sebab penolakan diperlukan.")
+      if (!remarks) throw new Error("Rejection reason is required.")
       updateData.rejectionReason = remarks
     }
-    if (input.toStatus === "NO_SHOW" && !remarks) throw new Error("Catatan no-show diperlukan.")
+    if (input.toStatus === "NO_SHOW" && !remarks) throw new Error("No-show remarks are required.")
 
     const updated = await tx.warehouseGatePass.update({ where: { id: gatePass.id }, data: updateData })
     await tx.gatePassStatusEvent.create({
@@ -543,22 +543,22 @@ export async function updateGatePassActuals(input: {
       where: { id: input.gatePassId },
       include: { items: true },
     })
-    if (!gatePass) throw new Error("Gatepass tidak ditemui.")
+    if (!gatePass) throw new Error("Gatepass not found.")
     if (!(["CUSTOMER_SUBMITTED", "WAREHOUSE_ACKNOWLEDGED", "PREPARING", "READY_FOR_PICKUP", "CHECKED_IN", "LOADING"] as GatePassStatus[]).includes(gatePass.status)) {
-      throw new Error("Actual quantity tidak boleh dikemas kini pada status semasa.")
+      throw new Error("Actual quantity cannot be updated in current status.")
     }
     if (input.loadingCompleted && gatePass.status !== "LOADING") {
-      throw new Error("Loading hanya boleh disahkan selesai selepas status LOADING bermula.")
+      throw new Error("Loading can only be confirmed completed once LOADING status has started.")
     }
-    if (input.items.length !== gatePass.items.length) throw new Error("Semua item Gatepass mesti disahkan.")
+    if (input.items.length !== gatePass.items.length) throw new Error("All Gatepass items must be verified.")
     const inputById = new Map(input.items.map(item => [item.id, item]))
     for (const item of gatePass.items) {
       const value = inputById.get(item.id)
-      if (!value) throw new Error("Item Gatepass tidak sah.")
+      if (!value) throw new Error("Invalid Gatepass item.")
       const actualQty = positiveWholeNumber(value.actualQty, `Actual quantity ${item.description}`, true)
       const varianceReason = normalizeText(value.varianceReason, 1000)
       if (actualQty !== item.plannedQty && !varianceReason) {
-        throw new Error(`Sebab variance diperlukan untuk ${item.description}.`)
+        throw new Error(`Variance reason is required for ${item.description}.`)
       }
       await tx.warehouseGatePassItem.update({
         where: { id: item.id },
@@ -566,7 +566,7 @@ export async function updateGatePassActuals(input: {
       })
     }
     if (actualPalletQty !== gatePass.plannedPalletQty && !normalizeText(input.warehouseRemarks, 4000)) {
-      throw new Error("Warehouse remarks diperlukan apabila actual pallet berbeza daripada planned pallet.")
+      throw new Error("Warehouse remarks are required when actual pallets differ from planned pallets.")
     }
     const updated = await tx.warehouseGatePass.update({
       where: { id: gatePass.id },
@@ -595,13 +595,13 @@ export async function linkGatePassToDistributionOrder(gatePassId: string, distri
       tx.warehouseGatePass.findUnique({ where: { id: gatePassId }, select: { id: true, gatePassNo: true, status: true } }),
       tx.distributionOrder.findUnique({ where: { id: distributionOrderId }, select: { id: true, doNumber: true } }),
     ])
-    if (!gatePass || !order) throw new Error("Gatepass atau Distribution Order tidak ditemui.")
-    if (["CHECKED_OUT", "COMPLETED"].includes(gatePass.status)) throw new Error("DO tidak boleh dipautkan selepas Gatepass check-out.")
+    if (!gatePass || !order) throw new Error("Gatepass or Distribution Order not found.")
+    if (["CHECKED_OUT", "COMPLETED"].includes(gatePass.status)) throw new Error("DO cannot be linked after Gatepass check-out.")
     const existingOwner = await tx.gatePassDeliveryOrder.findFirst({
       where: { distributionOrderId }, select: { gatePassId: true },
     })
     if (existingOwner && existingOwner.gatePassId !== gatePassId) {
-      throw new Error("DO ini telah dipautkan kepada Gatepass lain dan tidak boleh digunakan semula.")
+      throw new Error("This DO is already linked to another Gatepass and cannot be reused.")
     }
     if (isPrimary) {
       await tx.gatePassDeliveryOrder.updateMany({ where: { gatePassId }, data: { isPrimary: false } })
@@ -627,8 +627,8 @@ export async function unlinkGatePassFromDistributionOrder(gatePassId: string, di
   const access = await requireWarehouseOperationAccess("WAREHOUSE")
   return prisma.$transaction(async tx => {
     const gatePass = await tx.warehouseGatePass.findUnique({ where: { id: gatePassId }, select: { gatePassNo: true, status: true } })
-    if (!gatePass) throw new Error("Gatepass tidak ditemui.")
-    if (["CHECKED_OUT", "COMPLETED"].includes(gatePass.status)) throw new Error("Pautan DO dikunci selepas check-out.")
+    if (!gatePass) throw new Error("Gatepass not found.")
+    if (["CHECKED_OUT", "COMPLETED"].includes(gatePass.status)) throw new Error("DO link is locked after check-out.")
     await tx.gatePassDeliveryOrder.delete({ where: { gatePassId_distributionOrderId: { gatePassId, distributionOrderId } } })
     await tx.auditLog.create({ data: {
       userId: access.userId, userName: access.name || "Warehouse User", action: "WAREHOUSE_GATEPASS_DO_UNLINKED",
@@ -644,30 +644,30 @@ export type CreateDOFromGatePassInput = {
 
 export async function createDistributionOrderFromGatePass(input: CreateDOFromGatePassInput) {
   const access = await requireWarehouseOperationAccess("WAREHOUSE")
-  if (!input.items.length) throw new Error("Pilih sekurang-kurangnya satu batch untuk DO.")
+  if (!input.items.length) throw new Error("Select at least one batch for the DO.")
   return prisma.$transaction(async tx => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`gatepass-create-do:${input.gatePassId}`}))`
     const gatePass = await tx.warehouseGatePass.findUnique({ where: { id: input.gatePassId }, include: { items: true, deliveryOrders: true } })
-    if (!gatePass) throw new Error("Gatepass tidak ditemui.")
-    if (!gatePass.loadingCompletedAt) throw new Error("Sahkan actual dan pemuatan siap sebelum mencipta DO.")
+    if (!gatePass) throw new Error("Gatepass not found.")
+    if (!gatePass.loadingCompletedAt) throw new Error("Confirm actuals and loading completed before creating DO.")
     if (gatePass.deliveryOrders.length) return { distributionOrderId: gatePass.deliveryOrders[0].distributionOrderId, alreadyCreated: true }
 
     const requested = input.items.map((item, index) => ({
       sku: normalizeText(item.sku, 120), batchNumber: normalizeText(item.batchNumber, 120),
-      qtySent: positiveWholeNumber(item.qtySent, `Kuantiti batch ${index + 1}`),
+      qtySent: positiveWholeNumber(item.qtySent, `Batch ${index + 1} quantity`),
     }))
-    if (requested.some(item => !item.sku || !item.batchNumber)) throw new Error("SKU dan batch diperlukan untuk setiap item DO.")
+    if (requested.some(item => !item.sku || !item.batchNumber)) throw new Error("SKU and batch are required for each DO item.")
     const bySku = new Map<string, number>()
     for (const item of requested) bySku.set(item.sku, (bySku.get(item.sku) || 0) + item.qtySent)
     for (const gateItem of gatePass.items) {
-      if (!gateItem.sku) throw new Error(`SKU belum ditetapkan untuk item Gatepass: ${gateItem.description}.`)
+      if (!gateItem.sku) throw new Error(`SKU is not assigned for Gatepass item: ${gateItem.description}.`)
       const expected = gateItem.actualQty ?? gateItem.plannedQty
       if ((bySku.get(gateItem.sku) || 0) !== expected) {
-        throw new Error(`Jumlah batch untuk ${gateItem.sku} mesti sama dengan actual Gatepass (${expected}).`)
+        throw new Error(`Total batch quantity for ${gateItem.sku} must match Gatepass actual quantity (${expected}).`)
       }
       bySku.delete(gateItem.sku)
     }
-    if (bySku.size) throw new Error("Terdapat SKU yang tidak wujud dalam Gatepass.")
+    if (bySku.size) throw new Error("Found SKU that does not exist in Gatepass.")
 
     const dateKey = operationalDateKey(new Date())
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`distribution-order:${dateKey}`}))`
@@ -676,7 +676,7 @@ export async function createDistributionOrderFromGatePass(input: CreateDOFromGat
     const doNumber = `${prefix}${String(Number(latest?.doNumber.slice(prefix.length) || 0) + 1).padStart(4, "0")}`
     for (const item of requested) {
       const batch = await tx.inventoryBatch.findUnique({ where: { sku_batchNumber: { sku: item.sku, batchNumber: item.batchNumber } } })
-      if (!batch || batch.availableBalance < item.qtySent) throw new Error(`Baki batch ${item.batchNumber} tidak mencukupi.`)
+      if (!batch || batch.availableBalance < item.qtySent) throw new Error(`Insufficient balance for batch ${item.batchNumber}.`)
       await tx.inventoryBatch.update({ where: { sku_batchNumber: { sku: item.sku, batchNumber: item.batchNumber } }, data: { availableBalance: { decrement: item.qtySent }, totalQtyOut: { increment: item.qtySent } } })
     }
     const order = await tx.distributionOrder.create({ data: {

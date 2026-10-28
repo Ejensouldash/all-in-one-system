@@ -69,10 +69,10 @@ export function SecurityGatePassControl({ gatePass }: { gatePass: Data }) {
       if (!result.success) return setError(result.error)
       setMessage(
         toStatus === "CHECKED_IN"
-          ? "Pendaftaran Masuk (Check-In) berjaya direkodkan."
+          ? "Vehicle Check-In recorded successfully."
           : toStatus === "CHECKED_OUT"
-          ? "Pengesahan Keluar (Check-Out) berjaya direkodkan."
-          : "Penolakan Gatepass berjaya direkodkan."
+          ? "Vehicle Check-Out recorded successfully."
+          : "Gatepass entry rejection recorded successfully."
       )
       router.refresh()
     })
@@ -108,7 +108,7 @@ export function SecurityGatePassControl({ gatePass }: { gatePass: Data }) {
             href="/forms/warehouse/gatepass/security"
             className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-amber-800 transition-colors"
           >
-            <ArrowLeft className="h-4 w-4" /> Imbas Kod Lain
+            <ArrowLeft className="h-4 w-4" /> Scan Another Code
           </Link>
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <h1 className="text-3xl md:text-4xl font-black text-slate-950">{gatePass.gatePassNo}</h1>
@@ -124,7 +124,7 @@ export function SecurityGatePassControl({ gatePass }: { gatePass: Data }) {
         <div role="alert" className="flex items-start gap-3 rounded-2xl border-2 border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700 shadow-sm animate-in fade-in">
           <XCircle className="h-5 w-5 shrink-0 mt-0.5" />
           <div className="flex-1">
-            <div className="font-black text-red-800">Tindakan Disekat:</div>
+            <div className="font-black text-red-800">Action Blocked:</div>
             <div className="mt-1 font-medium">{error}</div>
 
             {/* Smart Pallet / DO guidance if error mentions pallet or DO */}
@@ -134,7 +134,7 @@ export function SecurityGatePassControl({ gatePass }: { gatePass: Data }) {
                   href={`/forms/maintenance/pallet-transfer/new?gatepassId=${gatePass.id}`}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-amber-700 px-3.5 py-2 text-xs font-black text-white hover:bg-amber-800"
                 >
-                  <Layers className="h-4 w-4" /> Buka Rekod Lejar Pallet
+                  <Layers className="h-4 w-4" /> Open Pallet Ledger Record
                 </Link>
               </div>
             )}
@@ -155,20 +155,20 @@ export function SecurityGatePassControl({ gatePass }: { gatePass: Data }) {
           <AlertTriangle className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />
           <div>
             <div className="text-xs font-black uppercase tracking-wider text-amber-900">
-              Peringatan: Percanggahan Maklumat Fizikal Dikesan
+              Warning: Physical Discrepancy Detected
             </div>
             <div className="text-xs text-amber-800 mt-0.5">
               {hasVehicleMismatch && (
                 <div>
-                  • Plat pendaftaran berdaftar (<strong>{gatePass.vehicleNo}</strong>) berbeza dengan pemerhatian di pintu pos (<strong>{vehicleNo}</strong>).
+                  • Registered license plate (<strong>{gatePass.vehicleNo}</strong>) differs from physical gate observation (<strong>{vehicleNo}</strong>).
                 </div>
               )}
               {hasDriverMismatch && (
                 <div>
-                  • Nama pemandu berdaftar (<strong>{gatePass.driverName}</strong>) berbeza dengan pemandu yang hadir (<strong>{driverName}</strong>).
+                  • Registered driver name (<strong>{gatePass.driverName}</strong>) differs from attending driver (<strong>{driverName}</strong>).
                 </div>
               )}
-              Sila pastikan sebab perbezaan dinyatakan dalam ruangan catatan di bawah sebelum pendaftaran dibuat.
+              Please ensure the discrepancy reason is stated in the remarks field below before proceeding.
             </div>
           </div>
         </div>
@@ -180,30 +180,30 @@ export function SecurityGatePassControl({ gatePass }: { gatePass: Data }) {
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
           <div>
             <h2 className="flex items-center gap-2 text-base font-black text-slate-900">
-              <Truck className="h-5 w-5 text-cyan-700" /> Data Pendaftaran Pemandu / Lori
+              <Truck className="h-5 w-5 text-cyan-700" /> Driver &amp; Truck Registration Data
             </h2>
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <Info label="Masa Pengambilan" value={new Date(gatePass.requestedPickupAt).toLocaleString("en-MY", { dateStyle: "medium", timeStyle: "short" })} />
-              <Info label="Pelanggan" value={gatePass.customerName} />
-              <Info label="No. Plat Berdaftar" value={gatePass.vehicleNo || "Belum disediakan"} isHighlight={hasVehicleMismatch} />
-              <Info label="Jenis Kenderaan" value={gatePass.vehicleType || "—"} />
-              <Info label="Nama Pemandu Berdaftar" value={gatePass.driverName || "Belum disediakan"} isHighlight={hasDriverMismatch} />
-              <Info label="No. Telefon" value={gatePass.driverPhone || "—"} />
-              <Info label="Destinasi" value={gatePass.destination} />
-              <Info label="Linked DO" value={gatePass.deliveryOrders.map((order) => order.doNumber).join(", ") || "Belum dipautkan"} />
+              <Info label="Pickup Time" value={new Date(gatePass.requestedPickupAt).toLocaleString("en-MY", { dateStyle: "medium", timeStyle: "short" })} />
+              <Info label="Customer" value={gatePass.customerName} />
+              <Info label="Registered Plate No." value={gatePass.vehicleNo || "Not provided"} isHighlight={hasVehicleMismatch} />
+              <Info label="Vehicle Type" value={gatePass.vehicleType || "—"} />
+              <Info label="Registered Driver Name" value={gatePass.driverName || "Not provided"} isHighlight={hasDriverMismatch} />
+              <Info label="Phone No." value={gatePass.driverPhone || "—"} />
+              <Info label="Destination" value={gatePass.destination} />
+              <Info label="Linked DO" value={gatePass.deliveryOrders.map((order) => order.doNumber).join(", ") || "Not linked"} />
             </div>
           </div>
 
           <div className="mt-5 border-t border-slate-100 pt-4 text-xs font-semibold text-slate-600 bg-slate-50 p-3 rounded-xl">
             <div className="flex items-center justify-between">
-              <span>Rancangan Muatan:</span>
-              <span className="font-bold text-slate-900">{totalBoxesPlanned} unit/kotak · {gatePass.plannedPalletQty} pallet</span>
+              <span>Planned Load:</span>
+              <span className="font-bold text-slate-900">{totalBoxesPlanned} units/boxes · {gatePass.plannedPalletQty} pallets</span>
             </div>
             <div className="flex items-center justify-between mt-1">
-              <span>Muatan Sebenar (Gudang):</span>
+              <span>Actual Load (Warehouse):</span>
               <span className="font-bold text-cyan-800">
-                {gatePass.loadingCompletedAt ? `${totalBoxesActual} unit/kotak · ${gatePass.actualPalletQty ?? "—"} pallet` : "Belum disahkan"}
+                {gatePass.loadingCompletedAt ? `${totalBoxesActual} units/boxes · ${gatePass.actualPalletQty ?? "—"} pallets` : "Not confirmed yet"}
               </span>
             </div>
           </div>
@@ -213,12 +213,12 @@ export function SecurityGatePassControl({ gatePass }: { gatePass: Data }) {
         <section className="rounded-3xl border-2 border-amber-300 bg-amber-50/50 p-6 shadow-sm flex flex-col justify-between">
           <div>
             <h2 className="flex items-center gap-2 text-base font-black text-amber-950">
-              <ShieldAlert className="h-5 w-5 text-amber-700" /> Pemerhatian Fizikal Pengawal Keselamatan
+              <ShieldAlert className="h-5 w-5 text-amber-700" /> Security Guard Physical Observation
             </h2>
 
             <div className="mt-5 space-y-4">
               <label className="block text-xs font-black uppercase tracking-wider text-slate-700">
-                No. Plat Kenderaan Sebenar (Fizikal)
+                Actual Vehicle Plate No. (Physical)
                 <input
                   value={vehicleNo}
                   onChange={(event) => setVehicleNo(event.target.value.toUpperCase())}
@@ -230,7 +230,7 @@ export function SecurityGatePassControl({ gatePass }: { gatePass: Data }) {
               </label>
 
               <label className="block text-xs font-black uppercase tracking-wider text-slate-700">
-                Nama Pemandu Sebenar (IC / Lesen)
+                Actual Driver Name (IC / License)
                 <input
                   value={driverName}
                   onChange={(event) => setDriverName(event.target.value)}
@@ -241,12 +241,12 @@ export function SecurityGatePassControl({ gatePass }: { gatePass: Data }) {
               </label>
 
               <label className="block text-xs font-black uppercase tracking-wider text-slate-700">
-                Catatan Keselamatan / Sebab Percanggahan
+                Security Remarks / Discrepancy Reason
                 <textarea
                   value={remarks}
                   onChange={(event) => setRemarks(event.target.value)}
                   rows={2}
-                  placeholder={hasVehicleMismatch || hasDriverMismatch ? "Nyatakan sebab perbezaan plat/pemandu..." : "Catatan tambahan keselamatan (jika ada)..."}
+                  placeholder={hasVehicleMismatch || hasDriverMismatch ? "State reason for plate/driver discrepancy..." : "Additional security remarks (if any)..."}
                   className="mt-1.5 w-full rounded-2xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-cyan-100"
                 />
               </label>
@@ -261,11 +261,11 @@ export function SecurityGatePassControl({ gatePass }: { gatePass: Data }) {
                 size="xl"
                 fullWidth
                 loading={pending}
-                loadingText="Merekodkan Check-In..."
+                loadingText="Recording Check-In..."
                 icon={<LogIn className="h-5 w-5" />}
                 onClick={() => transition("CHECKED_IN")}
               >
-                Daftar Masuk Lori (Record Check-In)
+                Record Vehicle Check-In
               </TactileButton>
             )}
 
@@ -275,17 +275,17 @@ export function SecurityGatePassControl({ gatePass }: { gatePass: Data }) {
                 size="xl"
                 fullWidth
                 loading={pending}
-                loadingText="Merekodkan Check-Out..."
+                loadingText="Recording Check-Out..."
                 icon={<LogOut className="h-5 w-5" />}
                 onClick={() => transition("CHECKED_OUT")}
               >
-                Sahkan Keluar Lori (Record Check-Out)
+                Record Vehicle Check-Out
               </TactileButton>
             )}
 
             {gatePass.status === "CHECKED_OUT" && (
               <div className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-100 border border-emerald-300 p-4 text-sm font-black text-emerald-900">
-                <CheckCircle2 className="h-5 w-5 text-emerald-700" /> Kenderaan Telah Sah Keluar (Checked Out)
+                <CheckCircle2 className="h-5 w-5 text-emerald-700" /> Vehicle Successfully Checked Out
               </div>
             )}
 
@@ -297,7 +297,7 @@ export function SecurityGatePassControl({ gatePass }: { gatePass: Data }) {
                 disabled={pending || !remarks.trim()}
                 onClick={() => transition("REJECTED")}
               >
-                Tolak Masuk / Deny Entry (Catatan Wajib)
+                Deny Entry (Remarks Required)
               </TactileButton>
             )}
           </div>
@@ -307,13 +307,13 @@ export function SecurityGatePassControl({ gatePass }: { gatePass: Data }) {
       {/* Operational Rules Card */}
       <div className="rounded-2xl border border-cyan-200 bg-cyan-50/80 p-4 text-xs text-cyan-950 space-y-1">
         <div className="font-bold flex items-center gap-1.5 text-cyan-900">
-          <ShieldCheck className="h-4 w-4 text-cyan-700 shrink-0" /> Peraturan Keselamatan Pos Pintu:
+          <ShieldCheck className="h-4 w-4 text-cyan-700 shrink-0" /> Gatepost Security Rules:
         </div>
         <p>
-          1. <strong>Check-In:</strong> Sahkan nombor plat fizikal sebelum membuka palang pintu masuk.
+          1. <strong>Check-In:</strong> Confirm physical plate number before opening the entry barrier.
         </p>
         <p>
-          2. <strong>Check-Out:</strong> Memerlukan pengesahan pemuatan siap daripada Gudang, sekurang-kurangnya 1 DO dipautkan, dan rekod lejar pallet telah dipost jika muatan melibatkan pallet.
+          2. <strong>Check-Out:</strong> Requires loading confirmation from Warehouse, at least 1 linked DO, and a posted pallet ledger record if pallets were used.
         </p>
       </div>
     </div>

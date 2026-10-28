@@ -13,6 +13,15 @@ export async function getEligibleDailyReports() {
         status: 'APPROVED',
         productionHandovers: {
           none: {}
+        },
+        productions: {
+          some: {
+            batches: {
+              some: {
+                qty: { gt: 0 }
+              }
+            }
+          }
         }
       },
       include: {
@@ -34,6 +43,15 @@ export async function getEligibleDailyReports() {
 
 export async function createHandover(data: any) {
   try {
+    if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
+      return { success: false, error: "Handover mesti mempunyai sekurang-kurangnya 1 item pengeluaran." }
+    }
+
+    const totalNet = data.items.reduce((sum: number, item: any) => sum + (Number(item.netToWarehousePcs) || 0), 0)
+    if (totalNet <= 0) {
+      return { success: false, error: "Jumlah bersih ke warehouse mesti melebihi 0." }
+    }
+
     const handoverNumber = `HO-${new Date().getFullYear().toString().substring(2)}${(new Date().getMonth() + 1).toString().padStart(2, '0')}${randomBytes(2).toString('hex').toUpperCase()}`
 
     const handover = await prisma.productionHandover.create({
@@ -132,6 +150,13 @@ export async function receiveHandover(id: string, signature: string, receiverId:
       }
     })
 
+    // Fetch receiver details for accurate audit in TransferIn
+    const receiver = await prisma.user.findUnique({
+      where: { id: receiverId },
+      select: { name: true }
+    })
+    const receiverName = receiver?.name || 'System (Auto Handover)'
+
     // 2. Automatically create TransferIn Record (Warehouse Receiving)
     const doNumber = `DO-${handover.handoverNumber.replace('HO-', '')}`
     const transferIn = await prisma.transferIn.create({
@@ -139,7 +164,7 @@ export async function receiveHandover(id: string, signature: string, receiverId:
         doNumber,
         receiveDate: new Date(),
         receiveTime: new Date().toLocaleTimeString(),
-        receiverName: 'System (Auto Handover)',
+        receiverName,
         items: {
           create: handover.items
             .filter(item => item.netToWarehousePcs > 0)

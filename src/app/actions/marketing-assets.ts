@@ -6,6 +6,7 @@ import { auth } from "@/auth"
 import { getAccessInfo, canAccessMarketingAssets } from "@/lib/access"
 import { logUserAction } from "./audit"
 import { uploadMaintenanceItemPhoto } from "@/lib/maintenance-r2"
+import { lockMarketingRequisitionNumbers, loanNumberSequence } from "@/lib/marketing/requisition-numbers"
 
 // Seed default items if empty so user immediately has items to test
 async function seedDefaultMarketingAssetsIfEmpty() {
@@ -386,26 +387,27 @@ export async function requestMarketingAssetLoan(data: {
     const borrowerNameVal = data.borrowerName.trim()
     if (!borrowerNameVal) return { success: false, error: "Borrower name is required." }
 
-    // Generate loan number
-    const year = new Date().getFullYear()
-    const count = await prisma.marketingAssetLoan.count()
-    const loanNumber = `LN-MKT-${year}-${String(count + 1).padStart(4, "0")}`
+    const loan = await prisma.$transaction(async (tx) => {
+      const year = new Date().getFullYear()
+      await lockMarketingRequisitionNumbers(tx, year)
+      const nextLoanNumber = await loanNumberSequence(tx, year)
 
-    const loan = await prisma.marketingAssetLoan.create({
-      data: {
-        loanNumber,
-        assetId: data.assetId,
-        quantity: requestedQty,
-        borrowerName: borrowerNameVal,
-        borrowerDepartment: data.borrowerDepartment?.trim() || null,
-        borrowerContact: data.borrowerContact?.trim() || null,
-        destination: destinationVal,
-        purpose: data.purpose?.trim() || null,
-        borrowDateTime: new Date(data.borrowDateTime),
-        expectedReturn: new Date(data.expectedReturn),
-        status: "PENDING",
-        remarks: data.remarks?.trim() || null,
-      },
+      return tx.marketingAssetLoan.create({
+        data: {
+          loanNumber: nextLoanNumber(),
+          assetId: data.assetId,
+          quantity: requestedQty,
+          borrowerName: borrowerNameVal,
+          borrowerDepartment: data.borrowerDepartment?.trim() || null,
+          borrowerContact: data.borrowerContact?.trim() || null,
+          destination: destinationVal,
+          purpose: data.purpose?.trim() || null,
+          borrowDateTime: new Date(data.borrowDateTime),
+          expectedReturn: new Date(data.expectedReturn),
+          status: "PENDING",
+          remarks: data.remarks?.trim() || null,
+        },
+      })
     })
 
     revalidatePath("/marketing/assets")

@@ -4,6 +4,12 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getAccessInfo, canAccessMarketingAssets, canAccessMarketingInventory } from "@/lib/access"
 import { logUserAction } from "./audit"
+import {
+  lockMarketingRequisitionNumbers,
+  loanNumberSequence,
+  merchandiseRequestNumberSequence,
+  nextRequisitionBatchCode,
+} from "@/lib/marketing/requisition-numbers"
 
 export interface MarketingAvailableItem {
   id: string
@@ -240,8 +246,6 @@ export async function submitMarketingRequisition(payload: SubmitRequisitionPaylo
       return { success: false, error: "Invalid pickup date provided." }
     }
 
-    const batchCode = await generateRequisitionBatchCode()
-
     // Validate quantities and item existence
     for (const item of items) {
       if (!item.quantity || item.quantity <= 0) {
@@ -299,6 +303,16 @@ export async function submitMarketingRequisition(payload: SubmitRequisitionPaylo
       for (const item of items) {
         if (item.itemType === "ASSET") {
           const loanNo = `LN-MKT-${currentYear}-${(nextLoanSeq++).toString().padStart(4, "0")}`
+    const batchCode = await prisma.$transaction(async (tx) => {
+      const year = new Date().getFullYear()
+      await lockMarketingRequisitionNumbers(tx, year)
+      const batchCode = await nextRequisitionBatchCode(tx, year)
+      const nextLoanNumber = await loanNumberSequence(tx, year)
+      const nextRequestNumber = await merchandiseRequestNumberSequence(tx, year)
+
+      for (const item of items) {
+        if (item.itemType === "ASSET") {
+          const loanNo = nextLoanNumber()
           const returnDate = item.returnDate
             ? new Date(item.returnDate)
             : new Date(pickupDateTime.getTime() + 3 * 24 * 60 * 60 * 1000)
@@ -323,6 +337,7 @@ export async function submitMarketingRequisition(payload: SubmitRequisitionPaylo
           })
         } else {
           const reqNo = `MR-MKT-${currentYear}-${(nextMerchSeq++).toString().padStart(4, "0")}`
+          const reqNo = nextRequestNumber()
 
           await tx.marketingMerchandiseRequest.create({
             data: {
@@ -344,6 +359,8 @@ export async function submitMarketingRequisition(payload: SubmitRequisitionPaylo
           })
         }
       }
+
+      return batchCode
     })
 
     revalidatePath("/marketing/assets")

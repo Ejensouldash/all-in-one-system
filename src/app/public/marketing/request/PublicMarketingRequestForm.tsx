@@ -241,10 +241,13 @@ export function PublicMarketingRequestForm() {
     }
 
     // Check for duplicate item selections
-    const selectedIds = validItems.map(r => r.selectedItemId)
-    const hasDuplicates = new Set(selectedIds).size !== selectedIds.length
+    const itemKeys = validItems.map(r => {
+      const item = getItemDetails(r.selectedItemId)
+      return item?.hasVariants ? `${r.selectedItemId}_${r.variantId || ""}` : r.selectedItemId
+    })
+    const hasDuplicates = new Set(itemKeys).size !== itemKeys.length
     if (hasDuplicates) {
-      return setErrorMsg("You have selected the same item multiple times. Please adjust the quantity on a single row.")
+      return setErrorMsg("You have selected the same item/variant multiple times. Please adjust the quantity on a single row.")
     }
 
     // Check stock quantities

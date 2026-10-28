@@ -376,7 +376,11 @@ export async function withdrawMarketingStock(data: {
         include: { variants: true },
       })
 
-      const withdrawalTotal = Number((unitPrice * data.quantity).toFixed(2))
+      const costPerUnit = Number((item as any).costPerUnit ?? (item as any).pricePerUnit ?? 0)
+      const sellingPricePerUnit = Number((item as any).sellingPricePerUnit ?? unitPrice)
+      const withdrawalTotalCost = Number((costPerUnit * data.quantity).toFixed(2))
+      const withdrawalTotal = Number(((sellingPricePerUnit || unitPrice) * data.quantity).toFixed(2))
+
       await tx.marketingStockLog.create({
         data: {
           itemId: item.id,
@@ -384,11 +388,14 @@ export async function withdrawMarketingStock(data: {
           variantName,
           type: "OUT",
           quantity: data.quantity,
-          pricePerUnit: unitPrice,
+          pricePerUnit: sellingPricePerUnit || unitPrice,
           totalPrice: withdrawalTotal,
+          costPerUnit,
+          totalCost: withdrawalTotalCost,
+          sellingPricePerUnit,
           handledBy: data.handledBy,
           remarks: data.remarks || (variantName ? `Withdrew variant: ${variantName}` : null),
-        },
+        } as any,
       })
 
       return { item: updatedItem, variantName }

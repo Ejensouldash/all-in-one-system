@@ -406,8 +406,8 @@ export async function approveMarketingMerchandiseRequest(requestId: string, hand
       }
 
       let unitPrice = req.item.pricePerUnit || 0
-      let costPerUnit = Number(req.item.costPerUnit || 0)
-      let sellingPricePerUnit = Number(req.item.sellingPricePerUnit || unitPrice)
+      let costPerUnit = Number((req.item as any)?.costPerUnit ?? (req.item as any)?.pricePerUnit ?? 0)
+      let sellingPricePerUnit = Number((req.item as any)?.sellingPricePerUnit ?? unitPrice)
 
       // If this request is for a specific variant
       if (req.variantId) {
@@ -425,11 +425,11 @@ export async function approveMarketingMerchandiseRequest(requestId: string, hand
         if (variant.pricePerUnit && variant.pricePerUnit > 0) {
           unitPrice = variant.pricePerUnit
         }
-        if (variant.costPerUnit != null) {
-          costPerUnit = Number(variant.costPerUnit)
+        if ((variant as any)?.costPerUnit != null) {
+          costPerUnit = Number((variant as any).costPerUnit)
         }
-        if (variant.sellingPricePerUnit != null) {
-          sellingPricePerUnit = Number(variant.sellingPricePerUnit)
+        if ((variant as any)?.sellingPricePerUnit != null) {
+          sellingPricePerUnit = Number((variant as any).sellingPricePerUnit)
         }
 
         // Decrement variant quantity
@@ -473,7 +473,7 @@ export async function approveMarketingMerchandiseRequest(requestId: string, hand
           department: req.requesterDepartment || "MARKETING",
           handledBy: handledBy || "Marketing PIC",
           remarks: `Requisition ${req.requestNumber} dispensed to ${req.requesterName} (${req.requesterDepartment}).${req.variantName ? ` [${req.variantName}]` : ""} Purpose: ${req.purpose}`,
-        },
+        } as any,
       })
 
       // Update request status

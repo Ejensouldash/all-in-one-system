@@ -28,7 +28,7 @@ export function WarehouseTabs({
         {fullWarehouse && (
           <>
             <Link
-              href="/forms/warehouse/overview"
+              href={"/forms/warehouse/overview" as any}
               className={`flex items-center pb-4 text-sm font-black uppercase tracking-wider border-b-4 transition-colors ${
                 pathname === "/forms/warehouse/overview"
                   ? "border-emerald-500 text-emerald-700"
@@ -120,3 +120,4 @@ export function WarehouseTabs({
     </div>
   )
 }
+

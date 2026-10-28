@@ -29,7 +29,9 @@ export async function generateMarketingStockMovementPdf(
     startDate?: string
     endDate?: string
     type?: string
+    category?: string
     searchTerm?: string
+    autoPrint?: boolean
   }
 ): Promise<void> {
   // A4 Landscape: 297mm width x 210mm height
@@ -41,73 +43,96 @@ export async function generateMarketingStockMovementPdf(
 
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
-  const margin = 12
+  const margin = 10
+  const contentWidth = pageWidth - margin * 2 // 277mm
 
-  // 1. Load Logo
+  // 1. Formal Level 4 Header Box (Matching Image 1)
+  const headerY = 8
+  const headerHeight = 25
+  const col1W = 52  // Logo & Co No
+  const col2W = 62  // Document Type
+  const col3W = 92  // Document Title
+  const col4W = contentWidth - col1W - col2W - col3W // 71mm
+
+  doc.setDrawColor(0, 0, 0)
+  doc.setLineWidth(0.4)
+  // Outer rectangle
+  doc.rect(margin, headerY, contentWidth, headerHeight)
+
+  // Vertical dividers
+  doc.line(margin + col1W, headerY, margin + col1W, headerY + headerHeight)
+  doc.line(margin + col1W + col2W, headerY, margin + col1W + col2W, headerY + 12)
+  doc.line(margin + col1W + col2W + col3W, headerY, margin + col1W + col2W + col3W, headerY + headerHeight)
+
+  // Horizontal divider (middle)
+  doc.line(margin + col1W, headerY + 12, margin + contentWidth, headerY + 12)
+
+  // Col 1: Logo & Co No
   const logoData = await getBase64Image("/assets/BubblesO2_Logo.png")
   if (logoData) {
     try {
-      doc.addImage(logoData, "PNG", margin, 10, 32, 14)
+      doc.addImage(logoData, "PNG", margin + 10, headerY + 2, 32, 11)
     } catch {
-      // Fallback text if addImage fails
       doc.setFont("helvetica", "bold")
-      doc.setFontSize(16)
+      doc.setFontSize(13)
       doc.setTextColor(15, 23, 42)
-      doc.text("BUBBLES O2", margin, 18)
+      doc.text("BUBBLES O2", margin + 12, headerY + 9)
     }
   } else {
     doc.setFont("helvetica", "bold")
-    doc.setFontSize(16)
+    doc.setFontSize(13)
     doc.setTextColor(15, 23, 42)
-    doc.text("BUBBLES O2", margin, 18)
+    doc.text("BUBBLES O2", margin + 12, headerY + 9)
   }
 
-  // Company Details
-  doc.setFont("helvetica", "bold")
-  doc.setFontSize(12)
-  doc.setTextColor(15, 23, 42)
-  doc.text("BUBBLES O2 MARKETING SDN. BHD.", margin + 36, 14)
-
   doc.setFont("helvetica", "normal")
+  doc.setFontSize(6.5)
+  doc.setTextColor(50, 50, 50)
+  doc.text("Co. No. 201601013208 (1184139-H)", margin + col1W / 2, headerY + 18, { align: "center" })
+
+  // Col 2: Document Type
+  doc.setFont("helvetica", "bold")
   doc.setFontSize(7.5)
-  doc.setTextColor(100, 116, 139)
-  doc.text("Co. No. 201601013208 (1184139-H) | Marketing Department", margin + 36, 18.5)
-  doc.text("Level 4 Supporting Documentation — Merchandise Stock Movement", margin + 36, 22.5)
+  doc.setTextColor(0, 0, 0)
+  doc.text("Document Type: Level 4", margin + col1W + col2W / 2, headerY + 5, { align: "center" })
+  doc.text("SUPPORTING DOCUMENTATION", margin + col1W + col2W / 2, headerY + 9.5, { align: "center" })
 
-  // Document Box (Right side)
-  const boxX = pageWidth - margin - 75
-  const boxY = 10
-  doc.setDrawColor(203, 213, 225)
-  doc.setFillColor(248, 250, 252)
-  doc.roundedRect(boxX, boxY, 75, 16, 1.5, 1.5, "FD")
+  // Col 3: Document Title
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(7.5)
+  doc.text("DOCUMENT TITLE:", margin + col1W + col2W + col3W / 2, headerY + 5, { align: "center" })
+  doc.text("MARKETING STOCK MOVEMENT REPORT", margin + col1W + col2W + col3W / 2, headerY + 9.5, { align: "center" })
 
+  // Col 4: Document Number
+  const currentYear = new Date().getFullYear()
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(7.5)
+  doc.text("Document Number:", margin + col1W + col2W + col3W + col4W / 2, headerY + 5, { align: "center" })
+  doc.text(`BOSB-MKT-LOG-${currentYear}`, margin + col1W + col2W + col3W + col4W / 2, headerY + 9.5, { align: "center" })
+
+  // Row 2 Col 2+3: Department
   doc.setFont("helvetica", "bold")
   doc.setFontSize(8)
-  doc.setTextColor(15, 23, 42)
-  doc.text("MARKETING STOCK REPORT", boxX + 4, boxY + 5)
+  doc.text("HEAD OF MARKETING DEPARTMENT", margin + col1W + (col2W + col3W) / 2, headerY + 17, { align: "center" })
+  doc.text("BUBBLES O2 SDN BHD (BOSB)", margin + col1W + (col2W + col3W) / 2, headerY + 21.5, { align: "center" })
+
+  // Row 2 Col 4: Metadata (Page, Category, Date)
+  const metaX = margin + col1W + col2W + col3W
+  // Dividers inside meta box
+  doc.line(metaX, headerY + 16.3, margin + contentWidth, headerY + 16.3)
+  doc.line(metaX, headerY + 20.6, margin + contentWidth, headerY + 20.6)
+
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(6.8)
+  doc.text("Page:", metaX + 2, headerY + 15.2)
+  doc.text("Category:", metaX + 2, headerY + 19.5)
+  doc.text("Date:", metaX + 2, headerY + 23.8)
 
   doc.setFont("helvetica", "normal")
-  doc.setFontSize(7)
-  doc.setTextColor(71, 85, 105)
-  const currentYear = new Date().getFullYear()
-  doc.text(`Doc Ref: BOSB-MKT-LOG-${currentYear}`, boxX + 4, boxY + 9.5)
-  doc.text(
-    `Generated: ${new Date().toLocaleString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    })}`,
-    boxX + 4,
-    boxY + 13.5
-  )
-
-  // Divider Line
-  doc.setDrawColor(226, 232, 240)
-  doc.setLineWidth(0.4)
-  doc.line(margin, 28, pageWidth - margin, 28)
+  doc.text("1 of 1", metaX + 16, headerY + 15.2)
+  const catLabel = filters?.category && filters.category !== "ALL" ? filters.category : "All Categories"
+  doc.text(catLabel, metaX + 16, headerY + 19.5)
+  doc.text(new Date().toLocaleDateString("en-GB"), metaX + 16, headerY + 23.8)
 
   // 2. Metrics & Filter Summary Ribbon
   const periodLabel = filters?.startDate || filters?.endDate
@@ -118,41 +143,52 @@ export async function generateMarketingStockMovementPdf(
 
   let totalQtyIn = 0
   let totalQtyOut = 0
-  let totalValIn = 0
-  let totalValOut = 0
+  let totalCostIn = 0
+  let totalCostOut = 0
+  let totalSellingIn = 0
+  let totalSellingOut = 0
 
   records.forEach((rec) => {
     const q = Number(rec.quantity) || 0
-    const price = typeof rec.pricePerUnit === "number" ? rec.pricePerUnit : (rec.item?.pricePerUnit ?? 0)
-    const val = typeof rec.totalPrice === "number" ? rec.totalPrice : (q * price)
+    const costUnit = typeof rec.costPerUnit === "number" && rec.costPerUnit > 0
+      ? rec.costPerUnit
+      : (typeof rec.pricePerUnit === "number" && rec.pricePerUnit > 0 ? rec.pricePerUnit : (rec.item?.costPerUnit ?? rec.item?.pricePerUnit ?? 0))
+    const costTotal = typeof rec.totalCost === "number" && rec.totalCost > 0
+      ? rec.totalCost
+      : (typeof rec.totalPrice === "number" && rec.totalPrice > 0 ? rec.totalPrice : (q * costUnit))
+    const sellUnit = typeof rec.sellingPricePerUnit === "number" && rec.sellingPricePerUnit > 0
+      ? rec.sellingPricePerUnit
+      : (rec.item?.sellingPricePerUnit ?? 0)
+    const sellTotal = q * sellUnit
+
     if (rec.type === "IN") {
       totalQtyIn += q
-      totalValIn += val
+      totalCostIn += costTotal
+      totalSellingIn += sellTotal
     } else {
       totalQtyOut += q
-      totalValOut += val
+      totalCostOut += costTotal
+      totalSellingOut += sellTotal
     }
   })
 
   // Summary Ribbon Box
+  const ribbonY = headerY + headerHeight + 3
   doc.setFillColor(241, 245, 249)
-  doc.roundedRect(margin, 31, pageWidth - margin * 2, 11, 1.5, 1.5, "F")
+  doc.roundedRect(margin, ribbonY, contentWidth, 8, 1, 1, "F")
 
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(7.5)
+  doc.setFontSize(7)
   doc.setTextColor(15, 23, 42)
-  doc.text(`Period: ${periodLabel}`, margin + 4, 38)
-  doc.text(`Movement Type: ${typeFilterLabel}`, margin + 65, 38)
-  doc.text(`Total Records: ${records.length}`, margin + 115, 38)
+  doc.text(`Period: ${periodLabel}`, margin + 3, ribbonY + 5.2)
+  doc.text(`Movement: ${typeFilterLabel}`, margin + 55, ribbonY + 5.2)
+  doc.text(`Records: ${records.length}`, margin + 95, ribbonY + 5.2)
 
   doc.setTextColor(16, 120, 60)
-  doc.text(`Stock In: +${totalQtyIn.toLocaleString()}`, margin + 155, 38)
+  doc.text(`Stock In: +${totalQtyIn.toLocaleString()} (Cost: RM ${totalCostIn.toFixed(2)})`, margin + 125, ribbonY + 5.2)
 
   doc.setTextColor(185, 28, 28)
-  doc.text(`Stock Out: -${totalQtyOut.toLocaleString()}`, margin + 195, 38)
-
-  doc.setTextColor(30, 58, 138)
-  doc.text(`Net Valuation: RM ${(totalValIn - totalValOut).toFixed(2)}`, margin + 235, 38)
+  doc.text(`Stock Out: -${totalQtyOut.toLocaleString()} (Retail: RM ${totalSellingOut.toFixed(2)})`, margin + 190, ribbonY + 5.2)
 
   // 3. Table
   const tableHeaders = [
@@ -165,9 +201,10 @@ export async function generateMarketingStockMovementPdf(
       "Location",
       "Qty",
       "Unit",
-      "Price (RM)",
-      "Total (RM)",
-      "Department",
+      "Cost/Unit",
+      "Total Cost",
+      "Selling/Unit",
+      "Total Selling",
       "Handled By",
       "Remarks / Purpose",
     ],
@@ -179,8 +216,17 @@ export async function generateMarketingStockMovementPdf(
     const variantSpec = rec.variantName || rec.variant?.variantName || "-"
     const location = rec.item?.location || "HQ Store"
     const unit = rec.item?.unit || "pcs"
-    const unitPrice = typeof rec.pricePerUnit === "number" ? rec.pricePerUnit : (rec.item?.pricePerUnit ?? 0)
-    const lineTotal = typeof rec.totalPrice === "number" ? rec.totalPrice : (rec.quantity * unitPrice)
+
+    const costUnit = typeof rec.costPerUnit === "number" && rec.costPerUnit > 0
+      ? rec.costPerUnit
+      : (typeof rec.pricePerUnit === "number" && rec.pricePerUnit > 0 ? rec.pricePerUnit : (rec.item?.costPerUnit ?? rec.item?.pricePerUnit ?? 0))
+    const costTotal = typeof rec.totalCost === "number" && rec.totalCost > 0
+      ? rec.totalCost
+      : (typeof rec.totalPrice === "number" && rec.totalPrice > 0 ? rec.totalPrice : (rec.quantity * costUnit))
+    const sellUnit = typeof rec.sellingPricePerUnit === "number" && rec.sellingPricePerUnit > 0
+      ? rec.sellingPricePerUnit
+      : (rec.item?.sellingPricePerUnit ?? 0)
+    const sellTotal = rec.quantity * sellUnit
 
     return [
       String(index + 1),
@@ -191,52 +237,54 @@ export async function generateMarketingStockMovementPdf(
       location,
       rec.type === "IN" ? `+${rec.quantity}` : `-${rec.quantity}`,
       unit,
-      unitPrice.toFixed(2),
-      lineTotal.toFixed(2),
-      rec.department || "MARKETING",
+      costUnit.toFixed(2),
+      costTotal.toFixed(2),
+      sellUnit.toFixed(2),
+      sellTotal.toFixed(2),
       rec.handledBy || "-",
       rec.remarks || "-",
     ]
   })
 
   autoTable(doc, {
-    startY: 45,
-    margin: { left: margin, right: margin, bottom: 14 },
+    startY: ribbonY + 10.5,
+    margin: { left: margin, right: margin, bottom: 12 },
     head: tableHeaders,
-    body: tableData.length > 0 ? tableData : [["-", "-", "-", "No stock logs recorded for criteria", "-", "-", "-", "-", "-", "-", "-", "-", "-"]],
+    body: tableData.length > 0 ? tableData : [["-", "-", "-", "No stock movement logs found", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"]],
     theme: "grid",
     headStyles: {
       fillColor: [15, 23, 42], // slate-900
       textColor: [255, 255, 255],
       fontStyle: "bold",
-      fontSize: 7.5,
+      fontSize: 7,
       halign: "center",
       valign: "middle",
-      cellPadding: 2,
+      cellPadding: 1.6,
     },
     bodyStyles: {
-      fontSize: 7,
+      fontSize: 6.8,
       textColor: [30, 41, 59],
-      cellPadding: 1.8,
+      cellPadding: 1.5,
       valign: "middle",
     },
     alternateRowStyles: {
       fillColor: [248, 250, 252],
     },
     columnStyles: {
-      0: { halign: "center", cellWidth: 8 },   // #
-      1: { halign: "center", cellWidth: 26 },  // Date
-      2: { halign: "center", cellWidth: 14, fontStyle: "bold" },  // Type
-      3: { cellWidth: 38 },                   // Item Name
-      4: { cellWidth: 26 },                   // Variant
-      5: { halign: "center", cellWidth: 18 },  // Location
-      6: { halign: "right", cellWidth: 14, fontStyle: "bold" }, // Qty
-      7: { halign: "center", cellWidth: 12 },  // Unit
-      8: { halign: "right", cellWidth: 17 },   // Price
-      9: { halign: "right", cellWidth: 19, fontStyle: "bold" },   // Total Value
-      10: { cellWidth: 24 },                  // Department
-      11: { cellWidth: 22 },                  // Handled By
-      12: { cellWidth: "auto" },              // Remarks
+      0: { halign: "center", cellWidth: 7 },    // #
+      1: { halign: "center", cellWidth: 23 },   // Date & Time
+      2: { halign: "center", cellWidth: 14, fontStyle: "bold" }, // Type (fits OUT on 1 line)
+      3: { cellWidth: 28, fontStyle: "bold" },  // Item Name (adjusted smaller as requested)
+      4: { cellWidth: 20 },                     // Variant / Spec
+      5: { halign: "center", cellWidth: 15 },   // Location
+      6: { halign: "right", cellWidth: 13, fontStyle: "bold" },  // Qty
+      7: { halign: "center", cellWidth: 9 },    // Unit
+      8: { halign: "right", cellWidth: 15 },    // Cost / Unit
+      9: { halign: "right", cellWidth: 17, fontStyle: "bold" },  // Total Cost
+      10: { halign: "right", cellWidth: 15 },   // Selling / Unit
+      11: { halign: "right", cellWidth: 17, fontStyle: "bold" }, // Total Selling
+      12: { cellWidth: 28 },                    // Handled By (adjusted bigger as requested)
+      13: { cellWidth: "auto" },                // Remarks / Purpose
     },
     didParseCell: (data) => {
       // Color-code Type and Quantity in body
@@ -263,21 +311,45 @@ export async function generateMarketingStockMovementPdf(
 
       // Running Footer
       doc.setFont("helvetica", "normal")
-      doc.setFontSize(7)
+      doc.setFontSize(6.5)
       doc.setTextColor(148, 163, 184)
       doc.text(
         "Bubbles O2 Confidential — Generated via All-In-One Enterprise System",
         margin,
-        pageHeight - 6
+        pageHeight - 4.5
       )
       doc.text(
         `Page ${currentPage} of ${totalPages}`,
-        pageWidth - margin - 18,
-        pageHeight - 6
+        pageWidth - margin - 15,
+        pageHeight - 4.5
       )
     },
   })
 
-  const dateTag = new Date().toISOString().slice(0, 10)
-  doc.save(`Marketing_Merchandise_Stock_Movement_Report_${dateTag}.pdf`)
+  if (filters?.autoPrint) {
+    doc.autoPrint()
+    const blobUrl = doc.output("bloburl")
+    const iframe = document.createElement("iframe")
+    iframe.style.position = "fixed"
+    iframe.style.right = "0"
+    iframe.style.bottom = "0"
+    iframe.style.width = "0"
+    iframe.style.height = "0"
+    iframe.style.border = "0"
+    iframe.src = typeof blobUrl === "string" ? blobUrl : blobUrl.toString()
+    document.body.appendChild(iframe)
+    iframe.onload = () => {
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.focus()
+          iframe.contentWindow?.print()
+        } catch (e) {
+          console.error("Iframe print error:", e)
+        }
+      }, 300)
+    }
+  } else {
+    const dateTag = new Date().toISOString().slice(0, 10)
+    doc.save(`Marketing_Merchandise_Stock_Movement_Report_${dateTag}.pdf`)
+  }
 }

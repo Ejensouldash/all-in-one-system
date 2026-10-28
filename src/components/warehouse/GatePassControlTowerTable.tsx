@@ -134,7 +134,7 @@ export function GatePassControlTowerTable({ gatePasses }: { gatePasses: GatePass
           <input
             type="text"
             className="block w-full pl-9 pr-3 py-2 text-xs md:text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-cyan-600 focus:border-cyan-600 font-semibold text-slate-800 placeholder-slate-400 shadow-sm"
-            placeholder="Cari No. Gatepass, DO, Destinasi, Lori..."
+            placeholder="Search Gatepass No., DO, Destination, Truck..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value)
@@ -154,7 +154,7 @@ export function GatePassControlTowerTable({ gatePasses }: { gatePasses: GatePass
               }}
               className="text-xs md:text-sm border border-slate-300 rounded-xl px-3 py-2 font-bold bg-white text-slate-700 outline-none focus:ring-2 focus:ring-cyan-600 shadow-sm"
             >
-              <option value="ALL">Semua Status ({gatePasses.length})</option>
+              <option value="ALL">All Statuses ({gatePasses.length})</option>
               <option value="COMPLETED">Completed</option>
               <option value="READY_FOR_PICKUP">Ready for Pickup</option>
               <option value="CHECKED_IN">Checked In</option>
@@ -169,7 +169,7 @@ export function GatePassControlTowerTable({ gatePasses }: { gatePasses: GatePass
           </div>
 
           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
-            <span>Baris:</span>
+            <span>Rows:</span>
             <select
               value={itemsPerPage}
               onChange={(e) => {
@@ -207,7 +207,7 @@ export function GatePassControlTowerTable({ gatePasses }: { gatePasses: GatePass
                 onClick={() => handleSort("requestedPickupAt")}
               >
                 <div className="flex items-center gap-1.5">
-                  Waktu Pengambilan
+                  Pickup Time
                   <ArrowUpDown className="h-3 w-3 text-slate-400" />
                 </div>
               </th>
@@ -216,14 +216,14 @@ export function GatePassControlTowerTable({ gatePasses }: { gatePasses: GatePass
                 onClick={() => handleSort("customerName")}
               >
                 <div className="flex items-center gap-1.5">
-                  Pelanggan / Destinasi
+                  Customer / Destination
                   <ArrowUpDown className="h-3 w-3 text-slate-400" />
                 </div>
               </th>
-              <th className="px-6 py-3.5 font-black">No. Kenderaan</th>
-              <th className="px-6 py-3.5 font-black">Rancangan Muatan</th>
+              <th className="px-6 py-3.5 font-black">Vehicle No.</th>
+              <th className="px-6 py-3.5 font-black">Planned Load</th>
               <th className="px-6 py-3.5 font-black">Status</th>
-              <th className="px-6 py-3.5 text-right font-black">Tindakan</th>
+              <th className="px-6 py-3.5 text-right font-black">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -240,7 +240,7 @@ export function GatePassControlTowerTable({ gatePasses }: { gatePasses: GatePass
                       {row.gatePassNo}
                     </Link>
                     <div className="text-xs text-slate-500 font-medium">
-                      {row.deliveryOrders.map((link) => link.distributionOrder.doNumber).join(", ") || "Tiada DO dipautkan"}
+                      {row.deliveryOrders.map((link) => link.distributionOrder.doNumber).join(", ") || "No linked DO"}
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 font-semibold text-slate-700 text-xs">
@@ -251,11 +251,11 @@ export function GatePassControlTowerTable({ gatePasses }: { gatePasses: GatePass
                     <div className="max-w-xs truncate text-xs text-slate-500">{row.destination}</div>
                   </td>
                   <td className="px-6 py-4 font-mono text-xs font-bold text-slate-800">
-                    {row.vehicleNo || "Menunggu pemandu"}
+                    {row.vehicleNo || "Awaiting driver"}
                   </td>
                   <td className="px-6 py-4">
-                    <div className="font-bold text-slate-900">{planned} unit/kotak</div>
-                    <div className="text-xs text-cyan-800 font-semibold">{row.plannedPalletQty} pallet kayu</div>
+                    <div className="font-bold text-slate-900">{planned} units/boxes</div>
+                    <div className="text-xs text-cyan-800 font-semibold">{row.plannedPalletQty} wooden pallets</div>
                   </td>
                   <td className="px-6 py-4">
                     <span
@@ -271,7 +271,7 @@ export function GatePassControlTowerTable({ gatePasses }: { gatePasses: GatePass
                       href={`/forms/warehouse/gatepass/${row.id}`}
                       className="inline-flex items-center gap-1 text-xs font-black text-cyan-700 hover:text-cyan-900 group-hover:translate-x-0.5 transition-transform"
                     >
-                      Buka ➔
+                      Open ➔
                     </Link>
                   </td>
                 </tr>
@@ -281,8 +281,8 @@ export function GatePassControlTowerTable({ gatePasses }: { gatePasses: GatePass
               <tr>
                 <td colSpan={7} className="px-6 py-12 text-center text-slate-500 font-medium">
                   {searchTerm || statusFilter !== "ALL"
-                    ? "Tiada rekod Gatepass yang sepadan dengan carian / penapis anda."
-                    : "Belum ada rekod Gatepass. Mulakan dengan menekan butang Permintaan Gatepass Baharu."}
+                    ? "No Gatepass records match your search / filter criteria."
+                    : "No Gatepass records yet. Start by clicking the New Gatepass Request button."}
                 </td>
               </tr>
             )}
@@ -294,9 +294,9 @@ export function GatePassControlTowerTable({ gatePasses }: { gatePasses: GatePass
       {totalItems > 0 && (
         <div className="px-6 py-4 bg-slate-50/80 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-xs md:text-sm font-semibold text-slate-600">
-            Memaparkan <span className="font-black text-slate-900">{startIndex + 1}</span> hingga{" "}
-            <span className="font-black text-slate-900">{Math.min(startIndex + itemsPerPage, totalItems)}</span> daripada{" "}
-            <span className="font-black text-slate-900">{totalItems}</span> rekod Gatepass
+            Showing <span className="font-black text-slate-900">{startIndex + 1}</span> to{" "}
+            <span className="font-black text-slate-900">{Math.min(startIndex + itemsPerPage, totalItems)}</span> of{" "}
+            <span className="font-black text-slate-900">{totalItems}</span> Gatepass records
           </div>
 
           <div className="flex items-center gap-1">
@@ -304,7 +304,7 @@ export function GatePassControlTowerTable({ gatePasses }: { gatePasses: GatePass
               onClick={() => onPageChange(1)}
               disabled={safePage === 1}
               className="p-1.5 rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              title="Halaman Pertama"
+              title="First Page"
             >
               <ChevronsLeft className="h-4 w-4" />
             </button>
@@ -312,7 +312,7 @@ export function GatePassControlTowerTable({ gatePasses }: { gatePasses: GatePass
               onClick={() => onPageChange(safePage - 1)}
               disabled={safePage === 1}
               className="p-1.5 rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              title="Sebelumnya"
+              title="Previous"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -325,7 +325,7 @@ export function GatePassControlTowerTable({ gatePasses }: { gatePasses: GatePass
               onClick={() => onPageChange(safePage + 1)}
               disabled={safePage === totalPages}
               className="p-1.5 rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              title="Seterusnya"
+              title="Next"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -333,7 +333,7 @@ export function GatePassControlTowerTable({ gatePasses }: { gatePasses: GatePass
               onClick={() => onPageChange(totalPages)}
               disabled={safePage === totalPages}
               className="p-1.5 rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              title="Halaman Terakhir"
+              title="Last Page"
             >
               <ChevronsRight className="h-4 w-4" />
             </button>

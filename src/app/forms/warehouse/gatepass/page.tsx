@@ -34,25 +34,25 @@ export default async function GatePassDashboardPage() {
             </div>
             <h1 className="text-3xl md:text-4xl font-black tracking-tight">Gatepass Control Tower</h1>
             <p className="mt-2 max-w-2xl text-xs md:text-sm text-cyan-100/80 leading-relaxed">
-              Rancang jadual lori, bilangan kotak dan pallet sebelum pengambilan barang di kilang. Gatepass tidak menolak stok fizikal produk atau mencipta DO baharu.
+              Plan truck schedules, carton quantities, and pallets prior to factory dispatch. Gatepass does not deduct physical stock or create a new DO.
             </p>
           </div>
           <Link
             href="/forms/warehouse/gatepass/new"
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-400 px-5 py-3.5 text-sm font-black text-slate-950 shadow-lg hover:bg-cyan-300 active:scale-98 transition-all"
           >
-            <Plus className="h-5 w-5" /> Permintaan Gatepass Baharu
+            <Plus className="h-5 w-5" /> New Gatepass Request
           </Link>
         </div>
       </div>
 
       {/* KPI Metric Summary Cards */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <Summary icon={<Truck className="h-5 w-5" />} label="Permintaan Aktif" value={active.length} />
-        <Summary icon={<PackageCheck className="h-5 w-5" />} label="Rancangan Kotak / Unit" value={plannedBoxes} />
+        <Summary icon={<Truck className="h-5 w-5" />} label="Active Requests" value={active.length} />
+        <Summary icon={<PackageCheck className="h-5 w-5" />} label="Planned Cartons / Units" value={plannedBoxes} />
         <Summary
           icon={<CalendarClock className="h-5 w-5" />}
-          label="Sedia Diambil (Ready)"
+          label="Ready for Pickup"
           value={active.filter((row) => row.status === "READY_FOR_PICKUP").length}
         />
       </div>
@@ -61,8 +61,8 @@ export default async function GatePassDashboardPage() {
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-6 py-4 bg-slate-50/50 flex items-center justify-between">
           <div>
-            <h2 className="font-black text-slate-900 text-base">Senarai Pendaftaran Gatepass</h2>
-            <p className="text-xs text-slate-500">Permintaan operasi terkini dan pautan rujukan Delivery Order (DO).</p>
+            <h2 className="font-black text-slate-900 text-base">Gatepass Movement Register</h2>
+            <p className="text-xs text-slate-500">Latest dispatch operations and Delivery Order (DO) reference links.</p>
           </div>
         </div>
 

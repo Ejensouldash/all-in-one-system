@@ -14,7 +14,7 @@ import {
 } from "@/lib/warehouse/gatepass-service"
 
 function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Ralat tidak dijangka."
+  return error instanceof Error ? error.message : "An unexpected error occurred."
 }
 
 function revalidateGatePass(id?: string) {

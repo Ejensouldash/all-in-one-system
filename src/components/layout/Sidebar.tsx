@@ -93,7 +93,7 @@ const staffLinks: NavLink[] = [
       { name: "Inventory & Distribution", href: "/forms/warehouse/dashboard", module: "WAREHOUSE", restrictToWarehouseUnit: true },
       { name: "Gatepass Planning", href: "/forms/warehouse/gatepass", modules: ["GATEPASS_REQUESTER", "WAREHOUSE_GATEPASS"] },
       { name: "Security Gate", href: "/forms/warehouse/gatepass/security", module: "SECURITY_GATEPASS" },
-      { name: "Ambil Bahan (Withdrawal)", href: "/forms/warehouse/reports/raw-material", module: "RAW_MATERIAL_WITHDRAWAL" },
+      { name: "Material Withdrawal", href: "/forms/warehouse/reports/raw-material", module: "RAW_MATERIAL_WITHDRAWAL" },
     ],
   },
   {
@@ -168,7 +168,7 @@ const adminLinks: NavLink[] = [
       { name: "Inventory & Distribution", href: "/forms/warehouse/dashboard", module: "WAREHOUSE", restrictToWarehouseUnit: true },
       { name: "Gatepass Planning", href: "/forms/warehouse/gatepass", modules: ["GATEPASS_REQUESTER", "WAREHOUSE_GATEPASS"] },
       { name: "Security Gate", href: "/forms/warehouse/gatepass/security", module: "SECURITY_GATEPASS" },
-      { name: "Ambil Bahan (Withdrawal)", href: "/forms/warehouse/reports/raw-material", module: "RAW_MATERIAL_WITHDRAWAL" },
+      { name: "Material Withdrawal", href: "/forms/warehouse/reports/raw-material", module: "RAW_MATERIAL_WITHDRAWAL" },
     ],
   },
   {

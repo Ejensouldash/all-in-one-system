@@ -25,7 +25,7 @@ export function SecurityGateScanner() {
 
   function open(value: string) {
     const parsed = extractCode(value)
-    if (!parsed) return setError("QR atau kod pengesahan tidak sah.")
+    if (!parsed) return setError("Invalid QR or verification code.")
     setScannerOpen(false)
     router.push(`/forms/warehouse/gatepass/security/${encodeURIComponent(parsed)}`)
   }
@@ -35,11 +35,11 @@ export function SecurityGateScanner() {
       {/* Header */}
       <div className="rounded-3xl bg-gradient-to-br from-slate-950 via-amber-950 to-orange-950 p-7 md:p-8 text-white shadow-xl">
         <div className="inline-flex items-center gap-2 rounded-full bg-amber-400/20 border border-amber-300/30 px-3.5 py-1 text-xs font-black uppercase tracking-wider text-amber-200">
-          <ShieldCheck className="h-4 w-4 text-amber-300" /> Pos Kawalan Keselamatan BubblesO2
+          <ShieldCheck className="h-4 w-4 text-amber-300" /> BUBBLESO2 SECURITY CHECKPOINT
         </div>
         <h1 className="mt-4 text-3xl md:text-4xl font-black tracking-tight">Security Gate Control</h1>
         <p className="mt-2 max-w-xl text-sm text-amber-100/80 leading-relaxed">
-          Imbas QR Verifikasi Gatepass atau masukkan kod untuk semakan lori dan merekodkan daftar masuk (*Check-In*) atau keluar (*Check-Out*).
+          Scan Gatepass Verification QR or enter the code to inspect trucks and record Check-In or Check-Out.
         </p>
       </div>
 
@@ -50,9 +50,9 @@ export function SecurityGateScanner() {
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-600 text-white shadow-md mb-3">
             <QrCode className="h-8 w-8" />
           </div>
-          <h2 className="text-lg font-black text-amber-950">Imbas Menggunakan Kamera</h2>
+          <h2 className="text-lg font-black text-amber-950">Scan Using Camera</h2>
           <p className="text-xs text-amber-800 mt-1 mb-4 max-w-xs">
-            Halakan kamera telefon atau tablet ke QR Verifikasi Security Gatepass.
+            Point phone or tablet camera at the Security Gatepass Verification QR.
           </p>
           <TactileButton
             variant="amber"
@@ -60,7 +60,7 @@ export function SecurityGateScanner() {
             icon={<QrCode className="h-5 w-5" />}
             onClick={() => setScannerOpen(true)}
           >
-            Buka Pengimbas Kamera
+            Open Camera Scanner
           </TactileButton>
         </div>
 
@@ -71,15 +71,15 @@ export function SecurityGateScanner() {
         >
           <div>
             <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
-              <Search className="h-4 w-4 text-cyan-700" /> Masukkan Kod / URL QR Manual
+              <Search className="h-4 w-4 text-cyan-700" /> Enter Code / QR URL Manually
             </h2>
             <label className="mt-3 block text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Kod Verifikasi atau Pautan Penuh
+              Verification Code or Full Link
               <input
                 value={code}
                 onChange={(event) => setCode(event.target.value)}
                 required
-                placeholder="Cth: gp_sec_abc123 atau tampal URL..."
+                placeholder="e.g. gp_sec_abc123 or paste URL..."
                 className="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm font-semibold outline-none focus:border-cyan-600 focus:ring-2 focus:ring-cyan-100"
               />
             </label>
@@ -94,7 +94,7 @@ export function SecurityGateScanner() {
               disabled={!code.trim()}
               icon={<Search className="h-4 w-4" />}
             >
-              Cari &amp; Buka Gatepass
+              Find &amp; Open Gatepass
             </TactileButton>
           </div>
         </form>
@@ -109,13 +109,13 @@ export function SecurityGateScanner() {
       {/* Security Guidance Note */}
       <div className="rounded-2xl border border-blue-200 bg-blue-50/80 p-4 text-xs text-blue-950 space-y-1.5 leading-relaxed">
         <div className="font-bold flex items-center gap-1.5 text-blue-900">
-          <Truck className="h-4 w-4 text-blue-700 shrink-0" /> Panduan Pos Pengawal:
+          <Truck className="h-4 w-4 text-blue-700 shrink-0" /> Security Guard Instructions:
         </div>
         <p>
-          • Pastikan nombor plat pendaftaran lori fizikal dan nama pemandu disemak bersama maklumat berdaftar pada Gatepass.
+          • Verify physical truck plate number and driver name against the registered Gatepass details.
         </p>
         <p>
-          • Sekiranya terdapat perbezaan, masukkan sebab dalam ruang catatan sebelum mengesahkan kemasukan.
+          • If there is a discrepancy, enter the reason in the remarks field before confirming entry.
         </p>
       </div>
 

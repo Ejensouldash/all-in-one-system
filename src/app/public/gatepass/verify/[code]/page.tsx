@@ -27,9 +27,9 @@ export default async function VerifyGatePassPage({ params }: { params: Promise<{
                 <ShieldCheck className="h-10 w-10 text-emerald-600" />
                 <div>
                   <div className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">
-                    Rekod Rasmi Sah BubblesO2
+                    BubblesO2 Official Verified Record
                   </div>
-                  <div className="text-xs text-slate-500 font-medium">Pengesahan Pos Keselamatan &amp; DO</div>
+                  <div className="text-xs text-slate-500 font-medium">Security Checkpoint &amp; DO Verification</div>
                 </div>
               </div>
               <span className="rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-[11px] font-black text-emerald-900 uppercase">
@@ -39,23 +39,23 @@ export default async function VerifyGatePassPage({ params }: { params: Promise<{
 
             <div className="border-t border-b border-slate-100 py-4 space-y-3">
               <div className="flex items-baseline justify-between">
-                <span className="text-xs font-bold text-slate-400 uppercase">No. Gatepass</span>
+                <span className="text-xs font-bold text-slate-400 uppercase">Gatepass No.</span>
                 <span className="text-2xl font-black text-slate-950">{gatePass.gatePassNo}</span>
               </div>
 
               <div className="rounded-2xl bg-slate-50 p-4 space-y-2.5 border border-slate-100 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500 font-bold flex items-center gap-1.5">
-                    <Truck className="h-4 w-4 text-cyan-700" /> No. Plat Lori
+                    <Truck className="h-4 w-4 text-cyan-700" /> Truck Plate No.
                   </span>
                   <span className="font-mono font-black text-sm text-slate-900">
-                    {gatePass.vehicleNo || "Menunggu pemandu"}
+                    {gatePass.vehicleNo || "Awaiting driver"}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500 font-bold flex items-center gap-1.5">
-                    <MapPin className="h-4 w-4 text-cyan-700" /> Destinasi
+                    <MapPin className="h-4 w-4 text-cyan-700" /> Destination
                   </span>
                   <span className="font-bold text-slate-900 truncate max-w-[200px]">
                     {gatePass.destination}
@@ -64,15 +64,15 @@ export default async function VerifyGatePassPage({ params }: { params: Promise<{
 
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500 font-bold flex items-center gap-1.5">
-                    <PackageCheck className="h-4 w-4 text-cyan-700" /> Muatan Pallet
+                    <PackageCheck className="h-4 w-4 text-cyan-700" /> Pallet Cargo
                   </span>
                   <span className="font-bold text-slate-900">
-                    {gatePass.actualPalletQty ?? gatePass.plannedPalletQty} Wooden Pallet
+                    {gatePass.actualPalletQty ?? gatePass.plannedPalletQty} wooden pallets
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 text-[11px]">
-                  <span className="text-slate-400 font-bold">Waktu Pengambilan:</span>
+                  <span className="text-slate-400 font-bold">Pickup Time:</span>
                   <span className="font-semibold text-slate-700">
                     {gatePass.requestedPickupAt.toLocaleString("en-MY", {
                       dateStyle: "medium",
@@ -88,7 +88,7 @@ export default async function VerifyGatePassPage({ params }: { params: Promise<{
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-slate-500">
                   <span className="flex items-center gap-1.5">
-                    <ClipboardList className="h-4 w-4 text-indigo-600" /> Delivery Order (DO) Berkait
+                    <ClipboardList className="h-4 w-4 text-indigo-600" /> Linked Delivery Orders (DO)
                   </span>
                   <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
                     {gatePass.deliveryOrders.length} DO
@@ -108,7 +108,7 @@ export default async function VerifyGatePassPage({ params }: { params: Promise<{
                         <div className="flex items-center justify-between">
                           <span className="font-black text-sm text-indigo-950 font-mono">{doOrder.doNumber}</span>
                           <span className="font-black text-indigo-900 bg-indigo-100 px-2 py-0.5 rounded-full text-[10px]">
-                            {totalItems} kotak
+                            {totalItems} boxes
                           </span>
                         </div>
                         <p className="text-slate-600 font-medium truncate">{doOrder.destination}</p>
@@ -137,21 +137,21 @@ export default async function VerifyGatePassPage({ params }: { params: Promise<{
                 className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-xs font-black text-white shadow-md hover:bg-slate-950 transition-all"
               >
                 <ShieldCheck className="h-4 w-4 text-amber-400" />
-                <span>Buka Panel Kawalan Pos Pintu (Security)</span>
+                <span>Open Security Gate Control Panel</span>
               </Link>
             </div>
 
             <p className="text-center text-[10px] text-slate-400 leading-relaxed">
-              Halaman pengesahan rasmi ini selamat dan dijana khas untuk semakan keselamatan di kilang BubblesO2.
+              This official verification page is secured and generated for security checks at the BubblesO2 factory.
             </p>
           </>
         ) : (
           <div className="text-center py-6 space-y-3">
             <XCircle className="mx-auto h-12 w-12 text-red-500" />
-            <div className="text-xs font-black uppercase tracking-[0.2em] text-red-700">Tidak Sah</div>
-            <h1 className="text-2xl font-black text-slate-950">QR Gatepass Tidak Sah atau Telah Dibatalkan</h1>
+            <div className="text-xs font-black uppercase tracking-[0.2em] text-red-700">Invalid</div>
+            <h1 className="text-2xl font-black text-slate-950">Invalid or Revoked Gatepass QR</h1>
             <p className="text-xs text-slate-600 max-w-xs mx-auto">
-              Sila hubungi PIC Gudang BubblesO2 untuk mendapatkan QR Gatepass yang terkini.
+              Please contact BubblesO2 Warehouse team to receive an updated Gatepass QR.
             </p>
           </div>
         )}

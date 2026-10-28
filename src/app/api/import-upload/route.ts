@@ -5,8 +5,25 @@ import { GEMINI_MODEL, geminiUserMessage, generateGeminiJson } from "@/lib/ai/ge
 
 const IMPORT_SYSTEM_INSTRUCTION = `You are an AI data parser. Your job is to convert raw Excel JSON rows into structured Asset objects.
 Return a JSON array of objects. Each object MUST have:
-- departmentName: String (Full department name)
-- departmentCode: String (3 letter code, e.g. HRD, FIN, MKT, ITD)
+- departmentName: String (Full department name, exactly as listed below)
+- departmentCode: String (MUST be EXACTLY one of these codes):
+  BDD = Business Development Department
+  PRD-R = Production Rantau
+  PRD-P = Production Pedas
+  OSD = Online Sales Department
+  MKT-A = Marketing Activation
+  MKT-S = Marketing Social Media
+  MNT = Maintenance
+  LNW = Logistics and Warehouse
+  CPD = Corporate Department
+  ITD = Information Technology Department
+  HRD = Human Resources Department
+  HSE = Health & Safety
+  FIN = Finance Department
+  SOD = Sales Ordering Department
+  LGL = Legal
+  PME = Petrol Mart Engagement
+  SEC = Security Department
 - type: String (Must be EXACTLY one of: ICT_EQUIPMENT, OFFICE_EQUIPMENT, EVENT_EQUIPMENT, TOOLS, SAFETY_EQUIPMENT, MACHINE, ELECTRICAL_EQUIPMENT, FURNITURE, VEHICLE, OTHER)
 - categoryCode: String (3 letter code, e.g. ICT, FUR, VEH, EVT, OTH)
 - name: String (Item category or name)

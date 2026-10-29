@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { getAccessInfo, canAccessMarketing } from "@/lib/access"
+import { getAccessInfo, canAccessMarketingEvents } from "@/lib/access"
 import { logUserAction } from "./audit"
 import { uploadMarketingPhotoToR2 } from "@/lib/marketing-r2"
 import { queueMarketingEmailNotification, generateMarketingEventRequisitionAdminEmail } from "@/lib/marketing/marketing-outbox"
@@ -310,7 +310,7 @@ export async function updateEventRequisitionStatus(
 ) {
   try {
     const access = await getAccessInfo()
-    if (!canAccessMarketing(access)) {
+    if (!canAccessMarketingEvents(access)) {
       return { success: false, error: "Unauthorized access to marketing management." }
     }
 

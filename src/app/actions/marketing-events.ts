@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getAccessInfo, canAccessMarketing } from "@/lib/access"
 import { logUserAction } from "./audit"
+import { uploadMarketingPhotoToR2 } from "@/lib/marketing-r2"
 import fs from "fs"
 import path from "path"
 
@@ -55,24 +56,42 @@ async function getNextEventRequestNumber(year: number): Promise<string> {
   }
 }
 
-// Save uploaded attachment to public/uploads/marketing/events/
+// Save uploaded attachment to Cloudflare R2 (marketing/events/) with fallback to public/uploads/marketing/events/
 async function saveAttachmentFile(file: File): Promise<AttachmentInfo> {
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "marketing", "events")
-  await fs.promises.mkdir(uploadDir, { recursive: true })
-
-  const ext = path.extname(file.name) || ""
-  const cleanBase = path.basename(file.name, ext).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40)
-  const uniqueName = `${Date.now()}-${Math.floor(Math.random() * 1000)}-${cleanBase}${ext}`
-  const filePath = path.join(uploadDir, uniqueName)
-
   const arrayBuffer = await file.arrayBuffer()
-  await fs.promises.writeFile(filePath, Buffer.from(arrayBuffer))
+  const buffer = Buffer.from(arrayBuffer)
 
-  return {
-    name: file.name,
-    url: `/uploads/marketing/events/${uniqueName}`,
-    size: file.size,
-    type: file.type || "application/octet-stream",
+  try {
+    const { url } = await uploadMarketingPhotoToR2(
+      buffer,
+      file.name,
+      file.type || "application/octet-stream",
+      "events"
+    )
+    return {
+      name: file.name,
+      url,
+      size: file.size,
+      type: file.type || "application/octet-stream",
+    }
+  } catch (r2Err) {
+    console.warn("Failed to upload event attachment to R2, falling back to local storage:", r2Err)
+    const uploadDir = path.join(process.cwd(), "public", "uploads", "marketing", "events")
+    await fs.promises.mkdir(uploadDir, { recursive: true })
+
+    const ext = path.extname(file.name) || ""
+    const cleanBase = path.basename(file.name, ext).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40)
+    const uniqueName = `${Date.now()}-${Math.floor(Math.random() * 1000)}-${cleanBase}${ext}`
+    const filePath = path.join(uploadDir, uniqueName)
+
+    await fs.promises.writeFile(filePath, buffer)
+
+    return {
+      name: file.name,
+      url: `/uploads/marketing/events/${uniqueName}`,
+      size: file.size,
+      type: file.type || "application/octet-stream",
+    }
   }
 }
 
@@ -196,9 +215,13 @@ export async function submitEventRequisition(payload: FormData | MarketingEventP
       console.warn("Database table may not be migrated yet on remote DB, proceeding with local requestNumber:", errMsg)
     }
 
-    revalidatePath("/marketing/events")
-    revalidatePath("/marketing/forms")
-    revalidatePath("/marketing")
+    try {
+      revalidatePath("/marketing/events")
+      revalidatePath("/marketing/forms")
+      revalidatePath("/marketing")
+    } catch (revErr) {
+      console.warn("Revalidation warning in submitEventRequisition:", revErr)
+    }
 
     return {
       success: true,

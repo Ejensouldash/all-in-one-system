@@ -1556,6 +1556,33 @@ model MarketingMerchandiseRequest {
   @@index([requesterDepartment])
 }
 
+model MarketingEventRequisition {
+  id               String   @id @default(uuid())
+  requestNumber    String   @unique
+  name             String
+  staffId          String
+  email            String
+  department       String
+  eventName        String
+  eventType        String
+  organizer        String
+  eventDateFrom    DateTime?
+  eventDateTo      DateTime?
+  picContactName   String
+  picContactNumber String
+  tentative        String
+  requirements     String
+  status           String   @default("PENDING") // PENDING, APPROVED, REJECTED, COMPLETED
+  remarks          String?
+  attachments      String?  @default("[]")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([status])
+  @@index([department])
+}
+
+
 model MaintenancePurchaseRequest {
   id                    String                           @id @default(uuid())
   prNumber              String                           @unique // PR-YYYY-XXXX

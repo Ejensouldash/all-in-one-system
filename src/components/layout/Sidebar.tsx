@@ -140,8 +140,9 @@ const staffLinks: NavLink[] = [
     icon: Megaphone,
     subLinks: [
       { name: "Forms", href: "/marketing/forms", module: "MARKETING_FORMS" },
-      { name: "Assets Management", href: "/marketing/assets", module: "MARKETING_ASSETS" },
-      { name: "Merchandise Management", href: "/marketing/inventory", module: "MARKETING_INVENTORY" },
+      { name: "Asset", href: "/marketing/assets", module: "MARKETING_ASSETS" },
+      { name: "Merchandise", href: "/marketing/inventory", module: "MARKETING_INVENTORY" },
+      { name: "Events", href: "/marketing/events", module: "MARKETING_FORMS" },
     ],
   },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
@@ -215,8 +216,9 @@ const adminLinks: NavLink[] = [
     icon: Megaphone,
     subLinks: [
       { name: "Forms", href: "/marketing/forms", module: "MARKETING_FORMS" },
-      { name: "Assets Management", href: "/marketing/assets", module: "MARKETING_ASSETS" },
-      { name: "Merchandise Management", href: "/marketing/inventory", module: "MARKETING_INVENTORY" },
+      { name: "Asset", href: "/marketing/assets", module: "MARKETING_ASSETS" },
+      { name: "Merchandise", href: "/marketing/inventory", module: "MARKETING_INVENTORY" },
+      { name: "Events", href: "/marketing/events", module: "MARKETING_FORMS" },
     ],
   },
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },

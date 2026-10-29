@@ -27,6 +27,7 @@ import {
   Package,
   Sparkles,
   ArrowRight,
+  ArrowLeft,
   Info
 } from "lucide-react"
 
@@ -61,7 +62,7 @@ interface RequestedItemRow {
   returnDate?: string
 }
 
-export function PublicMarketingRequestForm() {
+export function PublicMarketingRequestForm({ onBack }: { onBack?: () => void } = {}) {
   // Form input states
   const [name, setName] = useState("")
   const [staffId, setStaffId] = useState("")
@@ -323,8 +324,9 @@ export function PublicMarketingRequestForm() {
       } else {
         setErrorMsg(res.error || "Failed to submit requisition.")
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || "An unexpected error occurred.")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "An unexpected error occurred."
+      setErrorMsg(message)
     } finally {
       setSubmitting(false)
     }
@@ -410,7 +412,18 @@ export function PublicMarketingRequestForm() {
 
   // FORM VIEW
   return (
-    <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+    <div className="max-w-3xl mx-auto">
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 mb-4 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 shadow-xs border border-slate-200 transition-all cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 text-blue-600" />
+          <span>Back to Requisition Options</span>
+        </button>
+      )}
+      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
       {/* Brand Header */}
       <div className="bg-slate-900 p-6 sm:p-8 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 -mt-8 -mr-8 w-40 h-40 bg-blue-600/20 rounded-full blur-2xl pointer-events-none" />
@@ -853,6 +866,7 @@ export function PublicMarketingRequestForm() {
           </p>
         </div>
       </form>
+    </div>
     </div>
   )
 }

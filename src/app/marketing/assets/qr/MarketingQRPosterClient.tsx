@@ -120,10 +120,10 @@ export function MarketingQRPosterClient() {
               MARKETING REQUISITION
             </h2>
             <p className="text-xs font-black text-slate-700 uppercase tracking-wide">
-              SCAN TO REQUEST ASSETS &amp; MERCHANDISE
+              SCAN TO REQUEST 
             </p>
             <p className="text-[11px] font-medium text-slate-500">
-              Event Assets • Furniture &amp; Displays • Branded Merchandise
+              Event Assets • Furniture &amp; Displays • Branded Merchandise • Video • Design
             </p>
           </div>
 
@@ -163,8 +163,8 @@ export function MarketingQRPosterClient() {
 
           {/* Footer notice */}
           <div className="mt-6 pt-4 border-t border-slate-200 w-full flex items-center justify-between text-[10px] text-slate-400 font-mono">
-            <span>BUBBLES O2 SDN BHD</span>
-            <span>MARKETING ASSET CONTROL</span>
+            <span>BUBBLES O2 MARKETING SDN BHD</span>
+            <span>MARKETING REQUISITION CONTROL</span>
           </div>
         </div>
       </div>

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { FileText, Layers, Box } from "lucide-react"
+import { FileText, Layers, Box, Calendar } from "lucide-react"
 
 interface MarketingNavTabsProps {
   userModules?: string[]
@@ -21,25 +21,32 @@ export function MarketingNavTabs({ userModules, isSuperAdmin = false }: Marketin
       active: pathname.startsWith("/marketing/forms"),
     },
     {
-      name: "Assets Management",
+      name: "Asset",
       href: "/marketing/assets",
       module: "MARKETING_ASSETS",
       icon: Layers,
       active: pathname.startsWith("/marketing/assets"),
     },
     {
-      name: "Merchandise Management",
+      name: "Merchandise",
       href: "/marketing/inventory",
       module: "MARKETING_INVENTORY",
       icon: Box,
       active: pathname.startsWith("/marketing/inventory") || pathname.startsWith("/business-development/marketing/inventory"),
+    },
+    {
+      name: "Events",
+      href: "/marketing/events",
+      module: "MARKETING_FORMS",
+      icon: Calendar,
+      active: pathname.startsWith("/marketing/events"),
     },
   ]
 
   const tabs = allTabs.filter(tab => {
     if (isSuperAdmin) return true
     if (!userModules) return true
-    return userModules.includes(tab.module)
+    return userModules.includes(tab.module) || userModules.includes("MARKETING_ASSETS") || userModules.includes("MARKETING_INVENTORY")
   })
 
   return (
@@ -58,7 +65,7 @@ export function MarketingNavTabs({ userModules, isSuperAdmin = false }: Marketin
                   : "border-b-4 border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300"
               }`}
             >
-              <Icon className="w-5 h-5 mr-2" />
+              <Icon className="h-4 w-4 mr-2" />
               {tab.name}
             </Link>
           )

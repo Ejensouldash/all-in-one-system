@@ -1,9 +1,9 @@
 import { Suspense } from "react"
-import { PublicMarketingRequestForm } from "./PublicMarketingRequestForm"
+import { MarketingPortalClient } from "./MarketingPortalClient"
 
 export const metadata = {
-  title: "Request Marketing Asset / Merchandise | Bubbles O2",
-  description: "Public requisition form for borrowing marketing assets and requesting branded promotional merchandise.",
+  title: "Marketing Requisition Portal | Bubbles O2",
+  description: "Official Bubbles O2 marketing requisition portal for borrowing assets, promotional merchandise, and event support.",
 }
 
 export default function PublicMarketingRequestPage() {
@@ -16,7 +16,7 @@ export default function PublicMarketingRequestPage() {
           </div>
         }
       >
-        <PublicMarketingRequestForm />
+        <MarketingPortalClient />
       </Suspense>
     </div>
   )

@@ -1,7 +1,7 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
-import { getAccessInfo, canAccessMarketing } from "@/lib/access"
+import { getAccessInfo, canAccessMarketingEvents } from "@/lib/access"
 import { MarketingEventsClient, EventRequisitionItem } from "./MarketingEventsClient"
 import { MarketingNavTabs } from "@/components/marketing/MarketingNavTabs"
 
@@ -15,7 +15,7 @@ export default async function MarketingEventsPage() {
   if (!session) redirect("/login?callbackUrl=/marketing/events")
 
   const access = await getAccessInfo()
-  if (!access || !canAccessMarketing(access)) {
+  if (!access || !canAccessMarketingEvents(access)) {
     redirect("/dashboard")
   }
 

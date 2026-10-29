@@ -14,6 +14,7 @@ import {
   ShoppingCart, FileSearch, FileCheck, FilePenLine, Trash2, UserCheck, BookmarkCheck,
   Briefcase, Headphones, HardHat, Layers, Crown, ChevronDown, Bot,
   type LucideIcon,
+  CalendarCheck,
 } from "lucide-react"
 
 type ModuleDef = { id: string; name: string; description: string; icon: LucideIcon }
@@ -148,6 +149,7 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "MARKETING_FORMS", name: "Marketing Forms & Templates", description: "Access to view and submit marketing requisition forms.", icon: ClipboardList },
       { id: "MARKETING_ASSETS", name: "Marketing Asset Management", description: "Manage marketing department assets, loans, and returns.", icon: Boxes },
       { id: "MARKETING_INVENTORY", name: "Marketing Inventory Management", description: "Track marketing stock, merchandise check-in/out, and logs.", icon: PackageOpen },
+      { id: "MARKETING_EVENTS", name: "Marketing Events Management", description: "Manage events manpower requisition.", icon: CalendarCheck },
     ],
   },
   {

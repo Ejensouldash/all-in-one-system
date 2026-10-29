@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { FileText, Layers, Box, Calendar } from "lucide-react"
+import { FileText, Layers, Box, Calendar, Bell } from "lucide-react"
 
 interface MarketingNavTabsProps {
   userModules?: string[]
@@ -40,6 +40,13 @@ export function MarketingNavTabs({ userModules, isSuperAdmin = false }: Marketin
       module: "MARKETING_FORMS",
       icon: Calendar,
       active: pathname.startsWith("/marketing/events"),
+    },
+    {
+      name: "Notifications",
+      href: "/marketing/notifications",
+      module: "MARKETING_FORMS",
+      icon: Bell,
+      active: pathname.startsWith("/marketing/notifications"),
     },
   ]
 

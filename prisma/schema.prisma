@@ -1583,6 +1583,38 @@ model MarketingEventRequisition {
 }
 
 
+model MarketingNotificationRecipient {
+  id          String   @id @default(uuid())
+  name        String
+  email       String
+  category    String?  @default("ALL") // ALL, ASSET, MERCHANDISE, EVENT
+  isEnabled   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isEnabled])
+  @@index([category])
+}
+
+model MarketingNotificationOutbox {
+  id          String    @id @default(uuid())
+  referenceId String?   // batchCode, loanNumber, requestNumber, or event requisition ID
+  category    String    // ASSET, MERCHANDISE, EVENT
+  to          String
+  subject     String
+  html        String    @db.Text
+  status      String    @default("PENDING") // PENDING, SENT, FAILED
+  error       String?   @db.Text
+  attempts    Int       @default(0)
+  sentAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@index([createdAt])
+}
+
 model MaintenancePurchaseRequest {
   id                    String                           @id @default(uuid())
   prNumber              String                           @unique // PR-YYYY-XXXX

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getAccessInfo, canAccessMarketingAssets, canAccessMarketingInventory } from "@/lib/access"
 import { logUserAction } from "./audit"
+import { queueMarketingEmailNotification, generateMarketingRequisitionAdminEmail } from "@/lib/marketing/marketing-outbox"
 import {
   lockMarketingRequisitionNumbers,
   loanNumberSequence,
@@ -262,6 +263,76 @@ export async function submitMarketingRequisition(payload: SubmitRequisitionPaylo
 
       return batchCode
     })
+
+    // Trigger Marketing Email Notifications
+    try {
+      const assetIds = items.filter((i) => i.itemType === "ASSET").map((i) => i.itemId)
+      const inventoryIds = items.filter((i) => i.itemType === "INVENTORY").map((i) => i.itemId)
+
+      const [assetsFound, inventoryFound] = await Promise.all([
+        assetIds.length > 0
+          ? prisma.marketingAsset.findMany({ where: { id: { in: assetIds } }, select: { id: true, name: true } })
+          : [],
+        inventoryIds.length > 0
+          ? prisma.marketingItem.findMany({ where: { id: { in: inventoryIds } }, select: { id: true, name: true } })
+          : [],
+      ])
+
+      const assetMap = new Map(assetsFound.map((a) => [a.id, a.name]))
+      const inventoryMap = new Map(inventoryFound.map((i) => [i.id, i.name]))
+
+      const emailItems = items.map((item) => ({
+        name: (item.itemType === "ASSET" ? assetMap.get(item.itemId) : inventoryMap.get(item.itemId)) || "Item",
+        type: item.itemType,
+        quantity: item.quantity,
+        variantName: item.variantName || null,
+        returnDate: item.returnDate || null,
+      }))
+
+      const hasAsset = items.some((i) => i.itemType === "ASSET")
+      const hasMerchandise = items.some((i) => i.itemType === "INVENTORY")
+
+      const categoriesToCheck: string[] = ["ALL"]
+      if (hasAsset) categoriesToCheck.push("ASSET")
+      if (hasMerchandise) categoriesToCheck.push("MERCHANDISE")
+
+      const activeRecipients = await prisma.marketingNotificationRecipient.findMany({
+        where: {
+          isEnabled: true,
+          category: { in: categoriesToCheck },
+        },
+      })
+
+      if (activeRecipients.length > 0) {
+        const emailHtml = generateMarketingRequisitionAdminEmail({
+          batchCode,
+          requesterName: name.trim(),
+          staffId: staffId.trim(),
+          phone: phone.trim(),
+          email: email.trim(),
+          department: department.trim(),
+          purpose: purpose.trim(),
+          pickupDate,
+          items: emailItems,
+        })
+
+        const subject = `[Marketing Alert] New Requisition Logged: ${batchCode} - ${name.trim()}`
+        const categoryLabel = hasAsset && hasMerchandise ? "ALL" : hasAsset ? "ASSET" : "MERCHANDISE"
+
+        const uniqueEmails = Array.from(new Set(activeRecipients.map((r) => r.email.trim().toLowerCase())))
+        for (const recipientEmail of uniqueEmails) {
+          await queueMarketingEmailNotification({
+            referenceId: batchCode,
+            category: categoryLabel,
+            to: recipientEmail,
+            subject,
+            html: emailHtml,
+          })
+        }
+      }
+    } catch (notifErr) {
+      console.error("Non-blocking notification error in submitMarketingRequisition:", notifErr)
+    }
 
     revalidatePath("/marketing/assets")
     revalidatePath("/marketing/inventory")

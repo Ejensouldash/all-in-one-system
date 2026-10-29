@@ -7,6 +7,7 @@ import { getAccessInfo, canAccessMarketingAssets } from "@/lib/access"
 import { logUserAction } from "./audit"
 import { uploadMarketingItemPhoto } from "@/lib/marketing-r2"
 import { lockMarketingRequisitionNumbers, loanNumberSequence } from "@/lib/marketing/requisition-numbers"
+import { queueMarketingEmailNotification, generateMarketingRequisitionAdminEmail } from "@/lib/marketing/marketing-outbox"
 
 // Seed default items if empty so user immediately has items to test
 async function seedDefaultMarketingAssetsIfEmpty() {
@@ -416,6 +417,51 @@ export async function requestMarketingAssetLoan(data: {
       "Requested Marketing Asset Loan",
       `Submitted lending request ${loan.loanNumber} for ${requestedQty} ${asset.unit} of "${asset.name}" to "${destinationVal}". Borrower: ${borrowerNameVal}.`
     )
+    // Trigger Marketing Asset Notification
+    try {
+      const activeRecipients = await prisma.marketingNotificationRecipient.findMany({
+        where: {
+          isEnabled: true,
+          category: { in: ["ALL", "ASSET"] },
+        },
+      })
+
+      if (activeRecipients.length > 0) {
+        const emailHtml = generateMarketingRequisitionAdminEmail({
+          batchCode: loan.loanNumber,
+          requesterName: borrowerNameVal,
+          staffId: data.borrowerContact || "-",
+          phone: data.borrowerContact || "-",
+          email: "-",
+          department: data.borrowerDepartment?.trim() || "Marketing",
+          purpose: data.purpose?.trim() || destinationVal,
+          pickupDate: new Date(data.borrowDateTime).toISOString().split("T")[0],
+          items: [
+            {
+              name: asset.name,
+              type: "ASSET",
+              quantity: requestedQty,
+              returnDate: new Date(data.expectedReturn).toISOString().split("T")[0],
+            },
+          ],
+        })
+
+        const subject = `[Marketing Alert] New Asset Loan: ${loan.loanNumber} - ${asset.name}`
+        const uniqueEmails = Array.from(new Set(activeRecipients.map((r) => r.email.trim().toLowerCase())))
+
+        for (const recipientEmail of uniqueEmails) {
+          await queueMarketingEmailNotification({
+            referenceId: loan.loanNumber,
+            category: "ASSET",
+            to: recipientEmail,
+            subject,
+            html: emailHtml,
+          })
+        }
+      }
+    } catch (notifErr) {
+      console.error("Non-blocking asset loan notification error:", notifErr)
+    }
 
     return { success: true, data: loan }
   } catch (error: any) {

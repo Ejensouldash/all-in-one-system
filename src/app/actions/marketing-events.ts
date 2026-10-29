@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { getAccessInfo, canAccessMarketing } from "@/lib/access"
 import { logUserAction } from "./audit"
 import { uploadMarketingPhotoToR2 } from "@/lib/marketing-r2"
+import { queueMarketingEmailNotification, generateMarketingEventRequisitionAdminEmail } from "@/lib/marketing/marketing-outbox"
 import fs from "fs"
 import path from "path"
 
@@ -213,6 +214,50 @@ export async function submitEventRequisition(payload: FormData | MarketingEventP
     } catch (dbError: unknown) {
       const errMsg = dbError instanceof Error ? dbError.message : String(dbError)
       console.warn("Database table may not be migrated yet on remote DB, proceeding with local requestNumber:", errMsg)
+    }
+
+    // Trigger Marketing Event Notification
+    try {
+      const activeRecipients = await prisma.marketingNotificationRecipient.findMany({
+        where: {
+          isEnabled: true,
+          category: { in: ["ALL", "EVENT"] },
+        },
+      })
+
+      if (activeRecipients.length > 0) {
+        const html = generateMarketingEventRequisitionAdminEmail({
+          requestNumber,
+          requesterName: name.trim(),
+          staffId: staffId.trim(),
+          email: email.trim(),
+          department: department.trim(),
+          eventName: eventName.trim(),
+          eventType: eventType.trim(),
+          organizer: organizer.trim(),
+          eventDateFrom: eventDateFrom || null,
+          eventDateTo: eventDateTo || null,
+          picContactName: picContactName.trim(),
+          picContactNumber: picContactNumber.trim(),
+          tentative: tentative.trim(),
+          requirements: requirements.trim(),
+        })
+
+        const subject = `[Marketing Alert] New Event Requisition: ${requestNumber} - ${eventName.trim()}`
+        const uniqueEmails = Array.from(new Set(activeRecipients.map((r) => r.email.trim().toLowerCase())))
+
+        for (const recipientEmail of uniqueEmails) {
+          await queueMarketingEmailNotification({
+            referenceId: requestNumber,
+            category: "EVENT",
+            to: recipientEmail,
+            subject,
+            html,
+          })
+        }
+      }
+    } catch (notifErr) {
+      console.error("Non-blocking event notification error:", notifErr)
     }
 
     try {

@@ -215,23 +215,28 @@ export async function getMarketingOutboxPaginated(page: number = 1, pageSize: nu
   const access = await getAccessInfo()
   if (!canAccessMarketing(access)) return { items: [], totalCount: 0, totalPages: 1, currentPage: 1 }
 
-  const skip = Math.max(0, (page - 1) * pageSize)
-  const [items, totalCount] = await Promise.all([
-    prisma.marketingNotificationOutbox.findMany({
-      skip,
-      take: pageSize,
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.marketingNotificationOutbox.count(),
-  ])
+  try {
+    const skip = Math.max(0, (page - 1) * pageSize)
+    const [items, totalCount] = await Promise.all([
+      prisma.marketingNotificationOutbox.findMany({
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.marketingNotificationOutbox.count(),
+    ])
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
 
-  return {
-    items,
-    totalCount,
-    totalPages,
-    currentPage: page,
+    return {
+      items,
+      totalCount,
+      totalPages,
+      currentPage: page,
+    }
+  } catch (err: any) {
+    console.error("getMarketingOutboxPaginated error:", err)
+    return { items: [], totalCount: 0, totalPages: 1, currentPage: 1 }
   }
 }
 

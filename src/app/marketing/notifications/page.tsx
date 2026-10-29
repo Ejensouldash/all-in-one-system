@@ -19,17 +19,49 @@ export default async function MarketingNotificationsPage() {
     redirect("/dashboard")
   }
 
-  // Load initial recipients and paginated outbox
-  const [recipients, outboxItems, totalOutboxCount] = await Promise.all([
-    prisma.marketingNotificationRecipient.findMany({
-      orderBy: { createdAt: "asc" },
-    }),
-    prisma.marketingNotificationOutbox.findMany({
-      take: 10,
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.marketingNotificationOutbox.count(),
-  ])
+  let recipients: any[] = []
+  let outboxItems: any[] = []
+  let totalOutboxCount = 0
+
+  try {
+    const [recList, outList, count] = await Promise.all([
+      prisma.marketingNotificationRecipient.findMany({
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.marketingNotificationOutbox.findMany({
+        take: 10,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.marketingNotificationOutbox.count(),
+    ])
+
+    recipients = recList.map((r) => ({
+      id: r.id,
+      name: r.name,
+      email: r.email,
+      category: r.category,
+      isEnabled: r.isEnabled,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    }))
+
+    outboxItems = outList.map((o) => ({
+      id: o.id,
+      referenceId: o.referenceId,
+      category: o.category,
+      to: o.to,
+      subject: o.subject,
+      status: o.status,
+      error: o.error,
+      attempts: o.attempts,
+      sentAt: o.sentAt,
+      createdAt: o.createdAt,
+    }))
+
+    totalOutboxCount = count
+  } catch (err) {
+    console.error("MarketingNotificationsPage data load error:", err)
+  }
 
   const totalPages = Math.max(1, Math.ceil(totalOutboxCount / 10))
 

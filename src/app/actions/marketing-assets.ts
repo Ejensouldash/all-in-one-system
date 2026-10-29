@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
 import { getAccessInfo, canAccessMarketingAssets } from "@/lib/access"
 import { logUserAction } from "./audit"
-import { uploadMaintenanceItemPhoto } from "@/lib/maintenance-r2"
+import { uploadMarketingItemPhoto } from "@/lib/marketing-r2"
 import { lockMarketingRequisitionNumbers, loanNumberSequence } from "@/lib/marketing/requisition-numbers"
 
 // Seed default items if empty so user immediately has items to test
@@ -649,7 +649,7 @@ export async function uploadMarketingAssetPhotoAction(formData: FormData) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
-    const { url } = await uploadMaintenanceItemPhoto(buffer, file.name, file.type || "image/jpeg")
+    const { url } = await uploadMarketingItemPhoto(buffer, file.name, file.type || "image/jpeg", "assets")
 
     return { success: true, url }
   } catch (error: any) {

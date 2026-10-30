@@ -26,9 +26,12 @@ import {
   Check, 
   AlertCircle, 
   Loader2, 
-  Maximize2
+  Maximize2,
+  LayoutList
 } from "lucide-react"
 import { updateEventRequisitionStatus, AttachmentInfo } from "@/app/actions/marketing-events"
+import { TablePagination } from "@/components/ui/TablePagination"
+import { MarketingEventsCalendarView } from "./MarketingEventsCalendarView"
 
 export interface EventRequisitionItem {
   id: string
@@ -95,6 +98,13 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("ALL")
   const [searchTerm, setSearchTerm] = useState("")
 
+  // View mode: LIST or CALENDAR
+  const [viewMode, setViewMode] = useState<"LIST" | "CALENDAR">("LIST")
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+
   // Selected item for details modal
   const [selectedItem, setSelectedItem] = useState<EventRequisitionItem | null>(null)
 
@@ -141,6 +151,14 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
       return true
     })
   }, [requisitions, statusFilter, searchTerm])
+
+  const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize))
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages)
+
+  const paginatedList = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * pageSize
+    return filteredList.slice(startIndex, startIndex + pageSize)
+  }, [filteredList, safeCurrentPage, pageSize])
 
   // Handle Accept / Approve
   const handleApprove = async (item: EventRequisitionItem) => {
@@ -235,7 +253,7 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
             <span className="text-2xl sm:text-3xl font-black text-amber-900 mt-1 block">{stats.pending}</span>
           </div>
 
-          <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
+          <div onClick={() => setViewMode("CALENDAR")} className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 cursor-pointer hover:bg-emerald-100/70 hover:shadow-xs transition group" title="Click to view Approved Events on Calendar">
             <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider block flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5" /> Approved
             </span>
@@ -273,7 +291,10 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
-            onClick={() => setStatusFilter("ALL")}
+            onClick={() => {
+              setStatusFilter("ALL")
+              setCurrentPage(1)
+            }}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
               statusFilter === "ALL"
                 ? "bg-slate-900 text-white shadow-xs"
@@ -285,7 +306,10 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
 
           <button
             type="button"
-            onClick={() => setStatusFilter("PENDING")}
+            onClick={() => {
+              setStatusFilter("PENDING")
+              setCurrentPage(1)
+            }}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
               statusFilter === "PENDING"
                 ? "bg-amber-600 text-white shadow-xs"
@@ -298,7 +322,10 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
 
           <button
             type="button"
-            onClick={() => setStatusFilter("APPROVED")}
+            onClick={() => {
+              setStatusFilter("APPROVED")
+              setCurrentPage(1)
+            }}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
               statusFilter === "APPROVED"
                 ? "bg-emerald-600 text-white shadow-xs"
@@ -311,7 +338,10 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
 
           <button
             type="button"
-            onClick={() => setStatusFilter("REJECTED")}
+            onClick={() => {
+              setStatusFilter("REJECTED")
+              setCurrentPage(1)
+            }}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
               statusFilter === "REJECTED"
                 ? "bg-rose-600 text-white shadow-xs"
@@ -323,20 +353,59 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
           </button>
         </div>
 
-        {/* Search input */}
-        <div className="relative min-w-[260px]">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search event, requester, ID..."
-            className="w-full text-xs font-medium pl-9 pr-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition"
-          />
+        {/* Search & View Mode Switcher */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="relative min-w-[240px]">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value)
+                setCurrentPage(1)
+              }}
+              placeholder="Search event, requester, ID..."
+              className="w-full text-xs font-medium pl-9 pr-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition"
+            />
+          </div>
+
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0">
+            <button
+              type="button"
+              onClick={() => setViewMode("LIST")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                viewMode === "LIST"
+                  ? "bg-white text-slate-900 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <LayoutList className="w-3.5 h-3.5" />
+              <span>List</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("CALENDAR")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                viewMode === "CALENDAR"
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Calendar</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Requisitions List */}
+      {viewMode === "CALENDAR" ? (
+        <MarketingEventsCalendarView
+          events={requisitions}
+          onSelectEvent={(item) => setSelectedItem(item)}
+          onSwitchToList={() => setViewMode("LIST")}
+        />
+      ) : (
+        /* Requisitions List */
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
         {filteredList.length === 0 ? (
           <div className="p-12 text-center space-y-3">
@@ -351,8 +420,9 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
             </p>
           </div>
         ) : (
+          <>
           <div className="divide-y divide-slate-100">
-            {filteredList.map((item) => {
+            {paginatedList.map((item) => {
               const attachments = parseAttachments(item.attachments)
               const isProcessing = processingId === item.id
 
@@ -490,8 +560,24 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
               )
             })}
           </div>
+
+          <TablePagination
+            currentPage={safeCurrentPage}
+            totalItems={filteredList.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize)
+              setCurrentPage(1)
+            }}
+            pageSizeOptions={[10, 20, 50]}
+            itemName="event requisitions"
+          />
+        </>
         )}
       </div>
+
+      )}
 
       {/* DETAILS MODAL / DRAWER */}
       {selectedItem && (

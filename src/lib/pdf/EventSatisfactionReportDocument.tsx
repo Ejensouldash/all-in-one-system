@@ -392,7 +392,11 @@ export function EventSatisfactionReportDocument({ data }: { data: EventReportDat
 
   // Extract gallery photos (from requisition attachments + extra gallery uploads)
   const allImages = [...gallery, ...attachments].filter(
-    (att) => att.url && (att.type?.startsWith("image/") || /\.(png|jpe?g|webp|gif|svg)$/i.test(att.name || att.url))
+    (att) =>
+      att.url &&
+      (att.url.startsWith("data:image/") ||
+        att.type?.startsWith("image/") ||
+        /\.(png|jpe?g|webp|gif|svg)$/i.test(att.name || att.url))
   )
 
   const galleryPage1Images = allImages.slice(0, 4)

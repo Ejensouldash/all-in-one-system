@@ -3,6 +3,7 @@ import { renderToBuffer } from "@react-pdf/renderer"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { prisma } from "@/lib/prisma"
+import { getMarketingPhotoFromR2, type MarketingCategory } from "@/lib/marketing-r2"
 import {
   EventSatisfactionReportDocument,
   type EventReportData,
@@ -12,6 +13,12 @@ import {
 
 /**
  * Resolves an image path or URL into a base64 data URI for reliable @react-pdf/renderer rendering.
+ * Supports:
+ *  1. Base64 data URIs directly
+ *  2. Cloudflare R2 images from /api/public/marketing/image/[category]/[filename]
+ *  3. Direct R2 object keys (e.g. marketing/events/...)
+ *  4. Local files in /uploads/...
+ *  5. Remote HTTP/HTTPS URLs (fetched with timeout)
  */
 async function resolveImageToDataUri(urlOrPath: string): Promise<string | null> {
   if (!urlOrPath) return null
@@ -21,7 +28,40 @@ async function resolveImageToDataUri(urlOrPath: string): Promise<string | null> 
     return trimmed
   }
 
-  // Local uploads path: /uploads/...
+  // 1. Marketing public image API endpoint from Cloudflare R2
+  // Format: /api/public/marketing/image/[category]/[filename] or full URL containing it
+  if (trimmed.includes("/api/public/marketing/image/")) {
+    try {
+      const sub = trimmed.split("/api/public/marketing/image/")[1]
+      const parts = sub.split("/")
+      const category = (parts.length > 1 ? parts[0] : "events") as MarketingCategory
+      const filename = parts.length > 1 ? parts.slice(1).join("/") : parts[0]
+
+      const photo = await getMarketingPhotoFromR2(category, filename)
+      if (photo) {
+        return `data:${photo.contentType};base64,${photo.buffer.toString("base64")}`
+      }
+    } catch (err) {
+      console.warn(`[resolveImageToDataUri] Failed fetching R2 photo for ${trimmed}:`, err)
+    }
+  }
+
+  // 2. Direct R2 key: marketing/events/...
+  if (trimmed.startsWith("marketing/")) {
+    try {
+      const parts = trimmed.split("/")
+      const category = (parts[1] || "events") as MarketingCategory
+      const filename = parts.slice(2).join("/")
+      const photo = await getMarketingPhotoFromR2(category, filename)
+      if (photo) {
+        return `data:${photo.contentType};base64,${photo.buffer.toString("base64")}`
+      }
+    } catch (err) {
+      console.warn(`[resolveImageToDataUri] Failed fetching R2 key ${trimmed}:`, err)
+    }
+  }
+
+  // 3. Local uploads path: /uploads/...
   if (trimmed.startsWith("/uploads/")) {
     try {
       const localDiskPath = path.join(process.cwd(), "public", trimmed.replace(/^\//, ""))
@@ -30,14 +70,27 @@ async function resolveImageToDataUri(urlOrPath: string): Promise<string | null> 
       const mime = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg"
       return `data:${mime};base64,${fileBuf.toString("base64")}`
     } catch (err) {
+      // If local disk read fails (e.g. serverless read-only disk on Vercel), try R2 fallback with filename
+      try {
+        const fallbackFilename = path.basename(trimmed)
+        const photo = await getMarketingPhotoFromR2("events", fallbackFilename)
+        if (photo) {
+          return `data:${photo.contentType};base64,${photo.buffer.toString("base64")}`
+        }
+      } catch {
+        // ignore fallback error
+      }
       console.warn(`[resolveImageToDataUri] Failed reading local file ${trimmed}:`, err)
     }
   }
 
-  // HTTP or HTTPS URL (R2 CDN or external)
+  // 4. Remote HTTP or HTTPS URL (R2 CDN or external)
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
     try {
-      const res = await fetch(trimmed)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 6000)
+      const res = await fetch(trimmed, { signal: controller.signal })
+      clearTimeout(timeoutId)
       if (res.ok) {
         const arrayBuf = await res.arrayBuffer()
         const mime = res.headers.get("content-type") || "image/jpeg"

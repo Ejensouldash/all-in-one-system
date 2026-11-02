@@ -18,6 +18,8 @@ const nextConfig: NextConfig = {
         '*.vercel.app',
         '*.up.railway.app',
         '*.railway.app',
+        'aio.bubbleso2.com',
+        '*.bubbleso2.com',
       ],
     },
     optimizePackageImports: ['recharts', 'lucide-react', 'date-fns', 'framer-motion', 'exceljs'],

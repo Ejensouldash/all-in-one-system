@@ -121,6 +121,65 @@ function parseGallery(raw: string | null | undefined): GalleryImageItem[] {
   }
 }
 
+// Helper: Compress and resize image in browser to prevent 413 / payload size errors on Vercel
+async function compressImageForUpload(file: File, maxDim = 1600, quality = 0.82): Promise<File> {
+  if (!file.type.startsWith('image/') || file.size <= 350 * 1024) {
+    return file
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onload = () => {
+        let width = img.width
+        let height = img.height
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width)
+            width = maxDim
+          } else {
+            width = Math.round((width * maxDim) / height)
+            height = maxDim
+          }
+        }
+
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          resolve(file)
+          return
+        }
+
+        ctx.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(
+          (blob) => {
+            if (!blob || blob.size >= file.size) {
+              resolve(file)
+            } else {
+              const compressedFile = new File(
+                [blob],
+                file.name.replace(/\.[^/.]+$/, '.jpg'),
+                { type: 'image/jpeg', lastModified: Date.now() }
+              )
+              resolve(compressedFile)
+            }
+          },
+          'image/jpeg',
+          quality
+        )
+      }
+      img.onerror = () => resolve(file)
+      img.src = e.target?.result as string
+    }
+    reader.onerror = () => resolve(file)
+    reader.readAsDataURL(file)
+  })
+}
+
 export function MarketingEventsClient({ initialRequisitions }: MarketingEventsClientProps) {
   const [requisitions, setRequisitions] = useState<EventRequisitionItem[]>(initialRequisitions)
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("ALL")
@@ -157,6 +216,7 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
   const [feedbackStats, setFeedbackStats] = useState<FeedbackSummaryStats | null>(null)
   const [loadingFeedbackStats, setLoadingFeedbackStats] = useState(false)
   const [uploadingGallery, setUploadingGallery] = useState(false)
+  const [uploadProgressText, setUploadProgressText] = useState<string | null>(null)
   const [feedbackError, setFeedbackError] = useState<string | null>(null)
 
   // Statistics
@@ -317,19 +377,52 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
     }
   }
 
-  // Handle uploading extra gallery images
+  // Handle uploading extra gallery images with client-side compression and resilient API route
   const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!feedbackModalItem || !e.target.files || e.target.files.length === 0) return
+    const rawFiles = Array.from(e.target.files)
     setUploadingGallery(true)
     setFeedbackError(null)
-
-    const formData = new FormData()
-    Array.from(e.target.files).forEach(file => {
-      formData.append("images", file)
-    })
+    setUploadProgressText(`Optimizing ${rawFiles.length} photo${rawFiles.length > 1 ? "s" : ""}...`)
 
     try {
-      const res = await uploadMarketingEventGalleryImages(feedbackModalItem.id, formData)
+      // 1. Compress images in the browser to prevent 413 / payload limit errors
+      const optimizedFiles: File[] = []
+      for (let i = 0; i < rawFiles.length; i++) {
+        setUploadProgressText(`Optimizing photo ${i + 1} of ${rawFiles.length}...`)
+        const opt = await compressImageForUpload(rawFiles[i])
+        optimizedFiles.push(opt)
+      }
+
+      setUploadProgressText(`Uploading ${optimizedFiles.length} photo${optimizedFiles.length > 1 ? "s" : ""}...`)
+
+      // 2. Upload via dedicated API route
+      const formData = new FormData()
+      optimizedFiles.forEach(file => {
+        formData.append("images", file)
+      })
+
+      const response = await fetch(`/api/marketing/events/${feedbackModalItem.id}/gallery`, {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        let errMessage = "Upload failed"
+        try {
+          const errData = await response.json()
+          errMessage = errData.error || errMessage
+        } catch {
+          if (response.status === 413) {
+            errMessage = "Selected images exceed server upload limit. Please upload 1 or 2 images at a time."
+          } else {
+            errMessage = `Server returned status ${response.status}: ${response.statusText}`
+          }
+        }
+        throw new Error(errMessage)
+      }
+
+      const res = await response.json()
       if (res.success && res.gallery) {
         const updatedItem = {
           ...feedbackModalItem,
@@ -344,9 +437,11 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
         setFeedbackError(res.error || "Failed to upload gallery images")
       }
     } catch (err: any) {
+      console.error("Gallery upload error:", err)
       setFeedbackError(err.message || "Error uploading images")
     } finally {
       setUploadingGallery(false)
+      setUploadProgressText(null)
       e.target.value = ""
     }
   }
@@ -355,11 +450,34 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
   const handleDeleteGalleryImage = async (imageUrl: string) => {
     if (!feedbackModalItem) return
     try {
-      const res = await deleteMarketingEventGalleryImage(feedbackModalItem.id, imageUrl)
-      if (res.success && res.gallery) {
+      const response = await fetch(`/api/marketing/events/${feedbackModalItem.id}/gallery`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl }),
+      })
+
+      if (response.ok) {
+        const res = await response.json()
+        if (res.success && res.gallery) {
+          const updatedItem = {
+            ...feedbackModalItem,
+            galleryAttachments: JSON.stringify(res.gallery)
+          }
+          setFeedbackModalItem(updatedItem)
+          setRequisitions(prev => prev.map(r => r.id === updatedItem.id ? updatedItem : r))
+          if (selectedItem?.id === updatedItem.id) {
+            setSelectedItem(updatedItem)
+          }
+          return
+        }
+      }
+
+      // Fallback to Server Action
+      const resAction = await deleteMarketingEventGalleryImage(feedbackModalItem.id, imageUrl)
+      if (resAction.success && resAction.gallery) {
         const updatedItem = {
           ...feedbackModalItem,
-          galleryAttachments: JSON.stringify(res.gallery)
+          galleryAttachments: JSON.stringify(resAction.gallery)
         }
         setFeedbackModalItem(updatedItem)
         setRequisitions(prev => prev.map(r => r.id === updatedItem.id ? updatedItem : r))
@@ -1141,7 +1259,7 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
                       {uploadingGallery ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Uploading Photos...</span>
+                          <span>{uploadProgressText || "Uploading Photos..."}</span>
                         </>
                       ) : (
                         <>

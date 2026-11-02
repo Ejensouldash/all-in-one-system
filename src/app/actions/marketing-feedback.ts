@@ -253,24 +253,37 @@ export async function uploadMarketingEventGalleryImages(requisitionId: string, f
           uploadedAt: new Date().toISOString(),
         })
       } catch (r2Err) {
-        console.warn("Failed to upload gallery image to R2, falling back to local storage:", r2Err)
-        const uploadDir = path.join(process.cwd(), "public", "uploads", "marketing", "events", "gallery")
-        await fs.promises.mkdir(uploadDir, { recursive: true })
+        console.warn("Failed to upload gallery image to R2, trying local storage or base64 fallback:", r2Err)
+        try {
+          const uploadDir = path.join(process.cwd(), "public", "uploads", "marketing", "events", "gallery")
+          await fs.promises.mkdir(uploadDir, { recursive: true })
 
-        const ext = path.extname(file.name) || ".jpg"
-        const cleanBase = path.basename(file.name, ext).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30)
-        const uniqueName = `gal-${Date.now()}-${Math.floor(Math.random() * 1000)}-${cleanBase}${ext}`
-        const filePath = path.join(uploadDir, uniqueName)
+          const ext = path.extname(file.name) || ".jpg"
+          const cleanBase = path.basename(file.name, ext).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30)
+          const uniqueName = `gal-${Date.now()}-${Math.floor(Math.random() * 1000)}-${cleanBase}${ext}`
+          const filePath = path.join(uploadDir, uniqueName)
 
-        await fs.promises.writeFile(filePath, buffer)
+          await fs.promises.writeFile(filePath, buffer)
 
-        uploadedItems.push({
-          name: file.name,
-          url: `/uploads/marketing/events/gallery/${uniqueName}`,
-          size: file.size,
-          type: file.type || "image/jpeg",
-          uploadedAt: new Date().toISOString(),
-        })
+          uploadedItems.push({
+            name: file.name,
+            url: `/uploads/marketing/events/gallery/${uniqueName}`,
+            size: file.size,
+            type: file.type || "image/jpeg",
+            uploadedAt: new Date().toISOString(),
+          })
+        } catch (localErr) {
+          console.warn("Local storage write failed, falling back to base64 data URI:", localErr)
+          const base64 = buffer.toString("base64")
+          const mime = file.type || "image/jpeg"
+          uploadedItems.push({
+            name: file.name,
+            url: `data:${mime};base64,${base64}`,
+            size: file.size,
+            type: mime,
+            uploadedAt: new Date().toISOString(),
+          })
+        }
       }
     }
 

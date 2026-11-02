@@ -1575,6 +1575,8 @@ model MarketingEventRequisition {
   status           String   @default("PENDING") // PENDING, APPROVED, REJECTED, COMPLETED
   remarks          String?
   attachments      String?  @default("[]")
+  galleryAttachments String? @default("[]")
+  feedbacks        MarketingEventFeedback[]
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -1582,6 +1584,22 @@ model MarketingEventRequisition {
   @@index([department])
 }
 
+
+model MarketingEventFeedback {
+  id             String                    @id @default(uuid())
+  requisitionId  String
+  requisition    MarketingEventRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  respondentName String
+  likedMost      String                    @db.Text
+  likedLeast     String                    @db.Text
+  satisfaction   String                    // EXTREMELY_SATISFIED, VERY_SATISFIED, SOMEWHAT_SATISFIED, NOT_SO_SATISFIED, NOT_AT_ALL_SATISFIED
+  wellOrganized  Boolean                   // true (Yes), false (No)
+  comments       String                    @db.Text
+  createdAt      DateTime                  @default(now())
+
+  @@index([requisitionId])
+  @@index([createdAt])
+}
 
 model MarketingNotificationRecipient {
   id          String   @id @default(uuid())

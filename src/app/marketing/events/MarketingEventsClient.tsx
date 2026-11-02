@@ -27,6 +27,7 @@ import {
   AlertCircle, 
   Loader2, 
   Maximize2,
+  LayoutList,
   QrCode,
   FileDown,
   BarChart3,
@@ -38,6 +39,8 @@ import {
   CheckCheck
 } from "lucide-react"
 import { updateEventRequisitionStatus, AttachmentInfo } from "@/app/actions/marketing-events"
+import { TablePagination } from "@/components/ui/TablePagination"
+import { MarketingEventsCalendarView } from "./MarketingEventsCalendarView"
 import { 
   getMarketingEventFeedbackSummary, 
   uploadMarketingEventGalleryImages, 
@@ -123,6 +126,13 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("ALL")
   const [searchTerm, setSearchTerm] = useState("")
 
+  // View mode: LIST or CALENDAR
+  const [viewMode, setViewMode] = useState<"LIST" | "CALENDAR">("LIST")
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+
   // Selected item for details modal
   const [selectedItem, setSelectedItem] = useState<EventRequisitionItem | null>(null)
 
@@ -181,6 +191,14 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
       return true
     })
   }, [requisitions, statusFilter, searchTerm])
+
+  const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize))
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages)
+
+  const paginatedList = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * pageSize
+    return filteredList.slice(startIndex, startIndex + pageSize)
+  }, [filteredList, safeCurrentPage, pageSize])
 
   // Base URL for QR generation
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://aio.bubbleso2.com"
@@ -371,6 +389,34 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
               Review and manage event collaboration requisitions, deploy QR satisfaction surveys upon approval, and generate executive illustrated PDF reports.
             </p>
           </div>
+
+          {/* View Mode Toggle (List / Calendar) */}
+          <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/80 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setViewMode("LIST")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                viewMode === "LIST"
+                  ? "bg-white text-slate-900 shadow-xs font-black"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <LayoutList className="w-3.5 h-3.5 text-teal-600" />
+              <span>List</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("CALENDAR")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                viewMode === "CALENDAR"
+                  ? "bg-teal-600 text-white shadow-xs font-black"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Calendar</span>
+            </button>
+          </div>
         </div>
 
         {/* Quick Stats Grid */}
@@ -385,8 +431,14 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
             <span className="text-2xl sm:text-3xl font-black text-amber-800 mt-1 block">{stats.pending}</span>
           </div>
 
-          <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200">
-            <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider block">Approved Events</span>
+          <div
+            onClick={() => setViewMode("CALENDAR")}
+            className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 cursor-pointer hover:bg-emerald-100/70 hover:shadow-xs transition group"
+            title="Click to view Approved Events on Calendar"
+          >
+            <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider block flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5" /> Approved Events
+            </span>
             <span className="text-2xl sm:text-3xl font-black text-emerald-800 mt-1 block">{stats.approved}</span>
           </div>
 
@@ -410,281 +462,322 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
         </div>
       )}
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 border border-slate-200/80 overflow-x-auto text-xs font-bold">
-          <button
-            type="button"
-            onClick={() => setStatusFilter("ALL")}
-            className={`px-3.5 py-1.5 rounded-xl transition cursor-pointer ${
-              statusFilter === "ALL"
-                ? "bg-white text-slate-900 shadow-2xs font-black"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            All ({stats.total})
-          </button>
+      {/* Main View: Calendar or List */}
+      {viewMode === "CALENDAR" ? (
+        <MarketingEventsCalendarView
+          events={requisitions}
+          onSelectEvent={(item) => setSelectedItem(item)}
+          onSwitchToList={() => setViewMode("LIST")}
+        />
+      ) : (
+        <>
+          {/* Filter and Search Bar */}
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            {/* Status Filter Tabs */}
+            <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 border border-slate-200/80 overflow-x-auto text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter("ALL")
+                  setCurrentPage(1)
+                }}
+                className={`px-3.5 py-1.5 rounded-xl transition cursor-pointer ${
+                  statusFilter === "ALL"
+                    ? "bg-white text-slate-900 shadow-2xs font-black"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                All ({stats.total})
+              </button>
 
-          <button
-            type="button"
-            onClick={() => setStatusFilter("PENDING")}
-            className={`px-3.5 py-1.5 rounded-xl transition flex items-center gap-1 cursor-pointer ${
-              statusFilter === "PENDING"
-                ? "bg-amber-100 text-amber-900 shadow-2xs font-black"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <Clock className="w-3.5 h-3.5 text-amber-600" />
-            Pending ({stats.pending})
-          </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter("PENDING")
+                  setCurrentPage(1)
+                }}
+                className={`px-3.5 py-1.5 rounded-xl transition flex items-center gap-1 cursor-pointer ${
+                  statusFilter === "PENDING"
+                    ? "bg-amber-100 text-amber-900 shadow-2xs font-black"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                Pending ({stats.pending})
+              </button>
 
-          <button
-            type="button"
-            onClick={() => setStatusFilter("APPROVED")}
-            className={`px-3.5 py-1.5 rounded-xl transition flex items-center gap-1 cursor-pointer ${
-              statusFilter === "APPROVED"
-                ? "bg-emerald-100 text-emerald-900 shadow-2xs font-black"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-            Approved ({stats.approved})
-          </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter("APPROVED")
+                  setCurrentPage(1)
+                }}
+                className={`px-3.5 py-1.5 rounded-xl transition flex items-center gap-1 cursor-pointer ${
+                  statusFilter === "APPROVED"
+                    ? "bg-emerald-100 text-emerald-900 shadow-2xs font-black"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                Approved ({stats.approved})
+              </button>
 
-          <button
-            type="button"
-            onClick={() => setStatusFilter("REJECTED")}
-            className={`px-3.5 py-1.5 rounded-xl transition flex items-center gap-1 cursor-pointer ${
-              statusFilter === "REJECTED"
-                ? "bg-rose-100 text-rose-900 shadow-2xs font-black"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <XCircle className="w-3.5 h-3.5 text-rose-600" />
-            Rejected ({stats.rejected})
-          </button>
-        </div>
-
-        {/* Search input */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search event, requester, ID..."
-            className="w-full pl-9 pr-4 py-2 rounded-2xl bg-white border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition"
-          />
-          {searchTerm && (
-            <button
-              type="button"
-              onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Requisitions List Container */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        {filteredList.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
-              <Calendar className="w-6 h-6" />
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter("REJECTED")
+                  setCurrentPage(1)
+                }}
+                className={`px-3.5 py-1.5 rounded-xl transition flex items-center gap-1 cursor-pointer ${
+                  statusFilter === "REJECTED"
+                    ? "bg-rose-100 text-rose-900 shadow-2xs font-black"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                Rejected ({stats.rejected})
+              </button>
             </div>
-            <h3 className="text-sm font-bold text-slate-800">No event requisitions found</h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-              {searchTerm || statusFilter !== "ALL"
-                ? "Try adjusting your filters or search terms."
-                : "No event collaboration requisitions have been submitted yet from the QR portal."}
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-100">
-            {filteredList.map((item) => {
-              const attachments = parseAttachments(item.attachments)
-              const isProcessing = processingId === item.id
 
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => setSelectedItem(item)}
-                  className="p-5 sm:p-6 hover:bg-slate-50/80 transition-all cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-5 group"
+            {/* Search input */}
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value)
+                  setCurrentPage(1)
+                }}
+                placeholder="Search event, requester, ID..."
+                className="w-full pl-9 pr-4 py-2 rounded-2xl bg-white border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm("")
+                    setCurrentPage(1)
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 >
-                  {/* Left Info Column */}
-                  <div className="space-y-2 min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">
-                        {item.requestNumber}
-                      </span>
-
-                      {/* Status Badge */}
-                      {item.status === "PENDING" && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-bold">
-                          <Clock className="w-3 h-3" />
-                          Pending Review
-                        </span>
-                      )}
-                      {item.status === "APPROVED" && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Approved
-                        </span>
-                      )}
-                      {item.status === "REJECTED" && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-bold">
-                          <XCircle className="w-3 h-3" />
-                          Rejected
-                        </span>
-                      )}
-
-                      <span className="text-[11px] text-slate-400">
-                        Submitted {formatDateDisplay(item.createdAt)}
-                      </span>
-                    </div>
-
-                    <h2 className="text-base sm:text-lg font-black text-slate-900 group-hover:text-teal-700 transition-colors">
-                      {item.eventName}
-                    </h2>
-
-                    {/* Metadata chips */}
-                    <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs text-slate-600">
-                      <span className="flex items-center gap-1.5 font-medium">
-                        <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                        <span className="font-bold text-slate-700">{item.department}</span>
-                        <span className="text-slate-400">({item.name})</span>
-                      </span>
-
-                      <span className="flex items-center gap-1.5 font-medium">
-                        <Calendar className="w-3.5 h-3.5 text-teal-600" />
-                        <span>
-                          {formatDateDisplay(item.eventDateFrom)} &rarr; {formatDateDisplay(item.eventDateTo)}
-                        </span>
-                      </span>
-
-                      <span className="text-slate-400 font-medium">
-                        Org: <span className="text-slate-700">{item.organizer}</span>
-                      </span>
-                    </div>
-
-                    {/* Requirements and Attachments tags */}
-                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                      {item.requirements.split(",").map((reqStr) => {
-                        const trimmed = reqStr.trim()
-                        return (
-                          <span
-                            key={trimmed}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 border border-teal-100 text-teal-800 text-[10px] font-bold"
-                          >
-                            <Tag className="w-2.5 h-2.5" />
-                            {trimmed}
-                          </span>
-                        )
-                      })}
-
-                      {attachments.length > 0 && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-bold">
-                          <Paperclip className="w-2.5 h-2.5 text-slate-500" />
-                          {attachments.length} {attachments.length === 1 ? "file" : "files"}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Right Actions Column */}
-                  <div className="flex flex-wrap items-center gap-2 self-start md:self-center shrink-0">
-                    {/* Action buttons for PENDING */}
-                    {item.status === "PENDING" && (
-                      <>
-                        <button
-                          type="button"
-                          disabled={isProcessing}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleApprove(item)
-                          }}
-                          className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider transition shadow-sm hover:shadow-emerald-500/20 flex items-center gap-1.5 cursor-pointer"
-                          title="Accept & Approve Requisition"
-                        >
-                          {isProcessing ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Check className="w-3.5 h-3.5 stroke-[3]" />
-                          )}
-                          <span>Accept</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          disabled={isProcessing}
-                          onClick={(e) => handleOpenReject(item, e)}
-                          className="px-3.5 py-2 rounded-xl bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-300 text-rose-700 font-bold text-xs uppercase tracking-wider transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
-                          title="Reject Requisition"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                          <span>Reject</span>
-                        </button>
-                      </>
-                    )}
-
-                    {/* Action buttons for APPROVED (Matching User Request & Red Box) */}
-                    {item.status === "APPROVED" && (
-                      <div className="flex items-center gap-1.5">
-                        {/* 1. Public QR & Form Link Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => handleOpenQrModal(item, e)}
-                          className="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-900 font-bold text-xs uppercase tracking-wider transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
-                          title="View Public Form QR Code & Link"
-                        >
-                          <QrCode className="w-3.5 h-3.5 text-teal-600" />
-                          <span className="hidden sm:inline">QR Code</span>
-                        </button>
-
-                        {/* 2. Feedback & Gallery Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => handleOpenFeedbackModal(item, e)}
-                          className="px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 font-bold text-xs uppercase tracking-wider transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
-                          title="Live Feedback & Photo Gallery"
-                        >
-                          <BarChart3 className="w-3.5 h-3.5 text-teal-700" />
-                          <span className="hidden sm:inline">Feedback</span>
-                        </button>
-
-                        {/* 3. Generate 10-Page Illustrated PDF Report */}
-                        <a
-                          href={`/api/marketing/events/${item.id}/report/pdf`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
-                          title="Download 10-Page Executive PDF Report"
-                        >
-                          <FileDown className="w-3.5 h-3.5 text-teal-300" />
-                          <span>Report</span>
-                        </a>
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => setSelectedItem(item)}
-                      className="p-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition"
-                      title="View Details"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Requisitions List Container */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            {paginatedList.length === 0 ? (
+              <div className="p-12 text-center">
+                <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
+                  <Calendar className="w-6 h-6" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-800">No event requisitions found</h3>
+                <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                  {searchTerm || statusFilter !== "ALL"
+                    ? "Try adjusting your filters or search terms."
+                    : "No event collaboration requisitions have been submitted yet from the QR portal."}
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {paginatedList.map((item) => {
+                  const attachments = parseAttachments(item.attachments)
+                  const isProcessing = processingId === item.id
+
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => setSelectedItem(item)}
+                      className="p-5 sm:p-6 hover:bg-slate-50/80 transition-all cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-5 group"
+                    >
+                      {/* Left Info Column */}
+                      <div className="space-y-2 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">
+                            {item.requestNumber}
+                          </span>
+
+                          {/* Status Badge */}
+                          {item.status === "PENDING" && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-bold">
+                              <Clock className="w-3.5 h-3.5" />
+                              Pending Review
+                            </span>
+                          )}
+                          {item.status === "APPROVED" && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Approved
+                            </span>
+                          )}
+                          {item.status === "REJECTED" && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-bold">
+                              <XCircle className="w-3.5 h-3.5" />
+                              Rejected
+                            </span>
+                          )}
+
+                          <span className="text-[11px] text-slate-400">
+                            Submitted {formatDateDisplay(item.createdAt)}
+                          </span>
+                        </div>
+
+                        <h2 className="text-base sm:text-lg font-black text-slate-900 group-hover:text-teal-700 transition-colors">
+                          {item.eventName}
+                        </h2>
+
+                        {/* Metadata chips */}
+                        <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs text-slate-600">
+                          <span className="flex items-center gap-1.5 font-medium">
+                            <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="font-bold text-slate-700">{item.department}</span>
+                            <span className="text-slate-400">({item.name})</span>
+                          </span>
+
+                          <span className="flex items-center gap-1.5 font-medium">
+                            <Calendar className="w-3.5 h-3.5 text-teal-600" />
+                            <span>
+                              {formatDateDisplay(item.eventDateFrom)} &rarr; {formatDateDisplay(item.eventDateTo)}
+                            </span>
+                          </span>
+
+                          <span className="text-slate-400 font-medium">
+                            Org: <span className="text-slate-700">{item.organizer}</span>
+                          </span>
+                        </div>
+
+                        {/* Requirements and Attachments tags */}
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          {item.requirements.split(",").map((reqStr) => {
+                            const trimmed = reqStr.trim()
+                            return (
+                              <span
+                                key={trimmed}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 border border-teal-100 text-teal-800 text-[10px] font-bold"
+                              >
+                                <Tag className="w-2.5 h-2.5" />
+                                {trimmed}
+                              </span>
+                            )
+                          })}
+
+                          {attachments.length > 0 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-bold">
+                              <Paperclip className="w-2.5 h-2.5 text-slate-500" />
+                              {attachments.length} {attachments.length === 1 ? "file" : "files"}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Right Actions Column */}
+                      <div className="flex flex-wrap items-center gap-2 self-start md:self-center shrink-0">
+                        {/* Action buttons for PENDING */}
+                        {item.status === "PENDING" && (
+                          <>
+                            <button
+                              type="button"
+                              disabled={isProcessing}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleApprove(item)
+                              }}
+                              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider transition shadow-sm hover:shadow-emerald-500/20 flex items-center gap-1.5 cursor-pointer"
+                              title="Accept & Approve Requisition"
+                            >
+                              {isProcessing ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Check className="w-3.5 h-3.5 stroke-[3]" />
+                              )}
+                              <span>Accept</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={isProcessing}
+                              onClick={(e) => handleOpenReject(item, e)}
+                              className="px-3.5 py-2 rounded-xl bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-300 text-rose-700 font-bold text-xs uppercase tracking-wider transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                              title="Reject Requisition"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              <span>Reject</span>
+                            </button>
+                          </>
+                        )}
+
+                        {/* Action buttons for APPROVED (Matching User Request & Red Box) */}
+                        {item.status === "APPROVED" && (
+                          <div className="flex items-center gap-1.5">
+                            {/* 1. Public QR & Form Link Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenQrModal(item, e)}
+                              className="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-900 font-bold text-xs uppercase tracking-wider transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                              title="View Public Form QR Code & Link"
+                            >
+                              <QrCode className="w-3.5 h-3.5 text-teal-600" />
+                              <span className="hidden sm:inline">QR Code</span>
+                            </button>
+
+                            {/* 2. Feedback & Gallery Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenFeedbackModal(item, e)}
+                              className="px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 font-bold text-xs uppercase tracking-wider transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                              title="Live Feedback & Photo Gallery"
+                            >
+                              <BarChart3 className="w-3.5 h-3.5 text-teal-700" />
+                              <span className="hidden sm:inline">Feedback</span>
+                            </button>
+
+                            {/* 3. Generate 10-Page Illustrated PDF Report */}
+                            <a
+                              href={`/api/marketing/events/${item.id}/report/pdf`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                              title="Download 10-Page Executive PDF Report"
+                            >
+                              <FileDown className="w-3.5 h-3.5 text-teal-300" />
+                              <span>Report</span>
+                            </a>
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => setSelectedItem(item)}
+                          className="p-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition"
+                          title="View Details"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Table Pagination Component */}
+            <TablePagination
+              currentPage={safeCurrentPage}
+              totalItems={filteredList.length}
+              pageSize={pageSize}
+              onPageChange={(page) => setCurrentPage(page)}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize)
+                setCurrentPage(1)
+              }}
+            />
+          </div>
+        </>
+      )}
 
       {/* ========================================================================= */}
       {/* 1. QR CODE & PUBLIC LINK MODAL                                            */}

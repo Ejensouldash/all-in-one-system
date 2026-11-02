@@ -139,6 +139,7 @@ export const MARKETING_MODULES = [
   "MARKETING_FORMS",
   "MARKETING_ASSETS",
   "MARKETING_INVENTORY",
+  "MARKETING_EVENTS",
 ]
 
 export function canAccessMarketing(access: AccessInfo | null): boolean {
@@ -159,6 +160,11 @@ export function canAccessMarketingAssets(access: AccessInfo | null): boolean {
 export function canAccessMarketingInventory(access: AccessInfo | null): boolean {
   if (!access) return false
   return access.isSuperAdmin || access.modules.includes("MARKETING_INVENTORY")
+}
+
+export function canAccessMarketingEvents(access: AccessInfo | null): boolean {
+  if (!access) return false
+  return access.isSuperAdmin || access.modules.includes("MARKETING_EVENTS")
 }
 
 export const CHATBOT_PRODUCTION_MODULE = "CHATBOT_PRODUCTION" 

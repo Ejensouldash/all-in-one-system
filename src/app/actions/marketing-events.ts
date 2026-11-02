@@ -2,9 +2,10 @@
 
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { getAccessInfo, canAccessMarketing } from "@/lib/access"
+import { getAccessInfo, canAccessMarketingEvents } from "@/lib/access"
 import { logUserAction } from "./audit"
 import { uploadMarketingPhotoToR2 } from "@/lib/marketing-r2"
+import { queueMarketingEmailNotification, generateMarketingEventRequisitionAdminEmail } from "@/lib/marketing/marketing-outbox"
 import fs from "fs"
 import path from "path"
 
@@ -215,6 +216,50 @@ export async function submitEventRequisition(payload: FormData | MarketingEventP
       console.warn("Database table may not be migrated yet on remote DB, proceeding with local requestNumber:", errMsg)
     }
 
+    // Trigger Marketing Event Notification
+    try {
+      const activeRecipients = await prisma.marketingNotificationRecipient.findMany({
+        where: {
+          isEnabled: true,
+          category: { in: ["ALL", "EVENT"] },
+        },
+      })
+
+      if (activeRecipients.length > 0) {
+        const html = generateMarketingEventRequisitionAdminEmail({
+          requestNumber,
+          requesterName: name.trim(),
+          staffId: staffId.trim(),
+          email: email.trim(),
+          department: department.trim(),
+          eventName: eventName.trim(),
+          eventType: eventType.trim(),
+          organizer: organizer.trim(),
+          eventDateFrom: eventDateFrom || null,
+          eventDateTo: eventDateTo || null,
+          picContactName: picContactName.trim(),
+          picContactNumber: picContactNumber.trim(),
+          tentative: tentative.trim(),
+          requirements: requirements.trim(),
+        })
+
+        const subject = `[Marketing Alert] New Event Requisition: ${requestNumber} - ${eventName.trim()}`
+        const uniqueEmails = Array.from(new Set(activeRecipients.map((r) => r.email.trim().toLowerCase())))
+
+        for (const recipientEmail of uniqueEmails) {
+          await queueMarketingEmailNotification({
+            referenceId: requestNumber,
+            category: "EVENT",
+            to: recipientEmail,
+            subject,
+            html,
+          })
+        }
+      }
+    } catch (notifErr) {
+      console.error("Non-blocking event notification error:", notifErr)
+    }
+
     try {
       revalidatePath("/marketing/events")
       revalidatePath("/marketing/forms")
@@ -265,7 +310,7 @@ export async function updateEventRequisitionStatus(
 ) {
   try {
     const access = await getAccessInfo()
-    if (!canAccessMarketing(access)) {
+    if (!canAccessMarketingEvents(access)) {
       return { success: false, error: "Unauthorized access to marketing management." }
     }
 
@@ -289,6 +334,67 @@ export async function updateEventRequisitionStatus(
 
     revalidatePath("/marketing/events")
     revalidatePath("/marketing/forms")
+
+    // Sync approved event with system calendar table (and clean up if rejected)
+    if (status === "APPROVED" && access?.userId) {
+      try {
+        const start = updated.eventDateFrom ? new Date(updated.eventDateFrom) : new Date()
+        const end = updated.eventDateTo ? new Date(updated.eventDateTo) : start
+
+        const eventDescription = [
+          `Requisition: ${updated.requestNumber}`,
+          `Department: ${updated.department}`,
+          `Organizer: ${updated.organizer}`,
+          `PIC: ${updated.picContactName} (${updated.picContactNumber})`,
+          `Requirements: ${updated.requirements}`,
+          updated.tentative ? `Tentative: ${updated.tentative}` : null,
+          remarks ? `Approval Remarks: ${remarks}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n")
+
+        const existingEvent = await prisma.event.findFirst({
+          where: { description: { contains: updated.requestNumber } },
+        })
+
+        if (existingEvent) {
+          await prisma.event.update({
+            where: { id: existingEvent.id },
+            data: {
+              title: `[Marketing] ${updated.eventName}`,
+              description: eventDescription,
+              startDateTime: start,
+              endDateTime: end,
+            },
+          })
+        } else {
+          await prisma.event.create({
+            data: {
+              title: `[Marketing] ${updated.eventName}`,
+              description: eventDescription,
+              startDateTime: start,
+              endDateTime: end,
+              createdById: access.userId,
+            },
+          })
+        }
+        revalidatePath("/calendar")
+      } catch (calErr) {
+        console.warn("Could not sync approved event with system calendar:", calErr)
+      }
+    } else if (status === "REJECTED") {
+      try {
+        const existingEvent = await prisma.event.findFirst({
+          where: { description: { contains: updated.requestNumber } },
+        })
+        if (existingEvent) {
+          await prisma.event.delete({ where: { id: existingEvent.id } })
+          revalidatePath("/calendar")
+        }
+      } catch (calErr) {
+        console.warn("Could not remove rejected event from system calendar:", calErr)
+      }
+    }
 
     return { success: true, data: updated }
   } catch (error: unknown) {

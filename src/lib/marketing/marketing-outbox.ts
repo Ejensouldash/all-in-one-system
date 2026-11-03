@@ -6,7 +6,7 @@ import { formatMalaysiaDateTime } from "@/lib/dateTime"
 
 export interface MarketingOutboxPayload {
   referenceId?: string | null
-  category: "ALL" | "ASSET" | "MERCHANDISE" | "EVENT" | string
+  category: "ALL" | "ASSET" | "MERCHANDISE" | "EVENT" | "VIDEO" | "DESIGN" | "CREATIVE" | string
   to: string
   subject: string
   html: string

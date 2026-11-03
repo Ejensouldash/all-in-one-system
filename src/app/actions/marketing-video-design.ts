@@ -247,6 +247,7 @@ export async function submitVideoDesignRequisition(formData: FormData) {
           OR: [
             { category: null },
             { category: "ALL" },
+            { category: type.toUpperCase() === "VIDEO" ? "VIDEO" : "DESIGN" },
             { category: "CREATIVE" },
             { category: "VIDEO_DESIGN" },
           ],
@@ -271,7 +272,7 @@ export async function submitVideoDesignRequisition(formData: FormData) {
 
         await queueMarketingEmailNotification({
           referenceId: requestNumber,
-          category: "CREATIVE",
+          category: type.toUpperCase() === "VIDEO" ? "VIDEO" : "DESIGN",
           to: recipient.email,
           subject: `[Marketing] New ${type} Requisition: ${requestNumber} (${name} - ${department})`,
           html,

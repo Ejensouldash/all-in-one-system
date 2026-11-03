@@ -2330,6 +2330,23 @@ model MaintenanceWQTR {
   updatedAt          DateTime @updatedAt
 }
 
+// SGMP/06/SEF - Sensory Evaluation Form (Quality Control)
+model MaintenanceSEF {
+  id                 String    @id @default(uuid())
+  date               DateTime
+  batches            Json      // Array of batch records and sample evaluations
+  remarks            String?
+  checkedBy          String
+  performedSignature String?
+  verifiedBy         String?
+  verifiedSignature  String?
+  verifiedAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([date])
+}
+
 model MaintenancePestControlSchedule {
   id                 String   @id @default(uuid())
   date               DateTime // Date of Service

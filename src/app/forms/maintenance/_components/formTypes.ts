@@ -38,6 +38,7 @@ export const MAINTENANCE_FORM_TYPES = [
   "well-flowrate",
   "uv-machine-3-in-1",
   "wqtr",
+  "sef",
 ] as const
 
 export type MaintenanceFormType = (typeof MAINTENANCE_FORM_TYPES)[number]

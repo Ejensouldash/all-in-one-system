@@ -28,6 +28,7 @@ export interface EventReportData {
   requesterName: string
   staffId: string
   email: string
+  phone?: string | null
   picContactName: string
   picContactNumber: string
   eventDateFrom: string | null

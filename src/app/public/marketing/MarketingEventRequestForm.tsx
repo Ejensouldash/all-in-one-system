@@ -20,7 +20,8 @@ import {
   X, 
   FileText, 
   ImageIcon, 
-  FileSpreadsheet
+  FileSpreadsheet,
+  Phone
 } from "lucide-react"
 import { submitEventRequisition } from "@/app/actions/marketing-events"
 
@@ -125,6 +126,7 @@ export function MarketingEventRequestForm({ onBack }: MarketingEventRequestFormP
   const [name, setName] = useState("")
   const [staffId, setStaffId] = useState("")
   const [email, setEmail] = useState("")
+  const [phone, setPhone] = useState("")
   const [department, setDepartment] = useState("")
 
   // Event details
@@ -152,6 +154,7 @@ export function MarketingEventRequestForm({ onBack }: MarketingEventRequestFormP
   const [successData, setSuccessData] = useState<{
     requestNumber: string
     requesterName: string
+    requesterPhone?: string
     eventName: string
     eventDateFrom: string
     eventDateTo: string
@@ -328,6 +331,7 @@ export function MarketingEventRequestForm({ onBack }: MarketingEventRequestFormP
     if (!name.trim()) return setErrorMsg("Please provide your full name.")
     if (!staffId.trim()) return setErrorMsg("Please provide your Staff ID.")
     if (!email.trim()) return setErrorMsg("Please provide your official email address.")
+    if (!phone.trim()) return setErrorMsg("Please provide your contact phone number.")
     if (!department) return setErrorMsg("Please select your department.")
     if (!eventName.trim()) return setErrorMsg("Please enter the event name.")
     
@@ -362,6 +366,7 @@ export function MarketingEventRequestForm({ onBack }: MarketingEventRequestFormP
       formData.append("name", name.trim())
       formData.append("staffId", staffId.trim())
       formData.append("email", email.trim())
+      formData.append("phone", phone.trim())
       formData.append("department", department)
       formData.append("eventName", eventName.trim())
       formData.append("eventType", finalEventType)
@@ -384,6 +389,7 @@ export function MarketingEventRequestForm({ onBack }: MarketingEventRequestFormP
         setSuccessData({
           requestNumber: res.requestNumber,
           requesterName: res.requesterName,
+          requesterPhone: res.requesterPhone || phone,
           eventName: res.eventName,
           eventDateFrom: res.eventDateFrom || eventDateFrom,
           eventDateTo: res.eventDateTo || eventDateTo,
@@ -396,6 +402,7 @@ export function MarketingEventRequestForm({ onBack }: MarketingEventRequestFormP
         setName("")
         setStaffId("")
         setEmail("")
+        setPhone("")
         setDepartment("")
         setEventName("")
         setEventType("")
@@ -473,6 +480,12 @@ export function MarketingEventRequestForm({ onBack }: MarketingEventRequestFormP
               <span className="text-slate-500 font-medium">Requester:</span>
               <span className="font-bold text-slate-900">{successData.requesterName}</span>
             </div>
+            {successData.requesterPhone && (
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-500 font-medium">Contact:</span>
+                <span className="font-bold text-slate-900">{successData.requesterPhone}</span>
+              </div>
+            )}
             <div className="flex justify-between py-1 border-b border-slate-100">
               <span className="text-slate-500 font-medium">Requirements:</span>
               <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">
@@ -624,8 +637,26 @@ export function MarketingEventRequestForm({ onBack }: MarketingEventRequestFormP
                 </div>
               </div>
 
-              {/* Department */}
+              {/* Phone Number */}
               <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Phone Number <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <input
+                    type="tel"
+                    required
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="e.g. 012-3456789"
+                    className="w-full text-xs font-medium pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition"
+                  />
+                </div>
+              </div>
+
+              {/* Department */}
+              <div className="sm:col-span-2">
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Department <span className="text-rose-500">*</span>
                 </label>

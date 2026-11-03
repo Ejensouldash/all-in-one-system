@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { getAccessInfo, canAccessMarketingEvents } from "@/lib/access"
+import { getAccessInfo, canAccessMarketingEvents, canEditMarketingEvents } from "@/lib/access"
 import { logUserAction } from "./audit"
 import { uploadMarketingPhotoToR2 } from "@/lib/marketing-r2"
 import { queueMarketingEmailNotification, generateMarketingEventRequisitionAdminEmail } from "@/lib/marketing/marketing-outbox"
@@ -22,6 +22,7 @@ export interface MarketingEventPayload {
   name: string
   staffId: string
   email: string
+  phone?: string
   department: string
   eventName: string
   eventType: string
@@ -102,6 +103,7 @@ export async function submitEventRequisition(payload: FormData | MarketingEventP
     let name = ""
     let staffId = ""
     let email = ""
+    let phone = ""
     let department = ""
     let eventName = ""
     let eventType = ""
@@ -118,6 +120,7 @@ export async function submitEventRequisition(payload: FormData | MarketingEventP
       name = (payload.get("name") as string) || ""
       staffId = (payload.get("staffId") as string) || ""
       email = (payload.get("email") as string) || ""
+      phone = (payload.get("phone") as string) || ""
       department = (payload.get("department") as string) || ""
       eventName = (payload.get("eventName") as string) || ""
       eventType = (payload.get("eventType") as string) || ""
@@ -154,6 +157,7 @@ export async function submitEventRequisition(payload: FormData | MarketingEventP
       name = payload.name || ""
       staffId = payload.staffId || ""
       email = payload.email || ""
+      phone = payload.phone || ""
       department = payload.department || ""
       eventName = payload.eventName || ""
       eventType = payload.eventType || ""
@@ -170,6 +174,7 @@ export async function submitEventRequisition(payload: FormData | MarketingEventP
     if (!name?.trim()) return { success: false, error: "Requester name is required." }
     if (!staffId?.trim()) return { success: false, error: "Staff ID is required." }
     if (!email?.trim()) return { success: false, error: "Email address is required." }
+    if (!phone?.trim()) return { success: false, error: "Requester phone number is required." }
     if (!department?.trim()) return { success: false, error: "Department is required." }
     if (!eventName?.trim()) return { success: false, error: "Event name is required." }
     if (!eventType?.trim()) return { success: false, error: "Event type is required." }
@@ -196,6 +201,7 @@ export async function submitEventRequisition(payload: FormData | MarketingEventP
           name: name.trim(),
           staffId: staffId.trim(),
           email: email.trim().toLowerCase(),
+          phone: phone.trim(),
           department: department.trim(),
           eventName: eventName.trim(),
           eventType: eventType.trim(),
@@ -229,6 +235,7 @@ export async function submitEventRequisition(payload: FormData | MarketingEventP
         const html = generateMarketingEventRequisitionAdminEmail({
           requestNumber,
           requesterName: name.trim(),
+          requesterPhone: phone.trim(),
           staffId: staffId.trim(),
           email: email.trim(),
           department: department.trim(),
@@ -273,6 +280,7 @@ export async function submitEventRequisition(payload: FormData | MarketingEventP
       requestNumber,
       id: createdId,
       requesterName: name.trim(),
+      requesterPhone: phone.trim(),
       eventName: eventName.trim(),
       eventDateFrom: eventDateFrom || "",
       eventDateTo: eventDateTo || "",
@@ -400,6 +408,140 @@ export async function updateEventRequisitionStatus(
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : "Failed to update event requisition status."
     console.error("Failed to update event requisition status:", errMsg)
+    return { success: false, error: errMsg }
+  }
+}
+
+export interface UpdateMarketingEventPayload {
+  eventName: string
+  eventType: string
+  organizer: string
+  eventDateFrom?: string | null
+  eventDateTo?: string | null
+  picContactName: string
+  picContactNumber: string
+  tentative: string
+  requirements: string
+  name: string
+  staffId: string
+  email: string
+  phone: string
+  department: string
+  remarks?: string | null
+}
+
+// Update Event Requisition Details (Admin / Permitted User)
+export async function updateMarketingEventRequisition(
+  id: string,
+  payload: UpdateMarketingEventPayload
+) {
+  try {
+    const access = await getAccessInfo()
+    if (!canEditMarketingEvents(access)) {
+      return { success: false, error: "Unauthorized: You do not have permission to edit marketing event requisitions." }
+    }
+
+    if (!payload.eventName?.trim()) return { success: false, error: "Event name is required." }
+    if (!payload.eventType?.trim()) return { success: false, error: "Event type is required." }
+    if (!payload.organizer?.trim()) return { success: false, error: "Organizer is required." }
+    if (!payload.picContactName?.trim()) return { success: false, error: "PIC contact name is required." }
+    if (!payload.picContactNumber?.trim()) return { success: false, error: "PIC contact number is required." }
+    if (!payload.tentative?.trim()) return { success: false, error: "Tentative schedule is required." }
+    if (!payload.requirements?.trim()) return { success: false, error: "Requirements are required." }
+    if (!payload.name?.trim()) return { success: false, error: "Requester name is required." }
+    if (!payload.staffId?.trim()) return { success: false, error: "Requester staff ID is required." }
+    if (!payload.email?.trim()) return { success: false, error: "Requester email is required." }
+    if (!payload.phone?.trim()) return { success: false, error: "Requester phone number is required." }
+    if (!payload.department?.trim()) return { success: false, error: "Department is required." }
+
+    const updated = await prisma.marketingEventRequisition.update({
+      where: { id },
+      data: {
+        eventName: payload.eventName.trim(),
+        eventType: payload.eventType.trim(),
+        organizer: payload.organizer.trim(),
+        eventDateFrom: payload.eventDateFrom ? new Date(payload.eventDateFrom) : null,
+        eventDateTo: payload.eventDateTo ? new Date(payload.eventDateTo) : null,
+        picContactName: payload.picContactName.trim(),
+        picContactNumber: payload.picContactNumber.trim(),
+        tentative: payload.tentative.trim(),
+        requirements: payload.requirements.trim(),
+        name: payload.name.trim(),
+        staffId: payload.staffId.trim(),
+        email: payload.email.trim().toLowerCase(),
+        phone: payload.phone.trim(),
+        department: payload.department.trim(),
+        remarks: payload.remarks !== undefined ? (payload.remarks?.trim() || null) : undefined,
+        updatedAt: new Date(),
+      },
+    })
+
+    // If event is APPROVED, sync changes to System Calendar Event
+    if (updated.status === "APPROVED" && access?.userId) {
+      try {
+        const start = updated.eventDateFrom ? new Date(updated.eventDateFrom) : new Date()
+        const end = updated.eventDateTo ? new Date(updated.eventDateTo) : start
+
+        const eventDescription = [
+          `Requisition: ${updated.requestNumber}`,
+          `Department: ${updated.department}`,
+          `Organizer: ${updated.organizer}`,
+          `PIC: ${updated.picContactName} (${updated.picContactNumber})`,
+          `Requester: ${updated.name} (${updated.phone || "-"})`,
+          `Requirements: ${updated.requirements}`,
+          updated.tentative ? `Tentative: ${updated.tentative}` : null,
+          updated.remarks ? `Approval Remarks: ${updated.remarks}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n")
+
+        const existingEvent = await prisma.event.findFirst({
+          where: { description: { contains: updated.requestNumber } },
+        })
+
+        if (existingEvent) {
+          await prisma.event.update({
+            where: { id: existingEvent.id },
+            data: {
+              title: `[Marketing] ${updated.eventName}`,
+              description: eventDescription,
+              startDateTime: start,
+              endDateTime: end,
+            },
+          })
+        } else {
+          await prisma.event.create({
+            data: {
+              title: `[Marketing] ${updated.eventName}`,
+              description: eventDescription,
+              startDateTime: start,
+              endDateTime: end,
+              createdById: access.userId,
+            },
+          })
+        }
+        revalidatePath("/calendar")
+      } catch (calErr) {
+        console.warn("Could not sync updated event to system calendar:", calErr)
+      }
+    }
+
+    try {
+      await logUserAction(
+        "Edited Event Requisition",
+        `Updated requisition details for ${updated.requestNumber} (${updated.eventName}) by user ${access?.name || access?.userId}`
+      )
+    } catch {
+      // Non-blocking audit error
+    }
+
+    revalidatePath("/marketing/events")
+    revalidatePath("/marketing/forms")
+
+    return { success: true, data: updated }
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : "Failed to update event requisition."
+    console.error("Failed to update event requisition:", errMsg)
     return { success: false, error: errMsg }
   }
 }

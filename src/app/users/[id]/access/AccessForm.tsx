@@ -152,6 +152,7 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "MARKETING_INVENTORY", name: "Marketing Inventory Management", description: "Track marketing stock, merchandise check-in/out, and logs.", icon: PackageOpen },
       { id: "MARKETING_EVENTS", name: "Marketing Events Management", description: "Manage events manpower requisition.", icon: CalendarCheck },
       { id: "MARKETING_VIDEO_DESIGN", name: "Video & Design Studio", description: "Access to review, assign, and manage video production and graphic design requisitions.", icon: Video },
+      { id: "MARKETING_EVENTS_EDIT", name: "Edit Marketing Event Requisitions", description: "Authority to edit and update submitted event requisition details (event name, dates, organizer, PIC, requirements, etc.).", icon: FilePenLine },
     ],
   },
   {

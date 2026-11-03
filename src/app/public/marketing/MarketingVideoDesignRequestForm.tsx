@@ -596,7 +596,6 @@ export function MarketingVideoDesignRequestForm({ onBack }: MarketingVideoDesign
                 <input
                   type="date"
                   required
-                  min={new Date().toISOString().split("T")[0]}
                   value={needBy}
                   onChange={(e) => setNeedBy(e.target.value)}
                   className="w-full pl-10 pr-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-all bg-slate-50/50"

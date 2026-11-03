@@ -1,7 +1,7 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
-import { getAccessInfo, canAccessMarketing } from "@/lib/access"
+import { getAccessInfo, canAccessMarketingVideoDesign } from "@/lib/access"
 import { MarketingVideoDesignClient } from "./MarketingVideoDesignClient"
 import { MarketingNavTabs } from "@/components/marketing/MarketingNavTabs"
 import { VideoDesignRequisitionRecord } from "@/app/actions/marketing-video-design"
@@ -18,7 +18,7 @@ export default async function MarketingVideoDesignPage() {
   if (!session) redirect("/login?callbackUrl=/marketing/video-design")
 
   const access = await getAccessInfo()
-  if (!access || !canAccessMarketing(access)) {
+  if (!access || !canAccessMarketingVideoDesign(access)) {
     redirect("/dashboard")
   }
 

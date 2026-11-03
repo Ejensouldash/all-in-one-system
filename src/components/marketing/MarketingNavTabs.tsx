@@ -44,7 +44,7 @@ export function MarketingNavTabs({ userModules, isSuperAdmin = false }: Marketin
     {
       name: "Video & Design",
       href: "/marketing/video-design",
-      module: "MARKETING_FORMS",
+      module: "MARKETING_VIDEO_DESIGN",
       icon: Video,
       active: pathname.startsWith("/marketing/video-design"),
     },
@@ -60,7 +60,7 @@ export function MarketingNavTabs({ userModules, isSuperAdmin = false }: Marketin
   const tabs = allTabs.filter(tab => {
     if (isSuperAdmin) return true
     if (!userModules) return true
-    return userModules.includes(tab.module) || userModules.includes("MARKETING_ASSETS") || userModules.includes("MARKETING_INVENTORY")
+    return userModules.includes(tab.module) || userModules.includes("MARKETING_ASSETS") || userModules.includes("MARKETING_INVENTORY") || userModules.includes("MARKETING_VIDEO_DESIGN")
   })
 
   return (

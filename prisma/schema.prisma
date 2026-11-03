@@ -1585,18 +1585,6 @@ model MarketingEventRequisition {
 }
 
 
-model MarketingEventFeedback {
-  id              String   @id @default(uuid())
-  requisitionId   String
-  respondentName  String
-  likedMost       String
-  likedLeast      String
-  satisfaction    String
-  wellOrganized   Boolean
-  comments        String
-  createdAt       DateTime @default(now())
-}
-
 model MarketingVideoDesignRequisition {
   id                String   @id @default(uuid())
   requestNumber     String   @unique
@@ -1637,7 +1625,7 @@ model MarketingVideoDesignRequisition {
   @@index([createdAt])
 }
 
-
+model MarketingEventFeedback {
   id             String                    @id @default(uuid())
   requisitionId  String
   requisition    MarketingEventRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)

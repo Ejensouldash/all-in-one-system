@@ -5,7 +5,7 @@ import { getAccessInfo, canAccessMarketing } from "@/lib/access"
 import { MarketingVideoDesignClient } from "./MarketingVideoDesignClient"
 import { MarketingNavTabs } from "@/components/marketing/MarketingNavTabs"
 import { VideoDesignRequisitionRecord } from "@/app/actions/marketing-video-design"
-import Link from "next/dist/client/link"
+import Link from "next/link"
 import { QrCode } from "lucide-react"
 
 export const metadata = {

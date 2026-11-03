@@ -18,31 +18,43 @@ if (connectionString.includes("pooler.supabase.com")) {
   }
 }
 
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient }
 
-let prisma: PrismaClient
-
-if (process.env.NODE_ENV === 'production') {
-  const pool = new Pool({ 
-    connectionString, 
-    max: 2, // Vercel functions scale horizontally, so keep per-instance pool very small
-    idleTimeoutMillis: 3000, // Aggressively close idle connections in serverless
-    connectionTimeoutMillis: 5000 
-  })
-  const adapter = new PrismaPg(pool)
-  prisma = new PrismaClient({ adapter })
-} else {
-  if (!globalForPrisma.prisma) {
-    const pool = new Pool({ 
-      connectionString, 
-      max: 5, // Limit connections in dev
-      idleTimeoutMillis: 10000, 
-      connectionTimeoutMillis: 5000 
-    })
-    const adapter = new PrismaPg(pool)
-    globalForPrisma.prisma = new PrismaClient({ adapter })
+function getPrismaClient(): PrismaClient {
+  if (process.env.NODE_ENV === 'production') {
+    if (!globalForPrisma.prisma) {
+      const pool = new Pool({ 
+        connectionString, 
+        max: 2, // Vercel functions scale horizontally, so keep per-instance pool very small
+        idleTimeoutMillis: 3000, // Aggressively close idle connections in serverless
+        connectionTimeoutMillis: 5000 
+      })
+      const adapter = new PrismaPg(pool)
+      globalForPrisma.prisma = new PrismaClient({ adapter })
+    }
+    return globalForPrisma.prisma
+  } else {
+    if (!globalForPrisma.prisma || !(globalForPrisma.prisma as any).marketingVideoDesignRequisition) {
+      const pool = new Pool({ 
+        connectionString, 
+        max: 5, // Limit connections in dev
+        idleTimeoutMillis: 10000, 
+        connectionTimeoutMillis: 5000 
+      })
+      const adapter = new PrismaPg(pool)
+      globalForPrisma.prisma = new PrismaClient({ adapter })
+    }
+    return globalForPrisma.prisma
   }
-  prisma = globalForPrisma.prisma
 }
+
+// Dynamic proxy so any access evaluates the latest PrismaClient with all model delegates
+const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop) {
+    const client = getPrismaClient()
+    const val = (client as any)[prop]
+    return typeof val === 'function' ? val.bind(client) : val
+  }
+})
 
 export { prisma }

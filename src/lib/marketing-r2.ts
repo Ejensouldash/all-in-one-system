@@ -5,7 +5,7 @@ import {
 } from "@aws-sdk/client-s3"
 import { getR2Client, getR2Config } from "@/lib/sales-ordering/r2"
 
-export type MarketingCategory = "items" | "assets" | "events" | "images"
+export type MarketingCategory = "items" | "assets" | "events" | "images" | "creative"
 
 export function getMarketingObjectKey(
   filename: string,

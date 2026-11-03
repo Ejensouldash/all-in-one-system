@@ -400,3 +400,87 @@ export function generateMarketingTestEmail(recipientName: string, recipientEmail
     </div>
   `
 }
+
+/**
+ * HTML Email Template: Video & Design Requisition Alert
+ */
+export function generateMarketingVideoDesignRequisitionAdminEmail({
+  requestNumber,
+  type,
+  name,
+  staffId,
+  department,
+  phoneNumber,
+  needBy,
+  details,
+}: {
+  requestNumber: string
+  type: string
+  name: string
+  staffId: string
+  department: string
+  phoneNumber: string
+  needBy: string
+  details: string
+}) {
+  const baseUrl = getBaseUrl()
+  const manageUrl = `${baseUrl}/marketing/video-design`
+  const isVideo = type.toUpperCase() === "VIDEO"
+  const themeColor = isVideo ? "#7c3aed" : "#ec4899"
+
+  return `
+    <div style="font-family: Arial, sans-serif; padding: 24px; color: #1e293b; max-width: 620px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+      <div style="background-color: ${themeColor}; padding: 20px 24px; border-radius: 8px 8px 0 0; color: white;">
+        <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #fdf2f8; font-weight: bold;">BubblesO2 Marketing Notification</span>
+        <h2 style="margin: 6px 0 0 0; font-size: 20px; color: #ffffff;">New ${type} Requisition: ${requestNumber}</h2>
+      </div>
+      
+      <div style="padding: 24px;">
+        <p style="font-size: 14px; margin-top: 0;">Dear Marketing & Creative Team,</p>
+        <p style="font-size: 13px; color: #475569;">A new <strong>${type}</strong> requisition has been submitted and is waiting for your review:</p>
+        
+        <table style="width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; background-color: #f8fafc; border-radius: 8px; overflow: hidden;">
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 14px; color: #64748b; width: 35%;">Request Number</td>
+            <td style="padding: 10px 14px; font-weight: bold; color: ${themeColor};">${requestNumber}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 14px; color: #64748b;">Type</td>
+            <td style="padding: 10px 14px; font-weight: bold; color: #0f172a;">${type} Requisition</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 14px; color: #64748b;">Requester</td>
+            <td style="padding: 10px 14px; font-weight: bold; color: #0f172a;">${name} (ID: ${staffId})</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 14px; color: #64748b;">Department</td>
+            <td style="padding: 10px 14px; font-weight: bold; color: #0f172a;">${department}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 14px; color: #64748b;">Phone Number</td>
+            <td style="padding: 10px 14px; font-weight: bold; color: #0f172a;">${phoneNumber}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 14px; color: #64748b;">Need By Date</td>
+            <td style="padding: 10px 14px; font-weight: bold; color: #dc2626;">${needBy}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 14px; color: #64748b; vertical-align: top;">Brief Summary</td>
+            <td style="padding: 10px 14px; color: #334155; white-space: pre-wrap;">${details || "See portal for full details"}</td>
+          </tr>
+        </table>
+
+        <div style="text-align: center; margin: 24px 0 12px 0;">
+          <a href="${manageUrl}" style="background-color: ${themeColor}; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block;">
+            Open Video & Design Management
+          </a>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0 16px 0;" />
+        <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">
+          BubblesO2 All-in-One Operating System • Automated Marketing Notification
+        </p>
+      </div>
+    </div>
+  `
+}

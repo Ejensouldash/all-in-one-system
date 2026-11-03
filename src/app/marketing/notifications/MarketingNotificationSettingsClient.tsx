@@ -22,7 +22,9 @@ import {
   ShieldCheck,
   Check,
   Search,
-  Sparkles
+  Sparkles,
+  Video,
+  Palette
 } from "lucide-react"
 import { 
   createMarketingNotificationRecipient, 
@@ -274,7 +276,7 @@ export function MarketingNotificationSettingsClient({
             Marketing Email Notifications
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 max-w-2xl">
-            Configure automated email notifications for Asset Loans, Merchandise requests, and Event requisitions. Emails are dispatched via Resend to assigned PICs.
+            Configure automated email notifications for Asset Loans, Merchandise requests, Event support, and Video & Design requisitions. Emails are dispatched via Resend to assigned PICs.
           </p>
         </div>
 
@@ -422,7 +424,7 @@ export function MarketingNotificationSettingsClient({
 
               {/* Category Filter Pills */}
               <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
-                {["ALL", "ASSET", "MERCHANDISE", "EVENT"].map((cat) => (
+                {["ALL", "ASSET", "MERCHANDISE", "EVENT", "CREATIVE"].map((cat) => (
                   <button
                     key={cat}
                     type="button"
@@ -433,7 +435,7 @@ export function MarketingNotificationSettingsClient({
                         : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                     }`}
                   >
-                    {cat === "ALL" ? "All Categories" : cat.charAt(0) + cat.slice(1).toLowerCase()}
+                    {cat === "ALL" ? "All Categories" : cat === "CREATIVE" ? "Video & Design" : cat.charAt(0) + cat.slice(1).toLowerCase()}
                   </button>
                 ))}
               </div>
@@ -478,7 +480,9 @@ export function MarketingNotificationSettingsClient({
                                 ? "bg-blue-50 text-blue-700 border border-blue-200"
                                 : rec.category === "MERCHANDISE"
                                 ? "bg-amber-50 text-amber-700 border border-amber-200"
-                                : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : rec.category === "EVENT"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : "bg-purple-50 text-purple-700 border border-purple-200"
                             }`}
                           >
                             {!rec.category || rec.category === "ALL" ? (
@@ -493,9 +497,13 @@ export function MarketingNotificationSettingsClient({
                               <>
                                 <Box className="h-3 w-3" /> Merchandise Only
                               </>
-                            ) : (
+                            ) : rec.category === "EVENT" ? (
                               <>
                                 <Calendar className="h-3 w-3" /> Events Only
+                              </>
+                            ) : (
+                              <>
+                                <Video className="h-3 w-3" /> Video &amp; Design Only
                               </>
                             )}
                           </span>
@@ -750,10 +758,11 @@ export function MarketingNotificationSettingsClient({
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 >
-                  <option value="ALL">ALL Categories (Assets, Merchandise &amp; Events)</option>
+                  <option value="ALL">ALL Categories (Assets, Merchandise, Events, Video &amp; Design)</option>
                   <option value="ASSET">ASSET Only (Asset Loan Requests)</option>
                   <option value="MERCHANDISE">MERCHANDISE Only (Merchandise Requests)</option>
                   <option value="EVENT">EVENT Only (Event Support Requisitions)</option>
+                  <option value="CREATIVE">VIDEO &amp; DESIGN Only (Video &amp; Design Requisitions)</option>
                 </select>
                 <p className="text-[10px] text-slate-400 mt-1">
                   Recipient will receive automated email alerts matching this category.

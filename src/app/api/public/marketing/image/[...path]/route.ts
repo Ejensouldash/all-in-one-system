@@ -21,6 +21,7 @@ export async function GET(
       let photo = await getMarketingPhotoFromR2("items", filename)
       if (!photo) photo = await getMarketingPhotoFromR2("assets", filename)
       if (!photo) photo = await getMarketingPhotoFromR2("events", filename)
+      if (!photo) photo = await getMarketingPhotoFromR2("creative", filename)
       if (!photo) {
         // Fallback check in maintenance-tickets just in case older legacy files are requested
         photo = await getMaintenancePhotoFromR2(filename)

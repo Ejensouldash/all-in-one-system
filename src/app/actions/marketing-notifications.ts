@@ -11,7 +11,7 @@ import {
 } from "@/lib/marketing/marketing-outbox"
 import { sendEmailNotification } from "@/lib/email"
 
-export type MarketingCategoryType = "ALL" | "ASSET" | "MERCHANDISE" | "EVENT"
+export type MarketingCategoryType = "ALL" | "ASSET" | "MERCHANDISE" | "EVENT" | "CREATIVE" | "VIDEO_DESIGN"
 
 /**
  * Fetch all configured marketing notification recipients.
@@ -34,7 +34,7 @@ export async function getMarketingNotificationRecipients() {
  * Resolves active notification recipients for a given marketing category.
  */
 export async function getActiveMarketingNotificationEmails(
-  category: "ASSET" | "MERCHANDISE" | "EVENT"
+  category: "ASSET" | "MERCHANDISE" | "EVENT" | "CREATIVE" | "VIDEO_DESIGN"
 ): Promise<string[]> {
   try {
     const recipients = await prisma.marketingNotificationRecipient.findMany({
@@ -85,7 +85,7 @@ export async function createMarketingNotificationRecipient(formData: FormData) {
     return { success: false, error: "Please enter a valid email address." }
   }
 
-  const validCategories = ["ALL", "ASSET", "MERCHANDISE", "EVENT"]
+  const validCategories = ["ALL", "ASSET", "MERCHANDISE", "EVENT", "CREATIVE", "VIDEO_DESIGN"]
   const category = validCategories.includes(categoryRaw) ? categoryRaw : "ALL"
 
   try {
@@ -132,7 +132,7 @@ export async function updateMarketingNotificationRecipient(id: string, formData:
     return { success: false, error: "Please enter a valid email address." }
   }
 
-  const validCategories = ["ALL", "ASSET", "MERCHANDISE", "EVENT"]
+  const validCategories = ["ALL", "ASSET", "MERCHANDISE", "EVENT", "CREATIVE", "VIDEO_DESIGN"]
   const category = validCategories.includes(categoryRaw) ? categoryRaw : "ALL"
 
   try {

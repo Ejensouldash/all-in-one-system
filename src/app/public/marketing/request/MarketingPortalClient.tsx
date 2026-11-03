@@ -3,6 +3,7 @@
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import { PublicMarketingRequestForm } from "./PublicMarketingRequestForm"
 import { MarketingEventRequestForm } from "../MarketingEventRequestForm"
+import { MarketingVideoDesignRequestForm } from "../MarketingVideoDesignRequestForm"
 import { 
   ChevronRight,
   ShieldCheck,
@@ -10,10 +11,14 @@ import {
   Camera,
   Truck,
   Box,
-  Calendar
+  Calendar,
+  Video,
+  Palette,
+  Cloud,
+  Sparkles
 } from "lucide-react"
 
-type FormType = "asset" | "event" | null
+type FormType = "asset" | "event" | "video-design" | null
 
 export function MarketingPortalClient() {
   const searchParams = useSearchParams()
@@ -21,9 +26,12 @@ export function MarketingPortalClient() {
   const pathname = usePathname()
   
   const typeParam = searchParams.get("type") as FormType
-  const selectedForm: FormType = typeParam === "asset" || typeParam === "event" ? typeParam : null
+  const selectedForm: FormType = 
+    typeParam === "asset" || typeParam === "event" || typeParam === "video-design" 
+      ? typeParam 
+      : null
 
-  const handleSelectForm = (type: "asset" | "event") => {
+  const handleSelectForm = (type: "asset" | "event" | "video-design") => {
     const params = new URLSearchParams(searchParams.toString())
     params.set("type", type)
     router.push(`${pathname}?${params.toString()}`)
@@ -43,7 +51,12 @@ export function MarketingPortalClient() {
     return <MarketingEventRequestForm onBack={handleBackToMenu} />
   }
 
-  // MAIN PORTAL SELECTION VIEW (2 stacked cards as in sketch)
+  // If user selected Video & Design Requisition
+  if (selectedForm === "video-design") {
+    return <MarketingVideoDesignRequestForm onBack={handleBackToMenu} />
+  }
+
+  // MAIN PORTAL SELECTION VIEW
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Portal Header */}
@@ -60,9 +73,9 @@ export function MarketingPortalClient() {
         </p>
       </div>
 
-      {/* 2 Stacked Cards (Top & Bottom like sketch) */}
+      {/* 3 Stacked Cards */}
       <div className="flex flex-col gap-5">
-        {/* CARD 1 (TOP): Asset & Merchandise Requisition */}
+        {/* CARD 1: Asset & Merchandise Requisition */}
         <div
           role="button"
           tabIndex={0}
@@ -88,10 +101,7 @@ export function MarketingPortalClient() {
               {/* Text Info */}
               <div className="space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-md bg-blue-100 text-blue-800 font-mono font-bold text-[10px] tracking-wide">
-                    SOP BOSB-MKT-850-002-QR01
-                  </span>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  <span className="px-2.5 py-0.5 rounded-md bg-blue-100 text-blue-800 font-mono font-bold text-[10px] tracking-wide uppercase">
                     Equipment &amp; Inventory
                   </span>
                 </div>
@@ -132,7 +142,7 @@ export function MarketingPortalClient() {
           </div>
         </div>
 
-        {/* CARD 2 (BOTTOM): Event Requisition */}
+        {/* CARD 2: Event Requisition */}
         <div
           role="button"
           tabIndex={0}
@@ -159,10 +169,7 @@ export function MarketingPortalClient() {
               <div className="space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="px-2.5 py-0.5 rounded-md bg-indigo-100 text-indigo-800 font-bold text-[10px] tracking-wide uppercase">
-                    New Form
-                  </span>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                    Event Collaboration
+                    Ground Activation &amp; Support
                   </span>
                 </div>
 
@@ -201,8 +208,71 @@ export function MarketingPortalClient() {
             </div>
           </div>
         </div>
-      </div>
 
+        {/* CARD 3: Video & Design Requisition */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => handleSelectForm("video-design")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault()
+              handleSelectForm("video-design")
+            }
+          }}
+          className="group relative bg-white rounded-3xl p-6 sm:p-8 border-2 border-slate-200 hover:border-purple-600 shadow-md hover:shadow-xl transition-all duration-200 text-left cursor-pointer transform hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-purple-500/20"
+        >
+          {/* Subtle gradient glow in corner */}
+          <div className="absolute top-0 right-0 -mt-6 -mr-6 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+            <div className="flex items-start gap-4">
+              {/* Icon Container */}
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-600 to-pink-600 text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                <Video className="w-7 h-7" />
+              </div>
+
+              {/* Text Info */}
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-md bg-purple-100 text-purple-800 font-bold text-[10px] tracking-wide uppercase">
+                    Creative &amp; Media
+                  </span>
+                </div>
+
+                <h2 className="text-lg sm:text-xl font-black text-slate-900 group-hover:text-purple-600 transition-colors">
+                  Video &amp; Design Requisition
+                </h2>
+
+                <p className="text-xs text-slate-500 leading-relaxed max-w-xl">
+                  Requisition form for video production (corporate, social media, reels) and graphic design collaterals (posters, stickers, t-shirts, branding).
+                </p>
+
+                {/* Feature Tags */}
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 border border-purple-200/60 text-purple-700 text-[10px] font-semibold">
+                    <Video className="w-3 h-3" />
+                    Corporate &amp; Social Video
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-pink-50 border border-pink-200/60 text-pink-700 text-[10px] font-semibold">
+                    <Palette className="w-3 h-3" />
+                    Poster, Sticker &amp; Apparel
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* CTA Pill / Arrow */}
+            <div className="shrink-0 flex items-center justify-end sm:justify-center">
+              <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 group-hover:bg-purple-600 text-white font-bold text-xs uppercase tracking-wider shadow-sm group-hover:shadow-md transition-all">
+                <span>Select Form</span>
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    
       {/* Footer Info */}
       <div className="text-center pt-4">
         <p className="text-[11px] text-slate-400">

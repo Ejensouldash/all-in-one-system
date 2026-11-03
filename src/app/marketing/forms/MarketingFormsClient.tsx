@@ -104,7 +104,7 @@ const TEMPLATES: FormTemplate[] = [
   {
     id: "mkt-frm-06",
     code: "MKT-FRM-06",
-    title: "Creative Artwork & Media Production Request",
+    title: "Video & Design Requisition",
     category: "CREATIVE & DESIGN",
     description: "Request form for marketing design services including banner designs, social media graphics, product photography, and video edits.",
     purpose: "Creative briefing, turnaround time estimation, and brand compliance.",

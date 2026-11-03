@@ -94,6 +94,7 @@ export async function getComplianceMonthData(
       ftdm,
       fpir,
       wqtr,
+      sef,
       fuv,
       pmOccurrences,
       draftsRes,
@@ -125,6 +126,7 @@ export async function getComplianceMonthData(
       prisma.maintenanceFlyTrapDaily.findMany({ where: { date: dateQuery }, orderBy: { date: "asc" } }),
       prisma.maintenanceFPIR.findMany({ where: { date: dateQuery }, orderBy: { date: "asc" } }),
       prisma.maintenanceWQTR.findMany({ where: { date: dateQuery }, orderBy: { date: "asc" } }),
+      (prisma as any).maintenanceSEF.findMany({ where: { date: dateQuery }, orderBy: { date: "asc" } }),
       prisma.maintenanceHazardProcessControl.findMany({ where: { date: dateQuery }, orderBy: { date: "asc" } }),
       prisma.reminderPMOccurrence.findMany({
         where: { dueDate: { startsWith: monthKeyPrefix } },
@@ -161,6 +163,7 @@ export async function getComplianceMonthData(
       ftdm,
       fpir,
       wqtr,
+      sef,
       fuv,
       pmOccurrences,
       drafts: draftsRes.data || [],

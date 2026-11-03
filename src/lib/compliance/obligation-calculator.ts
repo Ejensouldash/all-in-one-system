@@ -59,6 +59,7 @@ export interface RawComplianceRecords {
   ftdm: any[]
   fpir: any[]
   wqtr: any[]
+  sef: any[]
   fuv: any[]
   pmOccurrences: any[]
   drafts: Array<{ formType: string; updatedAt: Date | string }>
@@ -144,6 +145,7 @@ export function calculateMonthCompliance(
   recordsByForm.set("ftdm", records.ftdm || [])
   recordsByForm.set("fpir", records.fpir || [])
   recordsByForm.set("wqtr", records.wqtr || [])
+  recordsByForm.set("sef", records.sef || [])
   recordsByForm.set("fuv", records.fuv || [])
 
   // Days array

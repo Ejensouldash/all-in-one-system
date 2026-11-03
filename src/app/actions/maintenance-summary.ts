@@ -97,6 +97,9 @@ export async function getMaintenanceSummaryRecords(
       case "wqtr":
         data = await prisma.maintenanceWQTR.findMany({ where, orderBy: { date: "desc" } })
         break
+      case "sef":
+        data = await (prisma as any).maintenanceSEF.findMany({ where, orderBy: { date: "desc" } })
+        break
       case "pcs":
         data = await prisma.maintenancePestControlSchedule.findMany({ where, orderBy: { date: "desc" } })
         break
@@ -221,6 +224,9 @@ export async function updateMaintenanceRecord(formType: string, id: string, data
       case "wqtr":
         await prisma.maintenanceWQTR.update({ where: { id }, data })
         break
+      case "sef":
+        await (prisma as any).maintenanceSEF.update({ where: { id }, data })
+        break
       case "pcs":
         await prisma.maintenancePestControlSchedule.update({ where: { id }, data })
         break
@@ -340,6 +346,9 @@ export async function deleteMaintenanceRecord(formType: string, id: string) {
         break
       case "wqtr":
         await prisma.maintenanceWQTR.delete({ where: { id } })
+        break
+      case "sef":
+        await (prisma as any).maintenanceSEF.delete({ where: { id } })
         break
       case "pcs":
         await prisma.maintenancePestControlSchedule.delete({ where: { id } })
@@ -489,6 +498,9 @@ export async function verifyMaintenanceRecord(
         break
       case "wqtr":
         await prisma.maintenanceWQTR.update({ where: { id }, data })
+        break
+      case "sef":
+        await (prisma as any).maintenanceSEF.update({ where: { id }, data: { ...data, verifiedAt: new Date() } })
         break
       case "pcs":
         await prisma.maintenancePestControlSchedule.update({ where: { id }, data })
@@ -653,6 +665,9 @@ export async function batchVerifyMaintenanceRecords(
         break
       case "wqtr":
         await prisma.maintenanceWQTR.updateMany({ where: { id: { in: ids } }, data })
+        break
+      case "sef":
+        await (prisma as any).maintenanceSEF.updateMany({ where: { id: { in: ids } }, data: { ...data, verifiedAt: new Date() } })
         break
       case "pcs":
         await prisma.maintenancePestControlSchedule.updateMany({ where: { id: { in: ids } }, data })

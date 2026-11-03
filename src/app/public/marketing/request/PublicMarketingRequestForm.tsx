@@ -568,7 +568,6 @@ export function PublicMarketingRequestForm({ onBack }: { onBack?: () => void } =
               <input
                 type="date"
                 required
-                min={todayStr}
                 value={pickupDate}
                 onChange={(e) => setPickupDate(e.target.value)}
                 className="w-full text-xs font-semibold px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none transition"

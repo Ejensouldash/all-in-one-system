@@ -1843,6 +1843,23 @@ export function MarketingEventsClient({ initialRequisitions, user, canEdit = fal
           </div>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* 6. EDIT EVENT REQUISITION MODAL                                           */}
+      {/* ========================================================================= */}
+      {editingItem && (
+        <EditEventRequisitionModal
+          item={editingItem}
+          onClose={() => setEditingItem(null)}
+          onSuccess={(updated) => {
+            setRequisitions(prev => prev.map(r => r.id === updated.id ? updated : r))
+            if (selectedItem?.id === updated.id) {
+              setSelectedItem(updated)
+            }
+            setEditingItem(null)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -2005,7 +2022,7 @@ function EditEventRequisitionModal({ item, onClose, onSuccess }: EditEventRequis
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-[70] bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-3xl w-full my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 p-6 text-white relative">

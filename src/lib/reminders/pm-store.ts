@@ -9,7 +9,21 @@ export async function lockPM(tx: PMTransaction) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(73032026)`
 }
 export async function materializePM(tx: PMTransaction, through: string, scheduleIds?: string[]) {
-  const schedules = await tx.reminderPMSchedule.findMany({ where: { archivedAt: null, ...(scheduleIds ? { id: { in: scheduleIds } } : {}) } })
+  const schedules = await tx.reminderPMSchedule.findMany({
+    where: { archivedAt: null, ...(scheduleIds ? { id: { in: scheduleIds } } : {}) },
+    select: {
+      id: true,
+      generationFrom: true,
+      activationDate: true,
+      equipment: true,
+      srs: true,
+      checklist: true,
+      picIds: true,
+      startDate: true,
+      intervalUnit: true,
+      intervalCount: true,
+    }
+  })
   const allOccurrences: {
     scheduleId: string
     dueDate: string

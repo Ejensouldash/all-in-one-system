@@ -3,7 +3,7 @@
 This repository includes a fully automated, enterprise-grade database backup pipeline using GitHub Actions, PostgreSQL `pg_dump`, and Supabase Storage.
 
 ## How It Works
-1. A GitHub Action runs daily at 18:00 UTC (02:00 MYT).
+1. A GitHub Action runs weekly every Sunday at 18:00 UTC (02:00 MYT Monday).
 2. It executes a full `pg_dump` of the PostgreSQL database, capturing schemas, data rows, user authentication records, and policies.
 3. The dump is compressed on-the-fly (`.sql.gz`) and uploaded directly to a private Supabase Storage bucket named `system-backups`.
 4. The pipeline automatically deletes any backups older than 30 days to optimize storage costs.

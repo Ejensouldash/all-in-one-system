@@ -1,6 +1,6 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
-import { getAccessInfo, canAccessMarketingForms, canAccessMarketingAssets, canAccessMarketingInventory } from "@/lib/access"
+import { getAccessInfo, canAccessMarketingForms, canAccessMarketingAssets, canAccessMarketingInventory, canAccessMarketingVideoDesign } from "@/lib/access"
 
 export default async function MarketingRootPage() {
   const session = await auth()
@@ -17,6 +17,9 @@ export default async function MarketingRootPage() {
   }
   if (canAccessMarketingInventory(access)) {
     redirect("/marketing/inventory")
+  }
+  if (canAccessMarketingVideoDesign(access)) {
+    redirect("/marketing/video-design")
   }
 
   redirect("/dashboard")

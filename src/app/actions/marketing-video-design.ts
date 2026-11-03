@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { getAccessInfo, canAccessMarketing } from "@/lib/access"
+import { getAccessInfo, canAccessMarketingVideoDesign } from "@/lib/access"
 import { logUserAction } from "./audit"
 import { uploadMarketingPhotoToR2 } from "@/lib/marketing-r2"
 import {
@@ -313,7 +313,7 @@ export async function submitVideoDesignRequisition(formData: FormData) {
  */
 export async function getVideoDesignRequisitions(): Promise<VideoDesignRequisitionRecord[]> {
   const access = await getAccessInfo()
-  if (!access || !canAccessMarketing(access)) {
+  if (!access || !canAccessMarketingVideoDesign(access)) {
     throw new Error("Unauthorized to access marketing requisitions.")
   }
 
@@ -358,7 +358,7 @@ export async function updateVideoDesignRequisitionStatus(
   remarks?: string
 ) {
   const access = await getAccessInfo()
-  if (!access || !canAccessMarketing(access)) {
+  if (!access || !canAccessMarketingVideoDesign(access)) {
     return { success: false, error: "Unauthorized" }
   }
 

@@ -260,7 +260,13 @@ export function MarketingNotificationSettingsClient({
       r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.email.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesCategory =
-      categoryFilter === "ALL" || r.category === categoryFilter || r.category === "ALL" || !r.category
+      categoryFilter === "ALL" ||
+      r.category === categoryFilter ||
+      (categoryFilter === "VIDEO" && (r.category === "VIDEO" || r.category === "CREATIVE" || r.category === "VIDEO_DESIGN")) ||
+      (categoryFilter === "DESIGN" && (r.category === "DESIGN" || r.category === "CREATIVE" || r.category === "VIDEO_DESIGN")) ||
+      (categoryFilter === "CREATIVE" && (r.category === "CREATIVE" || r.category === "VIDEO_DESIGN")) ||
+      r.category === "ALL" ||
+      !r.category
     return matchesSearch && matchesCategory
   })
 
@@ -424,7 +430,7 @@ export function MarketingNotificationSettingsClient({
 
               {/* Category Filter Pills */}
               <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
-                {["ALL", "ASSET", "MERCHANDISE", "EVENT", "CREATIVE"].map((cat) => (
+                {["ALL", "ASSET", "MERCHANDISE", "EVENT", "VIDEO", "DESIGN", "CREATIVE"].map((cat) => (
                   <button
                     key={cat}
                     type="button"
@@ -435,7 +441,19 @@ export function MarketingNotificationSettingsClient({
                         : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                     }`}
                   >
-                    {cat === "ALL" ? "All Categories" : cat === "CREATIVE" ? "Video & Design" : cat.charAt(0) + cat.slice(1).toLowerCase()}
+                    {cat === "ALL"
+                      ? "All Categories"
+                      : cat === "ASSET"
+                      ? "Asset"
+                      : cat === "MERCHANDISE"
+                      ? "Merchandise"
+                      : cat === "EVENT"
+                      ? "Event"
+                      : cat === "VIDEO"
+                      ? "Video"
+                      : cat === "DESIGN"
+                      ? "Design"
+                      : "Video & Design"}
                   </button>
                 ))}
               </div>
@@ -482,7 +500,11 @@ export function MarketingNotificationSettingsClient({
                                 ? "bg-amber-50 text-amber-700 border border-amber-200"
                                 : rec.category === "EVENT"
                                 ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                : "bg-purple-50 text-purple-700 border border-purple-200"
+                                : rec.category === "DESIGN"
+                                ? "bg-pink-50 text-pink-700 border border-pink-200"
+                                : rec.category === "VIDEO"
+                                ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                : "bg-violet-50 text-violet-700 border border-violet-200"
                             }`}
                           >
                             {!rec.category || rec.category === "ALL" ? (
@@ -501,9 +523,18 @@ export function MarketingNotificationSettingsClient({
                               <>
                                 <Calendar className="h-3 w-3" /> Events Only
                               </>
+                            ) : rec.category === "DESIGN" ? (
+                              <>
+                                <Palette className="h-3 w-3" /> Design Only
+                              </>
+                            ) : rec.category === "VIDEO" ? (
+                              <>
+                                <Video className="h-3 w-3" /> Video Only
+                              </>
+
                             ) : (
                               <>
-                                <Video className="h-3 w-3" /> Video &amp; Design Only
+                                <Video className="h-3 w-3" /> Video &amp; Design
                               </>
                             )}
                           </span>
@@ -762,7 +793,9 @@ export function MarketingNotificationSettingsClient({
                   <option value="ASSET">ASSET Only (Asset Loan Requests)</option>
                   <option value="MERCHANDISE">MERCHANDISE Only (Merchandise Requests)</option>
                   <option value="EVENT">EVENT Only (Event Support Requisitions)</option>
-                  <option value="CREATIVE">VIDEO &amp; DESIGN Only (Video &amp; Design Requisitions)</option>
+                  <option value="DESIGN">DESIGN Only (Design Requisitions - Posters, Stickers, Artwork, etc.)</option>
+                  <option value="VIDEO">VIDEO Only (Video Production &amp; Shooting Requests)</option>
+                  <option value="CREATIVE">BOTH Video &amp; Design (All Creative Requisitions)</option>
                 </select>
                 <p className="text-[10px] text-slate-400 mt-1">
                   Recipient will receive automated email alerts matching this category.

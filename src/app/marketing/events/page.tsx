@@ -43,6 +43,7 @@ export default async function MarketingEventsPage() {
       status: r.status,
       remarks: r.remarks,
       attachments: r.attachments,
+      galleryAttachments: r.galleryAttachments || null,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
     }))

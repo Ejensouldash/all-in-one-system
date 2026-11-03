@@ -1562,6 +1562,7 @@ model MarketingEventRequisition {
   name             String
   staffId          String
   email            String
+  phone            String?
   department       String
   eventName        String
   eventType        String
@@ -1583,6 +1584,7 @@ model MarketingEventRequisition {
   @@index([status])
   @@index([department])
 }
+
 
 
 model MarketingVideoDesignRequisition {

@@ -267,6 +267,7 @@ export function generateMarketingEventRequisitionAdminEmail({
   requesterName,
   staffId,
   email,
+  requesterPhone,
   department,
   eventName,
   eventType,
@@ -282,6 +283,7 @@ export function generateMarketingEventRequisitionAdminEmail({
   requesterName: string
   staffId: string
   email: string
+  requesterPhone?: string | null
   department: string
   eventName: string
   eventType: string
@@ -329,7 +331,7 @@ export function generateMarketingEventRequisitionAdminEmail({
           <tr style="border-bottom: 1px solid #e2e8f0;">
             <td style="padding: 10px 14px; color: #64748b;">Requester Info</td>
             <td style="padding: 10px 14px; color: #0f172a;">
-              ${requesterName} (${department}) • Staff ID: ${staffId}
+              ${requesterName} (${department}) • Staff ID: ${staffId}${requesterPhone ? ` • Phone: ${requesterPhone}` : ""}
             </td>
           </tr>
           <tr style="border-bottom: 1px solid #e2e8f0;">

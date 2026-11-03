@@ -1,7 +1,7 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
-import { getAccessInfo, canAccessMarketingEvents } from "@/lib/access"
+import { getAccessInfo, canAccessMarketingEvents, canEditMarketingEvents } from "@/lib/access"
 import { MarketingEventsClient, EventRequisitionItem } from "./MarketingEventsClient"
 import { MarketingNavTabs } from "@/components/marketing/MarketingNavTabs"
 
@@ -30,6 +30,7 @@ export default async function MarketingEventsPage() {
       name: r.name,
       staffId: r.staffId,
       email: r.email,
+      phone: r.phone || null,
       department: r.department,
       eventName: r.eventName,
       eventType: r.eventType,
@@ -51,10 +52,12 @@ export default async function MarketingEventsPage() {
     console.warn("Could not query marketingEventRequisition table yet:", error)
   }
 
+  const canEdit = canEditMarketingEvents(access)
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       <MarketingNavTabs userModules={access.modules} isSuperAdmin={access.isSuperAdmin} />
-      <MarketingEventsClient initialRequisitions={requisitions} user={session.user} />
+      <MarketingEventsClient initialRequisitions={requisitions} user={session.user} canEdit={canEdit} />
     </div>
   )
 }

@@ -31,7 +31,10 @@ export async function runPMDispatch(now = new Date(), send = sendPMMail) {
   if (hour < 8) return summary
   await ensurePMThrough(addDays(today, 1))
   await prisma.reminderPMDelivery.updateMany({ where: { status: "SENDING", updatedAt: { lt: new Date(now.getTime() - 10 * 60000) } }, data: { status: "UNCERTAIN", detail: "Penghantaran terhenti; penerimaan belum disahkan. Tiada penghantaran semula automatik." } })
-  const tasks = await prisma.reminderPMOccurrence.findMany({ where: { completedAt: null, dueDate: { lte: addDays(today, 1) }, schedule: { archivedAt: null } } })
+  const tasks = await prisma.reminderPMOccurrence.findMany({
+    where: { completedAt: null, dueDate: { lte: addDays(today, 1) }, schedule: { archivedAt: null } },
+    select: { id: true, dueDate: true, equipment: true, srs: true, checklist: true, picIds: true }
+  })
   const users = await prisma.user.findMany({ where: { id: { in: [...new Set(tasks.flatMap(t => t.picIds))] } }, select: { id: true, email: true, role: true, modules: true, unit: { select: { name: true } } } })
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.AUTH_URL || process.env.NEXTAUTH_URL || "https://bubbleso2-aio.vercel.app").replace(/\/$/, "")
   // Limited parallelism keeps normal teams within the existing cron duration.
@@ -51,7 +54,11 @@ export async function runPMDispatch(now = new Date(), send = sendPMMail) {
         deliveryId = (await prisma.reminderPMDelivery.findUniqueOrThrow({ where: { userId_digestDate: { userId: user.id, digestDate: today } } })).id
       }
       // Refresh after claiming: a completed task must not be sent from a stale snapshot.
-      const current = await prisma.reminderPMOccurrence.findMany({ where: { completedAt: null, picIds: { has: user.id }, dueDate: { lte: addDays(today, 1) }, schedule: { archivedAt: null } }, orderBy: { dueDate: "asc" } })
+      const current = await prisma.reminderPMOccurrence.findMany({
+        where: { completedAt: null, picIds: { has: user.id }, dueDate: { lte: addDays(today, 1) }, schedule: { archivedAt: null } },
+        orderBy: { dueDate: "asc" },
+        select: { id: true, dueDate: true, equipment: true, srs: true, checklist: true }
+      })
       if (!current.length) {
         await prisma.reminderPMDelivery.update({ where: { id: deliveryId }, data: { status: "SKIPPED", detail: "Tiada kerja terbuka ketika penghantaran." } }); summary.skipped++; return
       }

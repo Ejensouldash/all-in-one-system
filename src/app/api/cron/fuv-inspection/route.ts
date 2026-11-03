@@ -59,6 +59,13 @@ async function handleInspectionDispatch(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  // Automated FUV inspection alerts (Email & Telegram) are stopped per user request
+  return NextResponse.json({
+    success: true,
+    message: "FUV inspection automated email and telegram alerts are currently stopped.",
+    disabled: true,
+  })
+
   // 2. Determine current time in Malaysia Standard Time (GMT+8)
   const nowUtc = new Date()
   const mytOffset = 8 * 60 * 60 * 1000
@@ -108,6 +115,10 @@ async function handleInspectionDispatch(request: NextRequest) {
       },
       shift,
     },
+    select: {
+      rows: true,
+      checkedBy: true,
+    },
   })
 
   if (existingRecord) {
@@ -146,6 +157,10 @@ async function handleInspectionDispatch(request: NextRequest) {
           "FUV_NOTIFICATION_EMAILS",
         ],
       },
+    },
+    select: {
+      key: true,
+      value: true,
     },
   })
 

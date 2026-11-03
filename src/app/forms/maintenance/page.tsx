@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { ClipboardList, Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, Brush, ClipboardCheck, Bug, Droplets, Boxes, BookmarkCheck, RotateCcw, Zap } from "lucide-react"
+import { ClipboardList, Sparkles, Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, Brush, ClipboardCheck, Bug, Droplets, Boxes, BookmarkCheck, RotateCcw, Zap } from "lucide-react"
 import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
 import { MaintenanceFormsGrid } from "./MaintenanceFormsGrid"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
@@ -100,6 +100,14 @@ const qcForms = [
     href: "/forms/maintenance/wqtr",
     gradient: "from-sky-900 via-sky-800 to-cyan-900",
     accent: "bg-sky-400"
+  },
+  {
+    title: "SGMP/06/SEF",
+    description: "SGMP/06/SEF - Sensory Evaluation Form",
+    icon: <Sparkles className="h-6 w-6 mr-3" />,
+    href: "/forms/maintenance/sef",
+    gradient: "from-teal-900 via-emerald-800 to-slate-900",
+    accent: "bg-teal-400"
   }
 ]
 

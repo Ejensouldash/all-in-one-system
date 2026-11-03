@@ -124,6 +124,17 @@ export const GMP_FORM_REGISTRY: GMPScheduleRule[] = [
     description: "pH, turbidity, and color checks on raw and filtered water.",
     notes: "Jadual belum ditetapkan (Memerlukan penentuan slot ujian air).",
   },
+  {
+    formType: "sef",
+    formCode: "SGMP/06/SEF",
+    formTitle: "Sensory Evaluation Form",
+    category: "QC",
+    frequency: "EVENT_BASED",
+    requiresVerification: true,
+    route: "/forms/maintenance/sef",
+    description: "Sensory evaluation (appearance, odour, taste) and 72-hour hold verification per production batch.",
+    notes: "Batch-based sensory evaluation. Evaluated by QC and verified/approved by QA.",
+  },
 
   // ==========================================
   // PRODUCTION

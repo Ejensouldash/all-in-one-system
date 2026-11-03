@@ -51,6 +51,7 @@ const FORM_TYPES: { value: string; label: string }[] = [
   { value: "finished-goods", label: "SGMP/21/FIR - Finished Goods" },
   { value: "retention-sample", label: "SGMP-21 RSR (Retention Sample)" },
   { value: "uv-machine-3-in-1", label: "UV Machine 3 In 1 Checklist" },
+  { value: "sef", label: "SGMP-06 SEF - Sensory Evaluation Form" },
 ]
 
 const FIELD_CONFIG: Record<string, FieldConfig[]> = {
@@ -231,6 +232,10 @@ const FIELD_CONFIG: Record<string, FieldConfig[]> = {
   ],
   wqtr: [
     { key: "checkedBy", label: "Checked By", type: "text" },
+  ],
+  sef: [
+    { key: "checkedBy", label: "Evaluated By (QC)", type: "text" },
+    { key: "remarks", label: "Remarks", type: "text" },
   ],
   fuv: [
     { key: "shift", label: "Shift", type: "text" },

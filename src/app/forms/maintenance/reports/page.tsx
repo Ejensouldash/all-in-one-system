@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Wrench, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, ClipboardList, FileSpreadsheet, Brush, ClipboardCheck, Bug, Droplets, BookmarkCheck, RotateCcw, Zap } from "lucide-react"
+import { Wrench, Sparkles, Lightbulb, Trash2, ShieldAlert, Utensils, FlaskConical, ClipboardList, FileSpreadsheet, Brush, ClipboardCheck, Bug, Droplets, BookmarkCheck, RotateCcw, Zap } from "lucide-react"
 import { MaintenanceTabs } from "@/components/forms/MaintenanceTabs"
 
 import { getAccessInfo } from "@/lib/access"
@@ -113,6 +113,14 @@ export default async function MaintenanceReportsDashboard() {
       href: "/forms/maintenance/reports/wqtr",
       gradient: "from-slate-900 via-slate-800 to-zinc-900",
       accent: "bg-sky-400"
+    },
+    {
+      title: "SGMP/06/SEF",
+      description: "SGMP/06/SEF - Sensory Evaluation Form",
+      icon: <Sparkles className="h-6 w-6 mr-3" />,
+      href: "/forms/maintenance/reports/sef",
+      gradient: "from-slate-900 via-slate-800 to-zinc-900",
+      accent: "bg-teal-400"
     }
   ]
 

@@ -214,6 +214,7 @@ export async function generateEventSatisfactionPdfBuffer(
     requesterName: event.name,
     staffId: event.staffId,
     email: event.email,
+    phone: event.phone || null,
     picContactName: event.picContactName,
     picContactNumber: event.picContactNumber,
     eventDateFrom: dateFromStr,

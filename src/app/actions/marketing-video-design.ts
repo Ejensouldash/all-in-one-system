@@ -13,6 +13,18 @@ import fs from "fs"
 import path from "path"
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB per file
+const ALLOWED_MIME_PREFIXES = ["image/", "video/", "application/pdf"]
+
+const SAFE_CREATIVE_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+  "video/mp4": ".mp4",
+  "video/quicktime": ".mov",
+  "video/webm": ".webm",
+  "application/pdf": ".pdf",
+}
 
 export interface CreativeAttachmentInfo {
   name: string
@@ -71,7 +83,7 @@ async function getNextVideoDesignRequestNumber(year: number): Promise<string> {
   }
 }
 
-// Save uploaded attachment to Cloudflare R2 (marketing/creative/) with local fallback if R2 credentials missing
+// Save uploaded attachment to Cloudflare R2 (marketing/creative/) with resilient fallback
 async function saveAttachmentToR2(file: File): Promise<CreativeAttachmentInfo> {
   const arrayBuffer = await file.arrayBuffer()
   const buffer = Buffer.from(arrayBuffer)
@@ -91,31 +103,61 @@ async function saveAttachmentToR2(file: File): Promise<CreativeAttachmentInfo> {
       r2Key: key,
     }
   } catch (r2Err) {
-    console.warn("Failed to upload creative attachment to Cloudflare R2, falling back to local storage:", r2Err)
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "marketing", "creative")
-    await fs.promises.mkdir(uploadDir, { recursive: true })
+    console.warn("Failed to upload creative attachment to Cloudflare R2, attempting local storage fallback:", r2Err)
+    try {
+      const uploadDir = path.join(process.cwd(), "public", "uploads", "marketing", "creative")
+      await fs.promises.mkdir(uploadDir, { recursive: true })
 
-    const ext = path.extname(file.name) || ""
-    const cleanBase = path.basename(file.name, ext).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40)
-    const uniqueName = `${Date.now()}-${Math.floor(Math.random() * 1000)}-${cleanBase}${ext}`
-    const filePath = path.join(uploadDir, uniqueName)
+      const mime = (file.type || "").toLowerCase().trim()
+      const ext = SAFE_CREATIVE_EXTENSIONS[mime] || (mime.startsWith("image/") ? ".jpg" : mime.startsWith("video/") ? ".mp4" : ".bin")
+      if (ext === ".bin") {
+        throw new Error("Unsupported attachment format.")
+      }
 
-    await fs.promises.writeFile(filePath, buffer)
+      const cleanBase = path.basename(file.name, path.extname(file.name)).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40)
+      const uniqueName = `${Date.now()}-${Math.floor(Math.random() * 1000)}-${cleanBase}${ext}`
+      const filePath = path.join(uploadDir, uniqueName)
 
-    return {
-      name: file.name,
-      url: `/uploads/marketing/creative/${uniqueName}`,
-      size: file.size,
-      type: file.type || "application/octet-stream",
+      await fs.promises.writeFile(filePath, buffer)
+
+      return {
+        name: file.name,
+        url: `/uploads/marketing/creative/${uniqueName}`,
+        size: file.size,
+        type: file.type || "application/octet-stream",
+      }
+    } catch (localErr) {
+      console.error("Local storage fallback also failed:", localErr)
+      throw new Error("File upload failed. Cloud storage is temporarily unreachable.")
     }
   }
 }
 
 /**
  * Public Submission of Video & Design Requisition
+ * Accessible without login session via /public/marketing/request
  */
 export async function submitVideoDesignRequisition(formData: FormData) {
   try {
+    // Honeypot bot protection
+    const honeypot = (formData.get("hp_website") as string) || (formData.get("company_website_url") as string) || ""
+    if (honeypot) {
+      return {
+        success: true,
+        data: {
+          id: "fake-id",
+          requestNumber: "VD-MKT-RECEIVED",
+          type: "VIDEO",
+          name: "Anonymous",
+          staffId: "STAFF-0000",
+          department: "General",
+          needBy: new Date().toISOString(),
+          phoneNumber: "-",
+          attachments: [] as CreativeAttachmentInfo[],
+        },
+      }
+    }
+
     const type = (formData.get("type") as string || "VIDEO").trim().toUpperCase() // "VIDEO" | "DESIGN"
     const name = (formData.get("name") as string || "").trim()
     const staffId = (formData.get("staffId") as string || "").trim()
@@ -128,6 +170,16 @@ export async function submitVideoDesignRequisition(formData: FormData) {
         success: false,
         error: "Please fill in all required requester fields (Name, Staff ID, Department, Need By date, and Phone Number).",
       }
+    }
+
+    // Input length limits
+    if (
+      name.length > 100 ||
+      staffId.length > 50 ||
+      department.length > 100 ||
+      phoneNumber.length > 30
+    ) {
+      return { success: false, error: "One or more input fields exceed the maximum allowable character limit." }
     }
 
     const needBy = new Date(needByRaw)
@@ -171,6 +223,9 @@ export async function submitVideoDesignRequisition(formData: FormData) {
       if (!videoDetails && !videoContentFocus) {
         return { success: false, error: "Please describe the Video Details / Content Focus." }
       }
+      if (videoDetails.length > 10000 || videoContentFocus.length > 10000 || requiredShots.length > 10000) {
+        return { success: false, error: "Video details exceed maximum allowed length." }
+      }
     } else {
       if (!designType) {
         return { success: false, error: "Please select a Design Type (Poster, Sticker, T-Shirt, Others)." }
@@ -178,23 +233,54 @@ export async function submitVideoDesignRequisition(formData: FormData) {
       if (!designDetails && !designContent) {
         return { success: false, error: "Please provide Design Details or Content on design." }
       }
+      if (designDetails.length > 10000 || designContent.length > 10000 || designSize.length > 500) {
+        return { success: false, error: "Design details exceed maximum allowed length." }
+      }
+    }
+
+    if (referenceLinks.length > 5000) {
+      return { success: false, error: "Reference links exceed maximum allowed length." }
     }
 
     // Process attachments to Cloudflare R2
     const attachments: CreativeAttachmentInfo[] = []
-    const files = formData.getAll("files") as File[]
+    const rawFiles = (formData.getAll("files") as File[]).filter(f => f && f.size > 0)
 
-    for (const file of files) {
-      if (file && file.size > 0) {
-        if (file.size > MAX_FILE_SIZE) {
-          return {
-            success: false,
-            error: `File "${file.name}" exceeds the maximum 50MB size limit.`,
-          }
-        }
-        const uploaded = await saveAttachmentToR2(file)
-        attachments.push(uploaded)
+    if (rawFiles.length > 5) {
+      return {
+        success: false,
+        error: "You can upload a maximum of 5 attachments per submission.",
       }
+    }
+
+    const totalSize = rawFiles.reduce((acc, f) => acc + f.size, 0)
+    if (totalSize > 100 * 1024 * 1024) {
+      return {
+        success: false,
+        error: "Total attachment size exceeds the maximum 100MB limit.",
+      }
+    }
+
+    // Pass 1: Validate all files before any upload begins
+    for (const file of rawFiles) {
+      if (file.size > MAX_FILE_SIZE) {
+        return {
+          success: false,
+          error: `File "${file.name}" exceeds the maximum 50MB size limit.`,
+        }
+      }
+      if (!file.type || !ALLOWED_MIME_PREFIXES.some(prefix => file.type.toLowerCase().startsWith(prefix))) {
+        return {
+          success: false,
+          error: `File "${file.name}" has an unsupported format (${file.type || "unknown"}). Please upload images, videos, or PDF files.`,
+        }
+      }
+    }
+
+    // Pass 2: Upload after all files have passed validation
+    for (const file of rawFiles) {
+      const uploaded = await saveAttachmentToR2(file)
+      attachments.push(uploaded)
     }
 
     const currentYear = new Date().getFullYear()
@@ -227,17 +313,21 @@ export async function submitVideoDesignRequisition(formData: FormData) {
     })
 
     // Log user action in audit trail
-    await logUserAction(
-      `SUBMIT_CREATIVE_REQUISITION: ${requestNumber}`,
-      JSON.stringify({
-        requestNumber,
-        type,
-        name,
-        staffId,
-        department,
-        attachmentCount: attachments.length,
-      })
-    )
+    try {
+      await logUserAction(
+        `SUBMIT_CREATIVE_REQUISITION: ${requestNumber}`,
+        JSON.stringify({
+          requestNumber,
+          type,
+          name,
+          staffId,
+          department,
+          attachmentCount: attachments.length,
+        })
+      )
+    } catch {
+      // Non-blocking audit error
+    }
 
     // Email notifications to marketing admin recipients
     try {
@@ -248,42 +338,41 @@ export async function submitVideoDesignRequisition(formData: FormData) {
             { category: null },
             { category: "ALL" },
             { category: type.toUpperCase() === "VIDEO" ? "VIDEO" : "DESIGN" },
-            { category: "CREATIVE" },
-            { category: "VIDEO_DESIGN" },
           ],
         },
       })
 
-      const detailsSummary = type === "VIDEO"
-        ? `Video Type: ${videoType}\nFormat: ${format}\nContent Focus: ${videoContentFocus || "-"}\nRequired Shots: ${requiredShots || "-"}\nDetails: ${videoDetails || "-"}`
-        : `Design Type: ${designType}\nSize: ${designSize || "-"}\nNeed Printing: ${needPrinting ? "YES" : "NO"}\nContent: ${designContent || "-"}\nDetails: ${designDetails || "-"}`
+      if (recipients.length > 0) {
+        const detailsSummary = type === "VIDEO"
+          ? `Video Type: ${videoType}\nFormat: ${format}\nContent Focus: ${videoContentFocus || "-"}\nRequired Shots: ${requiredShots || "-"}\nDetails: ${videoDetails || "-"}`
+          : `Design Type: ${designType}\nSize: ${designSize || "-"}\nNeed Printing: ${needPrinting ? "YES" : "NO"}\nContent: ${designContent || "-"}\nDetails: ${designDetails || "-"}`
 
-      for (const recipient of recipients) {
-        const html = generateMarketingVideoDesignRequisitionAdminEmail({
-          requestNumber,
-          type,
-          name,
-          staffId,
-          department,
-          phoneNumber,
-          needBy: needBy.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
-          details: detailsSummary,
-        })
+        for (const recipient of recipients) {
+          const html = generateMarketingVideoDesignRequisitionAdminEmail({
+            requestNumber,
+            type,
+            name,
+            staffId,
+            department,
+            phoneNumber,
+            needBy: needBy.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+            details: detailsSummary,
+          })
 
-        await queueMarketingEmailNotification({
-          referenceId: requestNumber,
-          category: type.toUpperCase() === "VIDEO" ? "VIDEO" : "DESIGN",
-          to: recipient.email,
-          subject: `[Marketing] New ${type} Requisition: ${requestNumber} (${name} - ${department})`,
-          html,
-        })
+          await queueMarketingEmailNotification({
+            referenceId: requestNumber,
+            category: type.toUpperCase() === "VIDEO" ? "VIDEO" : "DESIGN",
+            to: recipient.email,
+            subject: `[Marketing] New ${type} Requisition: ${requestNumber} (${name} - ${department})`,
+            html,
+          })
+        }
       }
-    } catch (notifErr) {
-      console.warn("Could not send marketing notification email for creative requisition:", notifErr)
+    } catch (mailErr) {
+      console.warn("Could not queue creative requisition admin notification email:", mailErr)
     }
 
     revalidatePath("/marketing/video-design")
-    revalidatePath("/public/marketing/request")
 
     return {
       success: true,
@@ -308,16 +397,27 @@ export async function submitVideoDesignRequisition(formData: FormData) {
   }
 }
 
+export interface GetVideoDesignOptions {
+  take?: number
+  skip?: number
+  status?: string
+}
+
 /**
- * Fetch all Video & Design Requisitions for Admin Dashboard
+ * Fetch Video & Design Requisitions for Admin Dashboard
+ * Protected: requires marketing access
  */
-export async function getVideoDesignRequisitions(): Promise<VideoDesignRequisitionRecord[]> {
+export async function getVideoDesignRequisitions(options?: GetVideoDesignOptions): Promise<VideoDesignRequisitionRecord[]> {
   const access = await getAccessInfo()
   if (!access || !canAccessMarketingVideoDesign(access)) {
     throw new Error("Unauthorized to access marketing requisitions.")
   }
 
+  const { take, skip, status } = options || {}
   const records = await prisma.marketingVideoDesignRequisition.findMany({
+    where: status ? { status: status as any } : undefined,
+    take: typeof take === "number" ? take : undefined,
+    skip: typeof skip === "number" ? skip : undefined,
     orderBy: { createdAt: "desc" },
   })
 
@@ -351,6 +451,7 @@ export async function getVideoDesignRequisitions(): Promise<VideoDesignRequisiti
 
 /**
  * Update Requisition Status (PENDING -> APPROVED / IN_PROGRESS / REJECTED / COMPLETED)
+ * Protected: requires marketing access
  */
 export async function updateVideoDesignRequisitionStatus(
   id: string,

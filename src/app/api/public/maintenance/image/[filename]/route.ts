@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getMaintenancePhotoFromR2 } from "@/lib/maintenance-r2"
+import { getMaintenancePresignedUrl, checkMaintenancePhotoExists } from "@/lib/maintenance-r2"
+
+export const dynamic = "force-dynamic"
 
 export async function GET(
   request: NextRequest,
@@ -11,21 +13,22 @@ export async function GET(
       return new NextResponse("Filename is required", { status: 400 })
     }
 
-    const photo = await getMaintenancePhotoFromR2(filename)
-    if (!photo) {
+    const exists = await checkMaintenancePhotoExists(filename)
+    if (!exists) {
       return new NextResponse("Photo not found", { status: 404 })
     }
 
-    const headers = new Headers()
-    headers.set("Content-Type", photo.contentType)
-    headers.set("Cache-Control", "public, max-age=31536000, immutable")
+    const redirectUrl = await getMaintenancePresignedUrl(filename)
+    if (!redirectUrl) {
+      return new NextResponse("Failed to generate file access URL", { status: 500 })
+    }
 
-    return new NextResponse(photo.buffer as any, {
-      status: 200,
-      headers,
-    })
+    // Zero-egress HTTP 302 Redirect directly to Cloudflare R2 presigned / CDN URL
+    const response = NextResponse.redirect(redirectUrl, { status: 302 })
+    response.headers.set("Cache-Control", "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400")
+    return response
   } catch (error) {
-    console.error("Error serving maintenance photo:", error)
+    console.error("Error serving maintenance photo redirect:", error)
     return new NextResponse("Internal Server Error", { status: 500 })
   }
 }

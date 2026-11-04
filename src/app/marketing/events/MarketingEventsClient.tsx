@@ -36,9 +36,11 @@ import {
   Trash2,
   Sparkles,
   MessageSquareQuote,
-  CheckCheck
+  CheckCheck,
+  FilePenLine,
+  Edit3
 } from "lucide-react"
-import { updateEventRequisitionStatus, AttachmentInfo } from "@/app/actions/marketing-events"
+import { updateEventRequisitionStatus, updateMarketingEventRequisition, AttachmentInfo } from "@/app/actions/marketing-events"
 import { TablePagination } from "@/components/ui/TablePagination"
 import { MarketingEventsCalendarView } from "./MarketingEventsCalendarView"
 import { 
@@ -56,6 +58,7 @@ export interface EventRequisitionItem {
   name: string
   staffId: string
   email: string
+  phone?: string | null
   department: string
   eventName: string
   eventType: string
@@ -81,6 +84,7 @@ interface MarketingEventsClientProps {
     name?: string | null
     email?: string | null
   }
+  canEdit?: boolean
 }
 
 function formatDateDisplay(d: Date | string | null | undefined): string {
@@ -180,7 +184,7 @@ async function compressImageForUpload(file: File, maxDim = 1600, quality = 0.82)
   })
 }
 
-export function MarketingEventsClient({ initialRequisitions }: MarketingEventsClientProps) {
+export function MarketingEventsClient({ initialRequisitions, user, canEdit = false }: MarketingEventsClientProps) {
   const [requisitions, setRequisitions] = useState<EventRequisitionItem[]>(initialRequisitions)
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("ALL")
   const [searchTerm, setSearchTerm] = useState("")
@@ -209,6 +213,9 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
   // QR Modal State
   const [qrModalItem, setQrModalItem] = useState<EventRequisitionItem | null>(null)
   const [copiedQrUrl, setCopiedQrUrl] = useState(false)
+
+  // Edit Requisition Modal State
+  const [editingItem, setEditingItem] = useState<EventRequisitionItem | null>(null)
 
   // Feedback & Gallery Manager Modal State
   const [feedbackModalItem, setFeedbackModalItem] = useState<EventRequisitionItem | null>(null)
@@ -1564,6 +1571,14 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
                     >
                       <Mail className="w-3.5 h-3.5" /> {selectedItem.email}
                     </a>
+                    {selectedItem.phone && (
+                      <a
+                        href={`tel:${selectedItem.phone}`}
+                        className="text-teal-700 font-medium hover:underline flex items-center gap-1.5 pt-0.5"
+                      >
+                        <Phone className="w-3.5 h-3.5" /> {selectedItem.phone}
+                      </a>
+                    )}
                   </div>
 
                   {/* PIC Box */}
@@ -1688,6 +1703,17 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
               </button>
 
               <div className="flex items-center gap-2">
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => setEditingItem(selectedItem)}
+                    className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs uppercase tracking-wider transition shadow-sm hover:shadow-indigo-500/20 cursor-pointer flex items-center gap-1.5"
+                  >
+                    <FilePenLine className="w-3.5 h-3.5" />
+                    <span>Edit Event</span>
+                  </button>
+                )}
+
                 {selectedItem.status !== "REJECTED" && (
                   <button
                     type="button"
@@ -1817,6 +1843,523 @@ export function MarketingEventsClient({ initialRequisitions }: MarketingEventsCl
           </div>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* 6. EDIT EVENT REQUISITION MODAL                                           */}
+      {/* ========================================================================= */}
+      {editingItem && (
+        <EditEventRequisitionModal
+          item={editingItem}
+          onClose={() => setEditingItem(null)}
+          onSuccess={(updated) => {
+            setRequisitions(prev => prev.map(r => r.id === updated.id ? updated : r))
+            if (selectedItem?.id === updated.id) {
+              setSelectedItem(updated)
+            }
+            setEditingItem(null)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// =========================================================================
+// 8. EDIT EVENT REQUISITION MODAL COMPONENT
+// =========================================================================
+
+const EDIT_DEPARTMENTS = [
+  "HR",
+  "Finance",
+  "Corporate",
+  "Legal",
+  "Marketing",
+  "Online Sales",
+  "Sales Ordering",
+  "Logistic & Warehouse",
+  "Business Development & Sales",
+  "Kilang Pedas",
+  "Kilang Rantau",
+  "Information Technology",
+  "Project",
+  "Maintenance & Facilities",
+  "Personal Driver",
+  "Security",
+  "Health & Safety Environment",
+  "Cari Gali",
+]
+
+const EDIT_REQUIREMENTS = ["Activation", "Media", "Logistic"]
+
+function toIsoDateInput(d: Date | string | null | undefined): string {
+  if (!d) return ""
+  try {
+    const dateObj = typeof d === "string" ? new Date(d) : d
+    if (isNaN(dateObj.getTime())) return ""
+    return dateObj.toISOString().split("T")[0]
+  } catch {
+    return ""
+  }
+}
+
+interface EditEventRequisitionModalProps {
+  item: EventRequisitionItem
+  onClose: () => void
+  onSuccess: (updated: EventRequisitionItem) => void
+}
+
+function EditEventRequisitionModal({ item, onClose, onSuccess }: EditEventRequisitionModalProps) {
+  // Requester fields
+  const [name, setName] = useState(item.name || "")
+  const [staffId, setStaffId] = useState(item.staffId || "")
+  const [email, setEmail] = useState(item.email || "")
+  const [phone, setPhone] = useState(item.phone || "")
+  const [department, setDepartment] = useState(item.department || "")
+
+  // Event details
+  const [eventName, setEventName] = useState(item.eventName || "")
+  const [eventType, setEventType] = useState(item.eventType || "")
+  const [organizer, setOrganizer] = useState(item.organizer || "")
+  const [eventDateFrom, setEventDateFrom] = useState(toIsoDateInput(item.eventDateFrom))
+  const [eventDateTo, setEventDateTo] = useState(toIsoDateInput(item.eventDateTo))
+  const [picContactName, setPicContactName] = useState(item.picContactName || "")
+  const [picContactNumber, setPicContactNumber] = useState(item.picContactNumber || "")
+  const [tentative, setTentative] = useState(item.tentative || "")
+  const [remarks, setRemarks] = useState(item.remarks || "")
+
+  // Requirements multi-select
+  const [selectedReqs, setSelectedReqs] = useState<string[]>(() => {
+    if (!item.requirements) return []
+    return item.requirements.split(",").map(r => r.trim()).filter(Boolean)
+  })
+
+  const [saving, setSaving] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  const toggleReq = (req: string) => {
+    setSelectedReqs(prev =>
+      prev.includes(req) ? prev.filter(r => r !== req) : [...prev, req]
+    )
+  }
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErrorMsg(null)
+
+    if (!name.trim()) return setErrorMsg("Requester full name is required.")
+    if (!staffId.trim()) return setErrorMsg("Staff ID is required.")
+    if (!email.trim()) return setErrorMsg("Email address is required.")
+    if (!phone.trim()) return setErrorMsg("Requester contact phone number is required.")
+    if (!department) return setErrorMsg("Please select a department.")
+
+    if (!eventName.trim()) return setErrorMsg("Event name is required.")
+    if (!eventType.trim()) return setErrorMsg("Event type is required.")
+    if (!organizer.trim()) return setErrorMsg("Organizer name is required.")
+    if (!eventDateFrom) return setErrorMsg("Event start date (From) is required.")
+    if (!eventDateTo) return setErrorMsg("Event end date (To) is required.")
+    if (eventDateTo < eventDateFrom) {
+      return setErrorMsg("Event End Date (To) cannot be earlier than Event Start Date (From).")
+    }
+
+    if (!picContactName.trim()) return setErrorMsg("PIC contact name is required.")
+    if (!picContactNumber.trim()) return setErrorMsg("PIC contact phone number is required.")
+    if (!tentative.trim()) return setErrorMsg("Tentative schedule / details are required.")
+    if (selectedReqs.length === 0) {
+      return setErrorMsg("Please select at least one requirement (Activation, Media, Logistic).")
+    }
+
+    setSaving(true)
+
+    try {
+      const res = await updateMarketingEventRequisition(item.id, {
+        name: name.trim(),
+        staffId: staffId.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        department: department.trim(),
+        eventName: eventName.trim(),
+        eventType: eventType.trim(),
+        organizer: organizer.trim(),
+        eventDateFrom,
+        eventDateTo,
+        picContactName: picContactName.trim(),
+        picContactNumber: picContactNumber.trim(),
+        tentative: tentative.trim(),
+        requirements: selectedReqs.join(", "),
+        remarks: remarks.trim() || null,
+      })
+
+      if (res.success && res.data) {
+        const updatedItem: EventRequisitionItem = {
+          ...item,
+          name: res.data.name,
+          staffId: res.data.staffId,
+          email: res.data.email,
+          phone: res.data.phone || null,
+          department: res.data.department,
+          eventName: res.data.eventName,
+          eventType: res.data.eventType,
+          organizer: res.data.organizer,
+          eventDateFrom: res.data.eventDateFrom,
+          eventDateTo: res.data.eventDateTo,
+          picContactName: res.data.picContactName,
+          picContactNumber: res.data.picContactNumber,
+          tentative: res.data.tentative,
+          requirements: res.data.requirements,
+          remarks: res.data.remarks,
+          updatedAt: res.data.updatedAt,
+        }
+        onSuccess(updatedItem)
+      } else {
+        setErrorMsg(res.error || "Failed to update event requisition.")
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "An unexpected error occurred."
+      setErrorMsg(msg)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[70] bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-3xl w-full my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 p-6 text-white relative">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="px-2.5 py-0.5 rounded-md bg-indigo-600 text-white font-mono font-bold text-[10px] tracking-wide uppercase">
+                  {item.requestNumber}
+                </span>
+                <span className="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">
+                  Edit Event Requisition
+                </span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-white">
+                Edit Requisition Details
+              </h2>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Update event information for report generation and operational synchronization.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Form Body */}
+        <form onSubmit={handleSave} className="p-6 sm:p-8 space-y-6 max-h-[75vh] overflow-y-auto">
+          {errorMsg && (
+            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div className="font-semibold leading-relaxed">{errorMsg}</div>
+            </div>
+          )}
+
+          {/* Section 1: Department Requester Information */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2 border-b border-slate-100 pb-2">
+              <User className="w-4 h-4 text-indigo-600" />
+              1. Department Requester Information
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Full Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Staff ID <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={staffId}
+                  onChange={(e) => setStaffId(e.target.value)}
+                  className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition uppercase"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Email Address <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Phone Number <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <input
+                    type="tel"
+                    required
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="e.g. 012-3456789"
+                    className="w-full text-xs font-medium pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition"
+                  />
+                </div>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Department <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  required
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition"
+                >
+                  <option value="">-- Select Department --</option>
+                  {EDIT_DEPARTMENTS.map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Event Details */}
+          <div className="space-y-4 pt-2 border-t border-slate-100">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2 border-b border-slate-100 pb-2">
+              <Calendar className="w-4 h-4 text-indigo-600" />
+              2. Event Details &amp; Organizer
+            </h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Event Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                  className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Event Type <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={eventType}
+                    onChange={(e) => setEventType(e.target.value)}
+                    placeholder="e.g. CSR, Marathon, Expo"
+                    className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Event Organizer <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={organizer}
+                    onChange={(e) => setOrganizer(e.target.value)}
+                    placeholder="e.g. Kelab Sukan"
+                    className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Event Start Date (From) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={eventDateFrom}
+                    onChange={(e) => setEventDateFrom(e.target.value)}
+                    className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Event End Date (To) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={eventDateTo}
+                    onChange={(e) => setEventDateTo(e.target.value)}
+                    className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Tentative Schedule &amp; Location <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={tentative}
+                  onChange={(e) => setTentative(e.target.value)}
+                  className="w-full text-xs font-medium p-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Requirements */}
+          <div className="space-y-3 pt-2 border-t border-slate-100">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2 border-b border-slate-100 pb-2">
+              <Truck className="w-4 h-4 text-indigo-600" />
+              3. Support Requirements Allocated <span className="text-rose-500">*</span>
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {EDIT_REQUIREMENTS.map((req) => {
+                const isSelected = selectedReqs.includes(req)
+                return (
+                  <button
+                    key={req}
+                    type="button"
+                    onClick={() => toggleReq(req)}
+                    className={`p-3.5 rounded-xl border text-left transition cursor-pointer flex items-center justify-between ${
+                      isSelected
+                        ? "border-indigo-600 bg-indigo-50/60 text-indigo-950 font-bold shadow-xs"
+                        : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                    }`}
+                  >
+                    <span className="text-xs font-bold">{req}</span>
+                    <div
+                      className={`w-5 h-5 rounded-md border flex items-center justify-center transition ${
+                        isSelected ? "bg-indigo-600 border-indigo-600 text-white" : "border-slate-300 bg-white"
+                      }`}
+                    >
+                      {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Section 4: PIC Contact */}
+          <div className="space-y-4 pt-2 border-t border-slate-100">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2 border-b border-slate-100 pb-2">
+              <Phone className="w-4 h-4 text-indigo-600" />
+              4. Event Coordinator / Person In Charge (PIC)
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  PIC Contact Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={picContactName}
+                  onChange={(e) => setPicContactName(e.target.value)}
+                  className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  PIC Contact Phone <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={picContactNumber}
+                  onChange={(e) => setPicContactNumber(e.target.value)}
+                  className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 5: Administrative Remarks */}
+          <div className="space-y-3 pt-2 border-t border-slate-100">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2 border-b border-slate-100 pb-2">
+              <FileText className="w-4 h-4 text-indigo-600" />
+              5. Administrative / Approval Remarks (Optional)
+            </h3>
+
+            <textarea
+              rows={2}
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
+              placeholder="e.g. Approved with logistics buffer / modified schedule"
+              className="w-full text-xs font-medium p-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition"
+            />
+          </div>
+
+          {/* Footer Actions */}
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={onClose}
+              className="px-5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs uppercase tracking-wider transition cursor-pointer"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider transition shadow-sm hover:shadow-indigo-500/20 cursor-pointer flex items-center gap-2"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Saving Changes...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  <span>Save Changes</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }

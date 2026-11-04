@@ -85,6 +85,12 @@ export async function extractMaintenancePdfAction(formData: FormData): Promise<{
  * Public work request submission (QR01 Portal)
  */
 export async function publicCreateMaintenanceTicket(formData: FormData) {
+  // Honeypot bot protection
+  const honeypot = (formData.get("hp_website") as string) || (formData.get("company_website_url") as string) || ""
+  if (honeypot) {
+    return { success: true, message: "Work request submitted successfully." }
+  }
+
   const title = (formData.get("title") as string)?.trim()
   const reasonOfWork = (formData.get("reasonOfWork") as string)?.trim() || null
   const ticketType = ((formData.get("ticketType") as string) || "MECHANICAL") as MaintenanceTicketType
@@ -97,6 +103,17 @@ export async function publicCreateMaintenanceTicket(formData: FormData) {
 
   if (!title || !location || !requesterName || !requesterPhone) {
     return { success: false, error: "Please fill in all required fields (Name, Phone, Location, and Work Description)." }
+  }
+
+  if (
+    title.length > 200 ||
+    requesterName.length > 100 ||
+    requesterPhone.length > 30 ||
+    location.length > 200 ||
+    (specificArea && specificArea.length > 200) ||
+    (reasonOfWork && reasonOfWork.length > 5000)
+  ) {
+    return { success: false, error: "One or more input fields exceed the maximum allowable limit." }
   }
 
   // Secure token for private requester status & acceptance

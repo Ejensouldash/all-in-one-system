@@ -145,9 +145,15 @@ export async function submitVideoDesignRequisition(formData: FormData) {
       return {
         success: true,
         data: {
+          id: "fake-id",
           requestNumber: "VD-MKT-RECEIVED",
-          type: "SUBMITTED",
+          type: "VIDEO",
           name: "Anonymous",
+          staffId: "STAFF-0000",
+          department: "General",
+          needBy: new Date().toISOString(),
+          phoneNumber: "-",
+          attachments: [] as CreativeAttachmentInfo[],
         },
       }
     }
@@ -338,33 +344,29 @@ export async function submitVideoDesignRequisition(formData: FormData) {
 
       if (recipients.length > 0) {
         const detailsSummary = type === "VIDEO"
-          ? `Type: ${videoType} | Format: ${format}\nDetails: ${videoDetails || videoContentFocus}`
-          : `Type: ${designType} | Size: ${designSize || "Standard"}\nDetails: ${designDetails || designContent}`
+          ? `Video Type: ${videoType}\nFormat: ${format}\nContent Focus: ${videoContentFocus || "-"}\nRequired Shots: ${requiredShots || "-"}\nDetails: ${videoDetails || "-"}`
+          : `Design Type: ${designType}\nSize: ${designSize || "-"}\nNeed Printing: ${needPrinting ? "YES" : "NO"}\nContent: ${designContent || "-"}\nDetails: ${designDetails || "-"}`
 
-        const emailContent = generateMarketingVideoDesignRequisitionAdminEmail({
-          requestNumber,
-          type: type === "DESIGN" ? "Design & Artwork" : "Video Production",
-          name,
-          staffId,
-          department,
-          needBy: needBy.toLocaleDateString("en-MY", { day: "2-digit", month: "short", year: "numeric" }),
-          phoneNumber,
-          detailsSummary,
-          attachmentCount: attachments.length,
-        })
-
-        await queueMarketingEmailNotification(
-          "CREATIVE_REQUISITION_ADMIN",
-          `[New Request] ${requestNumber}: ${type === "DESIGN" ? "Design" : "Video"} Requisition (${department})`,
-          emailContent.html,
-          emailContent.plainText,
-          {
+        for (const recipient of recipients) {
+          const html = generateMarketingVideoDesignRequisitionAdminEmail({
             requestNumber,
             type,
-            department,
             name,
-          }
-        )
+            staffId,
+            department,
+            phoneNumber,
+            needBy: needBy.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+            details: detailsSummary,
+          })
+
+          await queueMarketingEmailNotification({
+            referenceId: requestNumber,
+            category: type.toUpperCase() === "VIDEO" ? "VIDEO" : "DESIGN",
+            to: recipient.email,
+            subject: `[Marketing] New ${type} Requisition: ${requestNumber} (${name} - ${department})`,
+            html,
+          })
+        }
       }
     } catch (mailErr) {
       console.warn("Could not queue creative requisition admin notification email:", mailErr)
@@ -375,11 +377,13 @@ export async function submitVideoDesignRequisition(formData: FormData) {
     return {
       success: true,
       data: {
+        id: requisition.id,
         requestNumber: requisition.requestNumber,
         type: requisition.type,
         name: requisition.name,
+        staffId: requisition.staffId,
         department: requisition.department,
-        needBy: requisition.needBy,
+        needBy: requisition.needBy.toISOString(),
         phoneNumber: requisition.phoneNumber,
         attachments,
       },

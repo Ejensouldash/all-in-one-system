@@ -341,7 +341,7 @@ export async function submitVideoDesignRequisition(formData: FormData) {
           ? `Type: ${videoType} | Format: ${format}\nDetails: ${videoDetails || videoContentFocus}`
           : `Type: ${designType} | Size: ${designSize || "Standard"}\nDetails: ${designDetails || designContent}`
 
-        const emailContent = generateMarketingVideoDesignRequisitionAdminEmail({
+        const emailHtml = generateMarketingVideoDesignRequisitionAdminEmail({
           requestNumber,
           type: type === "DESIGN" ? "Design & Artwork" : "Video Production",
           name,
@@ -349,22 +349,21 @@ export async function submitVideoDesignRequisition(formData: FormData) {
           department,
           needBy: needBy.toLocaleDateString("en-MY", { day: "2-digit", month: "short", year: "numeric" }),
           phoneNumber,
-          detailsSummary,
-          attachmentCount: attachments.length,
+          details: detailsSummary,
         })
 
-        await queueMarketingEmailNotification(
-          "CREATIVE_REQUISITION_ADMIN",
-          `[New Request] ${requestNumber}: ${type === "DESIGN" ? "Design" : "Video"} Requisition (${department})`,
-          emailContent.html,
-          emailContent.plainText,
-          {
-            requestNumber,
-            type,
-            department,
-            name,
-          }
-        )
+        const subject = `[New Request] ${requestNumber}: ${type === "DESIGN" ? "Design" : "Video"} Requisition (${department})`
+        const uniqueEmails = Array.from(new Set(recipients.map((r) => r.email.trim().toLowerCase())))
+
+        for (const recipientEmail of uniqueEmails) {
+          await queueMarketingEmailNotification({
+            referenceId: requestNumber,
+            category: type.toUpperCase() === "VIDEO" ? "VIDEO" : "DESIGN",
+            to: recipientEmail,
+            subject,
+            html: emailHtml,
+          })
+        }
       }
     } catch (mailErr) {
       console.warn("Could not queue creative requisition admin notification email:", mailErr)
@@ -378,8 +377,9 @@ export async function submitVideoDesignRequisition(formData: FormData) {
         requestNumber: requisition.requestNumber,
         type: requisition.type,
         name: requisition.name,
+        staffId: requisition.staffId,
         department: requisition.department,
-        needBy: requisition.needBy,
+        needBy: requisition.needBy.toISOString(),
         phoneNumber: requisition.phoneNumber,
         attachments,
       },

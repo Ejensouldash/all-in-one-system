@@ -319,7 +319,7 @@ export async function savePostEventReport(formData: PostEventReportFormData) {
       documentNo: formData.documentNo.trim(),
       issueNo: formData.issueNo || "02",
       reportDate: formData.reportDate ? new Date(formData.reportDate) : new Date(),
-      reportPreparedBy: formData.reportPreparedBy?.trim() || session?.user?.name || "Staff",
+      reportPreparedBy: formData.reportPreparedBy?.trim() || sessionName || "Staff",
       attendeesCount: formData.attendeesCount?.trim() || "",
       typeOfInvolvement: formData.typeOfInvolvement?.trim() || "Sponsorship",
       vipsList: JSON.stringify(formData.vipsList || []),

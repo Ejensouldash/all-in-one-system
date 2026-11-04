@@ -84,6 +84,7 @@ interface MarketingEventsClientProps {
     id?: string
     name?: string | null
     email?: string | null
+    role?: string | null
   }
   canEdit?: boolean
 }
@@ -1037,6 +1038,18 @@ export function MarketingEventsClient({ initialRequisitions, user, canEdit = fal
             </div>
           </div>
         </div>
+      )}
+
+      {/* Post-Event Report Hub Modal */}
+      {postEventReportItem && (
+        <PostEventReportModal
+          isOpen={!!postEventReportItem}
+          onClose={() => setPostEventReportItem(null)}
+          requisitionId={postEventReportItem.id}
+          eventName={postEventReportItem.eventName}
+          currentUserRole={user?.role || "STAFF"}
+          currentUserName={user?.name || "Staff"}
+        />
       )}
 
       {/* ========================================================================= */}

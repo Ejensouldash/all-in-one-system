@@ -63,14 +63,14 @@ const COMMON_DEPARTMENTS = [
 ]
 
 const CLAIM_CATEGORIES = [
-  { value: "PETROL", label: "Petrol / Minyak" },
-  { value: "TNG", label: "Touch 'n Go / Tol" },
-  { value: "ACCOMMODATION", label: "Hotel / Penginapan" },
-  { value: "MEALS", label: "Elaun Makan" },
-  { value: "BOOTH_ITEMS", label: "Barang-barang Booth" },
-  { value: "ICE", label: "Ais Ketul" },
-  { value: "LOGISTICS", label: "Pengangkutan / Lalamove" },
-  { value: "OTHER", label: "Lain-lain" },
+  { value: "PETROL", label: "Petrol / Fuel" },
+  { value: "TNG", label: "Touch 'n Go / Toll" },
+  { value: "ACCOMMODATION", label: "Hotel / Accommodation" },
+  { value: "MEALS", label: "Meal Allowance" },
+  { value: "BOOTH_ITEMS", label: "Booth Materials & Setup" },
+  { value: "ICE", label: "Ice Cubes" },
+  { value: "LOGISTICS", label: "Logistics / Courier" },
+  { value: "OTHER", label: "Other" },
 ]
 
 export function PostEventReportModal({
@@ -135,12 +135,12 @@ export function PostEventReportModal({
           setFormData(res.report as PostEventReportFormData)
           setFeedbackStats(res.feedbackStats)
         } else {
-          setErrorMsg(res.error || "Gagal memuatkan laporan post-event")
+          setErrorMsg(res.error || "Failed to load post-event report")
         }
       })
       .catch((err) => {
         if (!isMounted) return
-        setErrorMsg(err.message || "Ralat memuatkan rekod")
+        setErrorMsg(err.message || "Error loading report records")
       })
       .finally(() => {
         if (isMounted) setLoading(false)
@@ -263,10 +263,10 @@ export function PostEventReportModal({
         }
         updateClaimGroup(groupIndex, { ...group, items })
       } else {
-        setErrorMsg(res.error || "Gagal muat naik gambar resit")
+        setErrorMsg(res.error || "Failed to upload receipt attachment")
       }
     } catch (err: any) {
-      setErrorMsg(err.message || "Ralat semasa muat naik")
+      setErrorMsg(err.message || "Upload error occurred")
     } finally {
       setUploadingReceipt(null)
     }
@@ -298,10 +298,10 @@ export function PostEventReportModal({
           plannedFlowImages: [...formData.plannedFlowImages, newItem],
         })
       } else {
-        setErrorMsg(res.error || "Gagal memuat naik imej tentatif")
+        setErrorMsg(res.error || "Failed to upload schedule image")
       }
     } catch (err: any) {
-      setErrorMsg(err.message || "Ralat muat naik imej")
+      setErrorMsg(err.message || "Error uploading image")
     } finally {
       setUploadingFlow(false)
     }
@@ -332,10 +332,10 @@ export function PostEventReportModal({
           activationImages: [...formData.activationImages, newItem],
         })
       } else {
-        setErrorMsg(res.error || "Gagal memuat naik poster aktiviti")
+        setErrorMsg(res.error || "Failed to upload activation poster")
       }
     } catch (err: any) {
-      setErrorMsg(err.message || "Ralat muat naik imej")
+      setErrorMsg(err.message || "Error uploading poster")
     } finally {
       setUploadingActivation(false)
     }
@@ -350,13 +350,13 @@ export function PostEventReportModal({
     try {
       const res = await savePostEventReport(formData)
       if (res.success) {
-        setSuccessMsg("Draf laporan berjaya disimpan!")
+        setSuccessMsg("Report draft saved successfully!")
         setTimeout(() => setSuccessMsg(null), 3000)
       } else {
-        setErrorMsg(res.error || "Gagal menyimpan draf laporan")
+        setErrorMsg(res.error || "Failed to save report draft")
       }
     } catch (err: any) {
-      setErrorMsg(err.message || "Ralat semasa menyimpan")
+      setErrorMsg(err.message || "Error occurred while saving")
     } finally {
       setSaving(false)
     }
@@ -364,23 +364,22 @@ export function PostEventReportModal({
 
   // Submit Report
   const handleSubmitForApproval = async () => {
-    if (!confirm("Adakah anda pasti mahu menghantar laporan ini untuk kelulusan HOD?")) return
+    if (!confirm("Are you sure you want to submit this report for HOD review and sign-off?")) return
 
     setSaving(true)
     setErrorMsg(null)
     try {
-      // Save first
       await savePostEventReport(formData)
       const res = await submitPostEventReport(requisitionId)
       if (res.success) {
         setFormData({ ...formData, status: "SUBMITTED" })
-        setSuccessMsg("Laporan telah dihantar untuk kelulusan!")
+        setSuccessMsg("Report submitted successfully for approval!")
         setActiveTab("APPROVAL")
       } else {
-        setErrorMsg(res.error || "Gagal menghantar laporan")
+        setErrorMsg(res.error || "Failed to submit report")
       }
     } catch (err: any) {
-      setErrorMsg(err.message || "Ralat semasa penghantaran")
+      setErrorMsg(err.message || "Error occurred during submission")
     } finally {
       setSaving(false)
     }
@@ -388,7 +387,7 @@ export function PostEventReportModal({
 
   // Approve Report
   const handleApproveReport = async () => {
-    const approver = prompt("Sila sahkan Nama Pegawai Yang Meluluskan (HOD / GM):", currentUserName || "Head of Marketing")
+    const approver = prompt("Please confirm Approving Officer Name (HOD / Executive):", currentUserName || "Head of Marketing Department")
     if (!approver) return
 
     setSaving(true)
@@ -402,12 +401,12 @@ export function PostEventReportModal({
           approvedBy: approver,
           approvedAt: new Date().toISOString(),
         })
-        setSuccessMsg("Laporan berjaya diluluskan dan status dikunci!")
+        setSuccessMsg("Report successfully approved and locked!")
       } else {
-        setErrorMsg(res.error || "Gagal meluluskan laporan")
+        setErrorMsg(res.error || "Failed to approve report")
       }
     } catch (err: any) {
-      setErrorMsg(err.message || "Ralat semasa meluluskan")
+      setErrorMsg(err.message || "Error approving report")
     } finally {
       setSaving(false)
     }
@@ -445,7 +444,7 @@ export function PostEventReportModal({
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Acara: <span className="font-semibold text-slate-800">{eventName}</span> • Ref:{" "}
+                Event: <span className="font-semibold text-slate-800">{eventName}</span> • Ref:{" "}
                 <span className="font-mono text-teal-700 font-semibold">{formData.documentNo || "Generating..."}</span>
               </p>
             </div>
@@ -459,7 +458,7 @@ export function PostEventReportModal({
               className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-sm transition"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Jana PDF Rasmi</span>
+              <span>Generate Official PDF</span>
             </a>
             <button
               onClick={onClose}
@@ -482,7 +481,7 @@ export function PostEventReportModal({
             }`}
           >
             <Users className="w-3.5 h-3.5" />
-            <span>1. Skop &amp; VIPs</span>
+            <span>1. Scope &amp; VIPs</span>
           </button>
 
           <button
@@ -495,7 +494,7 @@ export function PostEventReportModal({
             }`}
           >
             <Calendar className="w-3.5 h-3.5" />
-            <span>2. Objektif, Aliran &amp; Aktiviti</span>
+            <span>2. Objectives, Flow &amp; Activations</span>
           </button>
 
           <button
@@ -508,7 +507,7 @@ export function PostEventReportModal({
             }`}
           >
             <DollarSign className="w-3.5 h-3.5" />
-            <span>3. Tuntutan Kewangan &amp; Resit</span>
+            <span>3. Finance &amp; Claims</span>
             {formData.totalClaimAmount > 0 && (
               <span className="text-[10px] bg-teal-100 text-teal-800 px-1.5 py-0.2 rounded-full font-bold ml-1">
                 RM {formData.totalClaimAmount.toFixed(2)}
@@ -526,7 +525,7 @@ export function PostEventReportModal({
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>4. Impak &amp; Refleksi</span>
+            <span>4. Impact &amp; Review</span>
           </button>
 
           <button
@@ -539,7 +538,7 @@ export function PostEventReportModal({
             }`}
           >
             <Award className="w-3.5 h-3.5" />
-            <span>5. Pengesahan &amp; Muat Turun</span>
+            <span>5. Approval &amp; Download</span>
           </button>
         </div>
 
@@ -562,7 +561,7 @@ export function PostEventReportModal({
           {loading ? (
             <div className="py-20 flex flex-col items-center justify-center gap-2 text-slate-400">
               <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
-              <p className="text-xs">Memuatkan data laporan...</p>
+              <p className="text-xs">Loading post-event report data...</p>
             </div>
           ) : (
             <>
@@ -572,7 +571,7 @@ export function PostEventReportModal({
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
-                        No. Dokumen ISO
+                        ISO Document Number
                       </label>
                       <input
                         type="text"
@@ -583,7 +582,7 @@ export function PostEventReportModal({
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Disediakan Oleh (Report Prepared By)
+                        Report Prepared By
                       </label>
                       <input
                         type="text"
@@ -594,7 +593,7 @@ export function PostEventReportModal({
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Tarikh Laporan
+                        Report Date
                       </label>
                       <input
                         type="date"
@@ -608,11 +607,11 @@ export function PostEventReportModal({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
-                        3. Bilangan Pengunjung (Number of Attendees)
+                        3. Number of Attendees
                       </label>
                       <input
                         type="text"
-                        placeholder="Contoh: 69,104 atau 200,000*"
+                        placeholder="e.g. 69,104 or 200,000*"
                         value={formData.attendeesCount}
                         onChange={(e) => setFormData({ ...formData, attendeesCount: e.target.value })}
                         className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
@@ -620,11 +619,11 @@ export function PostEventReportModal({
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
-                        4. Jenis Penglibatan (Type of Involvement)
+                        4. Type of Involvement
                       </label>
                       <input
                         type="text"
-                        placeholder="Contoh: Sponsorship, Exhibition, Sampling, Official Hydration Partner"
+                        placeholder="e.g. Sponsorship, Exhibition, Sampling, Official Hydration Partner"
                         value={formData.typeOfInvolvement}
                         onChange={(e) => setFormData({ ...formData, typeOfInvolvement: e.target.value })}
                         className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
@@ -637,10 +636,10 @@ export function PostEventReportModal({
                     <div className="flex items-center justify-between mb-3">
                       <div>
                         <h3 className="text-xs font-bold text-slate-800">
-                          5. VIPs / Tetamu Kenamaan (If Any)
+                          5. VIPs / Dignitaries (If Any)
                         </h3>
                         <p className="text-[11px] text-slate-500">
-                          Senaraikan dif-dif kehormat, menteri, atau pengurusan kanan syarikat yang hadir.
+                          List dignitaries, ministers, board members, or executive stakeholders in attendance.
                         </p>
                       </div>
                       <button
@@ -654,7 +653,7 @@ export function PostEventReportModal({
                         className="px-2.5 py-1 text-xs font-semibold bg-white border border-slate-300 rounded-lg hover:bg-slate-100 flex items-center gap-1"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        <span>Tambah VIP</span>
+                        <span>Add VIP</span>
                       </button>
                     </div>
 
@@ -663,7 +662,7 @@ export function PostEventReportModal({
                         <div key={idx} className="flex items-center gap-2">
                           <input
                             type="text"
-                            placeholder="Nama VIP (cth: Dato Sri Dr Ahmad Zahid Hamidi)"
+                            placeholder="VIP Name (e.g. Dato Arifin Marzuki)"
                             value={vip.name}
                             onChange={(e) => {
                               const updated = [...formData.vipsList]
@@ -674,7 +673,7 @@ export function PostEventReportModal({
                           />
                           <input
                             type="text"
-                            placeholder="Jawatan / Gelaran (cth: Timbalan Perdana Menteri / Chairman)"
+                            placeholder="Title / Designation (e.g. Chairman Bubbles O2)"
                             value={vip.title}
                             onChange={(e) => {
                               const updated = [...formData.vipsList]
@@ -701,10 +700,10 @@ export function PostEventReportModal({
                   {/* Section 6: Staff Involved */}
                   <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
                     <h3 className="text-xs font-bold text-slate-800 mb-1">
-                      6. Jabatan / Staf Terlibat (Staff Involved)
+                      6. Staff &amp; Departments Involved
                     </h3>
                     <p className="text-[11px] text-slate-500 mb-3">
-                      Tandakan jabatan-jabatan yang menggerakkan operasi acara ini.
+                      Select all departments that supported and executed event operations.
                     </p>
 
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -742,45 +741,45 @@ export function PostEventReportModal({
                   {/* Section 7: Objectives */}
                   <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3">
                     <h3 className="text-xs font-bold text-slate-800">
-                      7. Objektif Acara (Objectives)
+                      7. Event Objectives
                     </h3>
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Aims (Matlamat Utama)
+                        Aims
                       </label>
                       <textarea
                         rows={2}
                         value={formData.aims}
                         onChange={(e) => setFormData({ ...formData, aims: e.target.value })}
                         className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 bg-white"
-                        placeholder="Matlamat penglibatan syarikat dalam acara ini..."
+                        placeholder="Strategic aims of company involvement in this event..."
                       />
                     </div>
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Benefits (Faedah &amp; Nilai Diperoleh)
+                        Benefits
                       </label>
                       <textarea
                         rows={2}
                         value={formData.benefits}
                         onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
                         className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 bg-white"
-                        placeholder="Faedah penjenamaan, jaringan perniagaan dan peluang pasaran..."
+                        placeholder="Brand recognition, business networking, direct consumer engagement..."
                       />
                     </div>
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Expected Impact (Pecahan Stok &amp; Sasaran Karton Air)
+                        Expected Impact &amp; Stock Distribution
                       </label>
                       <textarea
                         rows={2}
                         value={formData.expectedImpact}
                         onChange={(e) => setFormData({ ...formData, expectedImpact: e.target.value })}
                         className="w-full text-xs font-mono px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 bg-white"
-                        placeholder="Contoh:&#10;425mlx24 = 1154ctn&#10;800mlx12 = 30ctn"
+                        placeholder="e.g.&#10;425mlx24 = 1154ctn for 3 days&#10;800mlx12 = 30ctn"
                       />
                     </div>
                   </div>
@@ -790,23 +789,23 @@ export function PostEventReportModal({
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="text-xs font-bold text-slate-800">
-                          8. Aliran Acara (General Flow &amp; Tentative)
+                          8. General Flow &amp; Tentative
                         </h3>
                         <p className="text-[11px] text-slate-500">
-                          Muat naik jadual harian, gambar route peta stage, atau catat tentatif.
+                          Upload daily schedule images, stage route maps, or document tentative timeline.
                         </p>
                       </div>
 
                       <div className="flex items-center gap-2">
                         <label className="px-2.5 py-1 text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white rounded-lg flex items-center gap-1 cursor-pointer transition">
                           {uploadingFlow ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                          <span>Muat Naik Imej Jadual / Peta</span>
+                          <span>Upload Schedule / Map</span>
                           <input
                             type="file"
                             accept="image/*"
                             className="hidden"
                             disabled={uploadingFlow}
-                            onChange={(e) => handleUploadFlowImage(e, `Hari ${formData.plannedFlowImages.length + 1}`)}
+                            onChange={(e) => handleUploadFlowImage(e, `Day ${formData.plannedFlowImages.length + 1}`)}
                           />
                         </label>
                       </div>
@@ -814,14 +813,14 @@ export function PostEventReportModal({
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Planned Flow (Catatan Tentatif Perancangan)
+                        Planned Flow / Tentative Notes
                       </label>
                       <textarea
                         rows={2}
                         value={formData.plannedFlowText}
                         onChange={(e) => setFormData({ ...formData, plannedFlowText: e.target.value })}
                         className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none bg-white"
-                        placeholder="Ringkasan tentatif harian atau fasa perlumbaan..."
+                        placeholder="Summary of daily tentative or stage route schedule..."
                       />
                     </div>
 
@@ -860,14 +859,14 @@ export function PostEventReportModal({
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Executed Flow (Pelaksanaan Sebenar / Nota Perubahan)
+                        Executed Flow / Operational Outcome
                       </label>
                       <input
                         type="text"
                         value={formData.executedFlowText}
                         onChange={(e) => setFormData({ ...formData, executedFlowText: e.target.value })}
                         className="w-full text-xs px-3 py-1.5 border border-slate-300 rounded-lg outline-none bg-white"
-                        placeholder="Contoh: Dilaksanakan mengikut perancangan tanpa sebarang isu keselamatan."
+                        placeholder="e.g. Executed smoothly according to schedule without any safety or logistics disruptions."
                       />
                     </div>
                   </div>
@@ -877,10 +876,10 @@ export function PostEventReportModal({
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="text-xs font-bold text-slate-800">
-                          9. Aktiviti Penglibatan (Activation &amp; Engagement)
+                          9. Activation &amp; Engagement Activities
                         </h3>
                         <p className="text-[11px] text-slate-500">
-                          Permainan booth, jualan langsung, promosi media sosial, dan poster aktiviti.
+                          Booth games, direct sales, social media activations, and promotional posters.
                         </p>
                       </div>
 
@@ -899,12 +898,12 @@ export function PostEventReportModal({
                           className="px-2.5 py-1 text-xs font-semibold bg-white border border-slate-300 rounded-lg hover:bg-slate-100 flex items-center gap-1"
                         >
                           <Plus className="w-3.5 h-3.5" />
-                          <span>Tambah Aktiviti</span>
+                          <span>Add Activity</span>
                         </button>
 
                         <label className="px-2.5 py-1 text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white rounded-lg flex items-center gap-1 cursor-pointer transition">
                           {uploadingActivation ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                          <span>Muat Naik Poster</span>
+                          <span>Upload Poster</span>
                           <input
                             type="file"
                             accept="image/*"
@@ -921,7 +920,7 @@ export function PostEventReportModal({
                         <div key={idx} className="flex items-center gap-2">
                           <input
                             type="text"
-                            placeholder="Tajuk Aktiviti (cth: Pick, Reveal & Win / Strike A Pose)"
+                            placeholder="Activity Title (e.g. Pick, Reveal & Win / Strike A Pose)"
                             value={act.title}
                             onChange={(e) => {
                               const updated = [...formData.activationsList]
@@ -932,7 +931,7 @@ export function PostEventReportModal({
                           />
                           <input
                             type="text"
-                            placeholder="Penerangan ringkas..."
+                            placeholder="Brief description..."
                             value={act.description || ""}
                             onChange={(e) => {
                               const updated = [...formData.activationsList]
@@ -988,15 +987,15 @@ export function PostEventReportModal({
                   <div className="flex items-center justify-between bg-teal-50 border border-teal-200 p-4 rounded-xl">
                     <div>
                       <h3 className="text-sm font-bold text-teal-950">
-                        10. Laporan Kewangan &amp; Tuntutan Perbelanjaan (TEV)
+                        10. Finance Report &amp; Itemized Claims (TEV)
                       </h3>
                       <p className="text-xs text-teal-800">
-                        Semua jumlah dikira secara automatik oleh sistem bagi mengelakkan ralat manual. Gambar resit akan disusun ke muka surat Lampiran (Appendix) PDF.
+                        All claim totals are automatically calculated by the system to prevent manual arithmetic errors. Attached receipts will be formatted into PDF Appendix pages.
                       </p>
                     </div>
 
                     <div className="text-right">
-                      <span className="text-xs font-semibold text-teal-700 block">JUMLAH KESELURUHAN (GRAND TOTAL)</span>
+                      <span className="text-xs font-semibold text-teal-700 block">GRAND TOTAL CLAIMS</span>
                       <span className="text-xl font-black text-teal-900 font-mono">
                         RM {formData.totalClaimAmount.toFixed(2)}
                       </span>
@@ -1010,13 +1009,13 @@ export function PostEventReportModal({
                       className="px-3 py-1.5 text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white rounded-lg flex items-center gap-1.5 shadow-sm transition"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>Tambah Pemohon Tuntutan (Claimant)</span>
+                      <span>Add Claimant</span>
                     </button>
                   </div>
 
                   {formData.claimBreakdown.length === 0 ? (
                     <div className="py-12 border-2 border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-xs">
-                      Tiada tuntutan direkodkan lagi. Sila klik butang di atas untuk menambah pemohon (contoh: Cik Nana, Muhammad).
+                      No claims recorded yet. Click the button above to add a claimant (e.g. Cik Nana, Muhammad).
                     </div>
                   ) : (
                     formData.claimBreakdown.map((group, gIdx) => (
@@ -1024,10 +1023,10 @@ export function PostEventReportModal({
                         {/* Group Header */}
                         <div className="bg-slate-100/90 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <span className="text-xs font-bold text-slate-500 uppercase">Pemohon {gIdx + 1}:</span>
+                            <span className="text-xs font-bold text-slate-500 uppercase">Claimant {gIdx + 1}:</span>
                             <input
                               type="text"
-                              placeholder="Nama Staf (cth: Cik Nana / Muhammad)"
+                              placeholder="Staff Name (e.g. Cik Nana / Muhammad)"
                               value={group.claimantName}
                               onChange={(e) => {
                                 updateClaimGroup(gIdx, { ...group, claimantName: e.target.value })
@@ -1047,7 +1046,7 @@ export function PostEventReportModal({
                               type="button"
                               onClick={() => handleRemoveClaimant(gIdx)}
                               className="text-slate-400 hover:text-red-600 p-1 rounded transition"
-                              title="Padam Kumpulan Ini"
+                              title="Delete Claimant Group"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -1060,11 +1059,11 @@ export function PostEventReportModal({
                             <thead>
                               <tr className="border-b border-slate-200 text-slate-400 uppercase text-[10px] font-bold">
                                 <th className="pb-2 w-10">No</th>
-                                <th className="pb-2">Perkara / Deskripsi</th>
-                                <th className="pb-2 w-36">Kategori</th>
-                                <th className="pb-2 w-28">No Plat Kenderaan</th>
-                                <th className="pb-2 w-28 text-right">Jumlah (RM)</th>
-                                <th className="pb-2 w-44 text-center">Lampiran Resit</th>
+                                <th className="pb-2">Description</th>
+                                <th className="pb-2 w-36">Category</th>
+                                <th className="pb-2 w-28">Vehicle Plate</th>
+                                <th className="pb-2 w-28 text-right">Amount (RM)</th>
+                                <th className="pb-2 w-44 text-center">Receipt Attachment</th>
                                 <th className="pb-2 w-8"></th>
                               </tr>
                             </thead>
@@ -1075,7 +1074,7 @@ export function PostEventReportModal({
                                   <td className="py-2 pr-2">
                                     <input
                                       type="text"
-                                      placeholder="cth: Hotel Dorsett / Petrol SJU 802"
+                                      placeholder="e.g. Team Accommodation / Refuel SJU 802"
                                       value={item.description}
                                       onChange={(e) => {
                                         const items = [...group.items]
@@ -1105,7 +1104,7 @@ export function PostEventReportModal({
                                   <td className="py-2 pr-2">
                                     <input
                                       type="text"
-                                      placeholder="cth: SJU 802"
+                                      placeholder="e.g. SJU 802"
                                       value={item.vehiclePlate || ""}
                                       onChange={(e) => {
                                         const items = [...group.items]
@@ -1140,7 +1139,7 @@ export function PostEventReportModal({
                                           className="text-[11px] text-teal-700 font-semibold hover:underline flex items-center gap-1"
                                         >
                                           <Eye className="w-3 h-3" />
-                                          <span className="truncate max-w-[90px]">{item.receiptName || "Lihat Resit"}</span>
+                                          <span className="truncate max-w-[90px]">{item.receiptName || "View Receipt"}</span>
                                         </a>
                                         <button
                                           type="button"
@@ -1151,7 +1150,7 @@ export function PostEventReportModal({
                                             updateClaimGroup(gIdx, { ...group, items })
                                           }}
                                           className="text-red-500 hover:text-red-700"
-                                          title="Buang Resit"
+                                          title="Remove Receipt"
                                         >
                                           <X className="w-3.5 h-3.5" />
                                         </button>
@@ -1163,7 +1162,7 @@ export function PostEventReportModal({
                                         ) : (
                                           <Upload className="w-3 h-3" />
                                         )}
-                                        <span>Muat Naik Resit</span>
+                                        <span>Upload Receipt</span>
                                         <input
                                           type="file"
                                           accept="image/*,application/pdf"
@@ -1178,7 +1177,7 @@ export function PostEventReportModal({
                                       type="button"
                                       onClick={() => handleRemoveClaimItem(gIdx, iIdx)}
                                       className="text-slate-300 hover:text-red-500 p-1"
-                                      title="Padam Baris"
+                                      title="Delete Item"
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
@@ -1194,7 +1193,7 @@ export function PostEventReportModal({
                             className="mt-2 text-xs font-semibold text-teal-700 hover:text-teal-800 flex items-center gap-1"
                           >
                             <Plus className="w-3.5 h-3.5" />
-                            <span>Tambah Baris Perbelanjaan</span>
+                            <span>Add Expense Item</span>
                           </button>
                         </div>
                       </div>
@@ -1212,39 +1211,39 @@ export function PostEventReportModal({
                       <div className="flex items-center gap-2">
                         <Sparkles className="w-4 h-4 text-teal-700" />
                         <h3 className="text-xs font-bold text-teal-950 uppercase">
-                          11. Analisis Maklum Balas Kaji Selidik Awam (Auto-Sync)
+                          11. Public Feedback Analytics (Auto-Synced)
                         </h3>
                       </div>
                       <span className="text-[10px] font-bold bg-teal-100 text-teal-800 px-2.5 py-0.5 rounded-full">
-                        {feedbackStats?.totalFeedbacks || 0} Maklum Balas Diterima
+                        {feedbackStats?.totalFeedbacks || 0} Responses Received
                       </span>
                     </div>
 
                     <p className="text-xs text-teal-900 leading-relaxed">
-                      Statistik di bawah diambil secara automatik daripada borang kaji selidik QR sistem. Carta donat akan terus dilukiskan di dalam halaman PDF.
+                      Statistics below are automatically synchronized from respondent surveys via the event feedback QR code. The vector donut chart will be rendered directly in the official report.
                     </p>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-teal-200/60 text-xs">
                       <div className="bg-white p-2.5 rounded-lg border border-teal-100">
-                        <span className="text-slate-500 block text-[11px]">Sangat Berpuas Hati</span>
+                        <span className="text-slate-500 block text-[11px]">Extremely Satisfied</span>
                         <span className="text-base font-bold text-teal-800">
                           {feedbackStats?.satisfactionCounts?.EXTREMELY_SATISFIED || 0}
                         </span>
                       </div>
                       <div className="bg-white p-2.5 rounded-lg border border-teal-100">
-                        <span className="text-slate-500 block text-[11px]">Berpuas Hati</span>
+                        <span className="text-slate-500 block text-[11px]">Very Satisfied</span>
                         <span className="text-base font-bold text-cyan-800">
                           {feedbackStats?.satisfactionCounts?.VERY_SATISFIED || 0}
                         </span>
                       </div>
                       <div className="bg-white p-2.5 rounded-lg border border-teal-100">
-                        <span className="text-slate-500 block text-[11px]">Sederhana</span>
+                        <span className="text-slate-500 block text-[11px]">Somewhat Satisfied</span>
                         <span className="text-base font-bold text-amber-800">
                           {feedbackStats?.satisfactionCounts?.SOMEWHAT_SATISFIED || 0}
                         </span>
                       </div>
                       <div className="bg-white p-2.5 rounded-lg border border-teal-100">
-                        <span className="text-slate-500 block text-[11px]">Peratus Kepuasan</span>
+                        <span className="text-slate-500 block text-[11px]">Satisfaction Rate</span>
                         <span className="text-base font-black text-emerald-800">
                           {feedbackStats?.satisfactionRate || 99}%
                         </span>
@@ -1255,53 +1254,53 @@ export function PostEventReportModal({
                   {/* Improvements & Reflection */}
                   <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3">
                     <h3 className="text-xs font-bold text-slate-800">
-                      12. Cadangan Penambahbaikan (Future Improvement)
+                      12. Review &amp; Future Improvements
                     </h3>
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Penambahbaikan untuk Penganjur (MATRADE / MSN / Urus Setia Acara)
+                        Future Improvements for Organizers (MATRADE / MSN / Secretariat)
                       </label>
                       <textarea
                         rows={2}
                         value={formData.futureImprovementOrg}
                         onChange={(e) => setFormData({ ...formData, futureImprovementOrg: e.target.value })}
                         className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none bg-white"
-                        placeholder="Contoh: Isu kelewatan pas kontraktor luaran atau stor simpanan..."
+                        placeholder="e.g. Issues regarding external contractor passes or delayed storage room handover..."
                       />
                     </div>
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Maklum Balas &amp; Cadangan Penambahbaikan Pengunjung (Internal Booth)
+                        Participants' Feedback &amp; Suggestions for Improvement (Internal Booth)
                       </label>
                       <textarea
                         rows={2}
                         value={formData.futureImprovementPart}
                         onChange={(e) => setFormData({ ...formData, futureImprovementPart: e.target.value })}
                         className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none bg-white"
-                        placeholder="Contoh: Menambah bilangan hadiah dan memperluaskan kaunter sampling air..."
+                        placeholder="e.g. Expand promotional merchandise inventory and increase product sampling stations..."
                       />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                       <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          13. Cadangan Penyertaan Masa Hadapan (Future Consideration)
+                          13. Future Consideration
                         </label>
                         <select
                           value={formData.futureConsideration ? "true" : "false"}
                           onChange={(e) => setFormData({ ...formData, futureConsideration: e.target.value === "true" })}
                           className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none bg-white font-semibold"
                         >
-                          <option value="true">YES (Disyorkan untuk Sertai Lagi)</option>
-                          <option value="false">NO (Tidak Disyorkan)</option>
+                          <option value="true">YES (Recommended for Future Participation)</option>
+                          <option value="false">NO (Not Recommended)</option>
                         </select>
                       </div>
 
                       <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          14. Kadar Kejayaan Acara (Success Rate %)
+                          14. Event Success Rate (%)
                         </label>
                         <input
                           type="number"
@@ -1319,7 +1318,7 @@ export function PostEventReportModal({
                   <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3">
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-bold text-slate-800">
-                        15. Pautan Media &amp; Liputan Digital (Media Links)
+                        15. Media Links &amp; Digital Coverage
                       </h3>
                       <button
                         type="button"
@@ -1335,7 +1334,7 @@ export function PostEventReportModal({
                         className="px-2.5 py-1 text-xs font-semibold bg-white border border-slate-300 rounded-lg hover:bg-slate-100 flex items-center gap-1"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        <span>Tambah Pautan</span>
+                        <span>Add Link</span>
                       </button>
                     </div>
 
@@ -1355,7 +1354,7 @@ export function PostEventReportModal({
                             <option value="Facebook">Facebook</option>
                             <option value="Instagram">Instagram</option>
                             <option value="Website">Website</option>
-                            <option value="Other">Lain-lain</option>
+                            <option value="Other">Other</option>
                           </select>
                           <input
                             type="url"
@@ -1395,14 +1394,14 @@ export function PostEventReportModal({
 
                     <div>
                       <h3 className="text-base font-bold text-slate-900">
-                        Status Laporan: <span className="text-teal-700">{formData.status}</span>
+                        Report Status: <span className="text-teal-700">{formData.status}</span>
                       </h3>
                       <p className="text-xs text-slate-500 mt-1">
                         {formData.status === "APPROVED"
-                          ? `Laporan telah disemak dan diluluskan secara rasmi oleh ${formData.approvedBy || "HOD"}.`
+                          ? `This report has been formally reviewed and approved by ${formData.approvedBy || "HOD"}.`
                           : formData.status === "SUBMITTED"
-                          ? "Laporan telah dihantar dan sedang menunggu semakan / kelulusan HOD."
-                          : "Laporan masih dalam peringkat draf. Lengkapkan seksyen sebelum menghantar."}
+                          ? "This report has been submitted and is awaiting HOD review and sign-off."
+                          : "This report is currently in draft status. Complete all sections before submission."}
                       </p>
                     </div>
 
@@ -1414,7 +1413,7 @@ export function PostEventReportModal({
                         className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition"
                       >
                         <Download className="w-4 h-4" />
-                        <span>Pratonton / Muat Turun PDF</span>
+                        <span>Preview / Download PDF</span>
                       </a>
 
                       {formData.status === "DRAFT" && (
@@ -1425,7 +1424,7 @@ export function PostEventReportModal({
                           className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
                         >
                           <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                          <span>Hantar Untuk Kelulusan</span>
+                          <span>Submit For Approval</span>
                         </button>
                       )}
 
@@ -1437,7 +1436,7 @@ export function PostEventReportModal({
                           className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
                         >
                           <ShieldCheck className="w-4 h-4" />
-                          <span>Luluskan Laporan (HOD Action)</span>
+                          <span>Approve Report (HOD Action)</span>
                         </button>
                       )}
                     </div>
@@ -1451,7 +1450,7 @@ export function PostEventReportModal({
         {/* Footer Actions */}
         <div className="px-5 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-            <span>Jumlah Tuntutan:</span>
+            <span>Total Claims:</span>
             <span className="font-mono font-bold text-slate-800">
               RM {formData.totalClaimAmount.toFixed(2)}
             </span>
@@ -1463,7 +1462,7 @@ export function PostEventReportModal({
               onClick={onClose}
               className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200 transition"
             >
-              Tutup
+              Close
             </button>
 
             <button
@@ -1473,7 +1472,7 @@ export function PostEventReportModal({
               className="px-4 py-2 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white flex items-center gap-1.5 shadow-sm transition disabled:opacity-50 cursor-pointer"
             >
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-              <span>Simpan Draf</span>
+              <span>Save Draft</span>
             </button>
           </div>
         </div>

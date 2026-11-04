@@ -51,6 +51,7 @@ import {
   GalleryImageItem
 } from "@/app/actions/marketing-feedback"
 import { QRCodeCanvas } from "qrcode.react"
+import { PostEventReportModal } from "@/components/marketing/PostEventReportModal"
 
 export interface EventRequisitionItem {
   id: string
@@ -219,6 +220,7 @@ export function MarketingEventsClient({ initialRequisitions, user, canEdit = fal
 
   // Feedback & Gallery Manager Modal State
   const [feedbackModalItem, setFeedbackModalItem] = useState<EventRequisitionItem | null>(null)
+  const [postEventReportItem, setPostEventReportItem] = useState<EventRequisitionItem | null>(null)
   const [activeFeedbackTab, setActiveFeedbackTab] = useState<"FEEDBACK" | "GALLERY">("FEEDBACK")
   const [feedbackStats, setFeedbackStats] = useState<FeedbackSummaryStats | null>(null)
   const [loadingFeedbackStats, setLoadingFeedbackStats] = useState(false)
@@ -846,6 +848,20 @@ export function MarketingEventsClient({ initialRequisitions, user, canEdit = fal
                             >
                               <QrCode className="w-3.5 h-3.5 text-teal-600" />
                               <span className="hidden sm:inline">QR Code</span>
+                            </button>
+
+                            {/* Post-Event Report Hub Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setPostEventReportItem(item)
+                              }}
+                              className="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-900 font-bold text-xs uppercase tracking-wider transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                              title="Post-Event Report Hub (ISO BOMSB-MKT-A-850-001-QR05)"
+                            >
+                              <FileText className="w-3.5 h-3.5 text-teal-700" />
+                              <span className="hidden md:inline">Post-Event</span>
                             </button>
 
                             {/* 2. Feedback & Gallery Button */}

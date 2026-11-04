@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { X, Save, PlusCircle, AlertCircle, CheckCircle2, Lock, Layers, Hash } from "lucide-react"
+import { X, Save, PlusCircle, AlertCircle, CheckCircle2, Lock, Layers, Check } from "lucide-react"
 import {
   createRetentionSampleRecord,
   updateRetentionSampleRecord,
@@ -62,8 +62,8 @@ function RetentionSampleFormContent({
       : getLocalMalaysiaDateTimeString()
   )
   const [sku, setSku] = useState<string>(() => recordToEdit?.sku || "425")
-  const [amountSample, setAmountSample] = useState<string>(() =>
-    recordToEdit ? String(recordToEdit.amountSample) : "24"
+  const [sampleTicked, setSampleTicked] = useState<boolean>(() =>
+    recordToEdit ? recordToEdit.amountSample > 0 : true
   )
   const [batchNo, setBatchNo] = useState<string>(() => recordToEdit?.batchNo || "")
   const [remarks, setRemarks] = useState<string>(() => recordToEdit?.remarks || "")
@@ -77,9 +77,8 @@ function RetentionSampleFormContent({
     if (!dateTime) return "Please select Date & Time."
     if (!sku) return "Please select SKU."
 
-    const parsedAmount = Number(amountSample)
-    if (!amountSample || isNaN(parsedAmount) || !Number.isInteger(parsedAmount) || parsedAmount <= 0) {
-      return "Amount Sample must be a positive whole number (e.g. 12, 24)."
+    if (!sampleTicked) {
+      return "Please tick the sample confirmation box."
     }
 
     const cleanBatch = batchNo.trim()
@@ -113,7 +112,7 @@ function RetentionSampleFormContent({
         const res = await updateRetentionSampleRecord(recordToEdit.id, {
           sampleDateTime: isoTimestamp,
           sku,
-          amountSample: parseInt(amountSample, 10),
+          amountSample: sampleTicked ? 1 : 0,
           batchNo: batchNo.trim(),
           remarks: remarks.trim() || undefined,
           editReason: editReason.trim(),
@@ -131,7 +130,7 @@ function RetentionSampleFormContent({
         const res = await createRetentionSampleRecord({
           sampleDateTime: isoTimestamp,
           sku,
-          amountSample: parseInt(amountSample, 10),
+          amountSample: sampleTicked ? 1 : 0,
           batchNo: batchNo.trim(),
           remarks: remarks.trim() || undefined,
         })
@@ -145,9 +144,9 @@ function RetentionSampleFormContent({
         onSuccess()
 
         if (keepOpenForNext) {
-          setSuccessToast(`Record for SKU ${sku} (${amountSample}) saved! You can add the next SKU.`)
+          setSuccessToast(`Record for SKU ${sku} saved! You can add the next SKU.`)
           setSku(sku === "425" ? "800" : "425")
-          setAmountSample(sku === "425" ? "12" : "24")
+          setSampleTicked(true)
           setTimeout(() => setSuccessToast(null), 4000)
         } else {
           onClose()
@@ -230,14 +229,7 @@ function RetentionSampleFormContent({
             </label>
             <select
               value={sku}
-              onChange={e => {
-                setSku(e.target.value)
-                if (e.target.value.includes("425")) {
-                  setAmountSample("24")
-                } else if (e.target.value.includes("800")) {
-                  setAmountSample("12")
-                }
-              }}
+              onChange={e => setSku(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 font-semibold bg-white focus:ring-2 focus:ring-blue-600 focus:border-blue-600 text-xs sm:text-sm"
             >
               {RETENTION_SKU_OPTIONS.map(opt => (
@@ -248,24 +240,32 @@ function RetentionSampleFormContent({
             </select>
           </div>
 
-          {/* Field 3: Amount Sample */}
+          {/* Field 3: Sample Retention Tick */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1 flex items-center">
-              <Hash className="w-3.5 h-3.5 mr-1 text-gray-500" />
-              <span>Amount Sample (Quantity) <span className="text-red-600">*</span></span>
+              <Check className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+              <span>Retention Sample (✓) <span className="text-red-600">*</span></span>
             </label>
-            <input
-              type="number"
-              min="1"
-              step="1"
-              value={amountSample}
-              onChange={e => setAmountSample(e.target.value)}
-              placeholder="e.g. 24 or 12"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 font-bold focus:ring-2 focus:ring-blue-600 focus:border-blue-600 text-xs sm:text-sm"
-              required
-            />
+            <button
+              type="button"
+              onClick={() => setSampleTicked(!sampleTicked)}
+              className={`w-full py-2 px-3 rounded-lg border flex items-center justify-center gap-2 font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+                sampleTicked
+                  ? "bg-emerald-50 border-emerald-500 text-emerald-800 ring-2 ring-emerald-500/20"
+                  : "bg-slate-50 border-slate-300 text-slate-500 hover:bg-slate-100"
+              }`}
+            >
+              <div
+                className={`w-5 h-5 rounded-md flex items-center justify-center transition-colors ${
+                  sampleTicked ? "bg-emerald-600 text-white" : "border-2 border-slate-400 bg-white"
+                }`}
+              >
+                {sampleTicked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+              </div>
+              <span>{sampleTicked ? "Sample Retained (Ticked ✓)" : "Click to Tick Sample"}</span>
+            </button>
             <p className="text-[10px] text-gray-500 mt-1">
-              Positive whole numbers only (bottles/units).
+              Quality retention sample taken and confirmed.
             </p>
           </div>
 

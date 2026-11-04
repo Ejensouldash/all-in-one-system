@@ -123,11 +123,11 @@ export async function createRetentionSampleRecord(data: {
       }
     }
 
-    const amount = Number(data.amountSample)
-    if (!Number.isInteger(amount) || amount <= 0) {
+    const amount = Number(data.amountSample) || 1
+    if (amount <= 0) {
       return {
         success: false,
-        error: "Sample amount must be a positive whole number (e.g. 12, 24).",
+        error: "Please tick the sample confirmation box.",
       }
     }
 
@@ -148,7 +148,7 @@ export async function createRetentionSampleRecord(data: {
         sampleDateTime: sampleDate,
         sku: data.sku.trim(),
         skuLabel: skuLabelSnapshot,
-        amountSample: amount,
+        amountSample: 1,
         batchNo: cleanBatchNo,
         preparedById: session.user.id,
         preparedByName: session.user.name || "Quality Inspector",
@@ -225,9 +225,9 @@ export async function updateRetentionSampleRecord(
       }
     }
 
-    const amount = Number(data.amountSample)
-    if (!Number.isInteger(amount) || amount <= 0) {
-      return { success: false, error: "Sample amount must be a positive whole number." }
+    const amount = Number(data.amountSample) || 1
+    if (amount <= 0) {
+      return { success: false, error: "Please tick the sample confirmation box." }
     }
 
     const sampleDate = new Date(data.sampleDateTime)
@@ -244,7 +244,7 @@ export async function updateRetentionSampleRecord(
         sampleDateTime: sampleDate,
         sku: data.sku.trim(),
         skuLabel: skuLabelSnapshot,
-        amountSample: amount,
+        amountSample: 1,
         batchNo: cleanBatchNo,
         remarks: data.remarks?.trim() || null,
         editedAt: new Date(),
@@ -386,7 +386,7 @@ export async function submitRetentionSampleBatch({
         return { success: false, error: `Row #${i + 1}: Please select SKU.` }
       }
       if (!row.amountSample || row.amountSample < 1) {
-        return { success: false, error: `Row #${i + 1}: Sample amount must be at least 1.` }
+        return { success: false, error: `Row #${i + 1}: Please tick the sample confirmation box.` }
       }
       if (!row.batchNo || !isValidBatchFormat(row.batchNo)) {
         return { success: false, error: `Row #${i + 1}: Invalid Batch No format '${row.batchNo || ""}'. Use 6 digits - 2 digits (e.g. 013526-01).` }
@@ -412,7 +412,7 @@ export async function submitRetentionSampleBatch({
           sampleDateTime: dt,
           sku: row.sku.trim(),
           skuLabel,
-          amountSample: Math.floor(Number(row.amountSample)),
+          amountSample: 1,
           batchNo: row.batchNo.trim(),
           preparedById: access.userId,
           preparedByName: access.name || "Unknown User",

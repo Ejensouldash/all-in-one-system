@@ -22,7 +22,32 @@ export default async function MarketingEventsPage() {
   let requisitions: EventRequisitionItem[] = []
   try {
     const records = await prisma.marketingEventRequisition.findMany({
+      take: 100,
       orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        requestNumber: true,
+        name: true,
+        staffId: true,
+        email: true,
+        phone: true,
+        department: true,
+        eventName: true,
+        eventType: true,
+        organizer: true,
+        eventDateFrom: true,
+        eventDateTo: true,
+        picContactName: true,
+        picContactNumber: true,
+        tentative: true,
+        requirements: true,
+        status: true,
+        remarks: true,
+        attachments: true,
+        galleryAttachments: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     })
     requisitions = records.map(r => ({
       id: r.id,

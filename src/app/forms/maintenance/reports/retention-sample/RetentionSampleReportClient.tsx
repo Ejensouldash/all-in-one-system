@@ -361,7 +361,7 @@ export function RetentionSampleReportClient({
                 <th className="border border-black py-2.5 px-3 w-10">No</th>
                 <th className="border border-black py-2.5 px-4 w-44">Date & Time</th>
                 <th className="border border-black py-2.5 px-4 w-28">SKU</th>
-                <th className="border border-black py-2.5 px-4 w-32">Amount Sample</th>
+                <th className="border border-black py-2.5 px-4 w-28">Sample (✓)</th>
                 <th className="border border-black py-2.5 px-4 w-36">Batch No</th>
                 <th className="border border-black py-2.5 px-4">Prepared By</th>
                 <th className="border border-black py-2.5 px-4 w-44 print:w-36">Verification / Status</th>
@@ -401,8 +401,17 @@ export function RetentionSampleReportClient({
                       <td className="border border-black py-2.5 px-3 font-black text-slate-900">
                         {record.sku}
                       </td>
-                      <td className="border border-black py-2.5 px-3 font-bold">
-                        {record.amountSample}
+                      <td className="border border-black py-2.5 px-3 text-center">
+                        {record.amountSample > 0 ? (
+                          <span
+                            className="inline-flex items-center justify-center font-black text-emerald-600 print:text-black text-base"
+                            title="Sample Retained"
+                          >
+                            ✓
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 font-medium">-</span>
+                        )}
                       </td>
                       <td className="border border-black py-2.5 px-3 font-mono font-bold tracking-wider">
                         {record.batchNo}
@@ -480,9 +489,9 @@ export function RetentionSampleReportClient({
               <span className="ml-2 text-slate-400">
                 (Total Samples:{" "}
                 {records
-                  .filter((r) => r.status === "ACTIVE")
-                  .reduce((acc, r) => acc + r.amountSample, 0)}{" "}
-                units)
+                  .filter((r) => r.status === "ACTIVE" && r.amountSample > 0)
+                  .length}{" "}
+                retained)
               </span>
             )}
           </div>
@@ -551,8 +560,8 @@ export function RetentionSampleReportClient({
                 <strong className="text-slate-900">{voidingRecord.sku}</strong>
               </div>
               <div>
-                <span className="text-slate-500">Amount Sample:</span>{" "}
-                <strong className="text-slate-900">{voidingRecord.amountSample}</strong>
+                <span className="text-slate-500">Sample Retained:</span>{" "}
+                <strong className="text-emerald-700 font-bold">✓ Confirmed</strong>
               </div>
             </div>
 

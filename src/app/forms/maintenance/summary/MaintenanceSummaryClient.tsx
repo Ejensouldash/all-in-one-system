@@ -245,7 +245,7 @@ const FIELD_CONFIG: Record<string, FieldConfig[]> = {
   "retention-sample": [
     { key: "time", label: "Time", type: "text" },
     { key: "sku", label: "SKU", type: "text" },
-    { key: "amountSample", label: "Amount Sample", type: "number" },
+    { key: "amountSample", label: "Sample (✓)", type: "checkbox" },
     { key: "batchNo", label: "No Batch", type: "text" },
     { key: "preparedByName", label: "Prepared By", type: "text" },
     { key: "remarks", label: "Remarks", type: "text" },
@@ -266,7 +266,7 @@ function formatDate(d: string | Date) {
 }
 
 function formatValue(val: any, type: FieldType) {
-  if (type === "checkbox") return val ? "Yes" : "No"
+  if (type === "checkbox") return (val === true || Number(val) > 0) ? "✓" : "No"
   if (val === null || val === undefined || val === "") return "-"
   return String(val)
 }

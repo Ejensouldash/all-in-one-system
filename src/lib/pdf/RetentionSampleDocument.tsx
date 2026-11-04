@@ -1,5 +1,5 @@
 import React from "react"
-import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer"
+import { Document, Page, Text, View, Image, StyleSheet, Svg, Path } from "@react-pdf/renderer"
 
 export interface RetentionSamplePdfRow {
   id: string
@@ -231,7 +231,7 @@ export function RetentionSampleDocument({ payload }: { payload: RetentionSampleP
           <View style={styles.tableHeaderRow}>
             <Text style={[styles.th, styles.colDateTime]}>DATE &amp; TIME</Text>
             <Text style={[styles.th, styles.colSku]}>SKU</Text>
-            <Text style={[styles.th, styles.colAmount]}>AMOUNT SAMPLE</Text>
+            <Text style={[styles.th, styles.colAmount]}>SAMPLE (✓)</Text>
             <Text style={[styles.th, styles.colBatch]}>NO BATCH</Text>
             <Text style={[styles.th, styles.colPrepared]}>PREPARED BY</Text>
           </View>
@@ -245,9 +245,15 @@ export function RetentionSampleDocument({ payload }: { payload: RetentionSampleP
               <Text style={[styles.td, styles.colSku, { fontFamily: "Helvetica-Bold" }]}>
                 {r.sku}
               </Text>
-              <Text style={[styles.td, styles.colAmount]}>
-                {r.amountSample}
-              </Text>
+              <View style={[styles.td, styles.colAmount, { alignItems: "center", justifyContent: "center" }]}>
+                {r.amountSample > 0 ? (
+                  <Svg width={9} height={9} viewBox="0 0 24 24">
+                    <Path d="M4 12.5l5.5 5.5L20 6" stroke="#000000" strokeWidth={3} fill="none" />
+                  </Svg>
+                ) : (
+                  <Text style={{ fontSize: 8, color: "#666666" }}>-</Text>
+                )}
+              </View>
               <Text style={[styles.td, styles.colBatch, { fontFamily: "Helvetica-Bold" }]}>
                 {r.batchNo}
               </Text>

@@ -144,6 +144,16 @@ export async function submitEventRequisition(payload: FormData | MarketingEventP
         return {
           success: true,
           requestNumber: "EV-MKT-RECEIVED",
+          id: "fake-id",
+          requesterName: "User",
+          requesterPhone: "-",
+          eventName: "-",
+          eventDateFrom: "",
+          eventDateTo: "",
+          tentative: "-",
+          requirements: "-",
+          attachmentCount: 0,
+          attachments: [] as AttachmentInfo[],
           message: "Event requisition submitted successfully.",
         }
       }
@@ -168,6 +178,16 @@ export async function submitEventRequisition(payload: FormData | MarketingEventP
         return {
           success: true,
           requestNumber: "EV-MKT-RECEIVED",
+          id: "fake-id",
+          requesterName: "User",
+          requesterPhone: "-",
+          eventName: "-",
+          eventDateFrom: "",
+          eventDateTo: "",
+          tentative: "-",
+          requirements: "-",
+          attachmentCount: 0,
+          attachments: [] as AttachmentInfo[],
           message: "Event requisition submitted successfully.",
         }
       }
@@ -299,37 +319,42 @@ export async function submitEventRequisition(payload: FormData | MarketingEventP
 
     // Queue email notifications for Marketing Admins
     try {
-      const emailContent = generateMarketingEventRequisitionAdminEmail({
-        requestNumber: requisition.requestNumber,
-        name: requisition.name,
-        staffId: requisition.staffId,
-        email: requisition.email,
-        phone: requisition.phone || "-",
-        department: requisition.department,
-        eventName: requisition.eventName,
-        eventType: requisition.eventType,
-        organizer: requisition.organizer,
-        eventDateFrom: requisition.eventDateFrom ? requisition.eventDateFrom.toISOString().split("T")[0] : "-",
-        eventDateTo: requisition.eventDateTo ? requisition.eventDateTo.toISOString().split("T")[0] : "-",
-        picContactName: requisition.picContactName,
-        picContactNumber: requisition.picContactNumber,
-        tentative: requisition.tentative,
-        requirements: requisition.requirements,
-        attachmentsCount: savedAttachments.length,
+      const activeRecipients = await prisma.marketingNotificationRecipient.findMany({
+        where: {
+          isEnabled: true,
+          category: { in: ["ALL", "EVENT"] },
+        },
       })
 
-      await queueMarketingEmailNotification(
-        "EVENT_REQUISITION_ADMIN",
-        `[New Requisition] ${requisition.requestNumber} - ${requisition.eventName} (${requisition.department})`,
-        emailContent.html,
-        emailContent.plainText,
-        {
+      if (activeRecipients.length > 0) {
+        const html = generateMarketingEventRequisitionAdminEmail({
           requestNumber: requisition.requestNumber,
+          requesterName: requisition.name,
+          requesterPhone: requisition.phone,
+          staffId: requisition.staffId,
+          email: requisition.email,
           department: requisition.department,
           eventName: requisition.eventName,
-          requesterName: requisition.name,
+          eventType: requisition.eventType,
+          organizer: requisition.organizer,
+          eventDateFrom: requisition.eventDateFrom ? requisition.eventDateFrom.toISOString().split("T")[0] : null,
+          eventDateTo: requisition.eventDateTo ? requisition.eventDateTo.toISOString().split("T")[0] : null,
+          picContactName: requisition.picContactName,
+          picContactNumber: requisition.picContactNumber,
+          tentative: requisition.tentative,
+          requirements: requisition.requirements,
+        })
+
+        for (const recipient of activeRecipients) {
+          await queueMarketingEmailNotification({
+            referenceId: requisition.requestNumber,
+            category: "EVENT",
+            to: recipient.email,
+            subject: `[Marketing] New Event Requisition: ${requisition.requestNumber} (${requisition.eventName} - ${requisition.department})`,
+            html,
+          })
         }
-      )
+      }
     } catch (notifErr) {
       console.warn("Could not queue marketing email notification for event requisition:", notifErr)
     }
@@ -347,28 +372,19 @@ export async function submitEventRequisition(payload: FormData | MarketingEventP
     revalidatePath("/marketing/forms")
 
     return {
-      success: true,
+      success: true as const,
       requestNumber: requisition.requestNumber,
-      data: {
-        id: requisition.id,
-        requestNumber: requisition.requestNumber,
-        name: requisition.name,
-        staffId: requisition.staffId,
-        email: requisition.email,
-        phone: requisition.phone,
-        department: requisition.department,
-        eventName: requisition.eventName,
-        eventType: requisition.eventType,
-        organizer: requisition.organizer,
-        eventDateFrom: requisition.eventDateFrom,
-        eventDateTo: requisition.eventDateTo,
-        picContactName: requisition.picContactName,
-        picContactNumber: requisition.picContactNumber,
-        tentative: requisition.tentative,
-        requirements: requisition.requirements,
-        attachmentCount: savedAttachments.length,
-        attachments: savedAttachments,
-      },
+      id: requisition.id,
+      requesterName: requisition.name,
+      requesterPhone: requisition.phone || "-",
+      eventName: requisition.eventName,
+      eventDateFrom: requisition.eventDateFrom ? requisition.eventDateFrom.toISOString().split("T")[0] : "",
+      eventDateTo: requisition.eventDateTo ? requisition.eventDateTo.toISOString().split("T")[0] : "",
+      tentative: requisition.tentative,
+      requirements: requisition.requirements,
+      attachmentCount: savedAttachments.length,
+      attachments: savedAttachments,
+      message: "Event requisition submitted successfully.",
     }
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : "Failed to submit event requisition."

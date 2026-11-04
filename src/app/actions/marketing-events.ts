@@ -335,71 +335,94 @@ export async function updateEventRequisitionStatus(
     revalidatePath("/marketing/events")
     revalidatePath("/marketing/forms")
 
-    // Sync approved event with system calendar table (and clean up if rejected)
-    if (status === "APPROVED" && access?.userId) {
-      try {
-        const start = updated.eventDateFrom ? new Date(updated.eventDateFrom) : new Date()
-        const end = updated.eventDateTo ? new Date(updated.eventDateTo) : start
-
-        const eventDescription = [
-          `Requisition: ${updated.requestNumber}`,
-          `Department: ${updated.department}`,
-          `Organizer: ${updated.organizer}`,
-          `PIC: ${updated.picContactName} (${updated.picContactNumber})`,
-          `Requirements: ${updated.requirements}`,
-          updated.tentative ? `Tentative: ${updated.tentative}` : null,
-          remarks ? `Approval Remarks: ${remarks}` : null,
-        ]
-          .filter(Boolean)
-          .join("\n")
-
-        const existingEvent = await prisma.event.findFirst({
-          where: { description: { contains: updated.requestNumber } },
-        })
-
-        if (existingEvent) {
-          await prisma.event.update({
-            where: { id: existingEvent.id },
-            data: {
-              title: `[Marketing] ${updated.eventName}`,
-              description: eventDescription,
-              startDateTime: start,
-              endDateTime: end,
-            },
-          })
-        } else {
-          await prisma.event.create({
-            data: {
-              title: `[Marketing] ${updated.eventName}`,
-              description: eventDescription,
-              startDateTime: start,
-              endDateTime: end,
-              createdById: access.userId,
-            },
-          })
-        }
-        revalidatePath("/calendar")
-      } catch (calErr) {
-        console.warn("Could not sync approved event with system calendar:", calErr)
-      }
-    } else if (status === "REJECTED") {
-      try {
-        const existingEvent = await prisma.event.findFirst({
-          where: { description: { contains: updated.requestNumber } },
-        })
-        if (existingEvent) {
-          await prisma.event.delete({ where: { id: existingEvent.id } })
-          revalidatePath("/calendar")
-        }
-      } catch (calErr) {
-        console.warn("Could not remove rejected event from system calendar:", calErr)
-      }
-    }
-
     return { success: true, data: updated }
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : "Failed to update event requisition status."
     console.error("Failed to update event requisition status:", errMsg)
+    return { success: false, error: errMsg }
+  }
+}
+
+export interface UpdateMarketingEventPayload {
+  eventName: string
+  eventType: string
+  organizer: string
+  eventDateFrom?: string | null
+  eventDateTo?: string | null
+  picContactName: string
+  picContactNumber: string
+  tentative: string
+  requirements: string
+  name: string
+  staffId: string
+  email: string
+  phone: string
+  department: string
+  remarks?: string | null
+}
+
+// Update Event Requisition Details (Admin / Permitted User)
+export async function updateMarketingEventRequisition(
+  id: string,
+  payload: UpdateMarketingEventPayload
+) {
+  try {
+    const access = await getAccessInfo()
+    if (!canEditMarketingEvents(access)) {
+      return { success: false, error: "Unauthorized: You do not have permission to edit marketing event requisitions." }
+    }
+
+    if (!payload.eventName?.trim()) return { success: false, error: "Event name is required." }
+    if (!payload.eventType?.trim()) return { success: false, error: "Event type is required." }
+    if (!payload.organizer?.trim()) return { success: false, error: "Organizer is required." }
+    if (!payload.picContactName?.trim()) return { success: false, error: "PIC contact name is required." }
+    if (!payload.picContactNumber?.trim()) return { success: false, error: "PIC contact number is required." }
+    if (!payload.tentative?.trim()) return { success: false, error: "Tentative schedule is required." }
+    if (!payload.requirements?.trim()) return { success: false, error: "Requirements are required." }
+    if (!payload.name?.trim()) return { success: false, error: "Requester name is required." }
+    if (!payload.staffId?.trim()) return { success: false, error: "Requester staff ID is required." }
+    if (!payload.email?.trim()) return { success: false, error: "Requester email is required." }
+    if (!payload.phone?.trim()) return { success: false, error: "Requester phone number is required." }
+    if (!payload.department?.trim()) return { success: false, error: "Department is required." }
+
+    const updated = await prisma.marketingEventRequisition.update({
+      where: { id },
+      data: {
+        eventName: payload.eventName.trim(),
+        eventType: payload.eventType.trim(),
+        organizer: payload.organizer.trim(),
+        eventDateFrom: payload.eventDateFrom ? new Date(payload.eventDateFrom) : null,
+        eventDateTo: payload.eventDateTo ? new Date(payload.eventDateTo) : null,
+        picContactName: payload.picContactName.trim(),
+        picContactNumber: payload.picContactNumber.trim(),
+        tentative: payload.tentative.trim(),
+        requirements: payload.requirements.trim(),
+        name: payload.name.trim(),
+        staffId: payload.staffId.trim(),
+        email: payload.email.trim().toLowerCase(),
+        phone: payload.phone.trim(),
+        department: payload.department.trim(),
+        remarks: payload.remarks !== undefined ? (payload.remarks?.trim() || null) : undefined,
+        updatedAt: new Date(),
+      },
+    })
+
+    try {
+      await logUserAction(
+        "Edited Event Requisition",
+        `Updated requisition details for ${updated.requestNumber} (${updated.eventName}) by user ${access?.name || access?.userId}`
+      )
+    } catch {
+      // Non-blocking audit error
+    }
+
+    revalidatePath("/marketing/events")
+    revalidatePath("/marketing/forms")
+
+    return { success: true, data: updated }
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : "Failed to update event requisition."
+    console.error("Failed to update event requisition:", errMsg)
     return { success: false, error: errMsg }
   }
 }

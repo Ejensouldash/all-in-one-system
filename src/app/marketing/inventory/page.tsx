@@ -19,7 +19,7 @@ export default async function Page() {
     redirect("/dashboard")
   }
 
-  // Fetch all Marketing Items
+  // Fetch Marketing Items (bounded)
   const items = await prisma.marketingItem.findMany({
     orderBy: { name: "asc" },
     include: {
@@ -29,8 +29,9 @@ export default async function Page() {
     },
   })
 
-  // Fetch all Merchandise Requests
+  // Fetch recent Merchandise Requests (capped to prevent egress spike)
   const requests = await prisma.marketingMerchandiseRequest.findMany({
+    take: 100,
     orderBy: { createdAt: "desc" },
     include: {
       item: true,
@@ -38,11 +39,12 @@ export default async function Page() {
     },
   })
 
-  // Get recent stock logs (last 30 days)
+  // Get recent stock logs (last 30 days, capped to latest 100)
   const thirtyDaysAgo = new Date()
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
   const recentLogs = await prisma.marketingStockLog.findMany({
+    take: 100,
     where: {
       createdAt: { gte: thirtyDaysAgo },
     },

@@ -25,7 +25,34 @@ export default async function MarketingVideoDesignPage() {
   let requisitions: VideoDesignRequisitionRecord[] = []
   try {
     const records = await prisma.marketingVideoDesignRequisition.findMany({
+      take: 100,
       orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        requestNumber: true,
+        type: true,
+        name: true,
+        staffId: true,
+        department: true,
+        needBy: true,
+        phoneNumber: true,
+        videoType: true,
+        format: true,
+        videoDetails: true,
+        videoContentFocus: true,
+        requiredShots: true,
+        designType: true,
+        designDetails: true,
+        designSize: true,
+        designContent: true,
+        needPrinting: true,
+        referenceLinks: true,
+        attachments: true,
+        status: true,
+        remarks: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     })
 
     requisitions = records.map((r) => ({
@@ -72,24 +99,24 @@ export default async function MarketingVideoDesignPage() {
           </p>
         </div>
 
-          <div className="flex items-center gap-3">
-            <Link
-              href="/marketing/assets/qr"
-              className="py-2.5 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-black uppercase tracking-wider transition flex items-center gap-2 shadow-xs cursor-pointer"
-              title="Print Marketing Requisition QR Poster for Department Offices"
-            >
-              <QrCode className="w-4 h-4 text-blue-600" />
-              Print QR Poster
-            </Link>
-        <a
-          href="/public/marketing/request?type=video-design"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs uppercase tracking-wider shadow-sm transition-all cursor-pointer self-start sm:self-auto"
-        >
-          <span>Open Public Form</span>
-        </a>
-      </div>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/marketing/assets/qr"
+            className="py-2.5 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-black uppercase tracking-wider transition flex items-center gap-2 shadow-xs cursor-pointer"
+            title="Print Marketing Requisition QR Poster for Department Offices"
+          >
+            <QrCode className="w-4 h-4 text-blue-600" />
+            Print QR Poster
+          </Link>
+          <a
+            href="/public/marketing/request?type=video-design"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs uppercase tracking-wider shadow-sm transition-all cursor-pointer self-start sm:self-auto"
+          >
+            <span>Open Public Form</span>
+          </a>
+        </div>
       </div>
 
       <MarketingVideoDesignClient initialRequisitions={requisitions} />

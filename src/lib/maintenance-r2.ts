@@ -1,8 +1,10 @@
 import {
   PutObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3"
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import { getR2Client, getR2Config } from "@/lib/sales-ordering/r2"
 
 export function getMaintenancePhotoKey(filename: string): string {
@@ -15,6 +17,63 @@ export function getMaintenanceDocKey(filename: string): string {
 
 export function getMaintenanceJobSheetKey(jobSheetNumber: string): string {
   return `maintenance-tickets/job-sheets/${jobSheetNumber}.pdf`
+}
+
+/**
+ * Checks whether a maintenance photo exists in Cloudflare R2.
+ */
+export async function checkMaintenancePhotoExists(uniqueKeyName: string): Promise<boolean> {
+  const { bucket } = getR2Config()
+  const client = getR2Client()
+  const objectKey = getMaintenancePhotoKey(uniqueKeyName)
+
+  try {
+    await client.send(
+      new HeadObjectCommand({
+        Bucket: bucket,
+        Key: objectKey,
+      })
+    )
+    return true
+  } catch (error: any) {
+    if (error.name === "NotFound" || error.$metadata?.httpStatusCode === 404) {
+      return false
+    }
+    throw error
+  }
+}
+
+/**
+ * Generates a presigned GET redirect URL for a maintenance photo in Cloudflare R2.
+ * Defaults to 7 days (604800s) to outlive CDN Cache-Control headers.
+ */
+export async function getMaintenancePresignedUrl(
+  uniqueKeyName: string,
+  expiresInSeconds: number = 7 * 24 * 3600
+): Promise<string | null> {
+  const { bucket } = getR2Config()
+  const client = getR2Client()
+  const objectKey = getMaintenancePhotoKey(uniqueKeyName)
+
+  const publicDomain = process.env.R2_PUBLIC_DOMAIN?.trim() || process.env.NEXT_PUBLIC_R2_PUBLIC_URL?.trim()
+  if (publicDomain) {
+    const base = publicDomain.replace(/\/+$/, "")
+    return `${base}/${objectKey}`
+  }
+
+  try {
+    return await getSignedUrl(
+      client,
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: objectKey,
+      }),
+      { expiresIn: expiresInSeconds }
+    )
+  } catch (err) {
+    console.error(`Failed to generate presigned URL for maintenance photo (${uniqueKeyName}):`, err)
+    return null
+  }
 }
 
 /**
@@ -158,8 +217,9 @@ export async function getMaintenanceFileByExactKeyFromR2(objectKey: string): Pro
     throw error
   }
 }
+
 /**
- * Uploads an inventory item photo to R2 with fallback to base64 data URI.
+ * Uploads an inventory item photo to R2 with fallback to base64 data URI only if size is small.
  */
 export async function uploadMaintenanceItemPhoto(
   fileBuffer: Buffer,
@@ -170,10 +230,12 @@ export async function uploadMaintenanceItemPhoto(
     const res = await uploadMaintenancePhotoToR2(fileBuffer, originalFilename, contentType)
     return { url: res.url }
   } catch (error) {
-    console.warn("R2 upload unavailable, falling back to base64 data URL for maintenance item:", error)
+    console.warn("R2 upload unavailable, checking size before fallback for maintenance item:", error)
+    if (fileBuffer.length > 200 * 1024) {
+      throw new Error("Cloudflare R2 is temporarily unavailable and image is too large for database fallback. Please try again.")
+    }
     const base64 = fileBuffer.toString("base64")
     const dataUri = `data:${contentType};base64,${base64}`
     return { url: dataUri }
   }
 }
-

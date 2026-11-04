@@ -14,6 +14,7 @@ export interface FeedbackSubmissionInput {
   satisfaction: string
   wellOrganized: boolean
   comments: string
+  hp_website?: string
 }
 
 export interface FeedbackItem {
@@ -66,7 +67,11 @@ const SATISFACTION_WEIGHTS: Record<string, number> = {
  */
 export async function submitMarketingEventFeedback(input: FeedbackSubmissionInput) {
   try {
-    const { requisitionId, respondentName, likedMost, likedLeast, satisfaction, wellOrganized, comments } = input
+    const { requisitionId, respondentName, likedMost, likedLeast, satisfaction, wellOrganized, comments, hp_website } = input
+
+    if (hp_website) {
+      return { success: true, data: { id: "feedback-received" } }
+    }
 
     if (!requisitionId || !respondentName.trim()) {
       return { success: false, error: "Please enter your name." }
@@ -82,6 +87,15 @@ export async function submitMarketingEventFeedback(input: FeedbackSubmissionInpu
     }
     if (!comments.trim()) {
       return { success: false, error: "Please provide comments or suggestions for improvement." }
+    }
+
+    if (
+      respondentName.length > 100 ||
+      likedMost.length > 2000 ||
+      likedLeast.length > 2000 ||
+      comments.length > 5000
+    ) {
+      return { success: false, error: "One or more input fields exceed the maximum allowable limit." }
     }
 
     // Verify event exists and is approved

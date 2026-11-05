@@ -1,9 +1,11 @@
 name: Weekly Postgres Database Backup
 
 on:
-  schedule:
-    # Runs at 18:00 UTC every Sunday (02:00 MYT Monday)
-    - cron: '0 18 * * 0'
+  # Schedule paused: Supabase egress is nearly at the Free plan limit until the 16 Nov 2026 reset,
+  # and each dump pulls the whole database (~93 MB). Restore this after the reset.
+  # schedule:
+  #   # Runs at 18:00 UTC every Sunday (02:00 MYT Monday)
+  #   - cron: '0 18 * * 0'
   workflow_dispatch: # Allows manual trigger from GitHub UI
 
 jobs:

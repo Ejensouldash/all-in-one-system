@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { AssetQRSticker } from "@/components/assets/AssetQRSticker"
-import { Printer, QrCode, Sparkles } from "lucide-react"
+import { downloadNiimbotPdf } from "@/lib/pdf/generateNiimbotPdf"
+import { Printer, QrCode, Download, Loader2 } from "lucide-react"
 
 interface QRCodeDisplayProps {
   assetId: string
@@ -21,6 +22,7 @@ export function QRCodeDisplay({
 }: QRCodeDisplayProps) {
   const [showPrint, setShowPrint] = useState(false)
   const [sizeMode, setSizeMode] = useState<"40x20" | "70x30">("40x20")
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
   const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
   const qrValue = `${baseUrl}/public/asset/${assetId}`
 
@@ -30,6 +32,27 @@ export function QRCodeDisplay({
       window.print()
       setTimeout(() => setShowPrint(false), 500)
     }, 200)
+  }
+
+  const handleDownloadPdf = async () => {
+    try {
+      setIsGeneratingPdf(true)
+      const el = document.getElementById(`single-sticker-${assetId}`)
+      if (!el) {
+        alert("Sila tunggu sebentar untuk sticker dimuatkan.")
+        return
+      }
+
+      await downloadNiimbotPdf({
+        elements: [el],
+        filename: `sticker_${assetTag || assetId}_40x20mm.pdf`,
+      })
+    } catch (err) {
+      console.error("PDF download error:", err)
+      alert("Gagal memuat turun PDF.")
+    } finally {
+      setIsGeneratingPdf(false)
+    }
   }
 
   return (
@@ -54,6 +77,16 @@ export function QRCodeDisplay({
                   align-items: center !important;
                   justify-content: center !important;
                   background: #ffffff !important;
+                }
+                .asset-qr-sticker-40x20 {
+                  width: 39mm !important;
+                  height: 19mm !important;
+                  max-width: 39mm !important;
+                  max-height: 19mm !important;
+                  page-break-inside: avoid !important;
+                  break-inside: avoid !important;
+                  overflow: hidden !important;
+                  box-sizing: border-box !important;
                 }
                 @page { 
                   size: 40mm 20mm; 
@@ -131,6 +164,7 @@ export function QRCodeDisplay({
         <div className="flex justify-center p-3 bg-slate-950/60 rounded-xl border border-slate-800/80">
           <div style={{ transform: sizeMode === "40x20" ? "scale(1.35)" : "scale(0.9)", transformOrigin: "center" }}>
             <AssetQRSticker
+              id={`single-sticker-${assetId}`}
               assetTag={assetTag}
               assetName={assetName}
               departmentCode={departmentCode}
@@ -142,17 +176,34 @@ export function QRCodeDisplay({
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-1">
+        <div className="flex items-center justify-between pt-1 gap-2 flex-wrap">
           <span className="text-[11px] text-slate-400">
-            {sizeMode === "40x20" ? "🏷️ Niimbot Thermal (1 sticker / page)" : "📄 Standard 70×30mm"}
+            {sizeMode === "40x20" ? "🏷️ Niimbot 40×20mm" : "📄 Standard 70×30mm"}
           </span>
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-1.5 text-xs font-black text-white bg-teal-600 hover:bg-teal-500 px-4 py-2 rounded-xl transition shadow-sm"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            Print Sticker
-          </button>
+
+          <div className="flex items-center gap-2">
+            {sizeMode === "40x20" && (
+              <button
+                type="button"
+                onClick={handleDownloadPdf}
+                disabled={isGeneratingPdf}
+                className="flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 px-3 py-2 rounded-xl transition shadow-sm"
+                title="Muat turun fail PDF 40x20mm untuk buka di Niimbot App"
+              >
+                {isGeneratingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                Download PDF
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 text-xs font-black text-white bg-teal-600 hover:bg-teal-500 px-3.5 py-2 rounded-xl transition shadow-sm"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Print
+            </button>
+          </div>
         </div>
       </div>
     </>

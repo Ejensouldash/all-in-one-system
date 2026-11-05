@@ -487,7 +487,7 @@ export async function updateMarketingEventRequisition(
 ) {
   try {
     const access = await getAccessInfo()
-    if (!canEditMarketingEvents(access)) {
+    if (!canAccessMarketingEvents(access)) {
       return { success: false, error: "Unauthorized: You do not have permission to edit marketing event requisitions." }
     }
 
@@ -519,7 +519,7 @@ export async function updateMarketingEventRequisition(
         name: payload.name.trim(),
         staffId: payload.staffId.trim(),
         email: payload.email.trim().toLowerCase(),
-        phone: payload.phone.trim(),
+
         department: payload.department.trim(),
         remarks: payload.remarks !== undefined ? (payload.remarks?.trim() || null) : undefined,
         updatedAt: new Date(),

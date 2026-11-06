@@ -32,6 +32,7 @@ import {
   getProcurementUserRole,
   getSuppliers,
 } from "@/app/actions/procurement"
+import { ProcurementTabs } from "@/components/procurement/ProcurementTabs"
 import { InvoiceTable } from "@/components/procurement/InvoiceTable"
 import { NewInvoiceModal } from "@/components/procurement/NewInvoiceModal"
 import { InvoiceDetailModal } from "@/components/procurement/InvoiceDetailModal"
@@ -234,6 +235,7 @@ export default function ProcurementInvoicesPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+      <ProcurementTabs />
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
         <div className="flex items-center gap-3">

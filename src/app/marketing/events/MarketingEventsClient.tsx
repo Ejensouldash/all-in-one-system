@@ -862,7 +862,7 @@ export function MarketingEventsClient({ initialRequisitions, user, canEdit = fal
                               title="Post-Event Report Hub (ISO BOMSB-MKT-A-850-001-QR05)"
                             >
                               <FileText className="w-3.5 h-3.5 text-teal-700" />
-                              <span className="hidden md:inline">Post-Event</span>
+                              <span className="hidden sm:inline">Post-Event</span>
                             </button>
 
                             {/* 2. Feedback & Gallery Button */}
@@ -1501,6 +1501,16 @@ export function MarketingEventsClient({ initialRequisitions, user, canEdit = fal
 
                     <button
                       type="button"
+                      onClick={() => setPostEventReportItem(selectedItem)}
+                      className="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+                      title="Open ISO Post-Event Report Hub"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Post-Event Report Hub</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => handleOpenFeedbackModal(selectedItem)}
                       className="px-3.5 py-2 rounded-xl bg-white hover:bg-teal-100/70 border border-teal-300 text-teal-900 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
                     >
@@ -1772,15 +1782,25 @@ export function MarketingEventsClient({ initialRequisitions, user, canEdit = fal
                 )}
 
                 {selectedItem.status === "APPROVED" && (
-                  <a
-                    href={`/api/marketing/events/${selectedItem.id}/report/pdf`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider transition shadow-sm cursor-pointer flex items-center gap-1.5"
-                  >
-                    <FileDown className="w-3.5 h-3.5 text-teal-300" />
-                    <span>Download Report</span>
-                  </a>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setPostEventReportItem(selectedItem)}
+                      className="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs uppercase tracking-wider transition shadow-sm cursor-pointer flex items-center gap-1.5"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Post-Event Report</span>
+                    </button>
+                    <a
+                      href={`/api/marketing/events/${selectedItem.id}/report/pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider transition shadow-sm cursor-pointer flex items-center gap-1.5"
+                    >
+                      <FileDown className="w-3.5 h-3.5 text-teal-300" />
+                      <span>Download Report</span>
+                    </a>
+                  </>
                 )}
               </div>
             </div>

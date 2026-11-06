@@ -388,15 +388,15 @@ export function MarketingEventRequestForm({ onBack }: MarketingEventRequestFormP
       if (res.success && res.requestNumber) {
         setSuccessData({
           requestNumber: res.requestNumber,
-          requesterName: res.requesterName,
+          requesterName: res.requesterName || name,
           requesterPhone: res.requesterPhone || phone,
-          eventName: res.eventName,
+          eventName: res.eventName || eventName,
           eventDateFrom: res.eventDateFrom || eventDateFrom,
           eventDateTo: res.eventDateTo || eventDateTo,
-          tentative: res.tentative,
-          requirements: res.requirements,
+          tentative: res.tentative || tentative,
+          requirements: res.requirements || selectedRequirements.join(", "),
           attachmentCount: res.attachmentCount || 0,
-          attachments: res.attachments,
+          attachments: res.attachments || [],
         })
         // Reset inputs
         setName("")

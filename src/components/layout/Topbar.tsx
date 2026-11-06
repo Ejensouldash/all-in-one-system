@@ -1,6 +1,7 @@
 "use client"
 
 import { LogOut, User, Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react"
+import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
 
@@ -64,12 +65,16 @@ export function Topbar({
       
       <div className="flex items-center space-x-4">
         
-        <div className="flex items-center space-x-2">
-          <div className="bg-blue-100 p-1.5 rounded-full">
+        <Link 
+          href="/settings"
+          className="flex items-center space-x-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors group cursor-pointer"
+          title="Account Settings"
+        >
+          <div className="bg-blue-100 p-1.5 rounded-full group-hover:bg-blue-200 transition-colors">
             <User className="h-4 w-4 text-blue-600" />
           </div>
-          <span className="text-sm font-medium text-gray-700 hidden sm:block">{user.name}</span>
-        </div>
+          <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 hidden sm:block">{user.name}</span>
+        </Link>
         
         <div className="h-6 w-px bg-gray-300 mx-2"></div>
         

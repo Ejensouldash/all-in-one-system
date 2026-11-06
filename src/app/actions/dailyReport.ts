@@ -380,16 +380,34 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
           receiveDate: { lte: targetDate }
         }
       },
-      include: { transferIn: true }
+      select: {
+        id: true,
+        category: true,
+        batchNo: true,
+        bags: true,
+        mult: true,
+        transferIn: { select: { id: true, receiveDate: true, receiveTime: true, shift: true, doNumber: true } }
+      }
     })
-    
+
     // 2. Fetch ALL Usages, Holds, Reuses, Storeroom, and TransferIn ever (Globally) up to the target date
+    // Keep this select narrow: this runs on every Daily Report form load, and a full DailyReport row
+    // carries both base64 signatures (~23 KB per report), which made up most of each call's egress.
     const allLogs = await prisma.inventoryLog.findMany({
-      where: { 
+      where: {
         type: { in: ["Usage", "Hold", "Reuse", "Storeroom", "TransferIn"] },
         report: { date: { lte: targetDate } }
       },
-      include: { report: true }
+      select: {
+        reportId: true,
+        sectionKey: true,
+        type: true,
+        batchNo: true,
+        bags: true,
+        mult: true,
+        labelType: true,
+        report: { select: { date: true, shift: true, status: true } }
+      }
     })
 
     // Helper: extract calendar date (YYYY-MM-DD)

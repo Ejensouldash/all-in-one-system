@@ -212,4 +212,22 @@ export function canAccessGmpSummary(access: AccessInfo | null): boolean {
   return access.isSuperAdmin || hasAnyModule(access, GMP_SUMMARY_MODULES)
 }
 
+export const PROCUREMENT_MODULES = [
+  "PROCUREMENT_REQUESTER",
+  "PROCUREMENT_FINANCE",
+]
 
+export function canAccessProcurement(access: AccessInfo | null): boolean {
+  if (!access) return false
+  return access.isSuperAdmin || hasAnyModule(access, PROCUREMENT_MODULES)
+}
+
+export function canRequestProcurement(access: AccessInfo | null): boolean {
+  if (!access) return false
+  return access.isSuperAdmin || access.modules.includes("PROCUREMENT_REQUESTER") || access.modules.includes("PROCUREMENT_FINANCE")
+}
+
+export function canManageProcurementFinance(access: AccessInfo | null): boolean {
+  if (!access) return false
+  return access.isSuperAdmin || access.modules.includes("PROCUREMENT_FINANCE")
+}

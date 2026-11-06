@@ -60,6 +60,13 @@ export async function addMarketingStock(data: {
   variantConfig?: VariantConfigItem[]
   variants?: VariantInput[]
   variantId?: string | null
+  restockVariants?: Array<{
+    variantId?: string | null
+    variantName?: string
+    attributes?: Record<string, string>
+    sku?: string
+    quantity: number
+  }>
 }) {
   try {
     const access = await getAccessInfo()
@@ -95,8 +102,28 @@ export async function addMarketingStock(data: {
           throw new Error("Marketing item not found.")
         }
 
+        const activeRestockVariants = (data.restockVariants || []).filter(
+          (v) => Number(v.quantity) > 0
+        )
+
+        const totalRestockQty = activeRestockVariants.length > 0
+          ? activeRestockVariants.reduce((sum, v) => sum + Number(v.quantity), 0)
+          : data.quantity
+
+        if (totalRestockQty <= 0) {
+          throw new Error("Quantity must be greater than zero.")
+        }
+
+        const calculatedUnitPrice = Number((data.totalPrice / totalRestockQty).toFixed(4))
+        const effectiveSelling =
+          data.sellingPricePerUnit !== undefined &&
+          data.sellingPricePerUnit !== null &&
+          Number(data.sellingPricePerUnit) >= 0
+            ? Number(data.sellingPricePerUnit)
+            : (existingItem.sellingPricePerUnit || 0)
+
         const updateData: any = {
-          quantity: { increment: data.quantity },
+          quantity: { increment: totalRestockQty },
           pricePerUnit: calculatedUnitPrice,
           costPerUnit: calculatedUnitPrice,
         }
@@ -108,16 +135,84 @@ export async function addMarketingStock(data: {
         if (brandUpper) updateData.brand = brandUpper
         if (data.imageUrl) updateData.imageUrl = data.imageUrl
 
-        // If restocking a specific variant
-        let restockedVariantName: string | null = null
-        if (data.variantId) {
+        if (activeRestockVariants.length > 0) {
+          updateData.hasVariants = true
+          const stockLogRecords: any[] = []
+
+          for (const rv of activeRestockVariants) {
+            const vQty = Number(rv.quantity)
+            const allocatedCost = Number(((vQty / totalRestockQty) * data.totalPrice).toFixed(2))
+            let targetVariantId = rv.variantId
+            let targetVariantName = rv.variantName || ""
+
+            if (targetVariantId) {
+              const existingVar = existingItem.variants.find((v) => v.id === targetVariantId)
+              if (existingVar) {
+                targetVariantName = existingVar.variantName
+                const vUpdateData: any = {
+                  quantity: { increment: vQty },
+                  pricePerUnit: calculatedUnitPrice,
+                  costPerUnit: calculatedUnitPrice,
+                }
+                if (data.sellingPricePerUnit !== undefined && data.sellingPricePerUnit !== null && Number(data.sellingPricePerUnit) >= 0) {
+                  vUpdateData.sellingPricePerUnit = Number(data.sellingPricePerUnit)
+                }
+                await tx.marketingItemVariant.update({
+                  where: { id: targetVariantId },
+                  data: vUpdateData,
+                })
+              }
+            } else if (targetVariantName.trim()) {
+              // Create new variant on existing item
+              const created = await tx.marketingItemVariant.create({
+                data: {
+                  itemId: existingItem.id,
+                  variantName: targetVariantName.trim(),
+                  attributes: rv.attributes || {},
+                  sku: rv.sku?.trim() || null,
+                  quantity: vQty,
+                  pricePerUnit: calculatedUnitPrice,
+                  costPerUnit: calculatedUnitPrice,
+                  sellingPricePerUnit: effectiveSelling,
+                },
+              })
+              targetVariantId = created.id
+            }
+
+            stockLogRecords.push({
+              itemId: existingItem.id,
+              variantId: targetVariantId || null,
+              variantName: targetVariantName || null,
+              type: "IN",
+              quantity: vQty,
+              totalPrice: allocatedCost,
+              totalCost: allocatedCost,
+              pricePerUnit: calculatedUnitPrice,
+              costPerUnit: calculatedUnitPrice,
+              sellingPricePerUnit: effectiveSelling,
+              department: existingItem.department || departmentVal,
+              handledBy: data.handledBy,
+              remarks: data.remarks
+                ? `${data.remarks} [${targetVariantName}]`
+                : `Restocked variant: ${targetVariantName} (+${vQty})`,
+            })
+          }
+
+          if (stockLogRecords.length > 0) {
+            await tx.marketingStockLog.createMany({
+              data: stockLogRecords,
+            })
+          }
+        } else if (data.variantId) {
+          // Legacy single variant restock
           const targetVariant = await tx.marketingItemVariant.findUnique({
             where: { id: data.variantId },
           })
+          let restockedVariantName: string | null = null
           if (targetVariant) {
             restockedVariantName = targetVariant.variantName
             const vUpdateData: any = {
-              quantity: { increment: data.quantity },
+              quantity: { increment: totalRestockQty },
               pricePerUnit: calculatedUnitPrice,
               costPerUnit: calculatedUnitPrice,
             }
@@ -129,34 +224,52 @@ export async function addMarketingStock(data: {
               data: vUpdateData,
             })
           }
+
+          await tx.marketingStockLog.create({
+            data: {
+              itemId: existingItem.id,
+              variantId: data.variantId || null,
+              variantName: restockedVariantName,
+              type: "IN",
+              quantity: totalRestockQty,
+              totalPrice: data.totalPrice,
+              totalCost: data.totalPrice,
+              pricePerUnit: calculatedUnitPrice,
+              costPerUnit: calculatedUnitPrice,
+              sellingPricePerUnit: effectiveSelling,
+              department: existingItem.department || departmentVal,
+              handledBy: data.handledBy,
+              remarks: data.remarks || (restockedVariantName ? `Restocked variant: ${restockedVariantName}` : null),
+            },
+          })
+        } else {
+          // Standard item restock without variants
+          await tx.marketingStockLog.create({
+            data: {
+              itemId: existingItem.id,
+              variantId: null,
+              variantName: null,
+              type: "IN",
+              quantity: totalRestockQty,
+              totalPrice: data.totalPrice,
+              totalCost: data.totalPrice,
+              pricePerUnit: calculatedUnitPrice,
+              costPerUnit: calculatedUnitPrice,
+              sellingPricePerUnit: effectiveSelling,
+              department: existingItem.department || departmentVal,
+              handledBy: data.handledBy,
+              remarks: data.remarks || null,
+            },
+          })
         }
 
         item = await tx.marketingItem.update({
           where: { id: data.itemId },
           data: updateData,
-          include: { variants: true },
-        })
-
-        const effectiveSelling = data.sellingPricePerUnit !== undefined && data.sellingPricePerUnit !== null && Number(data.sellingPricePerUnit) >= 0
-          ? Number(data.sellingPricePerUnit)
-          : (existingItem.sellingPricePerUnit || 0)
-
-        // Create Stock Log
-        await tx.marketingStockLog.create({
-          data: {
-            itemId: item.id,
-            variantId: data.variantId || null,
-            variantName: restockedVariantName,
-            type: "IN",
-            quantity: data.quantity,
-            totalPrice: data.totalPrice,
-            totalCost: data.totalPrice,
-            pricePerUnit: calculatedUnitPrice,
-            costPerUnit: calculatedUnitPrice,
-            sellingPricePerUnit: effectiveSelling,
-            department: item.department || departmentVal,
-            handledBy: data.handledBy,
-            remarks: data.remarks || (restockedVariantName ? `Restocked variant: ${restockedVariantName}` : null),
+          include: {
+            variants: {
+              orderBy: { variantName: "asc" },
+            },
           },
         })
       } else {
@@ -655,5 +768,28 @@ export async function editMarketingItemMaster(
   } catch (error: any) {
     console.error("editMarketingItemMaster error:", error)
     return { success: false, error: error.message || "Failed to update item master details." }
+  }
+}
+
+
+export async function getMarketingRecentLogs() {
+  try {
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+    const recentLogs = await prisma.marketingStockLog.findMany({
+      where: {
+        createdAt: { gte: thirtyDaysAgo },
+      },
+      include: {
+        item: true,
+        variant: true,
+      },
+      orderBy: { createdAt: "desc" },
+    })
+    return { success: true, data: recentLogs }
+  } catch (error: any) {
+    console.error("Failed to fetch marketing recent logs:", error)
+    return { success: false, error: error.message }
   }
 }

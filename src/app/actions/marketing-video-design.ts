@@ -145,9 +145,15 @@ export async function submitVideoDesignRequisition(formData: FormData) {
       return {
         success: true,
         data: {
+          id: "fake-id",
           requestNumber: "VD-MKT-RECEIVED",
-          type: "SUBMITTED",
+          type: "VIDEO",
           name: "Anonymous",
+          staffId: "STAFF-0000",
+          department: "General",
+          needBy: new Date().toISOString(),
+          phoneNumber: "-",
+          attachments: [] as CreativeAttachmentInfo[],
         },
       }
     }
@@ -338,30 +344,27 @@ export async function submitVideoDesignRequisition(formData: FormData) {
 
       if (recipients.length > 0) {
         const detailsSummary = type === "VIDEO"
-          ? `Type: ${videoType} | Format: ${format}\nDetails: ${videoDetails || videoContentFocus}`
-          : `Type: ${designType} | Size: ${designSize || "Standard"}\nDetails: ${designDetails || designContent}`
+          ? `Video Type: ${videoType}\nFormat: ${format}\nContent Focus: ${videoContentFocus || "-"}\nRequired Shots: ${requiredShots || "-"}\nDetails: ${videoDetails || "-"}`
+          : `Design Type: ${designType}\nSize: ${designSize || "-"}\nNeed Printing: ${needPrinting ? "YES" : "NO"}\nContent: ${designContent || "-"}\nDetails: ${designDetails || "-"}`
 
-        const emailHtml = generateMarketingVideoDesignRequisitionAdminEmail({
-          requestNumber,
-          type: type === "DESIGN" ? "Design & Artwork" : "Video Production",
-          name,
-          staffId,
-          department,
-          needBy: needBy.toLocaleDateString("en-MY", { day: "2-digit", month: "short", year: "numeric" }),
-          phoneNumber,
-          details: detailsSummary,
-        })
+        for (const recipient of recipients) {
+          const html = generateMarketingVideoDesignRequisitionAdminEmail({
+            requestNumber,
+            type,
+            name,
+            staffId,
+            department,
+            phoneNumber,
+            needBy: needBy.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+            details: detailsSummary,
+          })
 
-        const subject = `[New Request] ${requestNumber}: ${type === "DESIGN" ? "Design" : "Video"} Requisition (${department})`
-        const uniqueEmails = Array.from(new Set(recipients.map((r) => r.email.trim().toLowerCase())))
-
-        for (const recipientEmail of uniqueEmails) {
           await queueMarketingEmailNotification({
             referenceId: requestNumber,
             category: type.toUpperCase() === "VIDEO" ? "VIDEO" : "DESIGN",
-            to: recipientEmail,
-            subject,
-            html: emailHtml,
+            to: recipient.email,
+            subject: `[Marketing] New ${type} Requisition: ${requestNumber} (${name} - ${department})`,
+            html,
           })
         }
       }
@@ -374,6 +377,7 @@ export async function submitVideoDesignRequisition(formData: FormData) {
     return {
       success: true,
       data: {
+        id: requisition.id,
         requestNumber: requisition.requestNumber,
         type: requisition.type,
         name: requisition.name,

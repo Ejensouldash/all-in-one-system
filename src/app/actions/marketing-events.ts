@@ -144,6 +144,16 @@ export async function submitEventRequisition(payload: FormData | MarketingEventP
         return {
           success: true,
           requestNumber: "EV-MKT-RECEIVED",
+          id: "fake-id",
+          requesterName: "User",
+          requesterPhone: "-",
+          eventName: "-",
+          eventDateFrom: "",
+          eventDateTo: "",
+          tentative: "-",
+          requirements: "-",
+          attachmentCount: 0,
+          attachments: [] as AttachmentInfo[],
           message: "Event requisition submitted successfully.",
         }
       }
@@ -168,6 +178,16 @@ export async function submitEventRequisition(payload: FormData | MarketingEventP
         return {
           success: true,
           requestNumber: "EV-MKT-RECEIVED",
+          id: "fake-id",
+          requesterName: "User",
+          requesterPhone: "-",
+          eventName: "-",
+          eventDateFrom: "",
+          eventDateTo: "",
+          tentative: "-",
+          requirements: "-",
+          attachmentCount: 0,
+          attachments: [] as AttachmentInfo[],
           message: "Event requisition submitted successfully.",
         }
       }
@@ -302,39 +322,36 @@ export async function submitEventRequisition(payload: FormData | MarketingEventP
       const activeRecipients = await prisma.marketingNotificationRecipient.findMany({
         where: {
           isEnabled: true,
-          OR: [{ category: "ALL" }, { category: "EVENT" }],
+          category: { in: ["ALL", "EVENT"] },
         },
       })
 
       if (activeRecipients.length > 0) {
-        const emailHtml = generateMarketingEventRequisitionAdminEmail({
+        const html = generateMarketingEventRequisitionAdminEmail({
           requestNumber: requisition.requestNumber,
           requesterName: requisition.name,
+          requesterPhone: requisition.phone,
           staffId: requisition.staffId,
           email: requisition.email,
-          requesterPhone: requisition.phone || "-",
           department: requisition.department,
           eventName: requisition.eventName,
           eventType: requisition.eventType,
           organizer: requisition.organizer,
-          eventDateFrom: requisition.eventDateFrom ? requisition.eventDateFrom.toISOString().split("T")[0] : "-",
-          eventDateTo: requisition.eventDateTo ? requisition.eventDateTo.toISOString().split("T")[0] : "-",
+          eventDateFrom: requisition.eventDateFrom ? requisition.eventDateFrom.toISOString().split("T")[0] : null,
+          eventDateTo: requisition.eventDateTo ? requisition.eventDateTo.toISOString().split("T")[0] : null,
           picContactName: requisition.picContactName,
           picContactNumber: requisition.picContactNumber,
           tentative: requisition.tentative,
           requirements: requisition.requirements,
         })
 
-        const subject = `[New Requisition] ${requisition.requestNumber} - ${requisition.eventName} (${requisition.department})`
-        const uniqueEmails = Array.from(new Set(activeRecipients.map((r) => r.email.trim().toLowerCase())))
-
-        for (const recipientEmail of uniqueEmails) {
+        for (const recipient of activeRecipients) {
           await queueMarketingEmailNotification({
             referenceId: requisition.requestNumber,
             category: "EVENT",
-            to: recipientEmail,
-            subject,
-            html: emailHtml,
+            to: recipient.email,
+            subject: `[Marketing] New Event Requisition: ${requisition.requestNumber} (${requisition.eventName} - ${requisition.department})`,
+            html,
           })
         }
       }
@@ -355,13 +372,14 @@ export async function submitEventRequisition(payload: FormData | MarketingEventP
     revalidatePath("/marketing/forms")
 
     return {
-      success: true,
+      success: true as const,
       requestNumber: requisition.requestNumber,
+      id: requisition.id,
       requesterName: requisition.name,
       requesterPhone: requisition.phone || "-",
       eventName: requisition.eventName,
-      eventDateFrom: requisition.eventDateFrom ? requisition.eventDateFrom.toISOString().split("T")[0] : "-",
-      eventDateTo: requisition.eventDateTo ? requisition.eventDateTo.toISOString().split("T")[0] : "-",
+      eventDateFrom: requisition.eventDateFrom ? requisition.eventDateFrom.toISOString().split("T")[0] : "",
+      eventDateTo: requisition.eventDateTo ? requisition.eventDateTo.toISOString().split("T")[0] : "",
       tentative: requisition.tentative,
       requirements: requisition.requirements,
       attachmentCount: savedAttachments.length,
@@ -386,6 +404,7 @@ export async function submitEventRequisition(payload: FormData | MarketingEventP
         attachmentCount: savedAttachments.length,
         attachments: savedAttachments,
       },
+      message: "Event requisition submitted successfully.",
     }
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : "Failed to submit event requisition."
@@ -455,67 +474,6 @@ export async function updateEventRequisitionStatus(
     revalidatePath("/marketing/events")
     revalidatePath("/marketing/forms")
 
-    // Sync approved event with system calendar table (and clean up if rejected)
-    if (status === "APPROVED" && access?.userId) {
-      try {
-        const start = updated.eventDateFrom ? new Date(updated.eventDateFrom) : new Date()
-        const end = updated.eventDateTo ? new Date(updated.eventDateTo) : start
-
-        const eventDescription = [
-          `Requisition: ${updated.requestNumber}`,
-          `Department: ${updated.department}`,
-          `Organizer: ${updated.organizer}`,
-          `PIC: ${updated.picContactName} (${updated.picContactNumber})`,
-          `Requirements: ${updated.requirements}`,
-          updated.tentative ? `Tentative: ${updated.tentative}` : null,
-          remarks ? `Approval Remarks: ${remarks}` : null,
-        ]
-          .filter(Boolean)
-          .join("\n")
-
-        const existingEvent = await prisma.event.findFirst({
-          where: { description: { contains: updated.requestNumber } },
-        })
-
-        if (existingEvent) {
-          await prisma.event.update({
-            where: { id: existingEvent.id },
-            data: {
-              title: `[Marketing] ${updated.eventName}`,
-              description: eventDescription,
-              startDateTime: start,
-              endDateTime: end,
-            },
-          })
-        } else {
-          await prisma.event.create({
-            data: {
-              title: `[Marketing] ${updated.eventName}`,
-              description: eventDescription,
-              startDateTime: start,
-              endDateTime: end,
-              createdById: access.userId,
-            },
-          })
-        }
-        revalidatePath("/calendar")
-      } catch (calErr) {
-        console.warn("Could not sync approved event with system calendar:", calErr)
-      }
-    } else if (status === "REJECTED") {
-      try {
-        const existingEvent = await prisma.event.findFirst({
-          where: { description: { contains: updated.requestNumber } },
-        })
-        if (existingEvent) {
-          await prisma.event.delete({ where: { id: existingEvent.id } })
-          revalidatePath("/calendar")
-        }
-      } catch (calErr) {
-        console.warn("Could not remove rejected event from system calendar:", calErr)
-      }
-    }
-
     return { success: true, data: updated }
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : "Failed to update event requisition status."
@@ -549,7 +507,7 @@ export async function updateMarketingEventRequisition(
 ) {
   try {
     const access = await getAccessInfo()
-    if (!canEditMarketingEvents(access)) {
+    if (!canAccessMarketingEvents(access)) {
       return { success: false, error: "Unauthorized: You do not have permission to edit marketing event requisitions." }
     }
 
@@ -581,62 +539,12 @@ export async function updateMarketingEventRequisition(
         name: payload.name.trim(),
         staffId: payload.staffId.trim(),
         email: payload.email.trim().toLowerCase(),
-        phone: payload.phone.trim(),
+
         department: payload.department.trim(),
         remarks: payload.remarks !== undefined ? (payload.remarks?.trim() || null) : undefined,
         updatedAt: new Date(),
       },
     })
-
-    // If event is APPROVED, sync changes to System Calendar Event
-    if (updated.status === "APPROVED" && access?.userId) {
-      try {
-        const start = updated.eventDateFrom ? new Date(updated.eventDateFrom) : new Date()
-        const end = updated.eventDateTo ? new Date(updated.eventDateTo) : start
-
-        const eventDescription = [
-          `Requisition: ${updated.requestNumber}`,
-          `Department: ${updated.department}`,
-          `Organizer: ${updated.organizer}`,
-          `PIC: ${updated.picContactName} (${updated.picContactNumber})`,
-          `Requester: ${updated.name} (${updated.phone || "-"})`,
-          `Requirements: ${updated.requirements}`,
-          updated.tentative ? `Tentative: ${updated.tentative}` : null,
-          updated.remarks ? `Approval Remarks: ${updated.remarks}` : null,
-        ]
-          .filter(Boolean)
-          .join("\n")
-
-        const existingEvent = await prisma.event.findFirst({
-          where: { description: { contains: updated.requestNumber } },
-        })
-
-        if (existingEvent) {
-          await prisma.event.update({
-            where: { id: existingEvent.id },
-            data: {
-              title: `[Marketing] ${updated.eventName}`,
-              description: eventDescription,
-              startDateTime: start,
-              endDateTime: end,
-            },
-          })
-        } else {
-          await prisma.event.create({
-            data: {
-              title: `[Marketing] ${updated.eventName}`,
-              description: eventDescription,
-              startDateTime: start,
-              endDateTime: end,
-              createdById: access.userId,
-            },
-          })
-        }
-        revalidatePath("/calendar")
-      } catch (calErr) {
-        console.warn("Could not sync updated event to system calendar:", calErr)
-      }
-    }
 
     try {
       await logUserAction(

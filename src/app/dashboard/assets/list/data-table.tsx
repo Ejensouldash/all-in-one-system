@@ -594,6 +594,17 @@ export function DataTable({ initialAssets }: { initialAssets: any[] }) {
                       >
                         <Eye className="w-3.5 h-3.5" />
                       </Link>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          sessionStorage.setItem('printQrIds', JSON.stringify([asset.id]))
+                          window.open('/dashboard/assets/print-qr', '_blank')
+                        }}
+                        className="text-slate-500 hover:text-teal-600 transition bg-slate-50 hover:bg-teal-50 p-1.5 rounded-lg border border-slate-200"
+                        title="Cetak Sticker Niimbot 40x20mm"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                      </button>
                       <Link 
                         href={`/public/asset/${asset.id}`} 
                         target="_blank" 

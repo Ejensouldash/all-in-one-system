@@ -6,6 +6,7 @@ import {
   BookmarkCheck,
   Plus,
   Trash2,
+  Check,
   CheckCircle2,
   ArrowLeft,
   ArrowRight,
@@ -41,7 +42,7 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
     {
       time: getCurrentTimeStr(),
       sku: "425",
-      amountSample: 24,
+      amountSample: 1,
       batchNo: "",
       remarks: "",
     },
@@ -59,7 +60,7 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
       {
         time: getCurrentTimeStr(),
         sku: lastRow?.sku === "425" ? "800" : "425",
-        amountSample: lastRow?.sku === "425" ? 12 : 24,
+        amountSample: 1,
         batchNo: lastRow?.batchNo || "",
         remarks: "",
       },
@@ -105,7 +106,7 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
         return
       }
       if (!r.amountSample || r.amountSample < 1) {
-        setError(`Row #${i + 1}: Sample amount must be at least 1.`)
+        setError(`Row #${i + 1}: Please tick the sample confirmation box.`)
         return
       }
       if (!r.batchNo.trim()) {
@@ -146,7 +147,7 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
       {
         time: getCurrentTimeStr(),
         sku: "425",
-        amountSample: 24,
+        amountSample: 1,
         batchNo: "",
         remarks: "",
       },
@@ -154,11 +155,10 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
     setError(null)
   }
 
-  // Calculate total sample items
-  const totalSamples = rows.reduce(
-    (sum, r) => sum + (Number(r.amountSample) || 0),
-    0
-  )
+  // Count total sample rows and ticked samples
+  const totalTicked = rows.filter(
+    (r) => (Number(r.amountSample) || 0) > 0
+  ).length
 
   return (
     <div className="space-y-6">
@@ -288,7 +288,7 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
 
                   <div className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg self-start sm:self-auto">
                     Total: <strong className="text-blue-700">{rows.length} rows</strong> •{" "}
-                    <strong className="text-blue-700">{totalSamples} bottles/packs</strong>
+                    <strong className="text-emerald-700">{totalTicked} sample(s) retained (✓)</strong>
                   </div>
                 </div>
 
@@ -300,7 +300,7 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
                         <th className="py-3 px-2 border-r border-slate-700 w-10">#</th>
                         <th className="py-3 px-3 border-r border-slate-700 w-32">Time</th>
                         <th className="py-3 px-3 border-r border-slate-700 w-48">SKU</th>
-                        <th className="py-3 px-3 border-r border-slate-700 w-36">Amount Sample</th>
+                        <th className="py-3 px-3 border-r border-slate-700 w-32">Sample (✓)</th>
                         <th className="py-3 px-3 border-r border-slate-700 w-44">Batch No</th>
                         <th className="py-3 px-3 border-r border-slate-700">Remarks</th>
                         <th className="py-3 px-2 w-14">Action</th>
@@ -331,14 +331,7 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
                             <select
                               value={row.sku}
                               onChange={(e) => {
-                                const newSku = e.target.value
-                                handleRowChange(idx, "sku", newSku)
-                                // Automatically adjust default amount for standard bottle runs
-                                if (newSku.includes("800") && row.amountSample === 24) {
-                                  handleRowChange(idx, "amountSample", 12)
-                                } else if (newSku.includes("425") && row.amountSample === 12) {
-                                  handleRowChange(idx, "amountSample", 24)
-                                }
+                                handleRowChange(idx, "sku", e.target.value)
                               }}
                               className="w-full px-2.5 py-2 rounded-lg border border-slate-300 font-bold text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 outline-none"
                             >
@@ -350,22 +343,43 @@ export function RetentionSampleForm({ userName }: RetentionSampleFormProps) {
                             </select>
                           </td>
 
-                          {/* Amount Sample */}
-                          <td className="p-2 border-r border-slate-200">
-                            <input
-                              type="number"
-                              min="1"
-                              value={row.amountSample || ""}
-                              onChange={(e) =>
-                                handleRowChange(
-                                  idx,
-                                  "amountSample",
-                                  parseInt(e.target.value, 10) || 1
-                                )
-                              }
-                              placeholder="Qty"
-                              className="w-full px-2.5 py-2 rounded-lg border border-slate-300 font-bold text-slate-800 text-center text-xs focus:ring-2 focus:ring-blue-500 outline-none"
-                            />
+                          {/* Sample Retention Tick */}
+                          <td className="p-2 border-r border-slate-200 text-center">
+                            <div className="flex items-center justify-center">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleRowChange(
+                                    idx,
+                                    "amountSample",
+                                    row.amountSample > 0 ? 0 : 1
+                                  )
+                                }
+                                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all shadow-xs cursor-pointer ${
+                                  row.amountSample > 0
+                                    ? "bg-emerald-600 text-white hover:bg-emerald-700 ring-2 ring-emerald-400 ring-offset-1"
+                                    : "bg-slate-100 text-slate-300 hover:bg-slate-200 border-2 border-dashed border-slate-300"
+                                }`}
+                                title={
+                                  row.amountSample > 0
+                                    ? "Sample Retained (Ticked ✓)"
+                                    : "Click to Tick Sample"
+                                }
+                                aria-label={
+                                  row.amountSample > 0
+                                    ? "Sample Retained"
+                                    : "Click to Tick Sample"
+                                }
+                              >
+                                <Check
+                                  className={`w-5 h-5 stroke-[3] transition-transform duration-150 ${
+                                    row.amountSample > 0
+                                      ? "scale-100 opacity-100"
+                                      : "scale-75 opacity-0"
+                                  }`}
+                                />
+                              </button>
+                            </div>
                           </td>
 
                           {/* Batch No */}

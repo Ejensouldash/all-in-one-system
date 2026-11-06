@@ -26,7 +26,8 @@ import {
   ClipboardCheck,
   Briefcase,
   Megaphone,
-  HardHat
+  HardHat,
+  Truck
 } from "lucide-react"
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
@@ -78,6 +79,15 @@ const staffLinks: NavLink[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, module: "DASHBOARD" },
   { name: "IT Tickets", href: "/tickets", icon: Ticket, module: "TICKETS" },
   { name: "Sales Ordering", href: "/forms/sales-ordering", icon: ShoppingCart, modules: SOD_MODULES },
+  {
+    name: "Procurement",
+    icon: Truck,
+    subLinks: [
+      { name: "Suppliers", href: "/procurement/suppliers", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
+      { name: "Invoice for Payment", href: "/procurement/invoices", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
+    ],
+  },
+
   {
     name: "Production",
     icon: Factory,
@@ -156,6 +166,15 @@ const adminLinks: NavLink[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, module: "DASHBOARD" },
   { name: "IT Tickets", href: "/tickets", icon: Ticket, module: "TICKETS" },
   { name: "Sales Ordering", href: "/forms/sales-ordering", icon: ShoppingCart, modules: SOD_MODULES },
+  {
+    name: "Procurement",
+    icon: Truck,
+    subLinks: [
+      { name: "Suppliers", href: "/procurement/suppliers", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
+      { name: "Invoice for Payment", href: "/procurement/invoices", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
+    ],
+  },
+
   {
     name: "Production",
     icon: Factory,
@@ -276,6 +295,7 @@ export function Sidebar({
       }
       if (pathname.startsWith("/organization")) next["Organization"] = true;
       if (pathname.startsWith("/nrho-project")) next["NRHO Project"] = true;
+      if (pathname.startsWith("/procurement")) next["Procurement"] = true;
       return next;
   
     });
@@ -469,7 +489,7 @@ export function Sidebar({
                     isChildActive && !isOpen ? "text-white" : "text-gray-300 hover:bg-gray-700 hover:text-white"
                   )}
                 >
-                  <div className="flex items-center">
+                  <div className="flex items-center text-left min-w-0">
                     <Icon
                       className={cn(
                         "mr-3 h-5 w-5 flex-shrink-0",
@@ -477,7 +497,7 @@ export function Sidebar({
                       )}
                       aria-hidden="true"
                     />
-                    {link.name}
+                    <span className="truncate">{link.name}</span>
                   </div>
                   {isOpen ? (
                     <ChevronDown className="h-4 w-4 text-gray-400" />

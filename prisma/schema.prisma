@@ -68,6 +68,12 @@ model User {
   retentionSampleRecords     RetentionSampleRecord[] @relation("RetentionSamplePreparer")
   customerComplaints         CustomerComplaint[]     @relation("CustomerComplaintCreator")
   manualComplaints           ManualComplaintLog[]    @relation("ManualComplaintCreator")
+
+  // Procurement Management Relations
+  createdProcurementSuppliers ProcurementSupplier[]   @relation("ProcurementSupplierCreator")
+  createdProcurementInvoices  ProcurementInvoice[]    @relation("ProcurementInvoiceCreator")
+  paidProcurementInvoices     ProcurementInvoice[]    @relation("ProcurementInvoicePayer")
+  procurementInvoiceLogs      ProcurementInvoiceLog[] @relation("ProcurementInvoiceLogActor")
 }
 
 model Branch {
@@ -3344,4 +3350,115 @@ model AriaChatMessage {
   session   AriaChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId, createdAt])
+}
+
+
+// ---------------------------------------------------------------------------------------------
+// PROCUREMENT MANAGEMENT
+// ---------------------------------------------------------------------------------------------
+
+enum ProcurementPaymentTerm {
+  TERM_7_DAYS
+  TERM_30_DAYS
+  TERM_60_DAYS
+  COD
+  CASH_BEFORE_DELIVERY
+  CASH
+}
+
+enum ProcurementInvoiceCategory {
+  STANDARD_TERMS         // Document for Payment (Credit / Standard Terms)
+  MONTHLY_SUBSCRIPTION   // Monthly Payment / Subscription
+  CASH_PREPAYMENT        // Cash Payment (Pay before delivery)
+}
+
+enum ProcurementInvoiceStatus {
+  DRAFT
+  PENDING_FINANCE
+  IN_REVIEW
+  PAID
+  REJECTED
+}
+
+model ProcurementSupplier {
+  id          String                 @id @default(uuid())
+  name        String
+  phone       String?
+  email       String?
+  terms       ProcurementPaymentTerm @default(TERM_30_DAYS)
+  remark      String?
+  isActive    Boolean                @default(true)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  createdById String?
+  createdBy   User?                  @relation("ProcurementSupplierCreator", fields: [createdById], references: [id])
+
+  invoices    ProcurementInvoice[]
+
+  @@map("procurement_suppliers")
+}
+
+model ProcurementInvoice {
+  id                      String                     @id @default(uuid())
+  invoiceNumber           String
+  poNumber                String?                    // PO / PI No. (e.g. PO001996, PI002721)
+  company                 String                     // BOSB, BODG, NRHO, BOMSB, etc.
+  department              String                     // QC-Kilang Air, IT, HR, Maintenance, etc.
+  
+  supplierId              String
+  supplier                ProcurementSupplier        @relation(fields: [supplierId], references: [id])
+
+  category                ProcurementInvoiceCategory @default(STANDARD_TERMS)
+  status                  ProcurementInvoiceStatus   @default(PENDING_FINANCE)
+
+  invoiceDate             DateTime                   @default(now())
+  dueDate                 DateTime?
+  submitDate              DateTime                   @default(now()) // Handover date to Finance
+  amount                  Float                      @default(0)
+
+  // Physical document tracking (from Book1.xlsx)
+  doReceived              Boolean                    @default(false)
+  originalInvoiceReceived Boolean                    @default(false)
+
+  // Attachment files
+  attachmentUrl           String?
+  attachmentName          String?
+
+  // Payment information by Finance
+  paidAt                  DateTime?
+  paymentReference        String?                    // Bank transfer reference / check no
+  paymentReceiptUrl       String?                    // Bank slip / receipt
+  notes                   String?                    // Remarks / notes
+
+  createdById             String?
+  createdBy               User?                      @relation("ProcurementInvoiceCreator", fields: [createdById], references: [id])
+
+  paidById                String?
+  paidBy                  User?                      @relation("ProcurementInvoicePayer", fields: [paidById], references: [id])
+
+  activityLogs            ProcurementInvoiceLog[]
+
+  createdAt               DateTime                   @default(now())
+  updatedAt               DateTime                   @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@index([supplierId])
+  @@map("procurement_invoices")
+}
+
+model ProcurementInvoiceLog {
+  id            String              @id @default(uuid())
+  invoiceId     String
+  invoice       ProcurementInvoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  action        String              // CREATED, SUBMITTED_TO_FINANCE, STATUS_CHANGED, PAID, REJECTED
+  fromStatus    String?
+  toStatus      String?
+  notes         String?
+  performedById String?
+  performedBy   User?               @relation("ProcurementInvoiceLogActor", fields: [performedById], references: [id])
+  createdAt     DateTime            @default(now())
+
+  @@map("procurement_invoice_logs")
 }

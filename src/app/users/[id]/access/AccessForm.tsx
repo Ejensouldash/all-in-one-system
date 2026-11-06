@@ -16,6 +16,8 @@ import {
   type LucideIcon,
   CalendarCheck,
   Video,
+  Truck,
+  Receipt,
 } from "lucide-react"
 
 type ModuleDef = { id: string; name: string; description: string; icon: LucideIcon }
@@ -128,6 +130,26 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "REMINDERS_EDIT_FREQUENCY", name: "Manage PMC Frequency", description: "Authority to change recurrence intervals and frequencies for Preventive Maintenance schedules.", icon: CalendarClock },
       { id: "NOTICES", name: "Internal Notices", description: "Post and read company-wide announcements.", icon: Megaphone },
       { id: "ASSETS", name: "Company Assets", description: "Manage, track, and print QR for company assets and equipment.", icon: QrCode },
+    ],
+  },
+  {
+    id: "PROCUREMENT",
+    name: "Procurement Management",
+    icon: Truck,
+    iconClass: "bg-amber-50 text-amber-600 border-amber-100",
+    modules: [
+      {
+        id: "PROCUREMENT_REQUESTER",
+        name: "Procurement Requester / Purchasing",
+        description: "Register and manage suppliers, create invoices, upload documents, and submit to Finance.",
+        icon: Truck,
+      },
+      {
+        id: "PROCUREMENT_FINANCE",
+        name: "Procurement Finance",
+        description: "Review submitted invoices, verify payment details, upload payment receipts, and mark as Paid.",
+        icon: Receipt,
+      },
     ],
   },
   {

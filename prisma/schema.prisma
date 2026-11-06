@@ -1584,6 +1584,7 @@ model MarketingEventRequisition {
   attachments      String?  @default("[]")
   galleryAttachments String? @default("[]")
   feedbacks        MarketingEventFeedback[]
+  postEventReport  MarketingPostEventReport?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -1649,6 +1650,63 @@ model MarketingEventFeedback {
   @@index([requisitionId])
   @@index([createdAt])
 }
+
+model MarketingPostEventReport {
+  id                    String                    @id @default(uuid())
+  requisitionId         String                    @unique
+  requisition           MarketingEventRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+
+  // ISO Metadata
+  documentNo            String                    // e.g. BOMSB/ADMN/MKT/EVT/270012
+  issueNo               String                    @default("02")
+  reportDate            DateTime                  @default(now())
+  reportPreparedBy      String
+
+  // Section 1-6: Core Scope & Participants
+  attendeesCount        String?                   // e.g. "69,104" or "200,000*"
+  typeOfInvolvement     String                    @default("Sponsorship")
+  vipsList              String                    @default("[]") // JSON: [{ name: string, title: string }]
+  staffInvolved         String                    @default("[]") // JSON: string[]
+
+  // Section 7: Objectives & Impact
+  aims                  String?                   @db.Text
+  benefits              String?                   @db.Text
+  expectedImpact        String?                   @db.Text
+
+  // Section 8 & 9: Flow & Activations
+  flowType              String                    @default("DAILY") // DAILY | STAGES
+  plannedFlowText       String?                   @db.Text
+  plannedFlowImages     String                    @default("[]") // JSON: [{ dayLabel: string, imageUrl: string, caption?: string }]
+  executedFlowText      String?                   @db.Text
+  activationsList       String                    @default("[]") // JSON: [{ title: string, description?: string }]
+  activationImages      String                    @default("[]") // JSON: [{ title: string, imageUrl: string }]
+
+  // Section 10: Financial Claims & Receipts
+  claimBreakdown        String                    @default("[]") // JSON array of claimants & expense items
+  totalClaimAmount      Float                     @default(0.0)
+
+  // Section 12-14: Review & Reflection
+  futureImprovementOrg  String?                   @db.Text
+  futureImprovementPart String?                   @db.Text
+  futureConsideration   Boolean                   @default(true)
+  eventSuccessRate      Int                       @default(99)
+
+  // Section 15: Media Links
+  mediaLinks            String                    @default("[]") // JSON: [{ platform: string, url: string, description?: string }]
+
+  // Approval Workflow
+  status                String                    @default("DRAFT") // DRAFT, SUBMITTED, APPROVED
+  approvedBy            String?
+  approvedAt            DateTime?
+  approvalSignatureUrl  String?
+
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  @@index([status])
+  @@index([requisitionId])
+}
+
 
 model MarketingNotificationRecipient {
   id          String   @id @default(uuid())

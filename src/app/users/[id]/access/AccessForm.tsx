@@ -18,6 +18,7 @@ import {
   Video,
   Truck,
   Receipt,
+  Wallet,
 } from "lucide-react"
 
 type ModuleDef = { id: string; name: string; description: string; icon: LucideIcon }
@@ -175,6 +176,7 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "MARKETING_EVENTS", name: "Marketing Events Management", description: "Manage events manpower requisition.", icon: CalendarCheck },
       { id: "MARKETING_VIDEO_DESIGN", name: "Video & Design Studio", description: "Access to review, assign, and manage video production and graphic design requisitions.", icon: Video },
       { id: "MARKETING_EVENTS_EDIT", name: "Edit Marketing Event Requisitions", description: "Authority to edit and update submitted event requisition details (event name, dates, organizer, PIC, requirements, etc.).", icon: FilePenLine },
+      { id: "MARKETING_EVENTS_BUDGET", name: "Post-Event Budget Cap (Finance)", description: "Set or revise the approved budget cap used by the Post-Event Report success rate. Give Marketing Events Management too so the user can open the event page.", icon: Wallet },
     ],
   },
   {

@@ -14,6 +14,12 @@ import {
   type PostEventClaimantGroup,
   type PostEventMediaLink,
 } from "./pdf/PostEventIsoReportDocument"
+import {
+  buildEventScoreBreakdown,
+  isScoreLocked,
+  parseImpactItems,
+  parseScoreBreakdown,
+} from "./marketing/event-success-rate"
 
 async function resolveImageToDataUri(urlOrPath: string): Promise<string | null> {
   if (!urlOrPath) return null
@@ -183,7 +189,7 @@ export async function generatePostEventIsoPdfBuffer(
 
   // Feedback calculation
   const totalFeedbacks = requisition.feedbacks.length
-  let satisfactionCounts = {
+  const satisfactionCounts = {
     EXTREMELY_SATISFIED: 0,
     VERY_SATISFIED: 0,
     SOMEWHAT_SATISFIED: 0,
@@ -199,7 +205,17 @@ export async function generatePostEventIsoPdfBuffer(
 
   const positiveSatisfactionCount = satisfactionCounts.EXTREMELY_SATISFIED + satisfactionCounts.VERY_SATISFIED
   const satisfactionRate =
-    totalFeedbacks > 0 ? Math.round((positiveSatisfactionCount / totalFeedbacks) * 100) : report.eventSuccessRate || 99
+    totalFeedbacks > 0 ? Math.round((positiveSatisfactionCount / totalFeedbacks) * 100) : 0
+
+  const storedBreakdown = parseScoreBreakdown(report.scoreBreakdown)
+  const computedBreakdown = buildEventScoreBreakdown({
+    feedbacks: requisition.feedbacks,
+    budgetCap: requisition.budgetCap,
+    impactItems: parseImpactItems(report.impactDistribution),
+    totalClaimAmount: report.totalClaimAmount,
+  })
+  const scoreBreakdown =
+    isScoreLocked(report.status) && storedBreakdown ? storedBreakdown : computedBreakdown
 
   const dateFromStr = formatDateDisplay(requisition.eventDateFrom)
   const dateToStr = formatDateDisplay(requisition.eventDateTo)
@@ -222,6 +238,7 @@ export async function generatePostEventIsoPdfBuffer(
     aims: report.aims || "",
     benefits: report.benefits || "",
     expectedImpact: report.expectedImpact || "",
+    impactDistribution: parseImpactItems(report.impactDistribution),
 
     flowType: (report.flowType || "DAILY") as "DAILY" | "STAGES",
     plannedFlowText: report.plannedFlowText || "",
@@ -246,7 +263,8 @@ export async function generatePostEventIsoPdfBuffer(
     futureImprovementOrg: report.futureImprovementOrg || "",
     futureImprovementPart: report.futureImprovementPart || "",
     futureConsideration: report.futureConsideration,
-    eventSuccessRate: report.eventSuccessRate,
+    eventSuccessRate: scoreBreakdown.total,
+    scoreBreakdown,
 
     mediaLinks: JSON.parse(report.mediaLinks || "[]") as PostEventMediaLink[],
 

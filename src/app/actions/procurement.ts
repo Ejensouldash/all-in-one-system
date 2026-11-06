@@ -1,0 +1,610 @@
+"use server"
+
+import { revalidatePath } from "next/cache"
+import { prisma } from "@/lib/prisma"
+import { getAccessInfo, canAccessProcurement, canManageProcurementFinance } from "@/lib/access"
+import {
+  ProcurementPaymentTerm,
+  ProcurementInvoiceCategory,
+  ProcurementInvoiceStatus,
+} from "@prisma/client"
+import { uploadProcurementFile } from "@/lib/procurement-storage"
+
+export async function checkProcurementAccess() {
+  const access = await getAccessInfo()
+  if (!access || !canAccessProcurement(access)) {
+    throw new Error("Access Denied: You do not have permission to access Procurement Management.")
+  }
+  return access
+}
+
+// ----------------------------------------------------------------------
+// SUPPLIER ACTIONS
+// ----------------------------------------------------------------------
+
+export async function getSuppliers(params?: {
+  search?: string
+  terms?: string
+  activeOnly?: boolean
+}) {
+  await checkProcurementAccess()
+
+  const where: any = {}
+  if (params?.activeOnly !== false) {
+    where.isActive = true
+  }
+
+  if (params?.terms && params.terms !== "ALL") {
+    where.terms = params.terms as ProcurementPaymentTerm
+  }
+
+  if (params?.search?.trim()) {
+    const q = params.search.trim()
+    where.OR = [
+      { name: { contains: q, mode: "insensitive" } },
+      { phone: { contains: q, mode: "insensitive" } },
+      { email: { contains: q, mode: "insensitive" } },
+      { remark: { contains: q, mode: "insensitive" } },
+    ]
+  }
+
+  const suppliers = await prisma.procurementSupplier.findMany({
+    where,
+    orderBy: { name: "asc" },
+    include: {
+      _count: {
+        select: { invoices: true },
+      },
+    },
+  })
+
+  return suppliers
+}
+
+export async function createSupplier(data: {
+  name: string
+  phone?: string
+  email?: string
+  terms: ProcurementPaymentTerm
+  remark?: string
+}) {
+  const access = await checkProcurementAccess()
+
+  if (!data.name?.trim()) {
+    return { success: false, error: "Supplier name is required." }
+  }
+
+  try {
+    const supplier = await prisma.procurementSupplier.create({
+      data: {
+        name: data.name.trim(),
+        phone: data.phone?.trim() || null,
+        email: data.email?.trim() || null,
+        terms: data.terms || ProcurementPaymentTerm.TERM_30_DAYS,
+        remark: data.remark?.trim() || null,
+        createdById: access.userId,
+      },
+    })
+
+    revalidatePath("/procurement/suppliers")
+    revalidatePath("/procurement/invoices")
+    return { success: true, supplier }
+  } catch (error: any) {
+    console.error("Failed to create supplier:", error)
+    return { success: false, error: error.message || "Failed to create supplier." }
+  }
+}
+
+export async function updateSupplier(
+  id: string,
+  data: {
+    name: string
+    phone?: string
+    email?: string
+    terms: ProcurementPaymentTerm
+    remark?: string
+    isActive?: boolean
+  }
+) {
+  await checkProcurementAccess()
+
+  try {
+    const updated = await prisma.procurementSupplier.update({
+      where: { id },
+      data: {
+        name: data.name.trim(),
+        phone: data.phone?.trim() || null,
+        email: data.email?.trim() || null,
+        terms: data.terms,
+        remark: data.remark?.trim() || null,
+        isActive: data.isActive !== undefined ? data.isActive : true,
+      },
+    })
+
+    revalidatePath("/procurement/suppliers")
+    revalidatePath("/procurement/invoices")
+    return { success: true, supplier: updated }
+  } catch (error: any) {
+    console.error("Failed to update supplier:", error)
+    return { success: false, error: error.message || "Failed to update supplier." }
+  }
+}
+
+export async function deleteSupplier(id: string) {
+  await checkProcurementAccess()
+
+  try {
+    // Check if supplier has linked invoices
+    const count = await prisma.procurementInvoice.count({
+      where: { supplierId: id },
+    })
+
+    if (count > 0) {
+      // Deactivate instead of hard delete
+      await prisma.procurementSupplier.update({
+        where: { id },
+        data: { isActive: false },
+      })
+      revalidatePath("/procurement/suppliers")
+      return { success: true, message: "Supplier has existing invoices and was deactivated instead of deleted." }
+    }
+
+    await prisma.procurementSupplier.delete({
+      where: { id },
+    })
+
+    revalidatePath("/procurement/suppliers")
+    return { success: true }
+  } catch (error: any) {
+    console.error("Failed to delete supplier:", error)
+    return { success: false, error: error.message || "Failed to delete supplier." }
+  }
+}
+
+// ----------------------------------------------------------------------
+// INVOICE ACTIONS
+// ----------------------------------------------------------------------
+
+export async function getInvoices(params?: {
+  category?: ProcurementInvoiceCategory | "ALL"
+  status?: ProcurementInvoiceStatus | "ALL"
+  company?: string
+  department?: string
+  supplierId?: string
+  dateType?: "submitDate" | "invoiceDate" | "dueDate" | "paidAt"
+  startDate?: string | Date
+  endDate?: string | Date
+  doReceived?: boolean | "ALL"
+  originalInvoiceReceived?: boolean | "ALL"
+  search?: string
+}) {
+  await checkProcurementAccess()
+
+  const where: any = {}
+
+  if (params?.category && params.category !== "ALL") {
+    where.category = params.category as ProcurementInvoiceCategory
+  }
+
+  if (params?.status && params.status !== "ALL") {
+    where.status = params.status as ProcurementInvoiceStatus
+  }
+
+  if (params?.company && params.company !== "ALL") {
+    where.company = params.company
+  }
+
+  if (params?.department && params.department !== "ALL") {
+    where.department = params.department
+  }
+
+  if (params?.supplierId && params.supplierId !== "ALL") {
+    where.supplierId = params.supplierId
+  }
+
+  if (params?.doReceived !== undefined && params.doReceived !== "ALL") {
+    where.doReceived = Boolean(params.doReceived === true)
+  }
+
+  if (params?.originalInvoiceReceived !== undefined && params.originalInvoiceReceived !== "ALL") {
+    where.originalInvoiceReceived = Boolean(params.originalInvoiceReceived === true)
+  }
+
+  if (params?.startDate || params?.endDate) {
+    const field = params.dateType || "submitDate"
+    where[field] = {}
+    if (params.startDate) {
+      const s = new Date(params.startDate)
+      s.setHours(0, 0, 0, 0)
+      where[field].gte = s
+    }
+    if (params.endDate) {
+      const e = new Date(params.endDate)
+      e.setHours(23, 59, 59, 999)
+      where[field].lte = e
+    }
+  }
+
+  if (params?.search?.trim()) {
+    const q = params.search.trim()
+    where.OR = [
+      { invoiceNumber: { contains: q, mode: "insensitive" } },
+      { poNumber: { contains: q, mode: "insensitive" } },
+      { supplier: { name: { contains: q, mode: "insensitive" } } },
+      { notes: { contains: q, mode: "insensitive" } },
+    ]
+  }
+
+  const invoices = await prisma.procurementInvoice.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    include: {
+      supplier: {
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          email: true,
+          terms: true,
+        },
+      },
+      createdBy: {
+        select: { id: true, name: true, email: true },
+      },
+      paidBy: {
+        select: { id: true, name: true, email: true },
+      },
+      activityLogs: {
+        orderBy: { createdAt: "asc" },
+        include: {
+          performedBy: {
+            select: { id: true, name: true },
+          },
+        },
+      },
+    },
+  })
+
+  return invoices
+}
+
+export async function getProcurementSummary() {
+  await checkProcurementAccess()
+
+  const [totalInvoices, pendingFinance, inReview, paid, cashPrepaymentPending] = await Promise.all([
+    prisma.procurementInvoice.aggregate({
+      _count: true,
+      _sum: { amount: true },
+    }),
+    prisma.procurementInvoice.aggregate({
+      where: { status: ProcurementInvoiceStatus.PENDING_FINANCE },
+      _count: true,
+      _sum: { amount: true },
+    }),
+    prisma.procurementInvoice.aggregate({
+      where: { status: ProcurementInvoiceStatus.IN_REVIEW },
+      _count: true,
+      _sum: { amount: true },
+    }),
+    prisma.procurementInvoice.aggregate({
+      where: { status: ProcurementInvoiceStatus.PAID },
+      _count: true,
+      _sum: { amount: true },
+    }),
+    prisma.procurementInvoice.aggregate({
+      where: {
+        category: ProcurementInvoiceCategory.CASH_PREPAYMENT,
+        status: { in: [ProcurementInvoiceStatus.PENDING_FINANCE, ProcurementInvoiceStatus.IN_REVIEW] },
+      },
+      _count: true,
+      _sum: { amount: true },
+    }),
+  ])
+
+  // Count overdue or due within 3 days
+  const now = new Date()
+  const threeDaysLater = new Date()
+  threeDaysLater.setDate(threeDaysLater.getDate() + 3)
+
+  const dueSoonOrOverdueCount = await prisma.procurementInvoice.count({
+    where: {
+      status: { in: [ProcurementInvoiceStatus.PENDING_FINANCE, ProcurementInvoiceStatus.IN_REVIEW] },
+      dueDate: {
+        lte: threeDaysLater,
+      },
+    },
+  })
+
+  return {
+    totalCount: totalInvoices._count || 0,
+    totalAmount: totalInvoices._sum.amount || 0,
+    pendingFinanceCount: pendingFinance._count || 0,
+    pendingFinanceAmount: pendingFinance._sum.amount || 0,
+    inReviewCount: inReview._count || 0,
+    inReviewAmount: inReview._sum.amount || 0,
+    paidCount: paid._count || 0,
+    paidAmount: paid._sum.amount || 0,
+    cashPrepaymentPendingCount: cashPrepaymentPending._count || 0,
+    cashPrepaymentPendingAmount: cashPrepaymentPending._sum.amount || 0,
+    dueSoonOrOverdueCount,
+  }
+}
+
+export async function createInvoice(data: {
+  invoiceNumber: string
+  poNumber?: string
+  company: string
+  department: string
+  supplierId: string
+  category: ProcurementInvoiceCategory
+  status?: ProcurementInvoiceStatus
+  invoiceDate?: string | Date
+  dueDate?: string | Date
+  amount: number
+  doReceived?: boolean
+  originalInvoiceReceived?: boolean
+  attachmentUrl?: string
+  attachmentName?: string
+  notes?: string
+}) {
+  const access = await checkProcurementAccess()
+
+  if (!data.invoiceNumber?.trim()) {
+    return { success: false, error: "Invoice number is required." }
+  }
+  if (!data.supplierId) {
+    return { success: false, error: "Supplier is required." }
+  }
+  if (!data.company) {
+    return { success: false, error: "Company is required." }
+  }
+  if (!data.department) {
+    return { success: false, error: "Department is required." }
+  }
+
+  const initialStatus = data.status || ProcurementInvoiceStatus.PENDING_FINANCE
+
+  try {
+    const invoice = await prisma.procurementInvoice.create({
+      data: {
+        invoiceNumber: data.invoiceNumber.trim(),
+        poNumber: data.poNumber?.trim() || null,
+        company: data.company,
+        department: data.department,
+        supplierId: data.supplierId,
+        category: data.category,
+        status: initialStatus,
+        invoiceDate: data.invoiceDate ? new Date(data.invoiceDate) : new Date(),
+        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+        submitDate: new Date(),
+        amount: Number(data.amount) || 0,
+        doReceived: !!data.doReceived,
+        originalInvoiceReceived: !!data.originalInvoiceReceived,
+        attachmentUrl: data.attachmentUrl || null,
+        attachmentName: data.attachmentName || null,
+        notes: data.notes?.trim() || null,
+        createdById: access.userId,
+        activityLogs: {
+          create: {
+            action: initialStatus === ProcurementInvoiceStatus.DRAFT ? "CREATED_DRAFT" : "SUBMITTED_TO_FINANCE",
+            toStatus: initialStatus,
+            notes: `Submitted by ${access.name || "Purchasing"}`,
+            performedById: access.userId,
+          },
+        },
+      },
+    })
+
+    revalidatePath("/procurement/invoices")
+    return { success: true, invoice }
+  } catch (error: any) {
+    console.error("Failed to create invoice:", error)
+    return { success: false, error: error.message || "Failed to create invoice." }
+  }
+}
+
+export async function updateInvoice(
+  id: string,
+  data: {
+    invoiceNumber?: string
+    poNumber?: string
+    company?: string
+    department?: string
+    supplierId?: string
+    category?: ProcurementInvoiceCategory
+    invoiceDate?: string | Date
+    dueDate?: string | Date
+    amount?: number
+    doReceived?: boolean
+    originalInvoiceReceived?: boolean
+    attachmentUrl?: string
+    attachmentName?: string
+    notes?: string
+  }
+) {
+  const access = await checkProcurementAccess()
+
+  try {
+    const updatePayload: any = {}
+    if (data.invoiceNumber) updatePayload.invoiceNumber = data.invoiceNumber.trim()
+    if (data.poNumber !== undefined) updatePayload.poNumber = data.poNumber?.trim() || null
+    if (data.company) updatePayload.company = data.company
+    if (data.department) updatePayload.department = data.department
+    if (data.supplierId) updatePayload.supplierId = data.supplierId
+    if (data.category) updatePayload.category = data.category
+    if (data.invoiceDate) updatePayload.invoiceDate = new Date(data.invoiceDate)
+    if (data.dueDate !== undefined) updatePayload.dueDate = data.dueDate ? new Date(data.dueDate) : null
+    if (data.amount !== undefined) updatePayload.amount = Number(data.amount) || 0
+    if (data.doReceived !== undefined) updatePayload.doReceived = data.doReceived
+    if (data.originalInvoiceReceived !== undefined) updatePayload.originalInvoiceReceived = data.originalInvoiceReceived
+    if (data.attachmentUrl !== undefined) updatePayload.attachmentUrl = data.attachmentUrl
+    if (data.attachmentName !== undefined) updatePayload.attachmentName = data.attachmentName
+    if (data.notes !== undefined) updatePayload.notes = data.notes?.trim() || null
+
+    const updated = await prisma.procurementInvoice.update({
+      where: { id },
+      data: updatePayload,
+    })
+
+    revalidatePath("/procurement/invoices")
+    return { success: true, invoice: updated }
+  } catch (error: any) {
+    console.error("Failed to update invoice:", error)
+    return { success: false, error: error.message || "Failed to update invoice." }
+  }
+}
+
+export async function updateInvoiceStatus(
+  id: string,
+  newStatus: ProcurementInvoiceStatus,
+  notes?: string
+) {
+  const access = await checkProcurementAccess()
+
+  // Only Finance or Superadmin can change status to PAID or REJECTED
+  if (
+    (newStatus === ProcurementInvoiceStatus.PAID || newStatus === ProcurementInvoiceStatus.REJECTED) &&
+    !canManageProcurementFinance(access)
+  ) {
+    return { success: false, error: "Only Finance or Superadmin can mark invoices as Paid or Rejected." }
+  }
+
+  try {
+    const current = await prisma.procurementInvoice.findUnique({
+      where: { id },
+      select: { status: true },
+    })
+
+    if (!current) {
+      return { success: false, error: "Invoice not found." }
+    }
+
+    const updated = await prisma.procurementInvoice.update({
+      where: { id },
+      data: {
+        status: newStatus,
+        activityLogs: {
+          create: {
+            action: `STATUS_CHANGED_TO_${newStatus}`,
+            fromStatus: current.status,
+            toStatus: newStatus,
+            notes: notes?.trim() || `Status updated to ${newStatus} by ${access.name || "User"}`,
+            performedById: access.userId,
+          },
+        },
+      },
+    })
+
+    revalidatePath("/procurement/invoices")
+    return { success: true, invoice: updated }
+  } catch (error: any) {
+    console.error("Failed to update invoice status:", error)
+    return { success: false, error: error.message || "Failed to update status." }
+  }
+}
+
+export async function recordPayment(
+  id: string,
+  paymentData: {
+    paidAt: string | Date
+    paymentReference?: string
+    paymentReceiptUrl?: string
+    notes?: string
+  }
+) {
+  const access = await checkProcurementAccess()
+
+  if (!canManageProcurementFinance(access)) {
+    return { success: false, error: "Only Finance or Superadmin can record payment." }
+  }
+
+  try {
+    const current = await prisma.procurementInvoice.findUnique({
+      where: { id },
+      select: { status: true },
+    })
+
+    if (!current) {
+      return { success: false, error: "Invoice not found." }
+    }
+
+    const updated = await prisma.procurementInvoice.update({
+      where: { id },
+      data: {
+        status: ProcurementInvoiceStatus.PAID,
+        paidAt: new Date(paymentData.paidAt),
+        paymentReference: paymentData.paymentReference?.trim() || null,
+        paymentReceiptUrl: paymentData.paymentReceiptUrl || null,
+        notes: paymentData.notes ? paymentData.notes.trim() : undefined,
+        paidById: access.userId,
+        activityLogs: {
+          create: {
+            action: "PAID",
+            fromStatus: current.status,
+            toStatus: ProcurementInvoiceStatus.PAID,
+            notes: `Payment marked by Finance (${access.name || "Finance"}). Ref: ${paymentData.paymentReference || "N/A"}`,
+            performedById: access.userId,
+          },
+        },
+      },
+    })
+
+    revalidatePath("/procurement/invoices")
+    return { success: true, invoice: updated }
+  } catch (error: any) {
+    console.error("Failed to record payment:", error)
+    return { success: false, error: error.message || "Failed to record payment." }
+  }
+}
+
+export async function deleteInvoice(id: string) {
+  const access = await checkProcurementAccess()
+
+  try {
+    await prisma.procurementInvoice.delete({
+      where: { id },
+    })
+
+    revalidatePath("/procurement/invoices")
+    return { success: true }
+  } catch (error: any) {
+    console.error("Failed to delete invoice:", error)
+    return { success: false, error: error.message || "Failed to delete invoice." }
+  }
+}
+
+export async function uploadProcurementDocument(formData: FormData) {
+  await checkProcurementAccess()
+
+  try {
+    const file = formData.get("file") as File
+    const folder = (formData.get("folder") as "invoices" | "receipts") || "invoices"
+
+    if (!file) {
+      return { success: false, error: "No file uploaded." }
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const res = await uploadProcurementFile(buffer, file.name, file.type || "application/pdf", folder)
+
+    return {
+      success: true,
+      url: res.url,
+      filename: res.filename,
+    }
+  } catch (error: any) {
+    console.error("Failed to upload procurement file:", error)
+    return { success: false, error: error.message || "Upload failed." }
+  }
+}
+
+export async function getProcurementUserRole() {
+  const access = await checkProcurementAccess()
+  return {
+    userId: access.userId,
+    name: access.name,
+    isSuperAdmin: access.isSuperAdmin,
+    isFinance: canManageProcurementFinance(access),
+    isRequester: canAccessProcurement(access),
+  }
+}

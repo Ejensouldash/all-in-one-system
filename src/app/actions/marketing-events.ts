@@ -454,67 +454,6 @@ export async function updateEventRequisitionStatus(
     revalidatePath("/marketing/events")
     revalidatePath("/marketing/forms")
 
-    // Sync approved event with system calendar table (and clean up if rejected)
-    if (status === "APPROVED" && access?.userId) {
-      try {
-        const start = updated.eventDateFrom ? new Date(updated.eventDateFrom) : new Date()
-        const end = updated.eventDateTo ? new Date(updated.eventDateTo) : start
-
-        const eventDescription = [
-          `Requisition: ${updated.requestNumber}`,
-          `Department: ${updated.department}`,
-          `Organizer: ${updated.organizer}`,
-          `PIC: ${updated.picContactName} (${updated.picContactNumber})`,
-          `Requirements: ${updated.requirements}`,
-          updated.tentative ? `Tentative: ${updated.tentative}` : null,
-          remarks ? `Approval Remarks: ${remarks}` : null,
-        ]
-          .filter(Boolean)
-          .join("\n")
-
-        const existingEvent = await prisma.event.findFirst({
-          where: { description: { contains: updated.requestNumber } },
-        })
-
-        if (existingEvent) {
-          await prisma.event.update({
-            where: { id: existingEvent.id },
-            data: {
-              title: `[Marketing] ${updated.eventName}`,
-              description: eventDescription,
-              startDateTime: start,
-              endDateTime: end,
-            },
-          })
-        } else {
-          await prisma.event.create({
-            data: {
-              title: `[Marketing] ${updated.eventName}`,
-              description: eventDescription,
-              startDateTime: start,
-              endDateTime: end,
-              createdById: access.userId,
-            },
-          })
-        }
-        revalidatePath("/calendar")
-      } catch (calErr) {
-        console.warn("Could not sync approved event with system calendar:", calErr)
-      }
-    } else if (status === "REJECTED") {
-      try {
-        const existingEvent = await prisma.event.findFirst({
-          where: { description: { contains: updated.requestNumber } },
-        })
-        if (existingEvent) {
-          await prisma.event.delete({ where: { id: existingEvent.id } })
-          revalidatePath("/calendar")
-        }
-      } catch (calErr) {
-        console.warn("Could not remove rejected event from system calendar:", calErr)
-      }
-    }
-
     return { success: true, data: updated }
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : "Failed to update event requisition status."
@@ -548,7 +487,7 @@ export async function updateMarketingEventRequisition(
 ) {
   try {
     const access = await getAccessInfo()
-    if (!canEditMarketingEvents(access)) {
+    if (!canAccessMarketingEvents(access)) {
       return { success: false, error: "Unauthorized: You do not have permission to edit marketing event requisitions." }
     }
 
@@ -580,62 +519,12 @@ export async function updateMarketingEventRequisition(
         name: payload.name.trim(),
         staffId: payload.staffId.trim(),
         email: payload.email.trim().toLowerCase(),
-        phone: payload.phone.trim(),
+
         department: payload.department.trim(),
         remarks: payload.remarks !== undefined ? (payload.remarks?.trim() || null) : undefined,
         updatedAt: new Date(),
       },
     })
-
-    // If event is APPROVED, sync changes to System Calendar Event
-    if (updated.status === "APPROVED" && access?.userId) {
-      try {
-        const start = updated.eventDateFrom ? new Date(updated.eventDateFrom) : new Date()
-        const end = updated.eventDateTo ? new Date(updated.eventDateTo) : start
-
-        const eventDescription = [
-          `Requisition: ${updated.requestNumber}`,
-          `Department: ${updated.department}`,
-          `Organizer: ${updated.organizer}`,
-          `PIC: ${updated.picContactName} (${updated.picContactNumber})`,
-          `Requester: ${updated.name} (${updated.phone || "-"})`,
-          `Requirements: ${updated.requirements}`,
-          updated.tentative ? `Tentative: ${updated.tentative}` : null,
-          updated.remarks ? `Approval Remarks: ${updated.remarks}` : null,
-        ]
-          .filter(Boolean)
-          .join("\n")
-
-        const existingEvent = await prisma.event.findFirst({
-          where: { description: { contains: updated.requestNumber } },
-        })
-
-        if (existingEvent) {
-          await prisma.event.update({
-            where: { id: existingEvent.id },
-            data: {
-              title: `[Marketing] ${updated.eventName}`,
-              description: eventDescription,
-              startDateTime: start,
-              endDateTime: end,
-            },
-          })
-        } else {
-          await prisma.event.create({
-            data: {
-              title: `[Marketing] ${updated.eventName}`,
-              description: eventDescription,
-              startDateTime: start,
-              endDateTime: end,
-              createdById: access.userId,
-            },
-          })
-        }
-        revalidatePath("/calendar")
-      } catch (calErr) {
-        console.warn("Could not sync updated event to system calendar:", calErr)
-      }
-    }
 
     try {
       await logUserAction(

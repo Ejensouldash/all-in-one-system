@@ -3,6 +3,7 @@
 import { QRCodeSVG } from "qrcode.react"
 
 export interface AssetQRStickerProps {
+  id?: string
   assetTag?: string
   assetName?: string
   departmentCode?: string | null
@@ -22,6 +23,7 @@ export interface AssetQRStickerProps {
 }
 
 export function AssetQRSticker({
+  id,
   assetTag,
   assetName,
   departmentCode,
@@ -34,24 +36,29 @@ export function AssetQRSticker({
 }: AssetQRStickerProps) {
   // -------------------------------------------------------------
   // Format 1: 40x20mm Thermal Sticker (Optimized for Niimbot)
+  // Dimensions 39x19mm with 0.5mm safe breathing room prevents
+  // browser PDF page-splitting and physical roll edge cutting.
   // -------------------------------------------------------------
   if (size === "40x20") {
     const isBlank = assetName === "[Blank QR - Ready to Register]"
 
     return (
       <div
+        id={id}
         className={`asset-qr-sticker-40x20 ${className}`}
         style={{
-          width: "40mm",
-          height: "20mm",
+          width: "39mm",
+          height: "19mm",
+          maxWidth: "39mm",
+          maxHeight: "19mm",
           backgroundColor: "#ffffff",
           color: "#000000",
           boxSizing: "border-box",
-          padding: "1mm 1.5mm",
+          padding: "0.8mm 1.2mm",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: "1.2mm",
+          gap: "1mm",
           overflow: "hidden",
           fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
           border: "0.25mm solid #000000",
@@ -66,18 +73,19 @@ export function AssetQRSticker({
         {/* Left Column: Sharp QR Code */}
         <div
           style={{
-            width: "15.5mm",
-            height: "15.5mm",
+            width: "14.5mm",
+            height: "14.5mm",
             flexShrink: 0,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             backgroundColor: "#ffffff",
+            overflow: "hidden",
           }}
         >
           <QRCodeSVG
             value={qrValue}
-            size={120}
+            size={110}
             level="M"
             marginSize={0}
             bgColor="#ffffff"
@@ -96,8 +104,8 @@ export function AssetQRSticker({
             justifyContent: "space-between",
             minWidth: 0,
             overflow: "hidden",
-            paddingTop: "0.2mm",
-            paddingBottom: "0.2mm",
+            paddingTop: "0.1mm",
+            paddingBottom: "0.1mm",
           }}
         >
           {/* Header Row: Company + Department Badge */}
@@ -106,13 +114,13 @@ export function AssetQRSticker({
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              gap: "0.5mm",
+              gap: "0.4mm",
               width: "100%",
             }}
           >
             <span
               style={{
-                fontSize: "4.8pt",
+                fontSize: "4.5pt",
                 fontWeight: 900,
                 letterSpacing: "0.3px",
                 textTransform: "uppercase",
@@ -125,12 +133,12 @@ export function AssetQRSticker({
             {departmentCode && (
               <span
                 style={{
-                  fontSize: "4.2pt",
+                  fontSize: "4pt",
                   fontWeight: 800,
                   fontFamily: "monospace",
-                  border: "0.25mm solid #000000",
+                  border: "0.2mm solid #000000",
                   borderRadius: "0.5mm",
-                  padding: "0.1mm 0.6mm",
+                  padding: "0.1mm 0.5mm",
                   lineHeight: 1,
                   color: "#000000",
                   whiteSpace: "nowrap",
@@ -145,16 +153,16 @@ export function AssetQRSticker({
           <div
             style={{
               width: "100%",
-              height: "0.25mm",
+              height: "0.2mm",
               backgroundColor: "#000000",
-              margin: "0.2mm 0",
+              margin: "0.15mm 0",
             }}
           />
 
           {/* Asset Tag (Prominent) */}
           <div
             style={{
-              fontSize: "6.5pt",
+              fontSize: "6.2pt",
               fontWeight: 900,
               fontFamily: "monospace",
               letterSpacing: "0.2px",
@@ -171,7 +179,7 @@ export function AssetQRSticker({
           {/* Asset Name or Status */}
           <div
             style={{
-              fontSize: isBlank ? "4.2pt" : "4.6pt",
+              fontSize: isBlank ? "4pt" : "4.3pt",
               fontWeight: isBlank ? 800 : 600,
               fontStyle: isBlank ? "italic" : "normal",
               lineHeight: 1.1,
@@ -188,7 +196,7 @@ export function AssetQRSticker({
           {/* Footer: Serial Number or Tagline */}
           <div
             style={{
-              fontSize: "3.8pt",
+              fontSize: "3.5pt",
               fontWeight: 600,
               lineHeight: 1,
               color: "#334155",
@@ -210,6 +218,7 @@ export function AssetQRSticker({
   const isDark = theme !== "thermal"
   const sticker = (
     <div
+      id={id}
       className={`asset-qr-sticker ${className}`}
       style={{
         width: "70mm",

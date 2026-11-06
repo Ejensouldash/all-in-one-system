@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useMemo } from "react"
 import Link from "next/link"
 import { 
   Plus, Minus, FileText, Search, PackageOpen, AlertCircle, 
@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import {
   getMarketingItems,
+  getMarketingRecentLogs,
   addMarketingStock, 
   withdrawMarketingStock, 
   deleteMarketingItem, 
@@ -272,6 +273,54 @@ export function MarketingInventoryClient({
     quantity: number
   }>>([])
   const [selectedRestockVariantId, setSelectedRestockVariantId] = useState("")
+
+  // Multi-variant restock states for existing items
+  const [restockVariantQuantities, setRestockVariantQuantities] = useState<Record<string, number | string>>({})
+  const [bulkVariantQty, setBulkVariantQty] = useState("")
+  const [newVariantsForRestock, setNewVariantsForRestock] = useState<Array<{ id: string; variantName: string; quantity: number; sku?: string }>>([])
+  const [showAddNewVariantRow, setShowAddNewVariantRow] = useState(false)
+  const [newVariantNameInput, setNewVariantNameInput] = useState("")
+  const [newVariantQtyInput, setNewVariantQtyInput] = useState(1)
+
+  const handleApplyBulkVariantQty = () => {
+    const num = parseInt(bulkVariantQty) || 0
+    if (num <= 0) return
+    const selectedItem = items.find(i => i.id === selectedAddItemId)
+    if (!selectedItem?.variants) return
+    const next: Record<string, number> = {}
+    for (const v of selectedItem.variants) {
+      next[v.id] = num
+    }
+    setRestockVariantQuantities(next)
+  }
+
+  const handleClearAllVariantQty = () => {
+    setRestockVariantQuantities({})
+    setNewVariantsForRestock([])
+    setBulkVariantQty("")
+  }
+
+  const handleAddNewVariantToRestock = () => {
+    const trimmed = newVariantNameInput.trim()
+    if (!trimmed) return
+    const qty = Math.max(1, newVariantQtyInput || 1)
+    setNewVariantsForRestock(prev => [
+      ...prev,
+      { id: `temp-${Date.now()}-${Math.random()}`, variantName: trimmed, quantity: qty }
+    ])
+    setNewVariantNameInput("")
+    setNewVariantQtyInput(1)
+    setShowAddNewVariantRow(false)
+  }
+
+  const totalRestockVariantQty = useMemo(() => {
+    const existingSum = Object.values(restockVariantQuantities).reduce<number>((sum, val) => {
+      const n = typeof val === "number" ? val : parseInt(val) || 0
+      return sum + n
+    }, 0)
+    const newSum = newVariantsForRestock.reduce((sum, v) => sum + (Number(v.quantity) || 0), 0)
+    return existingSum + newSum
+  }, [restockVariantQuantities, newVariantsForRestock])
 
   const handleAddAttribute = () => {
     const trimmed = newAttrName.trim()
@@ -600,15 +649,21 @@ export function MarketingInventoryClient({
       }
     }
 
-    const qtyNum = isNewItem && addHasVariants ? totalVariantQty : Number(addQty)
-    if (isNaN(qtyNum) || qtyNum <= 0) {
-      setErrorMsg(isNewItem && addHasVariants ? "Total variant quantity must be at least 1." : "Quantity must be at least 1.")
-      setSubmitting(false)
-      return
-    }
+    const isRestockingVariants = !isNewItem && Boolean(selectedAddItem?.hasVariants)
+    const qtyNum = isNewItem && addHasVariants
+      ? totalVariantQty
+      : isRestockingVariants
+      ? totalRestockVariantQty
+      : Number(addQty)
 
-    if (!isNewItem && selectedAddItem?.hasVariants && selectedAddItem.variants?.length && !selectedRestockVariantId) {
-      setErrorMsg("Please select which variant to restock.")
+    if (isNaN(qtyNum) || qtyNum <= 0) {
+      if (isNewItem && addHasVariants) {
+        setErrorMsg("Total variant quantity must be at least 1.")
+      } else if (isRestockingVariants) {
+        setErrorMsg("Please enter restock quantity (at least 1) for at least one variant.")
+      } else {
+        setErrorMsg("Quantity must be at least 1.")
+      }
       setSubmitting(false)
       return
     }
@@ -627,9 +682,29 @@ export function MarketingInventoryClient({
       }
     }
 
+    const activeRestockVariantsList = isRestockingVariants ? [
+      ...Object.entries(restockVariantQuantities)
+        .filter(([_, qty]) => (Number(qty) || 0) > 0)
+        .map(([varId, qty]) => {
+          const vObj = selectedAddItem?.variants?.find(v => v.id === varId)
+          return {
+            variantId: varId,
+            variantName: vObj?.variantName || "",
+            quantity: Number(qty) || 0,
+          }
+        }),
+      ...newVariantsForRestock
+        .filter(nv => (Number(nv.quantity) || 0) > 0)
+        .map(nv => ({
+          variantName: nv.variantName,
+          quantity: Number(nv.quantity) || 0,
+        }))
+    ] : undefined
+
     const payload = {
       itemId: isNewItem ? null : selectedAddItemId,
-      variantId: !isNewItem && selectedAddItem?.hasVariants ? selectedRestockVariantId : undefined,
+      variantId: !isNewItem && selectedAddItem?.hasVariants && !activeRestockVariantsList?.length ? selectedRestockVariantId : undefined,
+      restockVariants: activeRestockVariantsList,
       hasVariants: isNewItem ? addHasVariants : undefined,
       variantConfig: isNewItem && addHasVariants ? addAttributes : undefined,
       variants: isNewItem && addHasVariants ? variantMatrix.map(v => ({
@@ -675,34 +750,15 @@ export function MarketingInventoryClient({
         }
       })
 
-      // Add to recent logs
-      const calculatedUnit = Number((priceNum / qtyNum).toFixed(4))
-      const newLog: StockLog = {
-        id: Math.random().toString(),
-        itemId: res.data.id,
-        variantId: !isNewItem && selectedAddItem?.hasVariants ? selectedRestockVariantId : undefined,
-        variantName: !isNewItem && selectedAddItem?.hasVariants 
-          ? selectedAddItem.variants?.find(v => v.id === selectedRestockVariantId)?.variantName 
-          : isNewItem && addHasVariants ? "VARIANTS CREATED" : undefined,
-        type: "IN",
-        quantity: qtyNum,
-        totalPrice: priceNum,
-        totalCost: priceNum,
-        pricePerUnit: calculatedUnit,
-        costPerUnit: calculatedUnit,
-        sellingPricePerUnit: sellingPriceNum,
-        department: "MARKETING",
-        handledBy: addHandledBy.trim() || userName,
-        remarks: addRemarks.trim() || null,
-        createdAt: new Date(),
-        item: {
-          name: res.data.name,
-          unit: res.data.unit,
-          location: res.data.location,
-          category: res.data.category,
-        }
+      // Fetch fresh items & logs
+      const freshItems = await getMarketingItems()
+      if (freshItems.success && freshItems.data) {
+        setItems(freshItems.data)
       }
-      setLogs(prev => [newLog, ...prev])
+      const freshLogs = await getMarketingRecentLogs()
+      if (freshLogs.success && freshLogs.data) {
+        setLogs(freshLogs.data as any)
+      }
 
       // Reset form
       setNewItemName("")
@@ -710,6 +766,12 @@ export function MarketingInventoryClient({
       setAddCategory("MERCHANDISE")
       setSelectedAddItemId("")
       setSelectedRestockVariantId("")
+      setRestockVariantQuantities({})
+      setBulkVariantQty("")
+      setNewVariantsForRestock([])
+      setShowAddNewVariantRow(false)
+      setNewVariantNameInput("")
+      setNewVariantQtyInput(1)
       setAddHasVariants(false)
       setAddAttributes([{ name: "Size", options: ["S", "M", "L", "XL"] }])
       setVariantMatrix([])
@@ -2324,6 +2386,12 @@ export function MarketingInventoryClient({
                       const id = e.target.value
                       setSelectedAddItemId(id)
                       setSelectedRestockVariantId("")
+                      setRestockVariantQuantities({})
+                      setBulkVariantQty("")
+                      setNewVariantsForRestock([])
+                      setShowAddNewVariantRow(false)
+                      setNewVariantNameInput("")
+                      setNewVariantQtyInput(1)
                       const it = items.find(i => i.id === id)
                       if (it && it.sellingPricePerUnit !== undefined && it.sellingPricePerUnit !== null && it.sellingPricePerUnit > 0) {
                         setAddSellingPricePerUnit(String(it.sellingPricePerUnit))
@@ -2339,25 +2407,261 @@ export function MarketingInventoryClient({
                     ))}
                   </select>
 
-                  {selectedAddItem?.hasVariants && selectedAddItem.variants && selectedAddItem.variants.length > 0 && (
-                    <div className="mt-3 bg-indigo-50/60 p-3 rounded-xl border border-indigo-100">
-                      <label className="block text-xs font-bold uppercase text-indigo-900 mb-1 flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                        Select Variant to Restock *
-                      </label>
-                      <select
-                        required
-                        value={selectedRestockVariantId}
-                        onChange={(e) => setSelectedRestockVariantId(e.target.value)}
-                        className="w-full text-xs px-3 py-2 rounded-lg border border-indigo-200 bg-white font-medium"
-                      >
-                        <option value="">-- Choose Variant --</option>
-                        {selectedAddItem.variants.map((v) => (
-                          <option key={v.id} value={v.id}>
-                            {v.variantName} (Current: {v.quantity} {selectedAddItem.unit})
-                          </option>
+                  {selectedAddItem?.hasVariants && (
+                    <div className="mt-3.5 bg-indigo-50/60 p-3.5 rounded-2xl border border-indigo-100 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold uppercase text-indigo-950 flex items-center gap-1.5">
+                          <Sparkles className="w-4 h-4 text-indigo-600" />
+                          Restock Item Variants ({selectedAddItem.variants?.length || 0})
+                        </label>
+                        <span className="text-[11px] font-bold text-indigo-700 bg-indigo-100/80 px-2 py-0.5 rounded-md border border-indigo-200">
+                          Total IN: {totalRestockVariantQty} {selectedAddItem.unit}
+                        </span>
+                      </div>
+
+                      <p className="text-[11px] text-slate-500 leading-relaxed">
+                        Enter incoming quantities for each variant below. You can restock multiple variants in one go.
+                      </p>
+
+                      {/* Quick Bulk Fill Bar */}
+                      {selectedAddItem.variants && selectedAddItem.variants.length > 0 && (
+                        <div className="flex items-center gap-2 bg-white/90 p-2 rounded-xl border border-indigo-100">
+                          <span className="text-[11px] font-bold text-slate-600 shrink-0">Set all to:</span>
+                          <input
+                            type="number"
+                            min={0}
+                            placeholder="0"
+                            value={bulkVariantQty}
+                            onChange={(e) => setBulkVariantQty(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault()
+                                handleApplyBulkVariantQty()
+                              }
+                            }}
+                            className="w-16 text-center text-xs px-2 py-1 rounded-lg border border-slate-200 font-bold"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleApplyBulkVariantQty}
+                            className="px-2.5 py-1 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition cursor-pointer"
+                          >
+                            Apply
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleClearAllVariantQty}
+                            className="px-2 py-1 text-xs font-semibold text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition ml-auto cursor-pointer"
+                          >
+                            Clear All
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Variants Grid / List */}
+                      <div className="max-h-64 overflow-y-auto rounded-xl border border-indigo-100 bg-white divide-y divide-slate-100 shadow-2xs">
+                        {selectedAddItem.variants && selectedAddItem.variants.length > 0 ? (
+                          selectedAddItem.variants.map((v) => {
+                            const currentVal = restockVariantQuantities[v.id] ?? ""
+                            const isFilled = Number(currentVal) > 0
+
+                            return (
+                              <div
+                                key={v.id}
+                                className={`p-2.5 flex items-center justify-between gap-3 transition-colors ${
+                                  isFilled ? "bg-indigo-50/50" : "hover:bg-slate-50/70"
+                                }`}
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-slate-900 text-xs truncate">
+                                      {v.variantName}
+                                    </span>
+                                    {v.sku && (
+                                      <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded">
+                                        {v.sku}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <span className={`text-[10px] font-semibold ${
+                                      v.quantity > 5 ? "text-emerald-600" : v.quantity > 0 ? "text-amber-600" : "text-rose-500"
+                                    }`}>
+                                      Current: {v.quantity} {selectedAddItem.unit}
+                                    </span>
+                                    {isFilled && (
+                                      <span className="text-[10px] font-bold text-indigo-700 flex items-center gap-0.5">
+                                        &rarr; New: {v.quantity + Number(currentVal)} {selectedAddItem.unit}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Quantity Input */}
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const cur = Number(restockVariantQuantities[v.id]) || 0
+                                      if (cur > 0) {
+                                        setRestockVariantQuantities(prev => ({
+                                          ...prev,
+                                          [v.id]: cur - 1
+                                        }))
+                                      }
+                                    }}
+                                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-bold cursor-pointer"
+                                  >
+                                    -
+                                  </button>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    placeholder="0"
+                                    value={currentVal}
+                                    onChange={(e) => {
+                                      const val = e.target.value
+                                      setRestockVariantQuantities(prev => ({
+                                        ...prev,
+                                        [v.id]: val === "" ? "" : Math.max(0, parseInt(val) || 0)
+                                      }))
+                                    }}
+                                    className={`w-16 text-center text-xs font-black py-1.5 rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:outline-none ${
+                                      isFilled
+                                        ? "border-indigo-400 bg-white text-indigo-900 shadow-xs ring-1 ring-indigo-300"
+                                        : "border-slate-200 text-slate-700"
+                                    }`}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const cur = Number(restockVariantQuantities[v.id]) || 0
+                                      setRestockVariantQuantities(prev => ({
+                                        ...prev,
+                                        [v.id]: cur + 1
+                                      }))
+                                    }}
+                                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-bold cursor-pointer"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+                            )
+                          })
+                        ) : (
+                          <div className="p-4 text-center text-xs text-slate-400 italic">
+                            No existing variants defined for this item.
+                          </div>
+                        )}
+
+                        {/* Any newly added custom variants for this restock */}
+                        {newVariantsForRestock.map((nv, nvIdx) => (
+                          <div key={nv.id} className="p-2.5 bg-purple-50/50 flex items-center justify-between gap-3 text-xs border-t border-purple-100">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-purple-900">{nv.variantName}</span>
+                                <span className="text-[9px] font-bold uppercase tracking-wider bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">NEW</span>
+                              </div>
+                              <span className="text-[10px] text-slate-400">Will be created under item variants</span>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <input
+                                type="number"
+                                min={1}
+                                value={nv.quantity}
+                                onChange={(e) => {
+                                  const val = Math.max(1, parseInt(e.target.value) || 1)
+                                  setNewVariantsForRestock(prev => {
+                                    const copy = [...prev]
+                                    copy[nvIdx].quantity = val
+                                    return copy
+                                  })
+                                }}
+                                className="w-16 text-center text-xs font-black py-1.5 rounded-lg border border-purple-300 bg-white text-purple-900"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setNewVariantsForRestock(prev => prev.filter((_, i) => i !== nvIdx))}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 cursor-pointer"
+                                title="Remove new variant"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
                         ))}
-                      </select>
+                      </div>
+
+                      {/* Add new variant option */}
+                      {!showAddNewVariantRow ? (
+                        <button
+                          type="button"
+                          onClick={() => setShowAddNewVariantRow(true)}
+                          className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 cursor-pointer pt-1"
+                        >
+                          <PlusCircle className="w-3.5 h-3.5" />
+                          + Add New Variant to this Item (if new size/color arrived)
+                        </button>
+                      ) : (
+                        <div className="p-3 bg-white rounded-xl border border-indigo-200 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-indigo-900 flex items-center gap-1">
+                              <Tag className="w-3.5 h-3.5 text-indigo-600" />
+                              Register New Variant for {selectedAddItem.name}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowAddNewVariantRow(false)
+                                setNewVariantNameInput("")
+                                setNewVariantQtyInput(1)
+                              }}
+                              className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <input
+                              type="text"
+                              placeholder="e.g. 4XL / Hijau"
+                              value={newVariantNameInput}
+                              onChange={(e) => setNewVariantNameInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault()
+                                  handleAddNewVariantToRestock()
+                                }
+                              }}
+                              className="sm:col-span-2 text-xs px-2.5 py-2 rounded-lg border border-slate-200 font-medium"
+                            />
+                            <div className="flex gap-1.5">
+                              <input
+                                type="number"
+                                min={1}
+                                placeholder="Qty"
+                                value={newVariantQtyInput}
+                                onChange={(e) => setNewVariantQtyInput(Math.max(1, parseInt(e.target.value) || 1))}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault()
+                                    handleAddNewVariantToRestock()
+                                  }
+                                }}
+                                className="w-16 text-xs text-center font-bold px-2 py-2 rounded-lg border border-slate-200"
+                              />
+                              <button
+                                type="button"
+                                onClick={handleAddNewVariantToRestock}
+                                className="flex-1 px-2.5 py-2 text-xs font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition cursor-pointer"
+                              >
+                                Add
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2669,16 +2973,31 @@ export function MarketingInventoryClient({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                    Quantity (IN) * {isNewItem && addHasVariants && <span className="text-indigo-600 text-[10px] font-normal lowercase">(sum of variants)</span>}
+                    Quantity (IN) *
+                    {((isNewItem && addHasVariants) || (!isNewItem && selectedAddItem?.hasVariants)) && (
+                      <span className="text-indigo-600 text-[10px] font-normal lowercase ml-1">
+                        (sum of all variants)
+                      </span>
+                    )}
                   </label>
                   <input
                     type="number"
                     min={1}
                     required
-                    readOnly={isNewItem && addHasVariants}
-                    value={isNewItem && addHasVariants ? totalVariantQty : addQty}
+                    readOnly={(isNewItem && addHasVariants) || (!isNewItem && Boolean(selectedAddItem?.hasVariants))}
+                    value={
+                      isNewItem && addHasVariants
+                        ? totalVariantQty
+                        : !isNewItem && selectedAddItem?.hasVariants
+                        ? totalRestockVariantQty
+                        : addQty
+                    }
                     onChange={(e) => setAddQty(Number(e.target.value))}
-                    className={`w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 font-bold ${isNewItem && addHasVariants ? "bg-slate-100 text-slate-600 cursor-not-allowed" : ""}`}
+                    className={`w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 font-bold ${
+                      (isNewItem && addHasVariants) || (!isNewItem && selectedAddItem?.hasVariants)
+                        ? "bg-slate-100 text-slate-700 cursor-not-allowed"
+                        : ""
+                    }`}
                   />
                 </div>
 
@@ -2712,7 +3031,12 @@ export function MarketingInventoryClient({
 
               {/* Live Cost vs Selling Auto-Calculations */}
               {(() => {
-                const currentQty = isNewItem && addHasVariants ? totalVariantQty : Number(addQty || 0)
+                const isRestockingVariants = !isNewItem && Boolean(selectedAddItem?.hasVariants)
+                const currentQty = isNewItem && addHasVariants
+                  ? totalVariantQty
+                  : isRestockingVariants
+                  ? totalRestockVariantQty
+                  : Number(addQty || 0)
                 const currentTotalCost = parseFloat(addTotalPrice) || 0
                 const currentSellingUnit = parseFloat(addSellingPricePerUnit) || 0
                 const currentUnitCost = currentQty > 0 && currentTotalCost > 0 ? (currentTotalCost / currentQty) : 0

@@ -11,15 +11,26 @@ import { generateFUVCalendarInvite } from "@/lib/fuv-calendar"
 
 export async function updateProfile(formData: FormData) {
   const session = await auth()
-  if (!session) return { success: false, error: "Unauthorized" }
+  if (!session?.user?.id) return { success: false, error: "Unauthorized. Please log in again." }
 
-  const name = formData.get("name") as string
-  const password = formData.get("password") as string
+  const name = (formData.get("name") as string || "").trim()
+  const password = formData.get("password") as string || ""
+  const confirmPassword = formData.get("confirmPassword") as string || ""
+
+  if (!name) {
+    return { success: false, error: "Full Name is required." }
+  }
 
   try {
-    const updateData: any = {}
-    if (name) updateData.name = name
-    if (password) {
+    const updateData: { name: string; password?: string } = { name }
+
+    if (password.trim()) {
+      if (password.length < 6) {
+        return { success: false, error: "Password must be at least 6 characters long." }
+      }
+      if (password !== confirmPassword) {
+        return { success: false, error: "New password and confirmation password do not match." }
+      }
       updateData.password = await bcrypt.hash(password, 10)
     }
 
@@ -28,9 +39,10 @@ export async function updateProfile(formData: FormData) {
       data: updateData
     })
 
+    revalidatePath("/settings")
     return { success: true }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    return { success: false, error: error.message || "Failed to update profile." }
   }
 }
 

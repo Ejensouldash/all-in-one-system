@@ -8,6 +8,9 @@ export async function GET(request: Request) {
     if (!session?.user) {
       return new NextResponse("Unauthorized", { status: 401 })
     }
+    if (session.user.role !== "SUPERADMIN") {
+      return new NextResponse("Forbidden", { status: 403 })
+    }
 
     const { searchParams } = new URL(request.url)
     const fileId = searchParams.get("fileId")

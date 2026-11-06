@@ -160,6 +160,7 @@ const staffLinks: NavLink[] = [
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
   { name: "PMC (Preventive Maintenance Calendar)", href: "/reminders", icon: CalendarClock, module: "REMINDERS" },
   { name: "Assets", href: "/dashboard/assets", icon: Package, module: "ASSETS" },
+  { name: "Settings", href: "/settings", icon: Settings },
 ]
 
 const adminLinks: NavLink[] = [
@@ -256,7 +257,7 @@ const adminLinks: NavLink[] = [
       { name: "User Activity Logs", href: "/organization/audit-logs", module: "USER_LOGS" }
     ]
   },
-  { name: "Settings", href: "/settings", icon: Settings, module: "SETTINGS" },
+  { name: "Settings", href: "/settings", icon: Settings },
 ]
 
 export function Sidebar({ 

@@ -179,6 +179,18 @@ export function canEditMarketingEvents(access: AccessInfo | null): boolean {
   return access.isSuperAdmin || access.modules.includes("MARKETING_EVENTS_EDIT")
 }
 
+/**
+ * Dedicated permission for the Post-Event Report budget cap (15% success-rate component).
+ * Grants no other marketing capability: the user still needs MARKETING_EVENTS to open the
+ * events page. Superadmins always pass.
+ */
+export const MARKETING_EVENT_BUDGET_MODULE = "MARKETING_EVENTS_BUDGET"
+
+export function canSetMarketingEventBudget(access: AccessInfo | null): boolean {
+  if (!access) return false
+  return access.isSuperAdmin || access.modules.includes(MARKETING_EVENT_BUDGET_MODULE)
+}
+
 export const CHATBOT_PRODUCTION_MODULE = "CHATBOT_PRODUCTION" 
 
 export function canAccessProductionChatbot(access: AccessInfo | null): boolean {

@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { uploadMarketingPhotoToR2 } from "@/lib/marketing-r2"
+import { SATISFACTION_WEIGHTS } from "@/lib/marketing/event-success-rate"
 import fs from "fs"
 import path from "path"
 
@@ -51,14 +52,6 @@ export interface GalleryImageItem {
   size: number
   type: string
   uploadedAt?: string
-}
-
-const SATISFACTION_WEIGHTS: Record<string, number> = {
-  EXTREMELY_SATISFIED: 100,
-  VERY_SATISFIED: 80,
-  SOMEWHAT_SATISFIED: 60,
-  NOT_SO_SATISFIED: 40,
-  NOT_AT_ALL_SATISFIED: 20,
 }
 
 /**

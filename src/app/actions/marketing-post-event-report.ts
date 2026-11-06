@@ -4,8 +4,23 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
 import { uploadMarketingPhotoToR2 } from "@/lib/marketing-r2"
+import { getAccessInfo, canSetMarketingEventBudget } from "@/lib/access"
+import { logUserAction } from "./audit"
 import fs from "fs"
 import path from "path"
+import {
+  SATISFACTION_WEIGHTS,
+  DEFAULT_SATISFACTION_WEIGHT,
+  buildEventScoreBreakdown,
+  getScoreMissingRequirements,
+  isScoreLocked,
+  parseImpactItems,
+  parseScoreBreakdown,
+  round2,
+  sanitizeImpactItems,
+  type ImpactItem,
+} from "@/lib/marketing/event-success-rate"
+import { recomputeEventScore } from "@/lib/marketing/event-success-rate-server"
 
 export interface VipEntry {
   name: string
@@ -71,6 +86,7 @@ export interface PostEventReportFormData {
   aims: string
   benefits: string
   expectedImpact: string
+  impactDistribution: ImpactItem[]
 
   flowType: "DAILY" | "STAGES"
   plannedFlowText: string
@@ -109,6 +125,86 @@ const DEFAULT_STAFF_DEPARTMENTS = [
   "BRAND DEVELOPMENT",
 ]
 
+interface FeedbackRecord {
+  id: string
+  respondentName: string
+  likedMost: string
+  likedLeast: string
+  satisfaction: string
+  wellOrganized: boolean
+  comments: string
+  createdAt: Date
+  aiSentiment: string | null
+  aiReason: string | null
+  aiConfidence: number | null
+}
+
+/**
+ * Builds the feedback statistics shown in section 11 and the participant list used by the
+ * Gemini classification panel. All responses are returned (capped at 100) so the modal can
+ * preview the weighted score without another round-trip.
+ */
+function buildFeedbackAnalytics(feedbacks: FeedbackRecord[]) {
+  const totalFeedbacks = feedbacks.length
+
+  const satisfactionCounts = {
+    EXTREMELY_SATISFIED: 0,
+    VERY_SATISFIED: 0,
+    SOMEWHAT_SATISFIED: 0,
+    NOT_SO_SATISFIED: 0,
+    NOT_AT_ALL_SATISFIED: 0,
+  }
+
+  const sentimentCounts = { GOOD: 0, NEUTRAL: 0, BAD: 0 }
+
+  let weightSum = 0
+  let positiveCount = 0
+  let aiAnalyzed = 0
+
+  feedbacks.forEach((feedback) => {
+    if (feedback.satisfaction in satisfactionCounts) {
+      satisfactionCounts[feedback.satisfaction as keyof typeof satisfactionCounts]++
+    }
+    weightSum += SATISFACTION_WEIGHTS[feedback.satisfaction] ?? DEFAULT_SATISFACTION_WEIGHT
+
+    if (feedback.satisfaction === "EXTREMELY_SATISFIED" || feedback.satisfaction === "VERY_SATISFIED") {
+      positiveCount++
+    }
+
+    if (feedback.aiSentiment === "GOOD" || feedback.aiSentiment === "NEUTRAL" || feedback.aiSentiment === "BAD") {
+      sentimentCounts[feedback.aiSentiment]++
+      aiAnalyzed++
+    }
+  })
+
+  const satisfactionIndex = totalFeedbacks > 0 ? round2(weightSum / totalFeedbacks) : 0
+  const positiveRate = totalFeedbacks > 0 ? round2((positiveCount / totalFeedbacks) * 100) : 0
+
+  return {
+    totalFeedbacks,
+    satisfactionCounts,
+    satisfactionIndex,
+    positiveRate,
+    // Legacy field kept for backwards compatibility with older UI code.
+    satisfactionRate: positiveRate,
+    sentimentCounts,
+    aiAnalyzed,
+    feedbacks: feedbacks.slice(0, 100).map((feedback) => ({
+      id: feedback.id,
+      respondentName: feedback.respondentName,
+      likedMost: feedback.likedMost,
+      likedLeast: feedback.likedLeast,
+      comments: feedback.comments,
+      satisfaction: feedback.satisfaction,
+      wellOrganized: feedback.wellOrganized,
+      aiSentiment: feedback.aiSentiment,
+      aiReason: feedback.aiReason,
+      aiConfidence: feedback.aiConfidence,
+      createdAt: feedback.createdAt,
+    })),
+  }
+}
+
 /**
  * Fetches the post-event report for an event requisition.
  * If report does not exist yet, prepares default prefilled data from the requisition.
@@ -129,41 +225,39 @@ export async function getPostEventReport(requisitionId: string) {
       return { success: false, error: "Event requisition not found" }
     }
 
-    // Calculate feedback stats from built-in feedbacks
-    const totalFeedbacks = requisition.feedbacks.length
-    let satCounts = {
-      EXTREMELY_SATISFIED: 0,
-      VERY_SATISFIED: 0,
-      SOMEWHAT_SATISFIED: 0,
-      NOT_SO_SATISFIED: 0,
-      NOT_AT_ALL_SATISFIED: 0,
+    const feedbackStats = buildFeedbackAnalytics(requisition.feedbacks)
+
+    const requisitionInfo = {
+      id: requisition.id,
+      requestNumber: requisition.requestNumber,
+      eventName: requisition.eventName,
+      eventType: requisition.eventType,
+      organizer: requisition.organizer,
+      eventDateFrom: requisition.eventDateFrom,
+      eventDateTo: requisition.eventDateTo,
+      name: requisition.name,
+      department: requisition.department,
+      budgetCap: requisition.budgetCap,
+      budgetSetBy: requisition.budgetSetBy,
+      budgetSetAt: requisition.budgetSetAt?.toISOString() || null,
     }
-
-    requisition.feedbacks.forEach((fb) => {
-      if (fb.satisfaction in satCounts) {
-        satCounts[fb.satisfaction as keyof typeof satCounts]++
-      }
-    })
-
-    const positiveCount = satCounts.EXTREMELY_SATISFIED + satCounts.VERY_SATISFIED
-    const satisfactionRate = totalFeedbacks > 0 ? Math.round((positiveCount / totalFeedbacks) * 100) : 99
 
     if (requisition.postEventReport) {
       const rep = requisition.postEventReport
+      const storedBreakdown = parseScoreBreakdown(rep.scoreBreakdown)
+      const scoreLocked = isScoreLocked(rep.status)
+      const computedBreakdown = buildEventScoreBreakdown({
+        feedbacks: requisition.feedbacks,
+        budgetCap: requisition.budgetCap,
+        impactItems: parseImpactItems(rep.impactDistribution),
+        totalClaimAmount: rep.totalClaimAmount,
+      })
+      const breakdown = scoreLocked && storedBreakdown ? storedBreakdown : computedBreakdown
+
       return {
         success: true,
         isNew: false,
-        requisition: {
-          id: requisition.id,
-          requestNumber: requisition.requestNumber,
-          eventName: requisition.eventName,
-          eventType: requisition.eventType,
-          organizer: requisition.organizer,
-          eventDateFrom: requisition.eventDateFrom,
-          eventDateTo: requisition.eventDateTo,
-          name: requisition.name,
-          department: requisition.department,
-        },
+        requisition: requisitionInfo,
         report: {
           id: rep.id,
           requisitionId: rep.requisitionId,
@@ -178,6 +272,7 @@ export async function getPostEventReport(requisitionId: string) {
           aims: rep.aims || "",
           benefits: rep.benefits || "",
           expectedImpact: rep.expectedImpact || "",
+          impactDistribution: parseImpactItems(rep.impactDistribution),
           flowType: (rep.flowType || "DAILY") as "DAILY" | "STAGES",
           plannedFlowText: rep.plannedFlowText || "",
           plannedFlowImages: JSON.parse(rep.plannedFlowImages || "[]") as PlannedFlowItem[],
@@ -189,25 +284,30 @@ export async function getPostEventReport(requisitionId: string) {
           futureImprovementOrg: rep.futureImprovementOrg || "",
           futureImprovementPart: rep.futureImprovementPart || "",
           futureConsideration: rep.futureConsideration,
-          eventSuccessRate: rep.eventSuccessRate,
+          eventSuccessRate: scoreLocked && storedBreakdown ? storedBreakdown.total : computedBreakdown.total,
           mediaLinks: JSON.parse(rep.mediaLinks || "[]") as MediaLinkItem[],
           status: rep.status as "DRAFT" | "SUBMITTED" | "APPROVED",
           approvedBy: rep.approvedBy,
           approvedAt: rep.approvedAt?.toISOString() || null,
           approvalSignatureUrl: rep.approvalSignatureUrl,
         },
-        feedbackStats: {
-          totalFeedbacks,
-          satisfactionCounts: satCounts,
-          satisfactionRate,
-          sampleFeedbacks: requisition.feedbacks.slice(0, 5),
-        },
+        feedbackStats,
+        scoreBreakdown: breakdown,
+        scoreLocked,
+        missingRequirements: getScoreMissingRequirements(breakdown.flags),
       }
     }
 
     // Generate fresh report template with prefilled data
     const count = await prisma.marketingPostEventReport.count()
     const autoDocNumber = `BOMSB/ADMN/MKT/EVT/${270010 + count}`
+
+    const initialBreakdown = buildEventScoreBreakdown({
+      feedbacks: requisition.feedbacks,
+      budgetCap: requisition.budgetCap,
+      impactItems: [],
+      totalClaimAmount: 0,
+    })
 
     const initialReport: PostEventReportFormData = {
       requisitionId: requisition.id,
@@ -226,6 +326,7 @@ export async function getPostEventReport(requisitionId: string) {
       aims: `To strengthen Bubbles O2's brand awareness, visibility and strategic market reach during ${requisition.eventName}.`,
       benefits: `Enhanced brand credibility, established direct consumer interactions and unlocked new commercial opportunities.`,
       expectedImpact: "425mlx24 = 1000ctn\n800mlx12 = 50ctn",
+      impactDistribution: [],
       flowType: "DAILY",
       plannedFlowText: requisition.tentative || "",
       plannedFlowImages: [],
@@ -240,7 +341,7 @@ export async function getPostEventReport(requisitionId: string) {
       futureImprovementOrg: "Enhance briefing coordination with venue safety and logistics contractors.",
       futureImprovementPart: "Introduce more interactive games and express hydration checkpoints.",
       futureConsideration: true,
-      eventSuccessRate: satisfactionRate || 99,
+      eventSuccessRate: initialBreakdown.total,
       mediaLinks: [
         { id: "ml-1", platform: "TikTok", url: "https://vt.tiktok.com/BubblesO2HQ/" },
         { id: "ml-2", platform: "Facebook", url: "https://www.facebook.com/BubblesO2HQ/" },
@@ -251,24 +352,12 @@ export async function getPostEventReport(requisitionId: string) {
     return {
       success: true,
       isNew: true,
-      requisition: {
-        id: requisition.id,
-        requestNumber: requisition.requestNumber,
-        eventName: requisition.eventName,
-        eventType: requisition.eventType,
-        organizer: requisition.organizer,
-        eventDateFrom: requisition.eventDateFrom,
-        eventDateTo: requisition.eventDateTo,
-        name: requisition.name,
-        department: requisition.department,
-      },
+      requisition: requisitionInfo,
       report: initialReport,
-      feedbackStats: {
-        totalFeedbacks,
-        satisfactionCounts: satCounts,
-        satisfactionRate,
-        sampleFeedbacks: requisition.feedbacks.slice(0, 5),
-      },
+      feedbackStats,
+      scoreBreakdown: initialBreakdown,
+      scoreLocked: false,
+      missingRequirements: getScoreMissingRequirements(initialBreakdown.flags),
     }
   } catch (error: any) {
     console.error("Error in getPostEventReport:", error)
@@ -278,6 +367,7 @@ export async function getPostEventReport(requisitionId: string) {
 
 /**
  * Saves or updates a Post-Event Report draft.
+ * The weighted success rate is always recalculated on the server; any client-supplied value is ignored.
  */
 export async function savePostEventReport(formData: PostEventReportFormData) {
   try {
@@ -315,6 +405,57 @@ export async function savePostEventReport(formData: PostEventReportFormData) {
       }
     })
 
+    const sanitizedImpactItems = sanitizeImpactItems(formData.impactDistribution)
+
+    const requisition = await prisma.marketingEventRequisition.findUnique({
+      where: { id: formData.requisitionId },
+      select: {
+        budgetCap: true,
+        postEventReport: {
+          select: {
+            status: true,
+            eventSuccessRate: true,
+            scoreBreakdown: true,
+            scoreFlags: true,
+            scoreComputedAt: true,
+          },
+        },
+      },
+    })
+
+    const existingReport = requisition?.postEventReport ?? null
+    const lockedReport =
+      existingReport && isScoreLocked(existingReport.status) ? existingReport : null
+    const lockedBreakdown = lockedReport ? parseScoreBreakdown(lockedReport.scoreBreakdown) : null
+
+    const feedbacks = await prisma.marketingEventFeedback.findMany({
+      where: { requisitionId: formData.requisitionId },
+      select: { satisfaction: true, aiSentiment: true },
+    })
+
+    const breakdown = buildEventScoreBreakdown({
+      feedbacks,
+      budgetCap: requisition?.budgetCap ?? null,
+      impactItems: sanitizedImpactItems,
+      totalClaimAmount: round2(grandTotal),
+    })
+
+    const effectiveBreakdown = lockedBreakdown ?? breakdown
+
+    const scoreFields = lockedReport
+      ? {
+          eventSuccessRate: lockedReport.eventSuccessRate,
+          scoreBreakdown: lockedReport.scoreBreakdown,
+          scoreComputedAt: lockedReport.scoreComputedAt ?? new Date(),
+          scoreFlags: lockedReport.scoreFlags,
+        }
+      : {
+          eventSuccessRate: breakdown.total,
+          scoreBreakdown: JSON.stringify(breakdown),
+          scoreComputedAt: new Date(),
+          scoreFlags: JSON.stringify(breakdown.flags),
+        }
+
     const payload = {
       documentNo: formData.documentNo.trim(),
       issueNo: formData.issueNo || "02",
@@ -327,6 +468,7 @@ export async function savePostEventReport(formData: PostEventReportFormData) {
       aims: formData.aims?.trim() || "",
       benefits: formData.benefits?.trim() || "",
       expectedImpact: formData.expectedImpact?.trim() || "",
+      impactDistribution: JSON.stringify(sanitizedImpactItems),
       flowType: formData.flowType || "DAILY",
       plannedFlowText: formData.plannedFlowText?.trim() || "",
       plannedFlowImages: JSON.stringify(formData.plannedFlowImages || []),
@@ -338,9 +480,9 @@ export async function savePostEventReport(formData: PostEventReportFormData) {
       futureImprovementOrg: formData.futureImprovementOrg?.trim() || "",
       futureImprovementPart: formData.futureImprovementPart?.trim() || "",
       futureConsideration: formData.futureConsideration ?? true,
-      eventSuccessRate: formData.eventSuccessRate ?? 99,
       mediaLinks: JSON.stringify(formData.mediaLinks || []),
-      status: formData.status || "DRAFT",
+      status: lockedReport ? lockedReport.status : formData.status || "DRAFT",
+      ...scoreFields,
     }
 
     const saved = await prisma.marketingPostEventReport.upsert({
@@ -357,7 +499,12 @@ export async function savePostEventReport(formData: PostEventReportFormData) {
     } catch {
       // safe fallback outside request scope
     }
-    return { success: true, report: saved }
+    return {
+      success: true,
+      report: saved,
+      breakdown: effectiveBreakdown,
+      missingRequirements: getScoreMissingRequirements(effectiveBreakdown.flags),
+    }
   } catch (error: any) {
     console.error("Error in savePostEventReport:", error)
     return { success: false, error: error.message || "Failed to save post-event report" }
@@ -365,22 +512,57 @@ export async function savePostEventReport(formData: PostEventReportFormData) {
 }
 
 /**
- * Submits the report for approval.
+ * Submits the report for approval. The weighted score is recomputed as a snapshot and the
+ * submission is blocked while any scoring component is incomplete.
  */
 export async function submitPostEventReport(requisitionId: string) {
   try {
-    const report = await prisma.marketingPostEventReport.findUnique({
-      where: { requisitionId },
+    const requisition = await prisma.marketingEventRequisition.findUnique({
+      where: { id: requisitionId },
+      include: {
+        postEventReport: true,
+        feedbacks: { select: { satisfaction: true, aiSentiment: true } },
+      },
     })
 
-    if (!report) {
+    if (!requisition?.postEventReport) {
       return { success: false, error: "Report not found" }
+    }
+
+    const report = requisition.postEventReport
+
+    if (isScoreLocked(report.status)) {
+      return {
+        success: false,
+        error: "This report has already been submitted and its success rate snapshot is locked.",
+      }
+    }
+
+    const breakdown = buildEventScoreBreakdown({
+      feedbacks: requisition.feedbacks,
+      budgetCap: requisition.budgetCap,
+      impactItems: parseImpactItems(report.impactDistribution),
+      totalClaimAmount: report.totalClaimAmount,
+    })
+
+    const missingRequirements = getScoreMissingRequirements(breakdown.flags)
+    if (missingRequirements.length > 0) {
+      return {
+        success: false,
+        error: `Report cannot be submitted until the success rate is complete. ${missingRequirements.join(" ")}`,
+        missingRequirements,
+        breakdown,
+      }
     }
 
     const updated = await prisma.marketingPostEventReport.update({
       where: { requisitionId },
       data: {
         status: "SUBMITTED",
+        eventSuccessRate: breakdown.total,
+        scoreBreakdown: JSON.stringify(breakdown),
+        scoreComputedAt: new Date(),
+        scoreFlags: JSON.stringify(breakdown.flags),
       },
     })
 
@@ -389,10 +571,88 @@ export async function submitPostEventReport(requisitionId: string) {
     } catch {
       // safe fallback outside request scope
     }
-    return { success: true, report: updated }
+    return { success: true, report: updated, breakdown }
   } catch (error: any) {
     console.error("Error in submitPostEventReport:", error)
     return { success: false, error: error.message || "Failed to submit report" }
+  }
+}
+
+/**
+ * Sets or clears the maximum approved budget used by the 15% budget component.
+ * Requires the dedicated MARKETING_EVENTS_BUDGET permission (granted by a superadmin).
+ * Authorised budget users may also revise the cap after the report is locked; the success-rate
+ * snapshot is then recalculated and the revision is recorded in the audit log.
+ */
+export async function setEventBudgetCap(requisitionId: string, budgetCap: number | null) {
+  try {
+    const access = await getAccessInfo()
+    if (!canSetMarketingEventBudget(access)) {
+      return {
+        success: false,
+        error:
+          "You do not have permission to set the event budget. Ask a superadmin to grant the Post-Event Budget Cap module.",
+      }
+    }
+
+    const normalized = budgetCap === null ? null : Number(budgetCap)
+    if (normalized !== null && (!Number.isFinite(normalized) || normalized < 0)) {
+      return { success: false, error: "Budget cap must be a positive amount." }
+    }
+
+    const existingReport = await prisma.marketingPostEventReport.findUnique({
+      where: { requisitionId },
+      select: { status: true },
+    })
+
+    let actor = "Staff"
+    try {
+      const session = await auth()
+      if (session?.user?.name) actor = session.user.name
+    } catch {
+      // Outside request context
+    }
+
+    const updated = await prisma.marketingEventRequisition.update({
+      where: { id: requisitionId },
+      data: {
+        budgetCap: normalized,
+        budgetSetBy: normalized === null ? null : actor,
+        budgetSetAt: normalized === null ? null : new Date(),
+      },
+    })
+
+    const breakdown = await recomputeEventScore(requisitionId, { force: true })
+    const wasLocked = Boolean(existingReport && isScoreLocked(existingReport.status))
+
+    try {
+      await logUserAction(
+        "Updated Event Budget Cap",
+        `${updated.requestNumber} (${updated.eventName}) budget cap set to ${
+          normalized === null ? "none" : `RM ${normalized.toFixed(2)}`
+        }.${wasLocked ? ` Report was already ${existingReport?.status}; success rate snapshot recalculated.` : ""}`
+      )
+    } catch {
+      // audit log failure should not block operation
+    }
+
+    try {
+      revalidatePath("/marketing/events")
+    } catch {
+      // safe fallback outside request scope
+    }
+
+    return {
+      success: true,
+      budgetCap: updated.budgetCap,
+      budgetSetBy: updated.budgetSetBy,
+      budgetSetAt: updated.budgetSetAt?.toISOString() || null,
+      breakdown,
+      wasLocked,
+    }
+  } catch (error: any) {
+    console.error("Error in setEventBudgetCap:", error)
+    return { success: false, error: error.message || "Failed to update the event budget cap" }
   }
 }
 

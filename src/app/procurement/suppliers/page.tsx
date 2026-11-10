@@ -18,7 +18,7 @@ import {
   RefreshCw,
 } from "lucide-react"
 import { getSuppliers, deleteSupplier } from "@/app/actions/procurement"
-import { ProcurementTabs } from "@/components/procurement/ProcurementTabs"
+
 import { SupplierModal } from "@/components/procurement/SupplierModal"
 import { ProcurementNavTabs } from "@/components/procurement/ProcurementNavTabs"
 import { PAYMENT_TERMS_CONFIG } from "@/components/procurement/procurement-constants"
@@ -98,7 +98,7 @@ export default function ProcurementSuppliersPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-      <ProcurementTabs />
+
       <ProcurementNavTabs />
 
       {/* Page Header */}

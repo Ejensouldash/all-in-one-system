@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Receipt, Scale, Building2 } from "lucide-react"
+import { Receipt, Scale, Building2, ShoppingBag } from "lucide-react"
 
 export function ProcurementNavTabs() {
   const pathname = usePathname()
@@ -19,7 +19,6 @@ export function ProcurementNavTabs() {
       href: "/procurement/comparisons",
       icon: Scale,
       isActive: pathname.startsWith("/procurement/comparisons"),
-      badge: "New",
     },
     {
       name: "Suppliers Directory",
@@ -27,10 +26,16 @@ export function ProcurementNavTabs() {
       icon: Building2,
       isActive: pathname.startsWith("/procurement/suppliers"),
     },
+    {
+      name: "Purchases",
+      href: "/procurement/purchases",
+      icon: ShoppingBag,
+      isActive: pathname.startsWith("/procurement/purchases"),
+    },
   ]
 
   return (
-    <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-2xl border border-slate-200/80 w-fit mb-6">
+    <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100/80 rounded-2xl border border-slate-200/80 w-fit mb-6">
       {tabs.map((t) => {
         const Icon = t.icon
         return (
@@ -45,11 +50,6 @@ export function ProcurementNavTabs() {
           >
             <Icon className={`w-4 h-4 ${t.isActive ? "text-blue-600" : "text-slate-400"}`} />
             <span>{t.name}</span>
-            {t.badge && (
-              <span className="px-1.5 py-0.2 rounded text-[10px] bg-blue-600 text-white font-extrabold uppercase">
-                {t.badge}
-              </span>
-            )}
           </Link>
         )
       })}

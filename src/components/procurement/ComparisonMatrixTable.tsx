@@ -577,7 +577,20 @@ export function ComparisonMatrixTable({
       {/* Spreadsheet / Matrix Table Container */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-xs">
+          <table
+            className="table-fixed border-collapse text-xs"
+            style={{ width: `${48 + suppliers.length * (180 + 112 + 96)}px` }}
+          >
+            <colgroup>
+              <col style={{ width: 48 }} />
+              {suppliers.map((sup) => (
+                <React.Fragment key={sup.id}>
+                  <col style={{ width: 180 }} />
+                  <col style={{ width: 112 }} />
+                  <col style={{ width: 96 }} />
+                </React.Fragment>
+              ))}
+            </colgroup>
             {/* Super Header: "SUPPLIER" */}
             <thead>
               <tr className="bg-slate-100 border-b border-slate-200 text-slate-800">

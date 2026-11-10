@@ -7,6 +7,7 @@ import {
   ProcurementPaymentTerm,
   ProcurementInvoiceCategory,
   ProcurementInvoiceStatus,
+  ProcurementComparisonStatus,
 } from "@prisma/client"
 import { uploadProcurementFile } from "@/lib/procurement-storage"
 
@@ -606,5 +607,166 @@ export async function getProcurementUserRole() {
     isSuperAdmin: access.isSuperAdmin,
     isFinance: canManageProcurementFinance(access),
     isRequester: canAccessProcurement(access),
+  }
+}
+
+// ----------------------------------------------------------------------
+// PRICE COMPARISON ACTIONS
+// ----------------------------------------------------------------------
+
+export async function getPriceComparisons(params?: {
+  search?: string
+  status?: string
+  company?: string
+  department?: string
+}) {
+  await checkProcurementAccess()
+
+  const where: any = {}
+
+  if (params?.status && params.status !== "ALL") {
+    where.status = params.status as ProcurementComparisonStatus
+  }
+
+  if (params?.company && params.company !== "ALL") {
+    where.company = params.company
+  }
+
+  if (params?.department && params.department !== "ALL") {
+    where.department = params.department
+  }
+
+  if (params?.search?.trim()) {
+    const q = params.search.trim()
+    where.OR = [
+      { title: { contains: q, mode: "insensitive" } },
+      { referenceNo: { contains: q, mode: "insensitive" } },
+      { notes: { contains: q, mode: "insensitive" } },
+      { justification: { contains: q, mode: "insensitive" } },
+      { awardedSupplier: { contains: q, mode: "insensitive" } },
+    ]
+  }
+
+  return await prisma.procurementPriceComparison.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    include: {
+      createdBy: {
+        select: { id: true, name: true, email: true },
+      },
+    },
+  })
+}
+
+export async function getPriceComparisonById(id: string) {
+  await checkProcurementAccess()
+
+  const comparison = await prisma.procurementPriceComparison.findUnique({
+    where: { id },
+    include: {
+      createdBy: {
+        select: { id: true, name: true, email: true },
+      },
+    },
+  })
+
+  return comparison
+}
+
+export async function createPriceComparison(data: {
+  title: string
+  company: string
+  department: string
+  referenceNo?: string
+  suppliersData?: any
+  itemsData?: any
+  notes?: string
+}) {
+  const access = await checkProcurementAccess()
+
+  let referenceNo = data.referenceNo?.trim()
+  if (!referenceNo) {
+    const year = new Date().getFullYear()
+    const count = await prisma.procurementPriceComparison.count()
+    referenceNo = `PC-${year}-${String(count + 1).padStart(4, "0")}`
+  }
+
+  try {
+    const created = await prisma.procurementPriceComparison.create({
+      data: {
+        title: data.title.trim(),
+        referenceNo,
+        company: data.company,
+        department: data.department,
+        status: ProcurementComparisonStatus.DRAFT,
+        suppliersData: data.suppliersData || [],
+        itemsData: data.itemsData || [],
+        notes: data.notes?.trim() || null,
+        createdById: access.userId,
+      },
+    })
+
+    revalidatePath("/procurement/comparisons")
+    return { success: true, comparison: created }
+  } catch (error: any) {
+    console.error("Failed to create price comparison:", error)
+    return { success: false, error: error.message || "Failed to create price comparison." }
+  }
+}
+
+export async function updatePriceComparison(
+  id: string,
+  data: {
+    title?: string
+    company?: string
+    department?: string
+    status?: ProcurementComparisonStatus
+    suppliersData?: any
+    itemsData?: any
+    awardedSupplier?: string | null
+    justification?: string | null
+    notes?: string | null
+  }
+) {
+  await checkProcurementAccess()
+
+  try {
+    const updated = await prisma.procurementPriceComparison.update({
+      where: { id },
+      data: {
+        ...(data.title !== undefined && { title: data.title.trim() }),
+        ...(data.company !== undefined && { company: data.company }),
+        ...(data.department !== undefined && { department: data.department }),
+        ...(data.status !== undefined && { status: data.status }),
+        ...(data.suppliersData !== undefined && { suppliersData: data.suppliersData }),
+        ...(data.itemsData !== undefined && { itemsData: data.itemsData }),
+        ...(data.awardedSupplier !== undefined && { awardedSupplier: data.awardedSupplier }),
+        ...(data.justification !== undefined && { justification: data.justification }),
+        ...(data.notes !== undefined && { notes: data.notes }),
+      },
+    })
+
+    revalidatePath("/procurement/comparisons")
+    revalidatePath(`/procurement/comparisons/${id}`)
+    return { success: true, comparison: updated }
+  } catch (error: any) {
+    console.error("Failed to update price comparison:", error)
+    return { success: false, error: error.message || "Failed to update price comparison." }
+  }
+}
+
+export async function deletePriceComparison(id: string) {
+  await checkProcurementAccess()
+
+  try {
+    await prisma.procurementPriceComparison.delete({
+      where: { id },
+    })
+
+    revalidatePath("/procurement/comparisons")
+    return { success: true }
+  } catch (error: any) {
+    console.error("Failed to delete price comparison:", error)
+    return { success: false, error: error.message || "Failed to delete price comparison." }
   }
 }

@@ -74,6 +74,7 @@ model User {
   createdProcurementInvoices  ProcurementInvoice[]    @relation("ProcurementInvoiceCreator")
   paidProcurementInvoices     ProcurementInvoice[]    @relation("ProcurementInvoicePayer")
   procurementInvoiceLogs      ProcurementInvoiceLog[] @relation("ProcurementInvoiceLogActor")
+  createdProcurementPurchases ProcurementPurchase[]   @relation("ProcurementPurchaseCreator")
   createdProcurementPriceComparisons ProcurementPriceComparison[] @relation("ProcurementComparisonCreator")
 }
 
@@ -1584,6 +1585,12 @@ model MarketingEventRequisition {
   remarks          String?
   attachments      String?  @default("[]")
   galleryAttachments String? @default("[]")
+
+  // Budget control (set by Finance / HOD for the Event Success Rate budget component)
+  budgetCap        Float?
+  budgetSetBy      String?
+  budgetSetAt      DateTime?
+
   feedbacks        MarketingEventFeedback[]
   postEventReport  MarketingPostEventReport?
   createdAt        DateTime @default(now())
@@ -1648,6 +1655,14 @@ model MarketingEventFeedback {
   comments       String                    @db.Text
   createdAt      DateTime                  @default(now())
 
+  // Gemini sentiment classification for "Participants' Feedback & Suggestions" (15% score component)
+  aiSentiment    String?                   // GOOD | NEUTRAL | BAD
+  aiConfidence   Float?
+  aiReason       String?                   @db.Text
+  aiModel        String?
+  aiTextHash     String?
+  aiAnalyzedAt   DateTime?
+
   @@index([requisitionId])
   @@index([createdAt])
 }
@@ -1673,6 +1688,7 @@ model MarketingPostEventReport {
   aims                  String?                   @db.Text
   benefits              String?                   @db.Text
   expectedImpact        String?                   @db.Text
+  impactDistribution    String                    @default("[]") // JSON: [{ id, name, unit, qtyGiven, qtyUsed }]
 
   // Section 8 & 9: Flow & Activations
   flowType              String                    @default("DAILY") // DAILY | STAGES
@@ -1690,7 +1706,10 @@ model MarketingPostEventReport {
   futureImprovementOrg  String?                   @db.Text
   futureImprovementPart String?                   @db.Text
   futureConsideration   Boolean                   @default(true)
-  eventSuccessRate      Int                       @default(99)
+  eventSuccessRate      Float                     @default(0)
+  scoreBreakdown        String                    @default("{}") // JSON: cached weighted score snapshot
+  scoreComputedAt       DateTime?
+  scoreFlags            String                    @default("[]") // JSON: ScoreFlag[]
 
   // Section 15: Media Links
   mediaLinks            String                    @default("[]") // JSON: [{ platform: string, url: string, description?: string }]
@@ -3396,6 +3415,7 @@ model ProcurementSupplier {
   createdBy   User?                  @relation("ProcurementSupplierCreator", fields: [createdById], references: [id])
 
   invoices    ProcurementInvoice[]
+  purchases   ProcurementPurchase[]
 
   @@map("procurement_suppliers")
 }
@@ -3462,6 +3482,34 @@ model ProcurementInvoiceLog {
   createdAt     DateTime            @default(now())
 
   @@map("procurement_invoice_logs")
+}
+
+model ProcurementPurchase {
+  id              String               @id @default(uuid())
+  purchaseDate    DateTime             @default(now())
+  itemDescription String
+  supplierId      String?
+  supplier        ProcurementSupplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  supplierName    String
+  quantity        Float                @default(1)
+  uom             String
+  unitPrice       Float                @default(0)
+  total           Float                @default(0)
+  company         String               // BOSB, BOMSB, NRHO, BODG
+  department      String?
+  remarks         String?
+
+  createdById     String?
+  createdBy       User?                @relation("ProcurementPurchaseCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([company])
+  @@index([department])
+  @@index([purchaseDate])
+  @@index([supplierId])
+  @@map("procurement_purchases")
 }
 
 enum ProcurementComparisonStatus {

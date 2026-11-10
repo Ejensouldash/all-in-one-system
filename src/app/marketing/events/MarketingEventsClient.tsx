@@ -87,6 +87,7 @@ interface MarketingEventsClientProps {
     role?: string | null
   }
   canEdit?: boolean
+  canSetBudget?: boolean
 }
 
 function formatDateDisplay(d: Date | string | null | undefined): string {
@@ -186,7 +187,7 @@ async function compressImageForUpload(file: File, maxDim = 1600, quality = 0.82)
   })
 }
 
-export function MarketingEventsClient({ initialRequisitions, user, canEdit = false }: MarketingEventsClientProps) {
+export function MarketingEventsClient({ initialRequisitions, user, canEdit = false, canSetBudget = false }: MarketingEventsClientProps) {
   const [requisitions, setRequisitions] = useState<EventRequisitionItem[]>(initialRequisitions)
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("ALL")
   const [searchTerm, setSearchTerm] = useState("")
@@ -1043,12 +1044,15 @@ export function MarketingEventsClient({ initialRequisitions, user, canEdit = fal
       {/* Post-Event Report Hub Modal */}
       {postEventReportItem && (
         <PostEventReportModal
+          key={postEventReportItem.id}
           isOpen={!!postEventReportItem}
           onClose={() => setPostEventReportItem(null)}
           requisitionId={postEventReportItem.id}
           eventName={postEventReportItem.eventName}
           currentUserRole={user?.role || "STAFF"}
           currentUserName={user?.name || "Staff"}
+          canEdit={canEdit}
+          canSetBudget={canSetBudget}
         />
       )}
 

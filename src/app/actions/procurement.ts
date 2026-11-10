@@ -610,6 +610,237 @@ export async function getProcurementUserRole() {
   }
 }
 
+
+// ----------------------------------------------------------------------
+// PURCHASES ACTIONS
+// ----------------------------------------------------------------------
+
+export async function getPurchases(params?: {
+  search?: string
+  company?: string
+  department?: string
+  supplierId?: string
+  startDate?: string | Date
+  endDate?: string | Date
+}) {
+  await checkProcurementAccess()
+
+  const where: any = {}
+
+  if (params?.company && params.company !== "ALL") {
+    where.company = { equals: params.company, mode: "insensitive" }
+  }
+
+  if (params?.department && params.department !== "ALL") {
+    where.department = { equals: params.department, mode: "insensitive" }
+  }
+
+  if (params?.supplierId && params.supplierId !== "ALL") {
+    where.supplierId = params.supplierId
+  }
+
+  if (params?.startDate || params?.endDate) {
+    where.purchaseDate = {}
+    if (params.startDate) {
+      const s = new Date(params.startDate)
+      s.setHours(0, 0, 0, 0)
+      where.purchaseDate.gte = s
+    }
+    if (params.endDate) {
+      const e = new Date(params.endDate)
+      e.setHours(23, 59, 59, 999)
+      where.purchaseDate.lte = e
+    }
+  }
+
+  if (params?.search?.trim()) {
+    const q = params.search.trim()
+    where.OR = [
+      { itemDescription: { contains: q, mode: "insensitive" } },
+      { supplierName: { contains: q, mode: "insensitive" } },
+      { department: { contains: q, mode: "insensitive" } },
+      { company: { contains: q, mode: "insensitive" } },
+      { uom: { contains: q, mode: "insensitive" } },
+      { remarks: { contains: q, mode: "insensitive" } },
+    ]
+  }
+
+  const purchases = await prisma.procurementPurchase.findMany({
+    where,
+    orderBy: { purchaseDate: "desc" },
+    include: {
+      supplier: {
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          email: true,
+        },
+      },
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  })
+
+  return purchases
+}
+
+export async function getPurchaseSummary() {
+  await checkProcurementAccess()
+
+  const totalAgg = await prisma.procurementPurchase.aggregate({
+    _count: true,
+    _sum: { total: true },
+  })
+
+  return {
+    totalCount: totalAgg._count || 0,
+    totalAmount: totalAgg._sum.total || 0,
+  }
+}
+
+export async function createPurchase(data: {
+  purchaseDate?: string | Date
+  itemDescription: string
+  supplierName: string
+  supplierId?: string | null
+  quantity: number
+  uom: string
+  unitPrice: number
+  total?: number
+  company: string
+  department?: string | null
+  remarks?: string
+}) {
+  const access = await checkProcurementAccess()
+
+  if (!data.itemDescription?.trim()) {
+    return { success: false, error: "Description of the item is required." }
+  }
+  if (!data.supplierName?.trim()) {
+    return { success: false, error: "Supplier name is required." }
+  }
+  if (!data.uom?.trim()) {
+    return { success: false, error: "Unit of material (UOM) is required." }
+  }
+  if (data.quantity === undefined || isNaN(Number(data.quantity)) || Number(data.quantity) <= 0) {
+    return { success: false, error: "Valid quantity is required." }
+  }
+  if (data.unitPrice === undefined || isNaN(Number(data.unitPrice)) || Number(data.unitPrice) < 0) {
+    return { success: false, error: "Valid unit price is required." }
+  }
+  if (!data.company?.trim()) {
+    return { success: false, error: "Company is required." }
+  }
+
+  const quantity = Number(data.quantity)
+  const unitPrice = Number(data.unitPrice)
+  const total = data.total !== undefined && !isNaN(Number(data.total)) ? Number(data.total) : quantity * unitPrice
+  const company = data.company.trim().toUpperCase()
+
+  try {
+    const purchase = await prisma.procurementPurchase.create({
+      data: {
+        purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : new Date(),
+        itemDescription: data.itemDescription.trim(),
+        supplierName: data.supplierName.trim(),
+        supplierId: data.supplierId || null,
+        quantity,
+        uom: data.uom.trim().toUpperCase(),
+        unitPrice,
+        total,
+        company,
+        department: data.department?.trim() || null,
+        remarks: data.remarks?.trim() || null,
+        createdById: access.userId,
+      },
+    })
+
+    revalidatePath("/procurement/purchases")
+    return { success: true, purchase }
+  } catch (error: any) {
+    console.error("Failed to create purchase:", error)
+    return { success: false, error: error.message || "Failed to create purchase." }
+  }
+}
+
+export async function updatePurchase(
+  id: string,
+  data: {
+    purchaseDate?: string | Date
+    itemDescription?: string
+    supplierName?: string
+    supplierId?: string | null
+    quantity?: number
+    uom?: string
+    unitPrice?: number
+    total?: number
+    company?: string
+    department?: string | null
+    remarks?: string
+  }
+) {
+  await checkProcurementAccess()
+
+  try {
+    const existing = await prisma.procurementPurchase.findUnique({
+      where: { id },
+    })
+
+    if (!existing) {
+      return { success: false, error: "Purchase record not found." }
+    }
+
+    const quantity = data.quantity !== undefined ? Number(data.quantity) : existing.quantity
+    const unitPrice = data.unitPrice !== undefined ? Number(data.unitPrice) : existing.unitPrice
+    const total = data.total !== undefined ? Number(data.total) : quantity * unitPrice
+
+    const updated = await prisma.procurementPurchase.update({
+      where: { id },
+      data: {
+        purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : existing.purchaseDate,
+        itemDescription: data.itemDescription !== undefined ? data.itemDescription.trim() : existing.itemDescription,
+        supplierName: data.supplierName !== undefined ? data.supplierName.trim() : existing.supplierName,
+        supplierId: data.supplierId !== undefined ? data.supplierId : existing.supplierId,
+        quantity,
+        uom: data.uom !== undefined ? data.uom.trim().toUpperCase() : existing.uom,
+        unitPrice,
+        total,
+        company: data.company !== undefined ? data.company.trim().toUpperCase() : existing.company,
+        department: data.department !== undefined ? (data.department ? data.department.trim() : null) : existing.department,
+        remarks: data.remarks !== undefined ? (data.remarks ? data.remarks.trim() : null) : existing.remarks,
+      },
+    })
+
+    revalidatePath("/procurement/purchases")
+    return { success: true, purchase: updated }
+  } catch (error: any) {
+    console.error("Failed to update purchase:", error)
+    return { success: false, error: error.message || "Failed to update purchase." }
+  }
+}
+
+export async function deletePurchase(id: string) {
+  await checkProcurementAccess()
+
+  try {
+    await prisma.procurementPurchase.delete({
+      where: { id },
+    })
+
+    revalidatePath("/procurement/purchases")
+    return { success: true }
+  } catch (error: any) {
+    console.error("Failed to delete purchase:", error)
+    return { success: false, error: error.message || "Failed to delete purchase." }
+  }
+}
+
 // ----------------------------------------------------------------------
 // PRICE COMPARISON ACTIONS
 // ----------------------------------------------------------------------

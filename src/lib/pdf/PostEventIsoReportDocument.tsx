@@ -1,6 +1,7 @@
 import React from "react"
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer"
 import { DonutChart } from "./chartPrimitives"
+import type { EventScoreBreakdown } from "@/lib/marketing/event-success-rate"
 
 export interface PostEventVip {
   name: string
@@ -67,6 +68,12 @@ export interface PostEventReportPdfData {
   aims: string
   benefits: string
   expectedImpact: string
+  impactDistribution: Array<{
+    name: string
+    unit: string
+    qtyGiven: number
+    qtyUsed: number
+  }>
 
   flowType: "DAILY" | "STAGES"
   plannedFlowText: string
@@ -94,6 +101,7 @@ export interface PostEventReportPdfData {
   futureImprovementPart: string
   futureConsideration: boolean
   eventSuccessRate: number
+  scoreBreakdown?: EventScoreBreakdown | null
 
   mediaLinks: PostEventMediaLink[]
 
@@ -527,6 +535,7 @@ function IsoRunningFooter({ documentNo }: { documentNo: string }) {
 }
 
 export function PostEventIsoReportDocument({ data }: { data: PostEventReportPdfData }) {
+  const scoreComponents = data.scoreBreakdown?.components || null
   const chartData = [
     { label: "Extremely Satisfied", value: data.satisfactionCounts.EXTREMELY_SATISFIED, color: "#0d9488" },
     { label: "Very Satisfied", value: data.satisfactionCounts.VERY_SATISFIED, color: "#0284c7" },
@@ -681,9 +690,33 @@ export function PostEventIsoReportDocument({ data }: { data: PostEventReportPdfD
             </View>
             <View style={{ backgroundColor: C.brandSoft, padding: 6, borderRadius: 4, borderWidth: 1, borderColor: C.brandBorder }}>
               <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: C.brandDark }}>Expected Impact & Inventory Distribution:</Text>
-              <Text style={{ fontSize: 7.8, color: C.brandDark, marginTop: 2 }}>
-                {data.expectedImpact || "N/A"}
-              </Text>
+              {data.impactDistribution.length > 0 ? (
+                <View style={{ marginTop: 3 }}>
+                  <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: C.brandBorder, paddingBottom: 1 }}>
+                    <Text style={{ fontSize: 6.6, fontFamily: "Helvetica-Bold", color: C.muted, width: "46%" }}>ITEM</Text>
+                    <Text style={{ fontSize: 6.6, fontFamily: "Helvetica-Bold", color: C.muted, width: "14%", textAlign: "right" }}>GIVEN</Text>
+                    <Text style={{ fontSize: 6.6, fontFamily: "Helvetica-Bold", color: C.muted, width: "14%", textAlign: "right" }}>USED</Text>
+                    <Text style={{ fontSize: 6.6, fontFamily: "Helvetica-Bold", color: C.muted, width: "26%", textAlign: "right" }}>ACHIEVED</Text>
+                  </View>
+                  {data.impactDistribution.map((item, index) => {
+                    const pct = item.qtyGiven > 0 ? Math.min(100, (item.qtyUsed / item.qtyGiven) * 100) : 0
+                    return (
+                      <View key={index} style={{ flexDirection: "row", paddingTop: 2 }}>
+                        <Text style={{ fontSize: 7.2, color: C.brandDark, width: "46%" }}>
+                          {item.name || "Item"} ({item.unit})
+                        </Text>
+                        <Text style={{ fontSize: 7.2, color: C.brandDark, width: "14%", textAlign: "right" }}>{item.qtyGiven}</Text>
+                        <Text style={{ fontSize: 7.2, color: C.brandDark, width: "14%", textAlign: "right" }}>{item.qtyUsed}</Text>
+                        <Text style={{ fontSize: 7.2, fontFamily: "Helvetica-Bold", color: C.brandDark, width: "26%", textAlign: "right" }}>{pct.toFixed(1)}%</Text>
+                      </View>
+                    )
+                  })}
+                </View>
+              ) : (
+                <Text style={{ fontSize: 7.8, color: C.brandDark, marginTop: 2 }}>
+                  {data.expectedImpact || "N/A"}
+                </Text>
+              )}
             </View>
           </View>
         </View>
@@ -874,9 +907,40 @@ export function PostEventIsoReportDocument({ data }: { data: PostEventReportPdfD
               <Text style={{ fontSize: 7.5, color: C.body }}>{data.futureImprovementOrg || "N/A"}</Text>
             </View>
             <View style={{ marginBottom: 4 }}>
-              <Text style={{ fontSize: 7.8, fontFamily: "Helvetica-Bold", color: C.ink }}>Participants' Feedback & Internal Booth Improvement:</Text>
+              <Text style={{ fontSize: 7.8, fontFamily: "Helvetica-Bold", color: C.ink }}>Participants&apos; Feedback & Internal Booth Improvement:</Text>
               <Text style={{ fontSize: 7.5, color: C.body }}>{data.futureImprovementPart || "N/A"}</Text>
             </View>
+
+            {scoreComponents && (
+              <View style={{ marginTop: 2, marginBottom: 4 }}>
+                <Text style={{ fontSize: 7.5, fontFamily: "Helvetica-Bold", color: C.ink, marginBottom: 2 }}>
+                  Success Rate Breakdown (Weighted Score):
+                </Text>
+                {[
+                  {
+                    label: "Public feedback satisfaction (50%)",
+                    value: `${scoreComponents.satisfaction.earned.toFixed(2)} / 50`,
+                  },
+                  {
+                    label: "Expected impact & stock distribution (20%)",
+                    value: `${scoreComponents.impact.earned.toFixed(2)} / 20`,
+                  },
+                  {
+                    label: "Budget compliance (15%)",
+                    value: `${scoreComponents.budget.earned.toFixed(2)} / 15`,
+                  },
+                  {
+                    label: "Participants' feedback sentiment, Gemini (15%)",
+                    value: `${scoreComponents.suggestion.earned.toFixed(2)} / 15`,
+                  },
+                ].map((row, index) => (
+                  <View key={index} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 0.5 }}>
+                    <Text style={{ fontSize: 7.2, color: C.body }}>{row.label}</Text>
+                    <Text style={{ fontSize: 7.2, fontFamily: "Helvetica-Bold", color: C.ink }}>{row.value}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
 
             <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4, backgroundColor: C.cardBg, padding: 6, borderRadius: 4 }}>
               <View>
@@ -885,7 +949,7 @@ export function PostEventIsoReportDocument({ data }: { data: PostEventReportPdfD
               </View>
               <View style={{ alignItems: "flex-end" }}>
                 <Text style={{ fontSize: 7.5, color: C.muted }}>14. EVENT SUCCESS RATE</Text>
-                <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", color: C.brandDark }}>{data.eventSuccessRate}%</Text>
+                <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", color: C.brandDark }}>{Number(data.eventSuccessRate).toFixed(1)}%</Text>
               </View>
             </View>
           </View>

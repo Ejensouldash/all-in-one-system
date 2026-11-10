@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import {
   X,
   FileText,
@@ -21,6 +21,8 @@ import {
   ChevronRight,
   ShieldCheck,
   Eye,
+  Wallet,
+  Bot,
 } from "lucide-react"
 import {
   getPostEventReport,
@@ -28,6 +30,7 @@ import {
   submitPostEventReport,
   approvePostEventReport,
   uploadPostEventFile,
+  setEventBudgetCap,
   type PostEventReportFormData,
   type VipEntry,
   type PlannedFlowItem,
@@ -37,6 +40,16 @@ import {
   type ClaimItemDetail,
   type MediaLinkItem,
 } from "@/app/actions/marketing-post-event-report"
+import { runFeedbackSentimentAnalysis } from "@/app/actions/marketing-feedback-ai"
+import {
+  buildEventScoreBreakdown,
+  formatScore,
+  getScoreMissingRequirements,
+  type EventScoreBreakdown,
+  type ImpactItem,
+  type SentimentLabel,
+} from "@/lib/marketing/event-success-rate"
+import { EventSuccessScoreCard } from "./EventSuccessScoreCard"
 
 interface PostEventReportModalProps {
   isOpen: boolean
@@ -45,9 +58,48 @@ interface PostEventReportModalProps {
   eventName: string
   currentUserRole?: string
   currentUserName?: string
+  canEdit?: boolean
+  canSetBudget?: boolean
 }
 
 type TabType = "SCOPE" | "FLOW" | "FINANCE" | "FEEDBACK" | "APPROVAL"
+
+interface FeedbackRow {
+  id: string
+  respondentName: string
+  likedMost: string
+  likedLeast: string
+  comments: string
+  satisfaction: string
+  wellOrganized: boolean
+  aiSentiment: string | null
+  aiReason: string | null
+  aiConfidence: number | null
+  createdAt: string | Date
+}
+
+interface FeedbackStats {
+  totalFeedbacks: number
+  satisfactionCounts: {
+    EXTREMELY_SATISFIED: number
+    VERY_SATISFIED: number
+    SOMEWHAT_SATISFIED: number
+    NOT_SO_SATISFIED: number
+    NOT_AT_ALL_SATISFIED: number
+  }
+  satisfactionIndex: number
+  positiveRate: number
+  satisfactionRate: number
+  sentimentCounts: { GOOD: number; NEUTRAL: number; BAD: number }
+  aiAnalyzed: number
+  feedbacks: FeedbackRow[]
+}
+
+const SENTIMENT_STYLES: Record<SentimentLabel, string> = {
+  GOOD: "bg-emerald-50 text-emerald-800 border-emerald-200",
+  NEUTRAL: "bg-amber-50 text-amber-800 border-amber-200",
+  BAD: "bg-rose-50 text-rose-800 border-rose-200",
+}
 
 const COMMON_DEPARTMENTS = [
   "MARKETING",
@@ -80,6 +132,8 @@ export function PostEventReportModal({
   eventName,
   currentUserRole = "STAFF",
   currentUserName = "Staff",
+  canEdit = false,
+  canSetBudget = false,
 }: PostEventReportModalProps) {
   const [activeTab, setActiveTab] = useState<TabType>("SCOPE")
   const [loading, setLoading] = useState(true)
@@ -87,7 +141,18 @@ export function PostEventReportModal({
   const [uploadingReceipt, setUploadingReceipt] = useState<string | null>(null)
   const [uploadingFlow, setUploadingFlow] = useState(false)
   const [uploadingActivation, setUploadingActivation] = useState(false)
-  const [feedbackStats, setFeedbackStats] = useState<any>(null)
+  const [feedbackStats, setFeedbackStats] = useState<FeedbackStats | null>(null)
+  const [scoreBreakdown, setScoreBreakdown] = useState<EventScoreBreakdown | null>(null)
+  const [scoreLocked, setScoreLocked] = useState(false)
+  const [budgetCap, setBudgetCap] = useState<number | null>(null)
+  const [budgetInput, setBudgetInput] = useState("")
+  const [budgetMeta, setBudgetMeta] = useState<{ setBy: string | null; setAt: string | null }>({
+    setBy: null,
+    setAt: null,
+  })
+  const [savingBudget, setSavingBudget] = useState(false)
+  const [analyzingFeedback, setAnalyzingFeedback] = useState(false)
+  const [aiMessage, setAiMessage] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
@@ -104,6 +169,7 @@ export function PostEventReportModal({
     aims: "",
     benefits: "",
     expectedImpact: "",
+    impactDistribution: [],
     flowType: "DAILY",
     plannedFlowText: "",
     plannedFlowImages: [],
@@ -115,7 +181,7 @@ export function PostEventReportModal({
     futureImprovementOrg: "",
     futureImprovementPart: "",
     futureConsideration: true,
-    eventSuccessRate: 99,
+    eventSuccessRate: 0,
     mediaLinks: [],
     status: "DRAFT",
   })
@@ -125,17 +191,39 @@ export function PostEventReportModal({
     if (!isOpen || !requisitionId) return
 
     let isMounted = true
-    setLoading(true)
-    setErrorMsg(null)
 
     getPostEventReport(requisitionId)
       .then((res) => {
         if (!isMounted) return
-        if (res.success && res.report) {
-          setFormData(res.report as PostEventReportFormData)
-          setFeedbackStats(res.feedbackStats)
+
+        const data = res as unknown as {
+          success: boolean
+          error?: string
+          report?: PostEventReportFormData
+          feedbackStats?: FeedbackStats | null
+          scoreBreakdown?: EventScoreBreakdown | null
+          scoreLocked?: boolean
+          requisition?: {
+            budgetCap?: number | null
+            budgetSetBy?: string | null
+            budgetSetAt?: string | null
+          }
+        }
+
+        if (data.success && data.report) {
+          setFormData(data.report)
+          setFeedbackStats(data.feedbackStats || null)
+          setScoreBreakdown(data.scoreBreakdown || null)
+          setScoreLocked(Boolean(data.scoreLocked))
+          const cap = data.requisition?.budgetCap ?? null
+          setBudgetCap(cap)
+          setBudgetInput(cap === null || cap === undefined ? "" : String(cap))
+          setBudgetMeta({
+            setBy: data.requisition?.budgetSetBy ?? null,
+            setAt: data.requisition?.budgetSetAt ?? null,
+          })
         } else {
-          setErrorMsg(res.error || "Failed to load post-event report")
+          setErrorMsg(data.error || "Failed to load post-event report")
         }
       })
       .catch((err) => {
@@ -150,6 +238,185 @@ export function PostEventReportModal({
       isMounted = false
     }
   }, [isOpen, requisitionId])
+
+  const previewBreakdown = useMemo<EventScoreBreakdown>(() => {
+    if (scoreLocked && scoreBreakdown) return scoreBreakdown
+
+    return buildEventScoreBreakdown({
+      feedbacks: (feedbackStats?.feedbacks || []).map((row) => ({
+        satisfaction: row.satisfaction,
+        aiSentiment: row.aiSentiment,
+      })),
+      budgetCap,
+      impactItems: formData.impactDistribution,
+      totalClaimAmount: formData.totalClaimAmount,
+    })
+  }, [
+    scoreLocked,
+    scoreBreakdown,
+    feedbackStats,
+    budgetCap,
+    formData.impactDistribution,
+    formData.totalClaimAmount,
+  ])
+
+  const missingRequirements = getScoreMissingRequirements(previewBreakdown.flags)
+  const aiPending = (feedbackStats?.totalFeedbacks || 0) > (feedbackStats?.aiAnalyzed || 0)
+  const impactPreview = previewBreakdown.components.impact
+  const budgetPreview = previewBreakdown.components.budget
+  const suggestionPreview = previewBreakdown.components.suggestion
+  const submissionChecks = [
+    {
+      label: "At least one public feedback response received",
+      ok: (feedbackStats?.totalFeedbacks || 0) > 0,
+    },
+    {
+      label: "All feedback responses analysed by Gemini",
+      ok:
+        (feedbackStats?.totalFeedbacks || 0) > 0 &&
+        (feedbackStats?.aiAnalyzed || 0) >= (feedbackStats?.totalFeedbacks || 0),
+    },
+    {
+      label: "Stock / impact items recorded with quantity given",
+      ok: formData.impactDistribution.some((item) => item.qtyGiven > 0),
+    },
+    {
+      label: "Approved budget cap set by Finance",
+      ok: budgetCap !== null && budgetCap > 0,
+    },
+  ]
+
+  const updateImpactItem = (index: number, patch: Partial<ImpactItem>) => {
+    setFormData((prev) => ({
+      ...prev,
+      impactDistribution: prev.impactDistribution.map((item, idx) =>
+        idx === index ? { ...item, ...patch } : item
+      ),
+    }))
+  }
+
+  const handleAddImpactItem = () => {
+    setFormData((prev) => ({
+      ...prev,
+      impactDistribution: [
+        ...prev.impactDistribution,
+        { id: `impact-${Date.now()}`, name: "", unit: "ctn", qtyGiven: 0, qtyUsed: 0 },
+      ],
+    }))
+  }
+
+  const handleRemoveImpactItem = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      impactDistribution: prev.impactDistribution.filter((_, idx) => idx !== index),
+    }))
+  }
+
+  const handleSaveBudget = async () => {
+    if (!canSetBudget) return
+
+    if (
+      scoreLocked &&
+      !confirm(
+        "This report is already submitted/approved and its success rate is locked. " +
+          "Recalculating it with the new budget cap will update the locked snapshot. Continue?"
+      )
+    ) {
+      return
+    }
+
+    const parsed = budgetInput.trim() === "" ? null : Number(budgetInput)
+    if (parsed !== null && (!Number.isFinite(parsed) || parsed < 0)) {
+      setErrorMsg("Budget cap must be a positive amount, or leave it empty.")
+      return
+    }
+
+    setSavingBudget(true)
+    setErrorMsg(null)
+    setSuccessMsg(null)
+
+    try {
+      const res = await setEventBudgetCap(requisitionId, parsed)
+      if (res.success) {
+        setBudgetCap(res.budgetCap ?? null)
+        setBudgetMeta({ setBy: res.budgetSetBy ?? null, setAt: res.budgetSetAt ?? null })
+        if ("breakdown" in res && res.breakdown) setScoreBreakdown(res.breakdown)
+        setSuccessMsg(
+          "wasLocked" in res && res.wasLocked
+            ? "Budget cap saved. The locked success-rate snapshot was recalculated."
+            : "Budget cap saved. The success rate was recalculated."
+        )
+        setTimeout(() => setSuccessMsg(null), 3000)
+      } else {
+        setErrorMsg(res.error || "Failed to save the budget cap.")
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Error saving the budget cap.")
+    } finally {
+      setSavingBudget(false)
+    }
+  }
+
+  const handleAnalyzeFeedback = async () => {
+    if (!feedbackStats?.totalFeedbacks) return
+
+    setAnalyzingFeedback(true)
+    setAiMessage(null)
+    setErrorMsg(null)
+
+    try {
+      const res = await runFeedbackSentimentAnalysis(requisitionId)
+
+      if (res.feedbacks?.length) {
+        setFeedbackStats((prev) => {
+          if (!prev) return prev
+
+          const updated = prev.feedbacks.map((row) => {
+            const match = res.feedbacks.find((item) => item.id === row.id)
+            return match
+              ? {
+                  ...row,
+                  aiSentiment: match.aiSentiment,
+                  aiReason: match.aiReason,
+                  aiConfidence: match.aiConfidence,
+                }
+              : row
+          })
+
+          const sentimentCounts = { GOOD: 0, NEUTRAL: 0, BAD: 0 }
+          updated.forEach((row) => {
+            if (
+              row.aiSentiment === "GOOD" ||
+              row.aiSentiment === "NEUTRAL" ||
+              row.aiSentiment === "BAD"
+            ) {
+              sentimentCounts[row.aiSentiment]++
+            }
+          })
+
+          const aiAnalyzed = sentimentCounts.GOOD + sentimentCounts.NEUTRAL + sentimentCounts.BAD
+
+          return { ...prev, feedbacks: updated, sentimentCounts, aiAnalyzed }
+        })
+      }
+
+      if (res.breakdown) setScoreBreakdown(res.breakdown)
+
+      if (res.success) {
+        setAiMessage(
+          `Gemini analysed ${res.analyzed} response(s)` +
+            `${res.skipped ? `, ${res.skipped} already up to date` : ""}` +
+            `${res.failed ? `, ${res.failed} failed` : ""}.`
+        )
+      } else {
+        setErrorMsg(res.error || "Gemini could not analyse the participant feedback.")
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Error analysing participant feedback.")
+    } finally {
+      setAnalyzingFeedback(false)
+    }
+  }
 
   // Recalculate totals whenever claim breakdown changes
   const updateClaimGroup = (groupIndex: number, updatedGroup: ClaimantGroup) => {
@@ -350,7 +617,8 @@ export function PostEventReportModal({
     try {
       const res = await savePostEventReport(formData)
       if (res.success) {
-        setSuccessMsg("Report draft saved successfully!")
+        if ("breakdown" in res && res.breakdown) setScoreBreakdown(res.breakdown)
+        setSuccessMsg("Report draft saved successfully. The success rate was recalculated.")
         setTimeout(() => setSuccessMsg(null), 3000)
       } else {
         setErrorMsg(res.error || "Failed to save report draft")
@@ -364,16 +632,40 @@ export function PostEventReportModal({
 
   // Submit Report
   const handleSubmitForApproval = async () => {
-    if (!confirm("Are you sure you want to submit this report for HOD review and sign-off?")) return
+    if (
+      !confirm(
+        "Submit this report for HOD review and sign-off? The success rate will be frozen as a snapshot."
+      )
+    )
+      return
 
     setSaving(true)
     setErrorMsg(null)
+
     try {
-      await savePostEventReport(formData)
+      const saveRes = await savePostEventReport(formData)
+
+      if (!saveRes.success) {
+        setErrorMsg(saveRes.error || "Failed to save the report before submission.")
+        return
+      }
+
+      const savedBreakdown = "breakdown" in saveRes ? saveRes.breakdown : null
+      if (savedBreakdown) {
+        setScoreBreakdown(savedBreakdown)
+        const missing = getScoreMissingRequirements(savedBreakdown.flags)
+        if (missing.length > 0) {
+          setErrorMsg(`Complete the success rate before submitting: ${missing.join(" ")}`)
+          setActiveTab("FEEDBACK")
+          return
+        }
+      }
+
       const res = await submitPostEventReport(requisitionId)
       if (res.success) {
         setFormData({ ...formData, status: "SUBMITTED" })
-        setSuccessMsg("Report submitted successfully for approval!")
+        setScoreLocked(true)
+        setSuccessMsg("Report submitted successfully. The success rate snapshot is now locked.")
         setActiveTab("APPROVAL")
       } else {
         setErrorMsg(res.error || "Failed to submit report")
@@ -401,6 +693,7 @@ export function PostEventReportModal({
           approvedBy: approver,
           approvedAt: new Date().toISOString(),
         })
+        setScoreLocked(true)
         setSuccessMsg("Report successfully approved and locked!")
       } else {
         setErrorMsg(res.error || "Failed to approve report")
@@ -441,6 +734,9 @@ export function PostEventReportModal({
                   }`}
                 >
                   {formData.status}
+                </span>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-teal-600 text-white">
+                  {formatScore(previewBreakdown.total)}% success
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -771,16 +1067,156 @@ export function PostEventReportModal({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Expected Impact &amp; Stock Distribution
-                      </label>
-                      <textarea
-                        rows={2}
-                        value={formData.expectedImpact}
-                        onChange={(e) => setFormData({ ...formData, expectedImpact: e.target.value })}
-                        className="w-full text-xs font-mono px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 bg-white"
-                        placeholder="e.g.&#10;425mlx24 = 1154ctn for 3 days&#10;800mlx12 = 30ctn"
-                      />
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-semibold text-slate-700">
+                          Expected Impact &amp; Stock Distribution
+                        </label>
+                        <span className="text-[10px] font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">
+                          20% of success rate
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mb-2">
+                        Record the stock allocated to the event and how much was actually distributed. The
+                        component scores 20 points when all allocated units are used.
+                      </p>
+
+                      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                        <table className="w-full text-left text-xs">
+                          <thead>
+                            <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-bold uppercase text-slate-400">
+                              <th className="px-2 py-1.5">Item</th>
+                              <th className="px-2 py-1.5 w-16">Unit</th>
+                              <th className="px-2 py-1.5 w-24 text-right">Qty Given</th>
+                              <th className="px-2 py-1.5 w-24 text-right">Qty Used</th>
+                              <th className="px-2 py-1.5 w-20 text-right">Achieved</th>
+                              <th className="px-2 py-1.5 w-8"></th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {formData.impactDistribution.length === 0 ? (
+                              <tr>
+                                <td colSpan={6} className="px-2 py-4 text-center text-[11px] text-slate-400">
+                                  No stock items recorded yet. Add the items given to this event.
+                                </td>
+                              </tr>
+                            ) : (
+                              formData.impactDistribution.map((item, index) => {
+                                const rowAchievement =
+                                  item.qtyGiven > 0
+                                    ? Math.min(100, (item.qtyUsed / item.qtyGiven) * 100)
+                                    : 0
+                                const overConsumed = item.qtyUsed > item.qtyGiven
+
+                                return (
+                                  <tr key={item.id} className={overConsumed ? "bg-rose-50/40" : undefined}>
+                                    <td className="px-2 py-1">
+                                      <input
+                                        type="text"
+                                        value={item.name}
+                                        disabled={scoreLocked}
+                                        onChange={(e) => updateImpactItem(index, { name: e.target.value })}
+                                        placeholder="e.g. Bubbles O2 425ml x 24"
+                                        className="w-full text-xs px-2 py-1 border border-slate-200 rounded outline-none focus:border-teal-500 disabled:bg-slate-50"
+                                      />
+                                    </td>
+                                    <td className="px-2 py-1">
+                                      <input
+                                        type="text"
+                                        value={item.unit}
+                                        disabled={scoreLocked}
+                                        onChange={(e) => updateImpactItem(index, { unit: e.target.value })}
+                                        placeholder="ctn"
+                                        className="w-full text-xs px-2 py-1 border border-slate-200 rounded outline-none focus:border-teal-500 disabled:bg-slate-50"
+                                      />
+                                    </td>
+                                    <td className="px-2 py-1">
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="any"
+                                        value={item.qtyGiven === 0 ? "" : item.qtyGiven}
+                                        disabled={scoreLocked}
+                                        onChange={(e) =>
+                                          updateImpactItem(index, {
+                                            qtyGiven: parseFloat(e.target.value) || 0,
+                                          })
+                                        }
+                                        className="w-full text-xs text-right font-mono px-2 py-1 border border-slate-200 rounded outline-none focus:border-teal-500 disabled:bg-slate-50"
+                                      />
+                                    </td>
+                                    <td className="px-2 py-1">
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="any"
+                                        value={item.qtyUsed === 0 ? "" : item.qtyUsed}
+                                        disabled={scoreLocked}
+                                        onChange={(e) =>
+                                          updateImpactItem(index, {
+                                            qtyUsed: parseFloat(e.target.value) || 0,
+                                          })
+                                        }
+                                        className="w-full text-xs text-right font-mono px-2 py-1 border border-slate-200 rounded outline-none focus:border-teal-500 disabled:bg-slate-50"
+                                      />
+                                    </td>
+                                    <td
+                                      className={`px-2 py-1 text-right font-mono font-bold ${
+                                        overConsumed ? "text-rose-600" : "text-sky-700"
+                                      }`}
+                                    >
+                                      {item.qtyGiven > 0 ? `${formatScore(rowAchievement)}%` : "—"}
+                                    </td>
+                                    <td className="px-2 py-1 text-right">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveImpactItem(index)}
+                                        disabled={scoreLocked}
+                                        className="text-slate-300 hover:text-red-500 p-1 disabled:opacity-40"
+                                        title="Remove item"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                )
+                              })
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={handleAddImpactItem}
+                          disabled={scoreLocked}
+                          className="text-xs font-semibold text-teal-700 hover:text-teal-800 flex items-center gap-1 disabled:opacity-50"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add Item</span>
+                        </button>
+                        <div className="text-[11px] text-slate-500">
+                          Given <b>{impactPreview.given.toLocaleString()}</b> · Used{" "}
+                          <b>{impactPreview.used.toLocaleString()}</b> · Achievement{" "}
+                          <b>{formatScore(impactPreview.achievement)}%</b> ·{" "}
+                          <span className="font-bold text-sky-700">
+                            {formatScore(impactPreview.earned)} / 20 pts
+                          </span>
+                        </div>
+                      </div>
+
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-[11px] font-semibold text-slate-500">
+                          Distribution notes (optional)
+                        </summary>
+                        <textarea
+                          rows={2}
+                          value={formData.expectedImpact}
+                          onChange={(e) => setFormData({ ...formData, expectedImpact: e.target.value })}
+                          className="mt-1 w-full text-xs font-mono px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+                          placeholder="e.g.&#10;425mlx24 = 1154ctn for 3 days&#10;800mlx12 = 30ctn"
+                        />
+                      </details>
                     </div>
                   </div>
 
@@ -1002,6 +1438,141 @@ export function PostEventReportModal({
                     </div>
                   </div>
 
+                  {/* Budget cap (15% success-rate component) */}
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-3">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                          <Wallet className="w-4 h-4 text-amber-700" />
+                          Approved Budget Cap (Finance)
+                        </h3>
+                        <p className="text-[11px] text-amber-900 mt-0.5">
+                          Maximum amount approved for this event. Claims within the cap earn the full 15
+                          points; the score falls linearly to zero at twice the cap.
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-bold text-amber-800 bg-white border border-amber-200 px-2 py-0.5 rounded-full">
+                        15% of success rate
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-end gap-2">
+                      <div className="flex-1 min-w-[180px]">
+                        <label className="block text-[11px] font-semibold text-amber-900 mb-1">
+                          Maximum Approved Budget (RM)
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-amber-800">RM</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={budgetInput}
+                            disabled={!canSetBudget}
+                            onChange={(e) => setBudgetInput(e.target.value)}
+                            placeholder="e.g. 1500.00"
+                            className="w-full text-xs font-mono font-bold px-3 py-2 border border-amber-300 rounded-lg outline-none bg-white focus:ring-2 focus:ring-amber-400 disabled:bg-slate-100 disabled:text-slate-500"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleSaveBudget}
+                        disabled={!canSetBudget || savingBudget}
+                        className="px-3 py-2 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      >
+                        {savingBudget ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Check className="w-3.5 h-3.5" />
+                        )}
+                        <span>Save Budget</span>
+                      </button>
+                    </div>
+
+                    {budgetPreview.cap !== null && (
+                      <div className="space-y-2">
+                        <div className="h-2 w-full rounded-full bg-white border border-amber-200 overflow-hidden">
+                          <div
+                            className={`h-full ${
+                              budgetPreview.claims > budgetPreview.cap
+                                ? "bg-rose-500"
+                                : "bg-emerald-500"
+                            }`}
+                            style={{
+                              width: `${Math.min(
+                                100,
+                                (budgetPreview.claims / budgetPreview.cap) * 100
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                          <span
+                            className={
+                              budgetPreview.claims > budgetPreview.cap
+                                ? "font-bold text-rose-700"
+                                : "font-bold text-emerald-700"
+                            }
+                          >
+                            {budgetPreview.claims > budgetPreview.cap
+                              ? `Over budget by RM ${(budgetPreview.claims - budgetPreview.cap).toFixed(2)}`
+                              : `Within budget (RM ${(budgetPreview.cap - budgetPreview.claims).toFixed(2)} remaining)`}
+                          </span>
+                          <span className="text-slate-600">
+                            Claims{" "}
+                            <b className="font-mono">RM {budgetPreview.claims.toFixed(2)}</b> of{" "}
+                            <b className="font-mono">RM {budgetPreview.cap.toFixed(2)}</b>
+                          </span>
+                          <span className="font-bold text-amber-800">
+                            {formatScore(budgetPreview.earned)} / 15 pts
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {budgetPreview.cap === null && (
+                      <p className="text-[11px] font-semibold text-rose-700">
+                        Budget cap not set. The 15% component stays at 0 and the report cannot be
+                        submitted until Finance sets it.
+                      </p>
+                    )}
+
+                    {!canSetBudget && (
+                      <p className="text-[11px] font-semibold text-rose-700">
+                        {canEdit
+                          ? "You can edit this report but not the approved budget. Ask a superadmin to grant the Post-Event Budget Cap module."
+                          : "Only users granted the Post-Event Budget Cap module can set this budget. Ask a superadmin for access."}
+                      </p>
+                    )}
+
+                    {scoreLocked && canSetBudget && (
+                      <p className="text-[11px] font-semibold text-amber-800">
+                        This report is already {formData.status.toLowerCase()}. Saving a new cap will
+                        recalculate the locked success-rate snapshot and record the revision in the
+                        audit log.
+                      </p>
+                    )}
+
+                    <p className="text-[10px] text-amber-800/80">
+                      {budgetMeta.setBy
+                        ? `Set by ${budgetMeta.setBy}${
+                            budgetMeta.setAt
+                              ? ` on ${new Date(budgetMeta.setAt).toLocaleDateString("en-GB", {
+                                  day: "2-digit",
+                                  month: "short",
+                                  year: "numeric",
+                                })}`
+                              : ""
+                          }.`
+                        : "No budget cap recorded yet."}
+                      {scoreLocked && !canSetBudget
+                        ? " This report is locked; only authorised budget users can revise the cap."
+                        : ""}
+                    </p>
+                  </div>
+
                   <div className="flex justify-end">
                     <button
                       type="button"
@@ -1220,7 +1791,9 @@ export function PostEventReportModal({
                     </div>
 
                     <p className="text-xs text-teal-900 leading-relaxed">
-                      Statistics below are automatically synchronized from respondent surveys via the event feedback QR code. The vector donut chart will be rendered directly in the official report.
+                      Statistics are automatically synchronized from respondent surveys via the event
+                      feedback QR code. The satisfaction index contributes <b>50%</b> of the Event
+                      Success Rate (index × 50 points).
                     </p>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-teal-200/60 text-xs">
@@ -1243,9 +1816,12 @@ export function PostEventReportModal({
                         </span>
                       </div>
                       <div className="bg-white p-2.5 rounded-lg border border-teal-100">
-                        <span className="text-slate-500 block text-[11px]">Satisfaction Rate</span>
+                        <span className="text-slate-500 block text-[11px]">Satisfaction Index</span>
                         <span className="text-base font-black text-emerald-800">
-                          {feedbackStats?.satisfactionRate || 99}%
+                          {formatScore(feedbackStats?.satisfactionIndex ?? 0)}/100
+                        </span>
+                        <span className="block text-[10px] text-slate-400">
+                          {formatScore(feedbackStats?.positiveRate ?? 0)}% high satisfaction
                         </span>
                       </div>
                     </div>
@@ -1272,7 +1848,7 @@ export function PostEventReportModal({
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Participants' Feedback &amp; Suggestions for Improvement (Internal Booth)
+                        Participants&apos; Feedback &amp; Suggestions for Improvement (Internal Booth)
                       </label>
                       <textarea
                         rows={2}
@@ -1283,34 +1859,126 @@ export function PostEventReportModal({
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          13. Future Consideration
-                        </label>
-                        <select
-                          value={formData.futureConsideration ? "true" : "false"}
-                          onChange={(e) => setFormData({ ...formData, futureConsideration: e.target.value === "true" })}
-                          className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none bg-white font-semibold"
+                    {/* Gemini suggestion analysis (15% component) */}
+                    <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-3 space-y-2">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <h4 className="text-xs font-bold text-violet-950 flex items-center gap-1.5">
+                            <Bot className="w-4 h-4 text-violet-700" />
+                            Participants&apos; Suggestion Analysis (Gemini)
+                          </h4>
+                          <p className="text-[11px] text-violet-900">
+                            Every feedback response is classified GOOD (1), NEUTRAL (0.5) or BAD (0);
+                            the average contributes 15% of the success rate.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleAnalyzeFeedback}
+                          disabled={
+                            analyzingFeedback || scoreLocked || !feedbackStats?.totalFeedbacks
+                          }
+                          className="px-2.5 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed transition"
                         >
-                          <option value="true">YES (Recommended for Future Participation)</option>
-                          <option value="false">NO (Not Recommended)</option>
-                        </select>
+                          {analyzingFeedback ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Sparkles className="w-3.5 h-3.5" />
+                          )}
+                          <span>{feedbackStats?.aiAnalyzed ? "Re-analyse" : "Analyse with Gemini"}</span>
+                        </button>
                       </div>
 
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          14. Event Success Rate (%)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={formData.eventSuccessRate}
-                          onChange={(e) => setFormData({ ...formData, eventSuccessRate: parseInt(e.target.value) || 99 })}
-                          className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none bg-white font-bold"
-                        />
+                      <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                        <span className="font-semibold text-violet-900">
+                          {feedbackStats?.aiAnalyzed || 0} / {feedbackStats?.totalFeedbacks || 0} analysed
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full border font-bold ${SENTIMENT_STYLES.GOOD}`}
+                        >
+                          GOOD {suggestionPreview.good}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full border font-bold ${SENTIMENT_STYLES.NEUTRAL}`}
+                        >
+                          NEUTRAL {suggestionPreview.neutral}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full border font-bold ${SENTIMENT_STYLES.BAD}`}
+                        >
+                          BAD {suggestionPreview.bad}
+                        </span>
+                        <span className="font-bold text-violet-900">
+                          {formatScore(suggestionPreview.earned)} / 15 pts
+                        </span>
                       </div>
+
+                      {aiPending && !analyzingFeedback && (
+                        <p className="text-[11px] font-semibold text-amber-800">
+                          {feedbackStats?.aiAnalyzed
+                            ? "New feedback responses are waiting to be analysed."
+                            : "No responses analysed yet. Run Gemini analysis to unlock this component."}
+                        </p>
+                      )}
+
+                      {(feedbackStats?.feedbacks.length || 0) > 0 && (
+                        <div className="max-h-56 overflow-y-auto divide-y divide-violet-100 rounded-lg border border-violet-200 bg-white">
+                          {feedbackStats?.feedbacks.map((fb) => (
+                            <div key={fb.id} className="p-2 text-[11px] space-y-1">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <span className="font-bold text-slate-800">{fb.respondentName}</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[10px] text-slate-400">
+                                    {fb.satisfaction.replace(/_/g, " ")}
+                                  </span>
+                                  {fb.aiSentiment === "GOOD" ||
+                                  fb.aiSentiment === "NEUTRAL" ||
+                                  fb.aiSentiment === "BAD" ? (
+                                    <span
+                                      className={`px-1.5 py-0.5 rounded border text-[10px] font-black ${SENTIMENT_STYLES[fb.aiSentiment]}`}
+                                    >
+                                      {fb.aiSentiment}
+                                    </span>
+                                  ) : (
+                                    <span className="px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50 text-[10px] font-bold text-slate-400">
+                                      PENDING
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <p className="text-slate-600 line-clamp-2">{fb.likedLeast}</p>
+                              <p className="text-slate-500 line-clamp-2">{fb.comments}</p>
+                              {fb.aiReason && (
+                                <p className="text-[10px] italic text-violet-700">AI: {fb.aiReason}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {aiMessage && (
+                        <p className="text-[11px] font-semibold text-emerald-700">{aiMessage}</p>
+                      )}
+                    </div>
+
+                    <div className="pt-2">
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        13. Future Consideration
+                      </label>
+                      <select
+                        value={formData.futureConsideration ? "true" : "false"}
+                        onChange={(e) =>
+                          setFormData({ ...formData, futureConsideration: e.target.value === "true" })
+                        }
+                        className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none bg-white font-semibold"
+                      >
+                        <option value="true">YES (Recommended for Future Participation)</option>
+                        <option value="false">NO (Not Recommended)</option>
+                      </select>
+                    </div>
+
+                    <div className="pt-2">
+                      <EventSuccessScoreCard breakdown={previewBreakdown} />
                     </div>
                   </div>
 
@@ -1387,6 +2055,35 @@ export function PostEventReportModal({
               {/* TAB 5: APPROVAL & DOWNLOAD */}
               {activeTab === "APPROVAL" && (
                 <div className="space-y-5">
+                  <div className="max-w-xl mx-auto w-full space-y-3">
+                    <EventSuccessScoreCard breakdown={previewBreakdown} />
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <h3 className="text-xs font-bold text-slate-800 mb-2">
+                        Success Rate Completeness
+                      </h3>
+                      <ul className="space-y-1.5 text-[11px]">
+                        {submissionChecks.map((check) => (
+                          <li key={check.label} className="flex items-center gap-2">
+                            {check.ok ? (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            ) : (
+                              <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                            )}
+                            <span className={check.ok ? "text-slate-700" : "text-slate-500"}>
+                              {check.label}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      {missingRequirements.length > 0 && (
+                        <p className="mt-2 text-[11px] font-semibold text-amber-800">
+                          Submission is blocked until every item above is complete.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50 text-center max-w-xl mx-auto space-y-4">
                     <div className="w-14 h-14 rounded-2xl bg-teal-100 text-teal-800 flex items-center justify-center mx-auto shadow-sm">
                       <ShieldCheck className="w-7 h-7" />
@@ -1453,6 +2150,11 @@ export function PostEventReportModal({
             <span>Total Claims:</span>
             <span className="font-mono font-bold text-slate-800">
               RM {formData.totalClaimAmount.toFixed(2)}
+            </span>
+            <span className="text-slate-300">•</span>
+            <span>Success Rate:</span>
+            <span className="font-mono font-bold text-teal-700">
+              {formatScore(previewBreakdown.total)}%
             </span>
           </div>
 

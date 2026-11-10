@@ -86,6 +86,7 @@ const staffLinks: NavLink[] = [
       { name: "Suppliers", href: "/procurement/suppliers", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
       { name: "Price Comparison", href: "/procurement/comparisons", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
       { name: "Invoice for Payment", href: "/procurement/invoices", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
+      { name: "Purchases", href: "/procurement/purchases", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
     ],
   },
 
@@ -161,6 +162,7 @@ const staffLinks: NavLink[] = [
   { name: "Event Calendar", href: "/calendar", icon: Calendar, module: "EVENTS" },
   { name: "PMC (Preventive Maintenance Calendar)", href: "/reminders", icon: CalendarClock, module: "REMINDERS" },
   { name: "Assets", href: "/dashboard/assets", icon: Package, module: "ASSETS" },
+  { name: "Settings", href: "/settings", icon: Settings },
 ]
 
 const adminLinks: NavLink[] = [
@@ -174,6 +176,7 @@ const adminLinks: NavLink[] = [
       { name: "Suppliers", href: "/procurement/suppliers", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
       { name: "Price Comparison", href: "/procurement/comparisons", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
       { name: "Invoice for Payment", href: "/procurement/invoices", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
+      { name: "Purchases", href: "/procurement/purchases", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
     ],
   },
 
@@ -258,7 +261,7 @@ const adminLinks: NavLink[] = [
       { name: "User Activity Logs", href: "/organization/audit-logs", module: "USER_LOGS" }
     ]
   },
-  { name: "Settings", href: "/settings", icon: Settings, module: "SETTINGS" },
+  { name: "Settings", href: "/settings", icon: Settings },
 ]
 
 export function Sidebar({ 

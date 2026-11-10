@@ -21,7 +21,7 @@ import {
   Trash2,
   Briefcase,
 } from "lucide-react"
-import { ProcurementTabs } from "@/components/procurement/ProcurementTabs"
+import { ProcurementNavTabs } from "@/components/procurement/ProcurementNavTabs"
 import { PurchaseTable } from "@/components/procurement/PurchaseTable"
 import { PurchaseModal } from "@/components/procurement/PurchaseModal"
 import {
@@ -231,7 +231,7 @@ export default function ProcurementPurchasesPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       {/* Top Procurement Navigation Tabs */}
-      <ProcurementTabs />
+      <ProcurementNavTabs />
 
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">

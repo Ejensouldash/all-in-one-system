@@ -84,6 +84,7 @@ const staffLinks: NavLink[] = [
     icon: Truck,
     subLinks: [
       { name: "Suppliers", href: "/procurement/suppliers", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
+      { name: "Price Comparison", href: "/procurement/comparisons", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
       { name: "Invoice for Payment", href: "/procurement/invoices", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
       { name: "Purchases", href: "/procurement/purchases", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
     ],
@@ -173,6 +174,7 @@ const adminLinks: NavLink[] = [
     icon: Truck,
     subLinks: [
       { name: "Suppliers", href: "/procurement/suppliers", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
+      { name: "Price Comparison", href: "/procurement/comparisons", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
       { name: "Invoice for Payment", href: "/procurement/invoices", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
       { name: "Purchases", href: "/procurement/purchases", modules: ["PROCUREMENT_REQUESTER", "PROCUREMENT_FINANCE"] },
     ],

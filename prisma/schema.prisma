@@ -75,6 +75,7 @@ model User {
   paidProcurementInvoices     ProcurementInvoice[]    @relation("ProcurementInvoicePayer")
   procurementInvoiceLogs      ProcurementInvoiceLog[] @relation("ProcurementInvoiceLogActor")
   createdProcurementPurchases ProcurementPurchase[]   @relation("ProcurementPurchaseCreator")
+  createdProcurementPriceComparisons ProcurementPriceComparison[] @relation("ProcurementComparisonCreator")
 }
 
 model Branch {
@@ -3509,4 +3510,42 @@ model ProcurementPurchase {
   @@index([purchaseDate])
   @@index([supplierId])
   @@map("procurement_purchases")
+}
+
+enum ProcurementComparisonStatus {
+  DRAFT
+  UNDER_REVIEW
+  APPROVED
+  COMPLETED
+  CANCELLED
+}
+
+model ProcurementPriceComparison {
+  id               String                        @id @default(uuid())
+  title            String
+  referenceNo      String                        @unique
+  company          String                        @default("BOSB")
+  department       String                        @default("Purchasing")
+  status           ProcurementComparisonStatus   @default(DRAFT)
+  
+  // Array of suppliers compared: [{ id: "s1", name: "VD VALVE SDN BHD", supplierId?: string, paymentTerms?: string, leadTime?: string, quotationRef?: string, notes?: string }]
+  suppliersData    Json                          @default("[]")
+
+  // Array of item bundles & rows: [{ itemIndex: 1, title: string, rows: [{ rowId: "r1", quotes: { [supId]: { description: string, unitPrice: number | null, isIncluded: boolean, total: number | null } } }] }]
+  itemsData        Json                          @default("[]")
+
+  awardedSupplier  String?
+  justification    String?
+  notes            String?
+
+  createdById      String?
+  createdBy        User?                         @relation("ProcurementComparisonCreator", fields: [createdById], references: [id])
+  
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
+
+  @@index([status])
+  @@index([company])
+  @@index([department])
+  @@map("procurement_price_comparisons")
 }

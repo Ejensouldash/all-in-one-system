@@ -11,7 +11,8 @@ import {
   Trash2, Edit3, Eye, Filter, RefreshCw, Send, Check, 
   RotateCcw, Info, Sparkles, Building, Phone, FileText,
   Monitor, Sofa, Utensils, AlertCircle, X, ShieldAlert,
-  Upload, Image as ImageIcon, QrCode, Camera, History
+  Upload, Image as ImageIcon, QrCode, Camera, History,
+  Copy, ExternalLink, Mail
 } from "lucide-react"
 import { 
   addMarketingAsset, 
@@ -270,6 +271,18 @@ export function MarketingAssetsClient({
   // 6. Asset Loan History Modal
   const [historyAsset, setHistoryAsset] = useState<Asset | null>(null)
 
+  // 7. View Loan / Requisition Details Modal
+  const [viewingLoan, setViewingLoan] = useState<Loan | null>(null)
+  const [copiedLoanId, setCopiedLoanId] = useState(false)
+
+  const copyToClipboard = (text: string) => {
+    if (typeof window !== "undefined" && navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text)
+      setCopiedLoanId(true)
+      setTimeout(() => setCopiedLoanId(false), 2000)
+    }
+  }
+
   // Quick stats calculation
   const totalAssetsCount = assets.reduce((sum, a) => sum + a.totalQuantity, 0)
   const lentAssetsCount = loans
@@ -492,6 +505,7 @@ export function MarketingAssetsClient({
         setErrorMsg(res.error || "Failed to approve loan.")
       } else {
         setLoans((prev) => prev.map((l) => (l.id === loanId ? { ...l, ...res.data } : l)))
+        setViewingLoan((prev) => (prev && prev.id === loanId ? { ...prev, ...res.data } : prev))
         // Update local available qty
         const approvedLoan = loans.find((l) => l.id === loanId)
         if (approvedLoan) {
@@ -523,6 +537,7 @@ export function MarketingAssetsClient({
         setErrorMsg(res.error || "Failed to dispatch loan.")
       } else {
         setLoans((prev) => prev.map((l) => (l.id === loanId ? { ...l, ...res.data } : l)))
+        setViewingLoan((prev) => (prev && prev.id === loanId ? { ...prev, ...res.data } : prev))
         setSuccessMsg(`Asset marked as Lent Out.`)
       }
     } catch (err: any) {
@@ -545,6 +560,7 @@ export function MarketingAssetsClient({
         setErrorMsg(res.error || "Failed to reject loan.")
       } else {
         setLoans((prev) => prev.map((l) => (l.id === rejectingLoan.id ? { ...l, ...res.data } : l)))
+        setViewingLoan((prev) => (prev && prev.id === rejectingLoan.id ? { ...prev, ...res.data } : prev))
         setSuccessMsg(`Request ${rejectingLoan.loanNumber} rejected.`)
         setRejectingLoan(null)
         setRejectionReason("")
@@ -578,6 +594,7 @@ export function MarketingAssetsClient({
         setErrorMsg(res.error || "Failed to mark as returned.")
       } else {
         setLoans((prev) => prev.map((l) => (l.id === returningLoan.id ? { ...l, ...res.data } : l)))
+        setViewingLoan((prev) => (prev && prev.id === returningLoan.id ? { ...prev, ...res.data } : prev))
         // Update asset stock locally
         setAssets((prev) =>
           prev.map((a) => {
@@ -910,10 +927,17 @@ export function MarketingAssetsClient({
                         new Date(loan.expectedReturn) < now
 
                       return (
-                        <tr key={loan.id} className="hover:bg-slate-50/60 transition-colors">
+                        <tr 
+                          key={loan.id} 
+                          onClick={() => setViewingLoan(loan)}
+                          className="hover:bg-blue-50/40 cursor-pointer transition-colors group"
+                        >
                           <td className="py-4 px-4 font-mono font-bold text-slate-900">
-                            <div>{loan.loanNumber}</div>
-                            <span className="text-[10px] font-normal text-slate-400 font-sans">
+                            <div className="flex items-center gap-1.5 text-blue-600 group-hover:text-blue-700">
+                              <span className="group-hover:underline">{loan.loanNumber}</span>
+                              <Eye className="w-3.5 h-3.5 text-blue-500 opacity-60 group-hover:opacity-100 transition-opacity shrink-0" />
+                            </div>
+                            <span className="text-[10px] font-normal text-slate-400 font-sans block mt-0.5">
                               {new Date(loan.createdAt).toLocaleDateString("en-MY")}
                             </span>
                           </td>
@@ -923,7 +947,10 @@ export function MarketingAssetsClient({
                               {loan.asset?.imageUrl ? (
                                 <button
                                   type="button"
-                                  onClick={() => setPreviewModalPhoto({ url: loan.asset.imageUrl!, title: loan.asset.name, code: loan.asset.assetCode })}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setPreviewModalPhoto({ url: loan.asset.imageUrl!, title: loan.asset.name, code: loan.asset.assetCode })
+                                  }}
                                   className="group relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white hover:ring-2 hover:ring-blue-500 transition cursor-pointer"
                                   title="Click to zoom image"
                                 >
@@ -1041,11 +1068,27 @@ export function MarketingAssetsClient({
 
                           <td className="py-4 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
+                              {/* View Requisition Details Button */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setViewingLoan(loan)
+                                }}
+                                className="p-1.5 rounded-lg bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-500 text-xs transition"
+                                title="View Requisition Details"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+
                               {/* Pending Approval Actions */}
                               {loan.status === "PENDING" && (
                                 <>
                                   <button
-                                    onClick={() => handleApproveLoan(loan.id, false)}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleApproveLoan(loan.id, false)
+                                    }}
                                     disabled={isSubmitting}
                                     className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs transition"
                                     title="Approve Lending Request"
@@ -1053,7 +1096,8 @@ export function MarketingAssetsClient({
                                     <Check className="w-3.5 h-3.5" /> Approve
                                   </button>
                                   <button
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation()
                                       setRejectingLoan(loan)
                                       setRejectionReason("")
                                     }}
@@ -1069,7 +1113,10 @@ export function MarketingAssetsClient({
                               {/* Approved -> Mark Lent Out */}
                               {loan.status === "APPROVED" && (
                                 <button
-                                  onClick={() => handleDispatchLoan(loan.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleDispatchLoan(loan.id)
+                                  }}
                                   disabled={isSubmitting}
                                   className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs transition"
                                 >
@@ -1080,7 +1127,10 @@ export function MarketingAssetsClient({
                               {/* Lent Out or Partially Returned -> Mark Returned */}
                               {(loan.status === "LENT_OUT" || loan.status === "APPROVED" || loan.status === "PARTIALLY_RETURNED") && (
                                 <button
-                                  onClick={() => openReturnModal(loan)}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    openReturnModal(loan)
+                                  }}
                                   disabled={isSubmitting}
                                   className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs transition"
                                 >
@@ -1216,8 +1266,18 @@ export function MarketingAssetsClient({
                           <h3 className="text-base font-black text-slate-900 truncate">
                             {loan.asset?.name}
                           </h3>
-                          <div className="text-xs font-bold text-slate-500">
-                            Qty Lent: <span className="text-slate-900 font-black">{loan.quantity} {loan.asset?.unit}</span> • Ref: {loan.loanNumber}
+                          <div className="text-xs font-bold text-slate-500 flex items-center justify-between">
+                            <span>
+                              Qty Lent: <span className="text-slate-900 font-black">{loan.quantity} {loan.asset?.unit}</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setViewingLoan(loan)}
+                              className="text-[11px] font-mono text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1"
+                            >
+                              {loan.loanNumber}
+                              <ExternalLink className="w-3 h-3" />
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -2353,6 +2413,453 @@ export function MarketingAssetsClient({
             </div>
           </div>
         )}
+
+        {/* MODAL 7: VIEW REQUISITION DETAILS MODAL */}
+        {viewingLoan && (() => {
+          const isPastDue =
+            (viewingLoan.status === "LENT_OUT" || viewingLoan.status === "APPROVED" || viewingLoan.status === "PARTIALLY_RETURNED") &&
+            new Date(viewingLoan.expectedReturn) < now
+
+          const totalBorrowed = viewingLoan.quantity
+          const returnedCount = viewingLoan.returnedQuantity || 0
+          const remainingCount = Math.max(0, totalBorrowed - returnedCount)
+          const damagedCount = viewingLoan.damagedQuantity || 0
+          const percentReturned = totalBorrowed > 0 ? Math.min(100, Math.round((returnedCount / totalBorrowed) * 100)) : 0
+
+          return (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in"
+              onClick={() => setViewingLoan(null)}
+            >
+              <div
+                className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-5"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                      <FileText className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+                          Requisition Details
+                        </span>
+                        <h3 className="text-lg font-black text-slate-900 font-mono tracking-tight">
+                          {viewingLoan.loanNumber}
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(viewingLoan.loanNumber)}
+                          className="p-1 text-slate-400 hover:text-slate-600 rounded transition"
+                          title="Copy Loan Number"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+                        {copiedLoanId && (
+                          <span className="text-[10px] text-emerald-600 font-bold animate-in fade-in">
+                            Copied!
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Requested on {new Date(viewingLoan.createdAt).toLocaleString("en-MY", { dateStyle: "medium", timeStyle: "short" })}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setViewingLoan(null)}
+                    className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Status Alert / Pill */}
+                <div className="flex items-center justify-between gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-100 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-500">Current Status:</span>
+                    {viewingLoan.status === "PENDING" && (
+                      <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-black uppercase tracking-wider inline-flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5" /> Pending Approval
+                      </span>
+                    )}
+                    {viewingLoan.status === "APPROVED" && (
+                      <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-black uppercase tracking-wider inline-flex items-center gap-1.5">
+                        <Check className="w-3.5 h-3.5" /> Approved (Ready for Dispatch)
+                      </span>
+                    )}
+                    {viewingLoan.status === "LENT_OUT" && (
+                      <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-black uppercase tracking-wider inline-flex items-center gap-1.5">
+                        <ArrowRight className="w-3.5 h-3.5" /> Lent Out / On-Site
+                      </span>
+                    )}
+                    {viewingLoan.status === "PARTIALLY_RETURNED" && (
+                      <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-xs font-black uppercase tracking-wider inline-flex items-center gap-1.5">
+                        <RotateCcw className="w-3.5 h-3.5" /> Partial Return ({returnedCount}/{totalBorrowed})
+                      </span>
+                    )}
+                    {viewingLoan.status === "RETURNED" && (
+                      <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black uppercase tracking-wider inline-flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Returned &amp; Completed
+                      </span>
+                    )}
+                    {viewingLoan.status === "REJECTED" && (
+                      <span className="px-3 py-1 rounded-full bg-red-50 text-red-700 border border-red-200 text-xs font-black uppercase tracking-wider inline-flex items-center gap-1.5">
+                        <XCircle className="w-3.5 h-3.5" /> Rejected
+                      </span>
+                    )}
+                  </div>
+
+                  {isPastDue && (
+                    <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 border border-rose-300 text-xs font-black uppercase tracking-wider inline-flex items-center gap-1 animate-pulse">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Overdue
+                    </span>
+                  )}
+                </div>
+
+                {/* If Rejected: Display reason */}
+                {viewingLoan.status === "REJECTED" && viewingLoan.rejectionReason && (
+                  <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs">
+                    <span className="font-bold text-rose-800 block mb-0.5">Rejection Reason:</span>
+                    <p className="text-rose-700 font-medium">{viewingLoan.rejectionReason}</p>
+                    {viewingLoan.approvedBy && (
+                      <span className="text-[10px] text-rose-500 block mt-1">Reviewed by: {viewingLoan.approvedBy}</span>
+                    )}
+                  </div>
+                )}
+
+                {/* SECTION 1: ASSET & INVENTORY BREAKDOWN */}
+                <div className="border border-slate-200/80 rounded-2xl p-4 bg-white space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                      Borrowed Asset Item
+                    </span>
+                    <span className="text-[11px] font-mono font-bold text-slate-400">
+                      {viewingLoan.asset?.assetCode}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {viewingLoan.asset?.imageUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewModalPhoto({ url: viewingLoan.asset.imageUrl!, title: viewingLoan.asset.name, code: viewingLoan.asset.assetCode })}
+                        className="group relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white hover:ring-2 hover:ring-blue-500 transition cursor-pointer"
+                        title="Click to zoom image"
+                      >
+                        <img
+                          src={viewingLoan.asset.imageUrl}
+                          alt={viewingLoan.asset.name}
+                          className="h-full w-full object-cover transition-transform group-hover:scale-110"
+                        />
+                      </button>
+                    ) : (
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-400">
+                        <ImageIcon className="h-6 w-6" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-base font-black text-slate-900 leading-tight">
+                        {viewingLoan.asset?.name}
+                      </h4>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {viewingLoan.asset?.category} {viewingLoan.asset?.brand && `• Brand: ${viewingLoan.asset.brand}`} • Location: {viewingLoan.asset?.location}
+                      </p>
+                      <span className="text-[11px] text-slate-400 block mt-0.5">
+                        Current Store Condition: <strong className="text-slate-700">{viewingLoan.asset?.condition || "Good"}</strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Quantity & Return Progress Card */}
+                  <div className="bg-slate-50 border border-slate-200/70 rounded-xl p-3 grid grid-cols-4 gap-2 text-center text-xs">
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase">Borrowed</div>
+                      <div className="text-base font-black text-slate-900">{totalBorrowed} {viewingLoan.asset?.unit || "units"}</div>
+                    </div>
+                    <div className="border-l border-slate-200">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase">Returned</div>
+                      <div className="text-base font-black text-emerald-600">{returnedCount}</div>
+                    </div>
+                    <div className="border-l border-slate-200">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase">Remaining</div>
+                      <div className="text-base font-black text-amber-600">{remainingCount}</div>
+                    </div>
+                    <div className="border-l border-slate-200">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase">Damaged</div>
+                      <div className={`text-base font-black ${damagedCount > 0 ? "text-rose-600" : "text-slate-400"}`}>
+                        {damagedCount}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px] font-bold">
+                      <span className="text-slate-500">Return Progress</span>
+                      <span className="text-slate-700">{percentReturned}% ({returnedCount}/{totalBorrowed})</span>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className={`h-full transition-all ${percentReturned === 100 ? "bg-emerald-500" : "bg-blue-600"}`}
+                        style={{ width: `${percentReturned}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* SECTION 2: BORROWER & DESTINATION */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Borrower Card */}
+                  <div className="border border-slate-200/80 rounded-2xl p-4 bg-white space-y-2 text-xs">
+                    <div className="flex items-center gap-1.5 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                      <User className="w-3.5 h-3.5" />
+                      Borrower Information
+                    </div>
+                    <div>
+                      <span className="text-sm font-black text-slate-900 block">
+                        {viewingLoan.borrowerName}
+                      </span>
+                      {viewingLoan.borrowerStaffId && (
+                        <span className="text-[11px] font-mono text-slate-500 block">
+                          Staff ID: {viewingLoan.borrowerStaffId}
+                        </span>
+                      )}
+                      <span className="text-slate-600 block mt-1">
+                        Department: <strong>{viewingLoan.borrowerDepartment || "Staff"}</strong>
+                      </span>
+                      {viewingLoan.borrowerContact && (
+                        <div className="flex items-center gap-1 text-blue-600 mt-1 font-semibold">
+                          <Phone className="w-3 h-3 shrink-0" />
+                          <a href={`tel:${viewingLoan.borrowerContact}`} className="hover:underline">
+                            {viewingLoan.borrowerContact}
+                          </a>
+                        </div>
+                      )}
+                      {viewingLoan.borrowerEmail && (
+                        <div className="flex items-center gap-1 text-slate-600 mt-0.5">
+                          <Mail className="w-3 h-3 shrink-0 text-slate-400" />
+                          <a href={`mailto:${viewingLoan.borrowerEmail}`} className="hover:underline text-[11px]">
+                            {viewingLoan.borrowerEmail}
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Destination & Purpose Card */}
+                  <div className="border border-slate-200/80 rounded-2xl p-4 bg-white space-y-2 text-xs">
+                    <div className="flex items-center gap-1.5 text-blue-600 font-bold uppercase tracking-wider text-[10px]">
+                      <MapPin className="w-3.5 h-3.5" />
+                      Where Brought To / Purpose
+                    </div>
+                    <div>
+                      <span className="text-sm font-black text-slate-900 block">
+                        {viewingLoan.destination}
+                      </span>
+                      {viewingLoan.purpose && (
+                        <div className="mt-1.5">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Purpose:</span>
+                          <p className="text-slate-600 font-medium leading-relaxed">{viewingLoan.purpose}</p>
+                        </div>
+                      )}
+                      {viewingLoan.remarks && (
+                        <div className="mt-1.5">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Remarks:</span>
+                          <p className="text-slate-500 italic">{viewingLoan.remarks}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* SECTION 3: LENDING TIMELINE & DATES */}
+                <div className="border border-slate-200/80 rounded-2xl p-4 bg-white space-y-3 text-xs">
+                  <div className="flex items-center gap-1.5 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                    <Clock className="w-3.5 h-3.5" />
+                    Lending Period &amp; Milestones
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Out Date &amp; Time</span>
+                      <span className="text-xs font-black text-slate-800 block mt-0.5">
+                        {new Date(viewingLoan.borrowDateTime).toLocaleString("en-MY", { dateStyle: "medium", timeStyle: "short" })}
+                      </span>
+                    </div>
+
+                    <div className={`p-3 rounded-xl border ${isPastDue ? "bg-rose-50 border-rose-200" : "bg-slate-50 border-slate-100"}`}>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Expected Return</span>
+                      <span className={`text-xs font-black block mt-0.5 ${isPastDue ? "text-rose-700" : "text-slate-800"}`}>
+                        {new Date(viewingLoan.expectedReturn).toLocaleString("en-MY", { dateStyle: "medium", timeStyle: "short" })}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Milestones / Approval info */}
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 flex-wrap gap-2">
+                    <div>
+                      {viewingLoan.approvedBy && (
+                        <span>
+                          Approved by <strong>{viewingLoan.approvedBy}</strong>
+                          {viewingLoan.approvedAt && ` on ${new Date(viewingLoan.approvedAt).toLocaleDateString("en-MY")}`}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      {viewingLoan.actualReturn && (
+                        <span className="text-emerald-700 font-medium">
+                          Completed on <strong>{new Date(viewingLoan.actualReturn).toLocaleDateString("en-MY")}</strong>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* SECTION 4: RETURN AUDIT TRAIL LOGS */}
+                <div className="border border-slate-200/80 rounded-2xl p-4 bg-white space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-slate-700 font-black uppercase tracking-wider text-xs">
+                      <History className="w-4 h-4 text-slate-400" />
+                      Check-in &amp; Return Logs ({viewingLoan.returnLogs?.length || 0})
+                    </div>
+                    {remainingCount > 0 && (viewingLoan.status === "LENT_OUT" || viewingLoan.status === "PARTIALLY_RETURNED") && (
+                      <span className="text-[11px] text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                        {remainingCount} unit(s) pending return
+                      </span>
+                    )}
+                  </div>
+
+                  {viewingLoan.returnLogs && viewingLoan.returnLogs.length > 0 ? (
+                    <div className="space-y-2">
+                      {viewingLoan.returnLogs.map((log, idx) => (
+                        <div
+                          key={log.id}
+                          className="p-3 rounded-xl border border-slate-100 bg-slate-50/70 text-xs space-y-1.5"
+                        >
+                          <div className="flex items-center justify-between flex-wrap gap-1">
+                            <span className="font-black text-slate-800">
+                              Batch #{viewingLoan.returnLogs!.length - idx}: {log.returnedQuantity} unit(s) returned
+                            </span>
+                            <span className="text-[10px] font-mono text-slate-400">
+                              {new Date(log.returnedAt).toLocaleString("en-MY", { dateStyle: "short", timeStyle: "short" })}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-3 text-[11px]">
+                            <span className="text-emerald-700 font-bold">
+                              ✓ Good: {log.goodQuantity}
+                            </span>
+                            {log.damagedQuantity > 0 && (
+                              <span className="text-rose-600 font-bold">
+                                ⚠ Damaged: {log.damagedQuantity} ({log.damageAction})
+                              </span>
+                            )}
+                            <span className="text-slate-400">
+                              • Returned by: <strong className="text-slate-700">{log.returnedBy}</strong>
+                            </span>
+                            {log.handlerName && (
+                              <span className="text-slate-400">
+                                • Handled by: <strong className="text-slate-700">{log.handlerName}</strong>
+                              </span>
+                            )}
+                          </div>
+
+                          {log.returnedNotes && (
+                            <p className="text-[11px] text-slate-600 bg-white p-2 rounded-lg border border-slate-100 italic mt-1">
+                              &ldquo;{log.returnedNotes}&rdquo;
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-4 text-center text-slate-400 text-xs">
+                      No return check-in records logged yet for this requisition.
+                    </div>
+                  )}
+                </div>
+
+                {/* MODAL FOOTER ACTIONS */}
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setViewingLoan(null)}
+                    className="py-2.5 px-4 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition"
+                  >
+                    Close
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    {/* If Pending Approval */}
+                    {viewingLoan.status === "PENDING" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const l = viewingLoan
+                            setViewingLoan(null)
+                            setRejectingLoan(l)
+                            setRejectionReason("")
+                          }}
+                          disabled={isSubmitting}
+                          className="py-2.5 px-4 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold hover:bg-rose-100 transition flex items-center gap-1.5"
+                        >
+                          <X className="w-3.5 h-3.5" /> Reject Request
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await handleApproveLoan(viewingLoan.id, false)
+                          }}
+                          disabled={isSubmitting}
+                          className="py-2.5 px-4 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition flex items-center gap-1.5 shadow-sm"
+                        >
+                          <Check className="w-3.5 h-3.5" /> Approve Request
+                        </button>
+                      </>
+                    )}
+
+                    {/* If Approved */}
+                    {viewingLoan.status === "APPROVED" && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await handleDispatchLoan(viewingLoan.id)
+                        }}
+                        disabled={isSubmitting}
+                        className="py-2.5 px-4 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition flex items-center gap-1.5 shadow-sm"
+                      >
+                        <ArrowRight className="w-3.5 h-3.5" /> Mark as Lent Out
+                      </button>
+                    )}
+
+                    {/* If Lent Out or Partially Returned */}
+                    {(viewingLoan.status === "LENT_OUT" || viewingLoan.status === "PARTIALLY_RETURNED") && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const l = viewingLoan
+                          setViewingLoan(null)
+                          openReturnModal(l)
+                        }}
+                        disabled={isSubmitting}
+                        className="py-2.5 px-4 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition flex items-center gap-1.5 shadow-sm"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        {viewingLoan.status === "PARTIALLY_RETURNED" ? "Check-in Remaining Items" : "Check-in / Return Asset"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
 
       </div>
     </div>

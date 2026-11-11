@@ -1515,6 +1515,28 @@ model MarketingAssetLoan {
   department         String?        @default("MARKETING")
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
+
+  returnedQuantity   Int            @default(0)
+  damagedQuantity    Int            @default(0)
+  returnLogs         MarketingAssetReturnLog[]
+}
+
+model MarketingAssetReturnLog {
+  id                 String              @id @default(uuid())
+  loanId             String
+  loan               MarketingAssetLoan  @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  returnedQuantity   Int                 @default(1)
+  goodQuantity       Int                 @default(1)
+  damagedQuantity    Int                 @default(0)
+  damageAction       String?             // REPAIR, DISPOSE, NONE
+  conditionOnReturn  String?             @default("Good")
+  returnedBy         String
+  returnedNotes      String?
+  handlerName        String?
+  returnedAt         DateTime            @default(now())
+  createdAt          DateTime            @default(now())
+
+  @@index([loanId])
 }
 
 

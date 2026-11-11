@@ -11,7 +11,7 @@ import {
   Trash2, Edit3, Eye, Filter, RefreshCw, Send, Check, 
   RotateCcw, Info, Sparkles, Building, Phone, FileText,
   Monitor, Sofa, Utensils, AlertCircle, X, ShieldAlert,
-  Upload, Image as ImageIcon, QrCode, Camera
+  Upload, Image as ImageIcon, QrCode, Camera, History
 } from "lucide-react"
 import { 
   addMarketingAsset, 
@@ -44,12 +44,28 @@ type Asset = {
   loans?: Loan[]
 }
 
+type ReturnLog = {
+  id: string
+  loanId: string
+  returnedQuantity: number
+  goodQuantity: number
+  damagedQuantity: number
+  damageAction?: string | null
+  conditionOnReturn?: string | null
+  returnedBy: string
+  returnedNotes?: string | null
+  handlerName?: string | null
+  returnedAt: Date | string
+}
+
 type Loan = {
   id: string
   loanNumber: string
   assetId: string
   asset: Asset
   quantity: number
+  returnedQuantity?: number
+  damagedQuantity?: number
   borrowerName: string
   borrowerStaffId?: string | null
   borrowerDepartment?: string | null
@@ -69,6 +85,7 @@ type Loan = {
   conditionOnReturn?: string | null
   remarks?: string | null
   createdAt: Date | string
+  returnLogs?: ReturnLog[]
 }
 
 type Props = {
@@ -230,9 +247,25 @@ export function MarketingAssetsClient({
 
   // 5. Return Asset Modal
   const [returningLoan, setReturningLoan] = useState<Loan | null>(null)
+  const [returnQuantity, setReturnQuantity] = useState<number>(1)
+  const [goodQuantity, setGoodQuantity] = useState<number>(1)
+  const [damagedQuantity, setDamagedQuantity] = useState<number>(0)
+  const [damageAction, setDamageAction] = useState<"REPAIR" | "DISPOSE">("REPAIR")
   const [returnCondition, setReturnCondition] = useState("Good")
   const [returnedByPerson, setReturnedByPerson] = useState("")
   const [returnNotes, setReturnNotes] = useState("")
+
+  const openReturnModal = (loan: Loan) => {
+    const remaining = Math.max(1, loan.quantity - (loan.returnedQuantity || 0))
+    setReturningLoan(loan)
+    setReturnedByPerson(loan.borrowerName)
+    setReturnQuantity(remaining)
+    setGoodQuantity(remaining)
+    setDamagedQuantity(0)
+    setDamageAction("REPAIR")
+    setReturnCondition("Good")
+    setReturnNotes("")
+  }
 
   // 6. Asset Loan History Modal
   const [historyAsset, setHistoryAsset] = useState<Asset | null>(null)
@@ -240,13 +273,13 @@ export function MarketingAssetsClient({
   // Quick stats calculation
   const totalAssetsCount = assets.reduce((sum, a) => sum + a.totalQuantity, 0)
   const lentAssetsCount = loans
-    .filter((l) => l.status === "LENT_OUT" || l.status === "APPROVED")
-    .reduce((sum, l) => sum + l.quantity, 0)
+    .filter((l) => l.status === "LENT_OUT" || l.status === "APPROVED" || l.status === "PARTIALLY_RETURNED")
+    .reduce((sum, l) => sum + Math.max(0, l.quantity - (l.returnedQuantity || 0)), 0)
   const pendingRequestsCount = loans.filter((l) => l.status === "PENDING").length
 
   const now = new Date()
   const overdueLoans = loans.filter((l) => {
-    if (l.status !== "LENT_OUT" && l.status !== "APPROVED") return false
+    if (l.status !== "LENT_OUT" && l.status !== "APPROVED" && l.status !== "PARTIALLY_RETURNED") return false
     return new Date(l.expectedReturn) < now
   })
   const overdueCount = overdueLoans.length
@@ -533,6 +566,10 @@ export function MarketingAssetsClient({
     try {
       const res = await returnMarketingAssetLoan(returningLoan.id, {
         returnedBy: returnedByPerson || returningLoan.borrowerName,
+        returnQuantity,
+        goodQuantity,
+        damagedQuantity,
+        damageAction,
         conditionOnReturn: returnCondition,
         returnedNotes: returnNotes,
       })
@@ -541,22 +578,45 @@ export function MarketingAssetsClient({
         setErrorMsg(res.error || "Failed to mark as returned.")
       } else {
         setLoans((prev) => prev.map((l) => (l.id === returningLoan.id ? { ...l, ...res.data } : l)))
-        // Restock asset locally
+        // Update asset stock locally
         setAssets((prev) =>
-          prev.map((a) =>
-            a.id === returningLoan.assetId
-              ? {
-                  ...a,
-                  availableQuantity: Math.min(a.totalQuantity, a.availableQuantity + returningLoan.quantity),
-                  condition: returnCondition,
-                }
-              : a
-          )
+          prev.map((a) => {
+            if (a.id !== returningLoan.assetId) return a
+            const newAvailable = Math.min(
+              a.totalQuantity,
+              a.availableQuantity + goodQuantity
+            )
+            const newTotal =
+              damageAction === "DISPOSE" && damagedQuantity > 0
+                ? Math.max(0, a.totalQuantity - damagedQuantity)
+                : a.totalQuantity
+            const newCondition =
+              damagedQuantity > 0 && damageAction === "REPAIR"
+                ? "Under Repair"
+                : a.condition
+
+            return {
+              ...a,
+              availableQuantity: newAvailable,
+              totalQuantity: newTotal,
+              condition: newCondition,
+            }
+          })
         )
-        setSuccessMsg(`Asset returned and checked in successfully.`)
+
+        const isComplete = (returningLoan.returnedQuantity || 0) + returnQuantity >= returningLoan.quantity
+        setSuccessMsg(
+          isComplete
+            ? `Asset loan ${returningLoan.loanNumber} marked as fully returned.`
+            : `Partial return recorded (${returnQuantity} units). Remaining: ${returningLoan.quantity - ((returningLoan.returnedQuantity || 0) + returnQuantity)}.`
+        )
         setReturningLoan(null)
         setReturnedByPerson("")
         setReturnNotes("")
+        setReturnQuantity(1)
+        setGoodQuantity(1)
+        setDamagedQuantity(0)
+        setDamageAction("REPAIR")
       }
     } catch (err: any) {
       setErrorMsg(err.message || "An error occurred.")
@@ -578,7 +638,10 @@ export function MarketingAssetsClient({
   const filteredLoans = loans.filter((loan) => {
     if (loanStatusFilter === "ALL") return true
     if (loanStatusFilter === "OVERDUE") {
-      return (loan.status === "LENT_OUT" || loan.status === "APPROVED") && new Date(loan.expectedReturn) < now
+      return (
+        (loan.status === "LENT_OUT" || loan.status === "APPROVED" || loan.status === "PARTIALLY_RETURNED") &&
+        new Date(loan.expectedReturn) < now
+      )
     }
     return loan.status === loanStatusFilter
   })
@@ -594,7 +657,7 @@ export function MarketingAssetsClient({
   )
 
   const activeTrackingLoans = loans.filter((loan) => {
-    const isActive = loan.status === "LENT_OUT" || loan.status === "APPROVED"
+    const isActive = loan.status === "LENT_OUT" || loan.status === "APPROVED" || loan.status === "PARTIALLY_RETURNED"
     if (!isActive) return false
     const matchesSearch =
       loan.destination.toLowerCase().includes(trackingSearch.toLowerCase()) ||
@@ -802,7 +865,7 @@ export function MarketingAssetsClient({
             {/* Filter pills */}
             <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-2 overflow-x-auto">
-                {["ALL", "PENDING", "APPROVED", "LENT_OUT", "RETURNED", "OVERDUE", "REJECTED"].map((st) => (
+                {["ALL", "PENDING", "APPROVED", "LENT_OUT", "PARTIALLY_RETURNED", "RETURNED", "OVERDUE", "REJECTED"].map((st) => (
                   <button
                     key={st}
                     onClick={() => {
@@ -815,7 +878,7 @@ export function MarketingAssetsClient({
                         : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                     }`}
                   >
-                    {st === "ALL" ? "ALL REQUESTS" : st.replace("_", " ")}
+                    {st === "ALL" ? "ALL REQUESTS" : st === "PARTIALLY_RETURNED" ? "PARTIAL RETURN" : st.replace("_", " ")}
                   </button>
                 ))}
               </div>
@@ -880,7 +943,18 @@ export function MarketingAssetsClient({
                                   {loan.asset?.name || "Asset"}
                                 </span>
                                 <span className="text-[10px] font-bold text-slate-400">
-                                  Qty: {loan.quantity} {loan.asset?.unit || "units"} • {loan.asset?.category}
+                                  Qty: {loan.quantity} {loan.asset?.unit || "units"}
+                                  {(loan.returnedQuantity || 0) > 0 && (
+                                    <span className="text-emerald-600 font-bold ml-1.5">
+                                      ({loan.returnedQuantity}/{loan.quantity} returned)
+                                    </span>
+                                  )}
+                                  {loan.damagedQuantity && loan.damagedQuantity > 0 ? (
+                                    <span className="text-rose-500 font-bold ml-1">
+                                      • {loan.damagedQuantity} damaged
+                                    </span>
+                                  ) : null}
+                                  {" "}• {loan.asset?.category}
                                 </span>
                               </div>
                             </div>
@@ -943,6 +1017,16 @@ export function MarketingAssetsClient({
                                 <AlertTriangle className="w-3 h-3" /> Overdue
                               </span>
                             )}
+                            {loan.status === "PARTIALLY_RETURNED" && !isPastDue && (
+                              <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1">
+                                <RotateCcw className="w-3 h-3" /> Partial ({loan.returnedQuantity || 0}/{loan.quantity})
+                              </span>
+                            )}
+                            {loan.status === "PARTIALLY_RETURNED" && isPastDue && (
+                              <span className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1 animate-pulse">
+                                <AlertTriangle className="w-3 h-3" /> Overdue ({loan.returnedQuantity || 0}/{loan.quantity})
+                              </span>
+                            )}
                             {loan.status === "RETURNED" && (
                               <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1">
                                 <CheckCircle2 className="w-3 h-3" /> Returned
@@ -993,19 +1077,15 @@ export function MarketingAssetsClient({
                                 </button>
                               )}
 
-                              {/* Lent Out -> Mark Returned */}
-                              {(loan.status === "LENT_OUT" || loan.status === "APPROVED") && (
+                              {/* Lent Out or Partially Returned -> Mark Returned */}
+                              {(loan.status === "LENT_OUT" || loan.status === "APPROVED" || loan.status === "PARTIALLY_RETURNED") && (
                                 <button
-                                  onClick={() => {
-                                    setReturningLoan(loan)
-                                    setReturnedByPerson(loan.borrowerName)
-                                    setReturnCondition(loan.asset?.condition || "Good")
-                                    setReturnNotes("")
-                                  }}
+                                  onClick={() => openReturnModal(loan)}
                                   disabled={isSubmitting}
                                   className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs transition"
                                 >
-                                  <RotateCcw className="w-3.5 h-3.5" /> Mark Returned
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                  {loan.status === "PARTIALLY_RETURNED" ? "Check-in Remaining" : "Mark Returned"}
                                 </button>
                               )}
 
@@ -1016,9 +1096,16 @@ export function MarketingAssetsClient({
                               )}
 
                               {loan.status === "RETURNED" && (
-                                <span className="text-[10px] text-emerald-600 font-medium">
-                                  Checked in on {loan.actualReturn ? new Date(loan.actualReturn).toLocaleDateString("en-MY") : "Yes"}
-                                </span>
+                                <div className="text-right">
+                                  <span className="text-[10px] text-emerald-600 font-medium block">
+                                    Checked in on {loan.actualReturn ? new Date(loan.actualReturn).toLocaleDateString("en-MY") : "Yes"}
+                                  </span>
+                                  {loan.damagedQuantity && loan.damagedQuantity > 0 ? (
+                                    <span className="text-[9px] text-rose-500 font-bold block">
+                                      {loan.damagedQuantity} damaged
+                                    </span>
+                                  ) : null}
+                                </div>
                               )}
                             </div>
                           </td>
@@ -1164,16 +1251,13 @@ export function MarketingAssetsClient({
 
                     {/* Action */}
                     <button
-                      onClick={() => {
-                        setReturningLoan(loan)
-                        setReturnedByPerson(loan.borrowerName)
-                        setReturnCondition(loan.asset?.condition || "Good")
-                        setReturnNotes("")
-                      }}
+                      onClick={() => openReturnModal(loan)}
                       className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-blue-600 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
-                      Check-in / Mark as Returned
+                      {loan.status === "PARTIALLY_RETURNED"
+                        ? `Check-in Remaining (${loan.quantity - (loan.returnedQuantity || 0)} left)`
+                        : "Check-in / Mark as Returned"}
                     </button>
                   </div>
                 )
@@ -1978,74 +2062,259 @@ export function MarketingAssetsClient({
         )}
 
         {/* MODAL 5: RETURN ASSET CHECK-IN */}
-        {returningLoan && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                  <RotateCcw className="w-5 h-5" />
+        {returningLoan && (() => {
+          const totalBorrowed = returningLoan.quantity
+          const alreadyReturned = returningLoan.returnedQuantity || 0
+          const remainingQty = Math.max(0, totalBorrowed - alreadyReturned)
+
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+              <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                    <RotateCcw className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">Check-in Returned Asset</h3>
+                    <p className="text-xs text-slate-500 font-mono">{returningLoan.loanNumber} • {returningLoan.asset?.name}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-base font-black text-slate-900">Check-in Returned Asset</h3>
-                  <p className="text-xs text-slate-500 font-mono">{returningLoan.loanNumber} • {returningLoan.asset?.name}</p>
+
+                {/* Progress / Quantity Summary */}
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 mb-4 grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase">Total Borrowed</div>
+                    <div className="text-sm font-black text-slate-800">{totalBorrowed} {returningLoan.asset?.unit || "units"}</div>
+                  </div>
+                  <div className="border-x border-slate-200">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase">Already Returned</div>
+                    <div className="text-sm font-black text-emerald-600">{alreadyReturned}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase">Remaining</div>
+                    <div className="text-sm font-black text-amber-600">{remainingQty}</div>
+                  </div>
                 </div>
+
+                <form onSubmit={handleReturnLoan} className="space-y-4">
+                  {/* Quantity to return now */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-700">Quantity Returning in this Batch</label>
+                      <span className="text-[11px] text-slate-400 font-medium">Max {remainingQty}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        max={remainingQty}
+                        value={returnQuantity}
+                        onChange={(e) => {
+                          const val = Math.min(remainingQty, Math.max(1, parseInt(e.target.value) || 1))
+                          setReturnQuantity(val)
+                          setGoodQuantity(val)
+                          setDamagedQuantity(0)
+                        }}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                      />
+                      {returnQuantity < remainingQty ? (
+                        <span className="px-2.5 py-2 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold whitespace-nowrap">
+                          Partial Return ({remainingQty - returnQuantity} left)
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold whitespace-nowrap">
+                          Full Return
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Condition Breakdown */}
+                  <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-3.5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-700">Batch Condition Breakdown</span>
+                      <span className="text-[11px] font-semibold text-slate-400">Sum must be {returnQuantity}</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-emerald-700 flex items-center gap-1 mb-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Good / Usable
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={returnQuantity}
+                          value={goodQuantity}
+                          onChange={(e) => {
+                            const good = Math.min(returnQuantity, Math.max(0, parseInt(e.target.value) || 0))
+                            setGoodQuantity(good)
+                            setDamagedQuantity(returnQuantity - good)
+                          }}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold text-emerald-800 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                        />
+                        <span className="text-[9px] text-slate-400 block mt-0.5">Restocked to available stock</span>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-rose-700 flex items-center gap-1 mb-1">
+                          <AlertTriangle className="w-3.5 h-3.5" /> Damaged / Broken
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={returnQuantity}
+                          value={damagedQuantity}
+                          onChange={(e) => {
+                            const dmg = Math.min(returnQuantity, Math.max(0, parseInt(e.target.value) || 0))
+                            setDamagedQuantity(dmg)
+                            setGoodQuantity(returnQuantity - dmg)
+                          }}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold text-rose-800 bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                        />
+                        <span className="text-[9px] text-slate-400 block mt-0.5">Kept out of available stock</span>
+                      </div>
+                    </div>
+
+                    {/* Action for Damaged Units */}
+                    {damagedQuantity > 0 && (
+                      <div className="pt-2.5 border-t border-slate-200 animate-in fade-in">
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1.5">
+                          Action for {damagedQuantity} Damaged Unit{damagedQuantity > 1 ? "s" : ""}
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <label
+                            className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs cursor-pointer transition ${
+                              damageAction === "REPAIR"
+                                ? "bg-amber-50 border-amber-300 text-amber-900 font-bold"
+                                : "bg-white border-slate-200 text-slate-600"
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="damageAction"
+                              value="REPAIR"
+                              checked={damageAction === "REPAIR"}
+                              onChange={() => setDamageAction("REPAIR")}
+                              className="text-amber-600 focus:ring-amber-500"
+                            />
+                            <div>
+                              <div className="leading-tight">Under Repair</div>
+                              <div className="text-[9px] text-slate-400 font-normal">Quarantine for maintenance</div>
+                            </div>
+                          </label>
+
+                          <label
+                            className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs cursor-pointer transition ${
+                              damageAction === "DISPOSE"
+                                ? "bg-rose-50 border-rose-300 text-rose-900 font-bold"
+                                : "bg-white border-slate-200 text-slate-600"
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="damageAction"
+                              value="DISPOSE"
+                              checked={damageAction === "DISPOSE"}
+                              onChange={() => setDamageAction("DISPOSE")}
+                              className="text-rose-600 focus:ring-rose-500"
+                            />
+                            <div>
+                              <div className="leading-tight">Write-Off / Scrap</div>
+                              <div className="text-[9px] text-slate-400 font-normal">Deduct from total registry</div>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">Returned By (Person)</label>
+                    <input
+                      type="text"
+                      required
+                      value={returnedByPerson}
+                      onChange={(e) => setReturnedByPerson(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Return Inspection Notes{" "}
+                      {damagedQuantity > 0 && <span className="text-rose-600 font-bold">(Specify damage details)</span>}
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder={
+                        damagedQuantity > 0
+                          ? "State what is damaged, cause, or repairs needed..."
+                          : "All parts returned, cables intact, cleaned..."
+                      }
+                      value={returnNotes}
+                      onChange={(e) => setReturnNotes(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Previous Return History (Audit Log) */}
+                  {returningLoan.returnLogs && returningLoan.returnLogs.length > 0 && (
+                    <div className="border border-slate-200 rounded-2xl p-3 bg-slate-50/60">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1">
+                        <History className="w-3.5 h-3.5 text-slate-400" />
+                        Previous Check-in History ({returningLoan.returnLogs.length})
+                      </div>
+                      <div className="max-h-28 overflow-y-auto space-y-1.5 pr-1 text-[11px]">
+                        {returningLoan.returnLogs.map((log) => (
+                          <div key={log.id} className="p-2 rounded-xl bg-white border border-slate-200/70 flex items-start justify-between">
+                            <div>
+                              <span className="font-bold text-slate-800">{log.returnedQuantity} units checked in</span>
+                              <span className="text-slate-400 ml-1.5">by {log.returnedBy}</span>
+                              {log.damagedQuantity > 0 && (
+                                <span className="text-rose-600 ml-1 font-bold">
+                                  ({log.damagedQuantity} damaged - {log.damageAction})
+                                </span>
+                              )}
+                              {log.returnedNotes && (
+                                <p className="text-[10px] text-slate-500 italic mt-0.5">{log.returnedNotes}</p>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-mono shrink-0 ml-2">
+                              {new Date(log.returnedAt).toLocaleDateString("en-MY")}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setReturningLoan(null)}
+                      className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 flex items-center justify-center gap-1.5 shadow-sm"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      {isSubmitting
+                        ? "Checking in..."
+                        : returnQuantity < remainingQty
+                        ? `Check-in ${returnQuantity} Units (Partial)`
+                        : `Check-in All ${returnQuantity} Units`}
+                    </button>
+                  </div>
+                </form>
               </div>
-
-              <form onSubmit={handleReturnLoan} className="space-y-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Returned By (Person)</label>
-                  <input
-                    type="text"
-                    value={returnedByPerson}
-                    onChange={(e) => setReturnedByPerson(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Asset Condition upon Return</label>
-                  <select
-                    value={returnCondition}
-                    onChange={(e) => setReturnCondition(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                  >
-                    <option value="Good">Good (No damage)</option>
-                    <option value="Fair">Fair (Minor wear &amp; tear)</option>
-                    <option value="Damaged">Damaged (Requires maintenance / repair)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Return Inspection Notes</label>
-                  <textarea
-                    rows={2}
-                    placeholder="All parts returned, cables intact, cleaned..."
-                    value={returnNotes}
-                    onChange={(e) => setReturnNotes(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setReturningLoan(null)}
-                    className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700"
-                  >
-                    {isSubmitting ? "Checking in..." : "Mark as Returned"}
-                  </button>
-                </div>
-              </form>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* MODAL 6: IMAGE LIGHTBOX / ZOOM MODAL */}
         {previewModalPhoto && (

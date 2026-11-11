@@ -8,7 +8,6 @@ export default async function SettingsPage() {
   if (!session) redirect("/login")
 
   const isSuperAdmin = session.user.role === "SUPERADMIN"
-  if (!isSuperAdmin) redirect("/dashboard")
 
   // Fetch current user details
   const user = await prisma.user.findUnique({ where: { id: session.user.id }, include: { unit: true } })
@@ -16,12 +15,14 @@ export default async function SettingsPage() {
 
   const isTrueSuperAdmin = user.role === "SUPERADMIN"
 
-  // Fetch global settings
+  // Fetch global settings (SuperAdmin only to prevent leaking sensitive API keys to non-admin client props)
   let settingsMap: Record<string, string> = {}
-  const settingsList = await prisma.setting.findMany()
-  settingsList.forEach(s => { settingsMap[s.key] = s.value })
+  if (isSuperAdmin) {
+    const settingsList = await prisma.setting.findMany()
+    settingsList.forEach(s => { settingsMap[s.key] = s.value })
+  }
 
-  // Fetch notices & units
+  // Fetch notices & units (SuperAdmin only)
   const notices = isSuperAdmin ? await prisma.notice.findMany({ orderBy: { createdAt: 'desc' } }) : []
   const units = isSuperAdmin ? await prisma.unit.findMany({ orderBy: { name: 'asc' } }) : []
 

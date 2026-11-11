@@ -6,6 +6,7 @@ import { auth } from "@/auth"
 import { logUserAction } from "./audit"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
 import { isSystemDo, isSystemTransfer, systemTransferSource, systemDoLockMessage } from "@/lib/warehouse/systemDo"
+import { isOtherLineLabel } from "@/lib/production/lineScope"
 
 // Module access must come from the DB, never from session.user.modules: the JWT
 // snapshots modules at login, so a freshly granted module stays invisible to the
@@ -17,6 +18,136 @@ async function hasTransferInHistoryAccess() {
 }
 
 const normTransferValue = (value: unknown) => String(value || "").trim().toUpperCase()
+
+const toMalaysiaDateStr = (d: Date) => {
+  const offsetDate = new Date(new Date(d).getTime() + 8 * 60 * 60 * 1000)
+  return offsetDate.toISOString().split("T")[0]
+}
+
+function resolveDailyReportTarget(
+  category: string,
+  batchNo: string
+): { sectionKey: string; matchesLine: (line: string) => boolean } | null {
+  const c = (category || "").trim().toUpperCase()
+  if (c.includes("BOTTLE")) {
+    if (c.includes("800")) return { sectionKey: "BOTTLE", matchesLine: (line) => line.includes("800") }
+    if (c.includes("425")) return { sectionKey: "BOTTLE", matchesLine: (line) => line.includes("425") }
+    return null
+  }
+  if (c.includes("CAP") && !c.includes("CARTON")) {
+    return { sectionKey: "CAP", matchesLine: () => true }
+  }
+  if (c.includes("LABEL")) {
+    return { sectionKey: "LABEL", matchesLine: (line) => !isOtherLineLabel(batchNo, line) }
+  }
+  const boxMatch = c.match(/^BOX\s*(\d+)X(\d+)$/)
+  if (boxMatch) {
+    const [, size, pack] = boxMatch
+    return { sectionKey: `BOX_p${size}_${pack}`, matchesLine: (line) => line.includes(size) }
+  }
+  return null
+}
+
+async function syncTransferInGroupToDailyReports(receiveDate: Date, shift: string, doNumber: string) {
+  const normalizedDo = normTransferValue(doNumber)
+  if (!normalizedDo) return
+
+  const dateStr = toMalaysiaDateStr(receiveDate)
+  const windowStart = new Date(`${dateStr}T00:00:00.000Z`)
+  windowStart.setUTCDate(windowStart.getUTCDate() - 1)
+  const windowEnd = new Date(`${dateStr}T23:59:59.999Z`)
+  windowEnd.setUTCDate(windowEnd.getUTCDate() + 1)
+
+  const [candidates, reports] = await Promise.all([
+    prisma.transferIn.findMany({
+      where: {
+        receiveDate: { gte: windowStart, lte: windowEnd },
+        shift,
+      },
+      include: { items: true },
+    }),
+    prisma.dailyReport.findMany({
+      where: {
+        date: { gte: windowStart, lte: windowEnd },
+        shift,
+        status: { in: ["DRAFT", "PENDING"] },
+      },
+      include: { inventory: true },
+    }),
+  ])
+
+  const matchingTransfers = candidates.filter(
+    (t) => toMalaysiaDateStr(t.receiveDate) === dateStr && normTransferValue(t.doNumber) === normalizedDo
+  )
+  const matchingReports = reports.filter((r) => toMalaysiaDateStr(r.date) === dateStr)
+  if (matchingReports.length === 0) return
+
+  const allItems = matchingTransfers.flatMap((t) =>
+    t.items.map((item) => ({
+      category: item.category,
+      batchNo: item.batchNo,
+      bags: Number(item.bags) || 0,
+      mult: Number(item.mult) || 1,
+      doNumber: t.doNumber,
+    }))
+  )
+
+  for (const report of matchingReports) {
+    const existingLogIdsToDelete = report.inventory
+      .filter((log) => log.type === "TransferIn" && normTransferValue(log.labelType) === normalizedDo)
+      .map((log) => log.id)
+
+    if (existingLogIdsToDelete.length > 0) {
+      await prisma.inventoryLog.deleteMany({
+        where: { id: { in: existingLogIdsToDelete } },
+      })
+    }
+
+    const logsToCreate: {
+      reportId: string
+      sectionKey: string
+      type: string
+      batchNo: string
+      bags: number
+      mult: number
+      labelType?: string | null
+    }[] = []
+
+    for (const item of allItems) {
+      if (item.bags <= 0) continue
+      const target = resolveDailyReportTarget(item.category, item.batchNo)
+      if (!target || !target.matchesLine(report.line)) continue
+      logsToCreate.push({
+        reportId: report.id,
+        sectionKey: target.sectionKey,
+        type: "TransferIn",
+        batchNo: item.batchNo,
+        bags: item.bags,
+        mult: item.mult,
+        labelType: item.doNumber,
+      })
+    }
+
+    const hasFlag = report.inventory.some((log) => log.type === "TransferInFlag")
+    if (!hasFlag && logsToCreate.length > 0) {
+      logsToCreate.push({
+        reportId: report.id,
+        sectionKey: "SYSTEM",
+        type: "TransferInFlag",
+        batchNo: "FLAG",
+        bags: 0,
+        mult: 0,
+      })
+    }
+
+    if (logsToCreate.length > 0) {
+      await prisma.inventoryLog.createMany({ data: logsToCreate })
+    }
+
+    revalidatePath(`/forms/production/daily-report/${report.id}`)
+    revalidatePath(`/forms/production/daily-report/${report.id}/edit`)
+  }
+}
 
 function transferItemSignature(items: any[]) {
   return (items || [])
@@ -86,6 +217,8 @@ export async function createTransferIn(data: any) {
       }
     })
 
+    await syncTransferInGroupToDailyReports(receiveDate, shift, data.doNumber)
+
     revalidatePath("/forms")
     revalidatePath("/forms/production/stock")
     revalidatePath("/forms/production/transfer-in")
@@ -154,6 +287,19 @@ export async function updateTransferIn(id: string, data: any) {
       }
     })
 
+    const oldDateStr = toMalaysiaDateStr(existing.receiveDate)
+    const newDateStr = toMalaysiaDateStr(updated.receiveDate)
+    const oldShift = existing.shift || "AM"
+    const newShift = updated.shift || "AM"
+    if (
+      oldDateStr !== newDateStr ||
+      oldShift !== newShift ||
+      normTransferValue(existing.doNumber) !== normTransferValue(updated.doNumber)
+    ) {
+      await syncTransferInGroupToDailyReports(existing.receiveDate, oldShift, existing.doNumber)
+    }
+    await syncTransferInGroupToDailyReports(updated.receiveDate, newShift, updated.doNumber)
+
     revalidatePath("/forms")
     revalidatePath("/forms/production/stock")
     revalidatePath("/forms/production/transfer-in")
@@ -188,6 +334,7 @@ export async function deleteTransferIn(id: string) {
     }
 
     await prisma.transferIn.delete({ where: { id } })
+    await syncTransferInGroupToDailyReports(existing.receiveDate, existing.shift || "AM", existing.doNumber)
     
     revalidatePath("/forms")
     revalidatePath("/forms/production/stock")
@@ -242,7 +389,7 @@ export async function bulkDeleteTransferIn(ids: string[]) {
   try {
     const existing = await prisma.transferIn.findMany({
       where: { id: { in: ids } },
-      select: { doNumber: true, receiverName: true, receiveDate: true }
+      select: { doNumber: true, receiverName: true, receiveDate: true, shift: true }
     })
 
     if (existing.length === 0) return { success: false, error: "No records found" }
@@ -260,6 +407,15 @@ export async function bulkDeleteTransferIn(ids: string[]) {
     }
 
     await prisma.transferIn.deleteMany({ where: { id: { in: ids } } })
+
+    const seenGroups = new Set<string>()
+    for (const e of existing) {
+      const groupKey = `${toMalaysiaDateStr(e.receiveDate)}|${e.shift || "AM"}|${normTransferValue(e.doNumber)}`
+      if (!seenGroups.has(groupKey)) {
+        seenGroups.add(groupKey)
+        await syncTransferInGroupToDailyReports(e.receiveDate, e.shift || "AM", e.doNumber)
+      }
+    }
     
     revalidatePath("/forms")
     revalidatePath("/forms/production/stock")
@@ -352,6 +508,7 @@ export async function deleteTransferInItem(batchNo: string, doNumber: string) {
     })
 
     await prisma.transferInItem.delete({ where: { id: item.id } })
+    await syncTransferInGroupToDailyReports(transferIn.receiveDate, transferIn.shift || "AM", transferIn.doNumber)
     
     revalidatePath("/forms")
     revalidatePath("/forms/production/stock")
@@ -406,6 +563,7 @@ export async function bulkDeleteTransferInItems(items: { batchNo: string, doNumb
   try {
     let deletedCount = 0;
     const affectedDates: Date[] = []
+    const affectedGroups = new Map<string, { receiveDate: Date; shift: string; doNumber: string }>()
 
     for (const { batchNo, doNumber } of items) {
       if (!doNumber) continue;
@@ -421,7 +579,19 @@ export async function bulkDeleteTransferInItems(items: { batchNo: string, doNumb
       if (item) {
         await prisma.transferInItem.delete({ where: { id: item.id } })
         deletedCount++;
+        const groupKey = `${toMalaysiaDateStr(transferIn.receiveDate)}|${transferIn.shift || "AM"}|${normTransferValue(transferIn.doNumber)}`
+        if (!affectedGroups.has(groupKey)) {
+          affectedGroups.set(groupKey, {
+            receiveDate: transferIn.receiveDate,
+            shift: transferIn.shift || "AM",
+            doNumber: transferIn.doNumber,
+          })
+        }
       }
+    }
+
+    for (const g of affectedGroups.values()) {
+      await syncTransferInGroupToDailyReports(g.receiveDate, g.shift, g.doNumber)
     }
     
     // Find all reports affected by these deletions

@@ -1,7 +1,7 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
-import { getAccessInfo, canAccessMarketingEvents, canEditMarketingEvents } from "@/lib/access"
+import { getAccessInfo, canAccessMarketingEvents, canEditMarketingEvents, canSetMarketingEventBudget } from "@/lib/access"
 import { MarketingEventsClient, EventRequisitionItem } from "./MarketingEventsClient"
 import { MarketingNavTabs } from "@/components/marketing/MarketingNavTabs"
 
@@ -78,11 +78,17 @@ export default async function MarketingEventsPage() {
   }
 
   const canEdit = canEditMarketingEvents(access)
+  const canSetBudget = canSetMarketingEventBudget(access)
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       <MarketingNavTabs userModules={access.modules} isSuperAdmin={access.isSuperAdmin} />
-      <MarketingEventsClient initialRequisitions={requisitions} user={session.user} canEdit={canEdit} />
+      <MarketingEventsClient
+        initialRequisitions={requisitions}
+        user={session.user}
+        canEdit={canEdit}
+        canSetBudget={canSetBudget}
+      />
     </div>
   )
 }

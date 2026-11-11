@@ -51,6 +51,7 @@ import {
   GalleryImageItem
 } from "@/app/actions/marketing-feedback"
 import { QRCodeCanvas } from "qrcode.react"
+import { PostEventReportModal } from "@/components/marketing/PostEventReportModal"
 
 export interface EventRequisitionItem {
   id: string
@@ -83,8 +84,10 @@ interface MarketingEventsClientProps {
     id?: string
     name?: string | null
     email?: string | null
+    role?: string | null
   }
   canEdit?: boolean
+  canSetBudget?: boolean
 }
 
 function formatDateDisplay(d: Date | string | null | undefined): string {
@@ -184,7 +187,7 @@ async function compressImageForUpload(file: File, maxDim = 1600, quality = 0.82)
   })
 }
 
-export function MarketingEventsClient({ initialRequisitions, user, canEdit = false }: MarketingEventsClientProps) {
+export function MarketingEventsClient({ initialRequisitions, user, canEdit = false, canSetBudget = false }: MarketingEventsClientProps) {
   const [requisitions, setRequisitions] = useState<EventRequisitionItem[]>(initialRequisitions)
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("ALL")
   const [searchTerm, setSearchTerm] = useState("")
@@ -219,6 +222,7 @@ export function MarketingEventsClient({ initialRequisitions, user, canEdit = fal
 
   // Feedback & Gallery Manager Modal State
   const [feedbackModalItem, setFeedbackModalItem] = useState<EventRequisitionItem | null>(null)
+  const [postEventReportItem, setPostEventReportItem] = useState<EventRequisitionItem | null>(null)
   const [activeFeedbackTab, setActiveFeedbackTab] = useState<"FEEDBACK" | "GALLERY">("FEEDBACK")
   const [feedbackStats, setFeedbackStats] = useState<FeedbackSummaryStats | null>(null)
   const [loadingFeedbackStats, setLoadingFeedbackStats] = useState(false)
@@ -848,6 +852,20 @@ export function MarketingEventsClient({ initialRequisitions, user, canEdit = fal
                               <span className="hidden sm:inline">QR Code</span>
                             </button>
 
+                            {/* Post-Event Report Hub Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setPostEventReportItem(item)
+                              }}
+                              className="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-900 font-bold text-xs uppercase tracking-wider transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                              title="Post-Event Report Hub (ISO BOMSB-MKT-A-850-001-QR05)"
+                            >
+                              <FileText className="w-3.5 h-3.5 text-teal-700" />
+                              <span className="hidden sm:inline">Post-Event</span>
+                            </button>
+
                             {/* 2. Feedback & Gallery Button */}
                             <button
                               type="button"
@@ -1021,6 +1039,21 @@ export function MarketingEventsClient({ initialRequisitions, user, canEdit = fal
             </div>
           </div>
         </div>
+      )}
+
+      {/* Post-Event Report Hub Modal */}
+      {postEventReportItem && (
+        <PostEventReportModal
+          key={postEventReportItem.id}
+          isOpen={!!postEventReportItem}
+          onClose={() => setPostEventReportItem(null)}
+          requisitionId={postEventReportItem.id}
+          eventName={postEventReportItem.eventName}
+          currentUserRole={user?.role || "STAFF"}
+          currentUserName={user?.name || "Staff"}
+          canEdit={canEdit}
+          canSetBudget={canSetBudget}
+        />
       )}
 
       {/* ========================================================================= */}
@@ -1472,6 +1505,16 @@ export function MarketingEventsClient({ initialRequisitions, user, canEdit = fal
 
                     <button
                       type="button"
+                      onClick={() => setPostEventReportItem(selectedItem)}
+                      className="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+                      title="Open ISO Post-Event Report Hub"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Post-Event Report Hub</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => handleOpenFeedbackModal(selectedItem)}
                       className="px-3.5 py-2 rounded-xl bg-white hover:bg-teal-100/70 border border-teal-300 text-teal-900 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
                     >
@@ -1743,15 +1786,25 @@ export function MarketingEventsClient({ initialRequisitions, user, canEdit = fal
                 )}
 
                 {selectedItem.status === "APPROVED" && (
-                  <a
-                    href={`/api/marketing/events/${selectedItem.id}/report/pdf`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider transition shadow-sm cursor-pointer flex items-center gap-1.5"
-                  >
-                    <FileDown className="w-3.5 h-3.5 text-teal-300" />
-                    <span>Download Report</span>
-                  </a>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setPostEventReportItem(selectedItem)}
+                      className="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs uppercase tracking-wider transition shadow-sm cursor-pointer flex items-center gap-1.5"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Post-Event Report</span>
+                    </button>
+                    <a
+                      href={`/api/marketing/events/${selectedItem.id}/report/pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider transition shadow-sm cursor-pointer flex items-center gap-1.5"
+                    >
+                      <FileDown className="w-3.5 h-3.5 text-teal-300" />
+                      <span>Download Report</span>
+                    </a>
+                  </>
                 )}
               </div>
             </div>

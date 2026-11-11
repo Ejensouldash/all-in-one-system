@@ -1,6 +1,7 @@
 "use server"
 
 import { google } from "googleapis"
+import { auth } from "@/auth"
 
 const credentialsJsonStr = process.env.GDRIVE_CREDENTIALS_JSON || ""
 const folderId = process.env.GDRIVE_FOLDER_ID || ""
@@ -26,6 +27,11 @@ function getDriveClient() {
 }
 
 export async function getSystemBackups() {
+  const session = await auth()
+  if (session?.user?.role !== "SUPERADMIN") {
+    return { success: false, error: "Unauthorized" }
+  }
+
   try {
     const drive = getDriveClient()
 
@@ -52,6 +58,11 @@ export async function getSystemBackups() {
 }
 
 export async function getBackupDownloadUrl(fileId: string) {
+  const session = await auth()
+  if (session?.user?.role !== "SUPERADMIN") {
+    return { success: false, error: "Unauthorized" }
+  }
+
   try {
     // We cannot generate a signed URL for Google Drive easily without making it public.
     // Instead, we return a URL to our own internal API route which will securely stream the file.

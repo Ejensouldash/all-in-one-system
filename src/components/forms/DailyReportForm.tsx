@@ -115,9 +115,12 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             const todayStr = new Date().toISOString().split('T')[0]
             if (parsed.date && parsed.date !== todayStr) {
               parsed.date = todayStr
+              parsed.syncedDOs = []
             }
             reset(parsed)
-            if (parsed.syncedDOs) setSyncedDOs(parsed.syncedDOs)
+            if (Array.isArray(parsed.syncedDOs) && parsed.syncedDOs.length > 0) {
+              setSyncedDOs(parsed.syncedDOs)
+            }
           }
         } catch (e) {
           console.error("Failed to parse draft", e)
@@ -165,6 +168,25 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
   const watchDate = watch("date")
   const watchShift = watch("shift")
 
+  const activeLineKey: "800" | "425" = (watchLine || "").includes("425") ? "425" : "800"
+  const isAvailableForActiveLine = (d: any) => {
+    if (String(d?.id || "").startsWith("explicit-")) return true
+    if (Array.isArray(d?.claimedLines) && d.claimedLines.includes(activeLineKey)) return false
+    return true
+  }
+
+  const doItemMatchKey = (d: any) => {
+    const c = String(d?.category || "").trim().toUpperCase()
+    const sec = c.includes("BOTTLE") ? "BOTTLE"
+      : (c.includes("CAP") && !c.includes("CARTON")) ? "CAP"
+      : c.includes("LABEL") ? "LABEL"
+      : c
+    const batch = String(d?.batchNo || "").trim().toUpperCase()
+    const mult = Number(d?.mult) || 1
+    const doNum = String(d?.doNumber || "").trim().toUpperCase()
+    return `${sec}|${batch}|${mult}|${doNum}`
+  }
+
   // Shift is a hard boundary: only DOs received for this report's date/shift are selectable.
   const selectableDOs = allTodayDOs
 
@@ -179,8 +201,20 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
       if (res.success) {
         setAllTodayDOs(res.data.todayDOs)
 
-        if (isInitialMount.current && ((initialData?.syncedDOs !== undefined) || (localStorage.getItem("dailyReportDraft") && JSON.parse(localStorage.getItem("dailyReportDraft")!).syncedDOs))) {
-          // Do not overwrite syncedDOs if we just loaded them from draft or edit
+        if (isInitialMount.current && initialData?.syncedDOs !== undefined) {
+          // Editing an existing report: preserve its saved syncedDOs (server-side sync already
+          // updates DRAFT/PENDING InventoryLog rows when new TransferIns are created)
+          if (initialData.syncedDOs.length === 0 && res.data.todayDOs.length > 0) {
+            setSyncedDOs(res.data.todayDOs)
+          }
+        } else if (isInitialMount.current) {
+          // New report: merge any non-empty draft syncedDOs with fresh todayDOs from the database
+          setSyncedDOs(prev => {
+            if (!Array.isArray(prev) || prev.length === 0) return res.data.todayDOs
+            const existingKeys = new Set(prev.map(doItemMatchKey))
+            const additions = res.data.todayDOs.filter((d: any) => !existingKeys.has(doItemMatchKey(d)))
+            return additions.length > 0 ? [...prev, ...additions] : prev
+          })
         } else {
           setSyncedDOs(res.data.todayDOs)
         }
@@ -261,7 +295,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
   const prepareReportPayload = (data: any, isDraft = false) => {
     const formattedData = JSON.parse(JSON.stringify(data));
     formattedData.time = `${data.timeFrom || ""} - ${data.timeTo || ""}`;
-    formattedData.syncedDOs = syncedDOs;
+    formattedData.syncedDOs = syncedDOs.filter(isAvailableForActiveLine);
     if (isDraft) formattedData.isDraft = true;
 
     if (formattedData.noRejects) {
@@ -675,8 +709,8 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             control={control} register={register} watch={watch} setValue={setValue} line={watchLine}
             availableCarryForward={availableCarryForward.filter(b => carryForwardBelongsToSection(b, "BOTTLE", watchLine))}
             multipliers={watchLine.includes("800") ? MULTIPLIERS.BOTTLE_800 : MULTIPLIERS.BOTTLE_425}
-            syncedDOs={syncedDOs.filter(d => d.category.includes("BOTTLE") && d.category.includes(watchLine.includes("800") ? "800" : "425"))}
-            availableDOsToSync={selectableDOs.filter(d => d.category.includes("BOTTLE") && d.category.includes(watchLine.includes("800") ? "800" : "425"))}
+            syncedDOs={syncedDOs.filter(d => d.category.includes("BOTTLE") && d.category.includes(watchLine.includes("800") ? "800" : "425") && isAvailableForActiveLine(d))}
+            availableDOsToSync={selectableDOs.filter(d => d.category.includes("BOTTLE") && d.category.includes(watchLine.includes("800") ? "800" : "425") && isAvailableForActiveLine(d))}
           />
           
           <AdvancedInventorySection 
@@ -686,8 +720,8 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             availableCarryForward={availableCarryForward.filter(b => carryForwardBelongsToSection(b, "LABEL", watchLine))}
             multipliers={[1]}
             isLabel={true}
-            syncedDOs={syncedDOs.filter(d => d.category.includes("LABEL"))}
-            availableDOsToSync={selectableDOs.filter(d => d.category.includes("LABEL"))}
+            syncedDOs={syncedDOs.filter(d => d.category.includes("LABEL") && !isOtherLineLabel(d.batchNo, watchLine) && isAvailableForActiveLine(d))}
+            availableDOsToSync={selectableDOs.filter(d => d.category.includes("LABEL") && !isOtherLineLabel(d.batchNo, watchLine) && isAvailableForActiveLine(d))}
           />
 
           <AdvancedInventorySection 
@@ -696,8 +730,8 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             control={control} register={register} watch={watch} setValue={setValue} line={watchLine}
             availableCarryForward={availableCarryForward.filter(b => carryForwardBelongsToSection(b, "CAP", watchLine))}
             multipliers={MULTIPLIERS.CAP}
-            syncedDOs={syncedDOs.filter(d => d.category.includes("CAP") && !d.category.includes("CARTON"))}
-            availableDOsToSync={selectableDOs.filter(d => d.category.includes("CAP") && !d.category.includes("CARTON"))}
+            syncedDOs={syncedDOs.filter(d => d.category.includes("CAP") && !d.category.includes("CARTON") && isAvailableForActiveLine(d))}
+            availableDOsToSync={selectableDOs.filter(d => d.category.includes("CAP") && !d.category.includes("CARTON") && isAvailableForActiveLine(d))}
           />
 
           {(PRODUCTION_CONFIG[watchLine as keyof typeof PRODUCTION_CONFIG] || []).map(prod => {
@@ -706,7 +740,7 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
             const size = prod.id.replace("p", "").split("_")[0];
             const pack = prod.id.split("_")[1];
 
-            const isThisBox = (d: any) => d.category.includes("BOX") && !d.category.includes("CARTON") && d.category.includes(size) && d.category.includes(pack)
+            const isThisBox = (d: any) => d.category.includes("BOX") && !d.category.includes("CARTON") && d.category.includes(size) && d.category.includes(pack) && isAvailableForActiveLine(d)
             // Same bottle size, different pack — these render in the neighbouring BOX block. A DO that
             // landed there looks identical to a lost one from in here, so name it rather than leave
             // this section saying only "no incoming deliveries".

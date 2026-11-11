@@ -271,14 +271,15 @@ export function MarketingVideoDesignRequestForm({ onBack }: MarketingVideoDesign
       const res = await submitVideoDesignRequisition(formData)
 
       if (res.success && res.data) {
+        const dataAny = res.data as any
         setSuccessResult({
-          requestNumber: res.data.requestNumber,
-          type: res.data.type,
-          name: res.data.name,
-          staffId: res.data.staffId,
-          department: res.data.department,
-          needBy: res.data.needBy,
-          phoneNumber: res.data.phoneNumber,
+          requestNumber: dataAny.requestNumber || "",
+          type: dataAny.type || activeTab,
+          name: dataAny.name || name,
+          staffId: dataAny.staffId || staffId,
+          department: dataAny.department || department,
+          needBy: typeof dataAny.needBy === "string" ? dataAny.needBy : needBy,
+          phoneNumber: dataAny.phoneNumber || phoneNumber,
           attachmentCount: selectedFiles.length,
         })
       } else {

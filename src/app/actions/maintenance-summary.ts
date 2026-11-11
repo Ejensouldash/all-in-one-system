@@ -252,10 +252,18 @@ export async function updateMaintenanceRecord(formType: string, id: string, data
         revalidatePath("/forms/maintenance/reports/fuv")
         break
       }
-      case "retention-sample":
-        await prisma.retentionSampleRecord.update({ where: { id }, data })
+      case "retention-sample": {
+        const updateData = { ...data }
+        if (updateData.amountSample !== undefined) {
+          updateData.amountSample =
+            typeof updateData.amountSample === "boolean"
+              ? updateData.amountSample ? 1 : 0
+              : Number(updateData.amountSample) || 1
+        }
+        await prisma.retentionSampleRecord.update({ where: { id }, data: updateData })
         revalidatePath("/forms/maintenance/reports/retention-sample")
         break
+      }
       case "uv-machine-3-in-1":
         await prisma.productionUVMachineChecklist.update({ where: { id }, data })
         revalidatePath("/forms/maintenance/reports/uv-machine-3-in-1")

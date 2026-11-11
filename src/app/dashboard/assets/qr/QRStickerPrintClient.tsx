@@ -2,9 +2,24 @@
 
 import { useState, useMemo } from "react"
 import { AssetQRSticker } from "@/components/assets/AssetQRSticker"
+import { downloadNiimbotPdf } from "@/lib/pdf/generateNiimbotPdf"
 import { createBlankAssetQrs } from "@/app/actions/asset"
 import { MAX_BLANK_QR_BATCH_SIZE } from "@/lib/asset-constants"
-import { ArrowLeft, Printer, Search, CheckSquare, Square, X, ChevronLeft, ChevronRight, Building2, Sparkles } from "lucide-react"
+import {
+  ArrowLeft,
+  Printer,
+  Search,
+  CheckSquare,
+  Square,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Building2,
+  Sparkles,
+  Info,
+  Download,
+  Loader2,
+} from "lucide-react"
 import Link from "next/link"
 
 const STANDARDIZED_DEPARTMENT_CODES = [
@@ -48,7 +63,10 @@ interface DepartmentOption {
 
 const BASE_URL = typeof window !== "undefined" ? window.location.origin : ""
 
-export function QRStickerPrintClient({ assets: initialAssets, departments: departmentOptions }: {
+export function QRStickerPrintClient({
+  assets: initialAssets,
+  departments: departmentOptions,
+}: {
   assets: Asset[]
   departments: DepartmentOption[]
 }) {
@@ -58,10 +76,16 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
   const [deptFilter, setDeptFilter] = useState("")
   const [typeFilter, setTypeFilter] = useState<"ALL" | "BLANK" | "REAL">("ALL")
   const [showPreview, setShowPreview] = useState(false)
+  const [sizeMode, setSizeMode] = useState<"40x20" | "70x30">("40x20")
+  const [singleAssetToPrint, setSingleAssetToPrint] = useState<Asset | null>(null)
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
+  const [pdfProgress, setPdfProgress] = useState("")
+
   const [blankDepartmentId, setBlankDepartmentId] = useState(
-    () => departmentOptions.find(department =>
-      STANDARDIZED_DEPARTMENT_CODES.includes(department.code || "")
-    )?.id ?? ""
+    () =>
+      departmentOptions.find(department =>
+        STANDARDIZED_DEPARTMENT_CODES.includes(department.code || "")
+      )?.id ?? ""
   )
   const [blankQuantity, setBlankQuantity] = useState("10")
   const [isCreatingBlanks, setIsCreatingBlanks] = useState(false)
@@ -72,17 +96,21 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
 
   // Collect unique departments with codes
   const departments = useMemo(() => {
-    return departmentOptions.map(department => ({
-      ...department,
-      code: department.code || "",
-    })).sort((a, b) => (a.code || a.name).localeCompare(b.code || b.name))
+    return departmentOptions
+      .map(department => ({
+        ...department,
+        code: department.code || "",
+      }))
+      .sort((a, b) => (a.code || a.name).localeCompare(b.code || b.name))
   }, [departmentOptions])
 
   const quickSelectDepartments = useMemo(() => {
     return departments
       .filter(department => STANDARDIZED_DEPARTMENT_CODES.includes(department.code))
-      .sort((a, b) =>
-        STANDARDIZED_DEPARTMENT_CODES.indexOf(a.code) - STANDARDIZED_DEPARTMENT_CODES.indexOf(b.code)
+      .sort(
+        (a, b) =>
+          STANDARDIZED_DEPARTMENT_CODES.indexOf(a.code) -
+          STANDARDIZED_DEPARTMENT_CODES.indexOf(b.code)
       )
   }, [departments])
 
@@ -111,7 +139,9 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
       const createdDepartment = result.assets[0]?.department
       setDeptFilter(createdDepartment?.code || createdDepartment?.name || "")
       setPage(1)
-      setCreationMessage(`${result.assets.length} blank QR sticker(s) created and selected for printing.`)
+      setCreationMessage(
+        `${result.assets.length} blank QR sticker(s) created and selected for printing.`
+      )
     } catch (error) {
       setCreationError(error instanceof Error ? error.message : "Failed to create blank QR codes.")
     } finally {
@@ -153,7 +183,8 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }
@@ -190,7 +221,8 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
     const blankIds = assets
       .filter(a => {
         const isBlank = a.name === "[Blank QR - Ready to Register]"
-        const matchDept = !deptFilter || a.department?.code === deptFilter || a.department?.name === deptFilter
+        const matchDept =
+          !deptFilter || a.department?.code === deptFilter || a.department?.name === deptFilter
         return isBlank && matchDept
       })
       .map(a => a.id)
@@ -201,72 +233,335 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
   const selectedAssets = assets.filter(a => selectedIds.has(a.id))
   const allFilteredSelected = filtered.length > 0 && filtered.every(a => selectedIds.has(a.id))
 
-  const handlePrint = () => {
+  const handlePrintBatch = () => {
+    setSingleAssetToPrint(null)
     setShowPreview(true)
     setTimeout(() => window.print(), 300)
   }
 
+  const handlePrintSingle = (asset: Asset) => {
+    setSingleAssetToPrint(asset)
+    setShowPreview(true)
+    setTimeout(() => window.print(), 300)
+  }
+
+  const printTargetAssets = singleAssetToPrint ? [singleAssetToPrint] : selectedAssets
+
+  // Direct 40x20mm PDF Download via jsPDF for Niimbot App
+  const handleDownloadPdf = async (singleAsset?: Asset) => {
+    try {
+      setIsGeneratingPdf(true)
+      const targetAssets = singleAsset
+        ? [singleAsset]
+        : (singleAssetToPrint ? [singleAssetToPrint] : selectedAssets)
+
+      const elementIds = targetAssets.map(a => `qr-client-sticker-${a.id}`)
+      const filename = singleAsset
+        ? `sticker_${singleAsset.assetTag || singleAsset.id}_40x20mm.pdf`
+        : `niimbot_stickers_${targetAssets.length}_assets_40x20mm.pdf`
+
+      const elements: HTMLElement[] = []
+      for (const id of elementIds) {
+        const el = document.getElementById(id)
+        if (el) elements.push(el)
+      }
+
+      if (elements.length === 0) {
+        alert("Sila tunggu sebentar untuk pelekat selesai dimuatkan.")
+        return
+      }
+
+      await downloadNiimbotPdf({
+        elements,
+        filename,
+        onProgress: (current, total) => {
+          setPdfProgress(`Menjana PDF: ${current}/${total}...`)
+        },
+      })
+    } catch (err) {
+      console.error("Failed to generate Niimbot PDF:", err)
+      alert("Gagal menjana fail PDF.")
+    } finally {
+      setIsGeneratingPdf(false)
+      setPdfProgress("")
+    }
+  }
+
+  // -------------------------------------------------------------
+  // Preview & Print Mode View
+  // -------------------------------------------------------------
   if (showPreview) {
     return (
-      <>
-        {/* Print-only styles */}
-        <style>{`
-          @media print {
-            body * { visibility: hidden !important; }
-            .qr-print-area, .qr-print-area * { visibility: visible !important; }
-            .qr-print-area { 
-              position: absolute !important; 
-              left: 0 !important; 
-              top: 0 !important; 
-              width: 100% !important;
-              padding: 0 !important;
-              margin: 0 !important;
+      <div className="bg-slate-50 min-h-screen text-slate-900">
+        {/* Dynamic print stylesheet */}
+        <style dangerouslySetInnerHTML={{
+          __html: sizeMode === "40x20" ? `
+            @media print {
+              body * { visibility: hidden !important; }
+              .qr-print-area, .qr-print-area * { visibility: visible !important; }
+              .qr-print-area { 
+                position: absolute !important; 
+                left: 0 !important; 
+                top: 0 !important; 
+                width: 40mm !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                background: #ffffff !important;
+              }
+              .no-print { display: none !important; }
+              .thermal-page-item {
+                width: 40mm !important;
+                height: 20mm !important;
+                max-width: 40mm !important;
+                max-height: 20mm !important;
+                page-break-after: always !important;
+                break-after: page !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+                box-sizing: border-box !important;
+              }
+              .thermal-page-item:last-child {
+                page-break-after: auto !important;
+                break-after: auto !important;
+              }
+              .asset-qr-sticker-40x20 {
+                width: 39mm !important;
+                height: 19mm !important;
+                max-width: 39mm !important;
+                max-height: 19mm !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
+              }
+              @page { 
+                size: 40mm 20mm; 
+                margin: 0mm; 
+              }
             }
-            .no-print { display: none !important; }
-            @page { 
-              size: A4; 
-              margin: 5mm; 
+          ` : `
+            @media print {
+              body * { visibility: hidden !important; }
+              .qr-print-area, .qr-print-area * { visibility: visible !important; }
+              .qr-print-area { 
+                position: absolute !important; 
+                left: 0 !important; 
+                top: 0 !important; 
+                width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                background: #ffffff !important;
+              }
+              .no-print { display: none !important; }
+              .sheet-grid {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 6mm !important;
+                justifyContent: center !important;
+                alignContent: flex-start !important;
+              }
+              @page { 
+                size: A4 portrait; 
+                margin: 5mm; 
+              }
             }
-          }
-        `}</style>
+          `
+        }} />
 
-        {/* Screen controls */}
-        <div className="no-print p-4 bg-white text-slate-800 border-b border-slate-200 flex items-center justify-between sticky top-0 z-50 shadow-sm">
-          <button onClick={() => setShowPreview(false)} className="flex items-center gap-2 text-sm text-slate-600 hover:text-teal-700 transition-colors font-bold">
-            <ArrowLeft className="w-4 h-4" /> Back to Selection
-          </button>
-          <div className="text-sm text-slate-600 font-semibold">{selectedAssets.length} sticker(s) ready to print</div>
-          <button onClick={() => window.print()} className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-xl text-sm font-black transition-colors shadow-sm">
-            <Printer className="w-4 h-4" /> Print Now
-          </button>
-        </div>
+        {/* Screen Top Bar */}
+        <div className="no-print p-4 bg-white text-slate-800 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-50 shadow-sm">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setShowPreview(false)
+                setSingleAssetToPrint(null)
+              }}
+              className="flex items-center gap-2 text-sm text-slate-600 hover:text-teal-700 transition-colors font-bold"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back to Selection
+            </button>
+            <span className="text-xs font-bold text-slate-400">|</span>
+            <div className="text-xs font-semibold text-slate-700">
+              {printTargetAssets.length} sticker(s) to print
+              {singleAssetToPrint && <span className="ml-1 text-teal-700 font-bold">(Single item)</span>}
+            </div>
+          </div>
 
-        {/* Preview + Print area */}
-        <div className="qr-print-area bg-white min-h-screen p-4">
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "6mm",
-              justifyContent: "center",
-              alignContent: "flex-start",
-            }}
-          >
-            {selectedAssets.map(asset => (
-              <AssetQRSticker
-                key={asset.id}
-                assetTag={asset.assetTag}
-                departmentCode={asset.department?.code}
-                qrValue={`${BASE_URL}/public/asset/${asset.id}`}
-                bleed
-              />
-            ))}
+          {/* Action buttons */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setSizeMode("40x20")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                  sizeMode === "40x20"
+                    ? "bg-white text-teal-700 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                🏷️ Niimbot 40×20mm
+              </button>
+              <button
+                type="button"
+                onClick={() => setSizeMode("70x30")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                  sizeMode === "70x30"
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                📄 Standard A4
+              </button>
+            </div>
+
+            {/* Direct PDF Download button */}
+            {sizeMode === "40x20" && (
+              <button
+                type="button"
+                onClick={() => handleDownloadPdf()}
+                disabled={isGeneratingPdf}
+                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white px-4 py-2 rounded-xl text-xs font-black transition-colors shadow-sm"
+                title="Muat turun fail PDF 40x20mm untuk buka terus di aplikasi Niimbot"
+              >
+                {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                {isGeneratingPdf ? (pdfProgress || "Menjana...") : `Download PDF (${printTargetAssets.length})`}
+              </button>
+            )}
+
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-xl text-xs font-black transition-colors shadow-sm"
+            >
+              <Printer className="w-4 h-4" /> Print Now ({printTargetAssets.length})
+            </button>
           </div>
         </div>
-      </>
+
+        {/* Niimbot Information Card */}
+        {sizeMode === "40x20" && (
+          <div className="no-print max-w-5xl mx-auto px-4 mt-4">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 text-xs text-emerald-950 flex items-start gap-3">
+              <Info className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <span className="font-bold text-emerald-900">
+                  Untuk Niimbot App (Print by PDF):
+                </span>{" "}
+                Klik butang hijau <strong>"Download PDF"</strong> untuk mendapatkan fail PDF bersaiz tepat 40×20mm (1 page = 1 sticker). Anda boleh buka fail PDF tersebut terus di aplikasi Niimbot anda tanpa masalah margin lari!
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Preview Area */}
+        <div className="qr-print-area max-w-5xl mx-auto p-4 md:p-6">
+          {sizeMode === "40x20" ? (
+            <div className="space-y-3">
+              {printTargetAssets.map((asset, index) => (
+                <div key={asset.id} className="thermal-page-item">
+                  {/* Screen item card */}
+                  <div className="no-print w-full bg-white rounded-2xl border border-slate-200 p-3.5 shadow-2xs hover:shadow-md transition flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 font-black text-xs flex items-center justify-center">
+                        #{index + 1}
+                      </span>
+                      <div>
+                        <div className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                          <span>{asset.name}</span>
+                          {asset.department?.code && (
+                            <span className="text-[10px] px-1 py-0.2 bg-slate-100 text-slate-700 font-mono font-bold rounded">
+                              {asset.department.code}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-mono font-semibold">
+                          {asset.assetTag} {asset.serialNumber ? `| S/N: ${asset.serialNumber}` : ""}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 bg-slate-50 rounded-lg border border-dashed border-slate-300 flex items-center justify-center">
+                        <AssetQRSticker
+                          id={`qr-client-sticker-${asset.id}`}
+                          assetTag={asset.assetTag}
+                          assetName={asset.name}
+                          departmentCode={asset.department?.code}
+                          serialNumber={asset.serialNumber}
+                          qrValue={`${BASE_URL}/public/asset/${asset.id}`}
+                          size="40x20"
+                          theme="thermal"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadPdf(asset)}
+                          disabled={isGeneratingPdf}
+                          className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1"
+                          title="Muat turun PDF sticker ini"
+                        >
+                          <Download className="w-3 h-3" />
+                          PDF
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handlePrintSingle(asset)}
+                          className="px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold transition flex items-center gap-1"
+                          title="Print dialog untuk sticker ini"
+                        >
+                          <Printer className="w-3 h-3" />
+                          Print
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Print-only sticker */}
+                  <div className="hidden print:flex items-center justify-center w-[40mm] h-[20mm]">
+                    <AssetQRSticker
+                      assetTag={asset.assetTag}
+                      assetName={asset.name}
+                      departmentCode={asset.department?.code}
+                      serialNumber={asset.serialNumber}
+                      qrValue={`${BASE_URL}/public/asset/${asset.id}`}
+                      size="40x20"
+                      theme="thermal"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="sheet-grid flex flex-wrap gap-4 justify-center">
+              {printTargetAssets.map(asset => (
+                <AssetQRSticker
+                  key={asset.id}
+                  assetTag={asset.assetTag}
+                  assetName={asset.name}
+                  departmentCode={asset.department?.code}
+                  serialNumber={asset.serialNumber}
+                  qrValue={`${BASE_URL}/public/asset/${asset.id}`}
+                  size="70x30"
+                  bleed
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     )
   }
 
+  // -------------------------------------------------------------
+  // Asset Selection & Management View
+  // -------------------------------------------------------------
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* Header */}
@@ -274,20 +569,54 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <Link href="/dashboard/assets/list" className="text-slate-500 hover:text-teal-700 transition-colors p-1.5 rounded-lg hover:bg-slate-100">
+              <Link
+                href="/dashboard/assets/list"
+                className="text-slate-500 hover:text-teal-700 transition-colors p-1.5 rounded-lg hover:bg-slate-100"
+              >
                 <ArrowLeft className="w-5 h-5" />
               </Link>
               <div>
-                <h1 className="text-xl font-black tracking-tight text-slate-900">QR Sticker Batch Print</h1>
-                <p className="text-xs text-slate-500 mt-0.5">Select assets or choose by department to print official 70x30mm QR stickers</p>
+                <h1 className="text-xl font-black tracking-tight text-slate-900">
+                  QR Sticker Print Hub
+                </h1>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Cetak sticker thermal Niimbot 40×20mm (1 sticker per muka surat) atau muat turun fail PDF
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+
+            {/* Mode selection + batch print trigger */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setSizeMode("40x20")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                    sizeMode === "40x20"
+                      ? "bg-white text-teal-700 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  🏷️ Niimbot 40×20mm
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSizeMode("70x30")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                    sizeMode === "70x30"
+                      ? "bg-white text-slate-900 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  📄 Standard 70×30mm
+                </button>
+              </div>
+
               <div className="text-xs text-slate-600 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 font-medium">
                 <span className="text-teal-700 font-bold">{selectedIds.size}</span> selected
               </div>
               <button
-                onClick={handlePrint}
+                onClick={handlePrintBatch}
                 disabled={selectedIds.size === 0}
                 className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
               >
@@ -300,7 +629,6 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
-        
         {/* Create additional blank QR assets */}
         <div className="bg-white border border-amber-200 rounded-2xl p-4 shadow-sm">
           <div className="flex flex-col lg:flex-row lg:items-end gap-3">
@@ -309,7 +637,8 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
                 <Sparkles className="w-4 h-4 text-amber-600" /> Create Blank QR Stickers
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Generate more whenever needed. There is no overall limit; each batch can contain up to {MAX_BLANK_QR_BATCH_SIZE}.
+                Generate more whenever needed. There is no overall limit; each batch can contain up to{" "}
+                {MAX_BLANK_QR_BATCH_SIZE}.
               </p>
             </div>
             <label className="text-xs font-bold text-slate-700">
@@ -323,7 +652,8 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
                 <option value="">Select a department</option>
                 {quickSelectDepartments.map(department => (
                   <option key={department.id} value={department.id}>
-                    {department.code ? `[${department.code}] ` : ""}{department.name}
+                    {department.code ? `[${department.code}] ` : ""}
+                    {department.name}
                   </option>
                 ))}
               </select>
@@ -350,8 +680,16 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
               {isCreatingBlanks ? "Creating..." : "Create & Select"}
             </button>
           </div>
-          {creationError && <p role="alert" className="mt-3 text-xs font-semibold text-red-600">{creationError}</p>}
-          {creationMessage && <p role="status" className="mt-3 text-xs font-semibold text-emerald-700">{creationMessage}</p>}
+          {creationError && (
+            <p role="alert" className="mt-3 text-xs font-semibold text-red-600">
+              {creationError}
+            </p>
+          )}
+          {creationMessage && (
+            <p role="status" className="mt-3 text-xs font-semibold text-emerald-700">
+              {creationMessage}
+            </p>
+          )}
         </div>
 
         {/* Quick Select by Department */}
@@ -359,7 +697,9 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
           <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2">
               <Building2 className="w-4 h-4 text-teal-600" />
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Quick Select by Department</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                Quick Select by Department
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -368,15 +708,29 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
                 className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-all flex items-center gap-1.5"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                Select Blank QRs ({assets.filter(a => a.name === "[Blank QR - Ready to Register]" && (!deptFilter || a.department?.code === deptFilter)).length})
+                Select Blank QRs (
+                {
+                  assets.filter(
+                    a =>
+                      a.name === "[Blank QR - Ready to Register]" &&
+                      (!deptFilter || a.department?.code === deptFilter)
+                  ).length
+                }
+                )
               </button>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {quickSelectDepartments.map((dept) => {
-              const count = assets.filter(a => a.department?.code === dept.code || a.department?.name === dept.name).length
-              const blankCount = assets.filter(a => (a.department?.code === dept.code || a.department?.name === dept.name) && a.name === "[Blank QR - Ready to Register]").length
+            {quickSelectDepartments.map(dept => {
+              const count = assets.filter(
+                a => a.department?.code === dept.code || a.department?.name === dept.name
+              ).length
+              const blankCount = assets.filter(
+                a =>
+                  (a.department?.code === dept.code || a.department?.name === dept.name) &&
+                  a.name === "[Blank QR - Ready to Register]"
+              ).length
               const isCurrent = deptFilter === dept.code || deptFilter === dept.name
 
               return (
@@ -390,11 +744,28 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
                       : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900"
                   }`}
                 >
-                  <span className={`font-mono font-black ${isCurrent ? "text-white" : "text-teal-700"}`}>{dept.code || dept.name}</span>
+                  <span
+                    className={`font-mono font-black ${
+                      isCurrent ? "text-white" : "text-teal-700"
+                    }`}
+                  >
+                    {dept.code || dept.name}
+                  </span>
                   <span className="text-[11px] opacity-80">{dept.name}</span>
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${isCurrent ? "bg-white/20" : "bg-slate-100"}`}>{count}</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                      isCurrent ? "bg-white/20" : "bg-slate-100"
+                    }`}
+                  >
+                    {count}
+                  </span>
                   {blankCount > 0 && (
-                    <span className={`px-1 py-0.2 rounded-full text-[9px] font-mono ${isCurrent ? "bg-amber-400/30 text-amber-100" : "bg-amber-50 text-amber-700"}`} title={`${blankCount} Blank QRs`}>
+                    <span
+                      className={`px-1 py-0.2 rounded-full text-[9px] font-mono ${
+                        isCurrent ? "bg-amber-400/30 text-amber-100" : "bg-amber-50 text-amber-700"
+                      }`}
+                      title={`${blankCount} Blank QRs`}
+                    >
                       +{blankCount} blk
                     </span>
                   )}
@@ -409,29 +780,46 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
           {/* Type Toggle */}
           <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1 gap-1 shadow-sm">
             <button
-              onClick={() => { setTypeFilter("ALL"); setPage(1) }}
+              onClick={() => {
+                setTypeFilter("ALL")
+                setPage(1)
+              }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                typeFilter === "ALL" ? "bg-teal-600 text-white" : "text-slate-500 hover:text-slate-900"
+                typeFilter === "ALL"
+                  ? "bg-teal-600 text-white"
+                  : "text-slate-500 hover:text-slate-900"
               }`}
             >
               All Assets ({assets.length})
             </button>
             <button
-              onClick={() => { setTypeFilter("REAL"); setPage(1) }}
+              onClick={() => {
+                setTypeFilter("REAL")
+                setPage(1)
+              }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                typeFilter === "REAL" ? "bg-teal-600 text-white" : "text-slate-500 hover:text-slate-900"
+                typeFilter === "REAL"
+                  ? "bg-teal-600 text-white"
+                  : "text-slate-500 hover:text-slate-900"
               }`}
             >
-              Registered Only ({assets.filter(a => a.name !== "[Blank QR - Ready to Register]").length})
+              Registered Only (
+              {assets.filter(a => a.name !== "[Blank QR - Ready to Register]").length})
             </button>
             <button
-              onClick={() => { setTypeFilter("BLANK"); setPage(1) }}
+              onClick={() => {
+                setTypeFilter("BLANK")
+                setPage(1)
+              }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
-                typeFilter === "BLANK" ? "bg-amber-600 text-white" : "text-amber-700 hover:text-amber-800"
+                typeFilter === "BLANK"
+                  ? "bg-amber-600 text-white"
+                  : "text-amber-700 hover:text-amber-800"
               }`}
             >
               <Sparkles className="w-3 h-3" />
-              Blank QRs Only ({assets.filter(a => a.name === "[Blank QR - Ready to Register]").length})
+              Blank QRs Only (
+              {assets.filter(a => a.name === "[Blank QR - Ready to Register]").length})
             </button>
           </div>
 
@@ -441,14 +829,20 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
               type="text"
               placeholder="Search item, brand, barcode, location, department..."
               value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1) }}
+              onChange={e => {
+                setSearch(e.target.value)
+                setPage(1)
+              }}
               className="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
           </div>
 
           <select
             value={deptFilter}
-            onChange={e => { setDeptFilter(e.target.value); setPage(1) }}
+            onChange={e => {
+              setDeptFilter(e.target.value)
+              setPage(1)
+            }}
             className="bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium"
           >
             <option value="">All Departments</option>
@@ -461,7 +855,12 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
 
           {(search || deptFilter || typeFilter !== "ALL") && (
             <button
-              onClick={() => { setSearch(""); setDeptFilter(""); setTypeFilter("ALL"); setPage(1) }}
+              onClick={() => {
+                setSearch("")
+                setDeptFilter("")
+                setTypeFilter("ALL")
+                setPage(1)
+              }}
               className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900 transition-colors"
             >
               <X className="w-3.5 h-3.5" /> Clear filters
@@ -475,15 +874,20 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
             onClick={toggleAll}
             className="flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors"
           >
-            {allFilteredSelected ? <CheckSquare className="w-4 h-4 text-teal-600" /> : <Square className="w-4 h-4 text-slate-400" />}
+            {allFilteredSelected ? (
+              <CheckSquare className="w-4 h-4 text-teal-600" />
+            ) : (
+              <Square className="w-4 h-4 text-slate-400" />
+            )}
             Select All Filtered ({filtered.length})
           </button>
           <div className="text-xs text-slate-500 font-medium">
-            Showing {(page - 1) * perPage + 1}–{Math.min(page * perPage, filtered.length)} of {filtered.length} assets
+            Showing {(page - 1) * perPage + 1}–{Math.min(page * perPage, filtered.length)} of{" "}
+            {filtered.length} assets
           </div>
         </div>
 
-        {/* Asset Table matching Excel Headers */}
+        {/* Asset Table */}
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
           <table className="w-full text-xs">
             <thead>
@@ -496,25 +900,33 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
                 <th className="p-3.5 text-left">Barcode / Serial</th>
                 <th className="p-3.5 text-left">Location</th>
                 <th className="p-3.5 text-left">Condition</th>
+                <th className="p-3.5 text-right w-28">Tindakan</th>
               </tr>
             </thead>
             <tbody>
               {paged.map((asset, idx) => {
                 const isSelected = selectedIds.has(asset.id)
                 const isBlank = asset.name === "[Blank QR - Ready to Register]"
-                const rowNo = parseInt(asset.assetTag?.replace("AST-", "") || String((page - 1) * perPage + idx + 1), 10)
+                const rowNo = parseInt(
+                  asset.assetTag?.replace("AST-", "") ||
+                    String((page - 1) * perPage + idx + 1),
+                  10
+                )
 
                 return (
                   <tr
                     key={asset.id}
                     onClick={() => toggleSelect(asset.id)}
-                    className={`border-b border-slate-100 cursor-pointer transition-colors ${isSelected ? "bg-teal-50" : "hover:bg-slate-50"}`}
+                    className={`border-b border-slate-100 cursor-pointer transition-colors ${
+                      isSelected ? "bg-teal-50" : "hover:bg-slate-50"
+                    }`}
                   >
                     <td className="p-3.5">
-                      {isSelected 
-                        ? <CheckSquare className="w-4 h-4 text-teal-600" />
-                        : <Square className="w-4 h-4 text-slate-300" />
-                      }
+                      {isSelected ? (
+                        <CheckSquare className="w-4 h-4 text-teal-600" />
+                      ) : (
+                        <Square className="w-4 h-4 text-slate-300" />
+                      )}
                     </td>
                     <td className="p-3.5 font-bold text-slate-500">{rowNo}</td>
                     <td className="p-3.5">
@@ -522,7 +934,9 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
                         <span className="px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-100 font-mono font-bold text-[10px]">
                           {asset.department?.code || "DEPT"}
                         </span>
-                        <span className="text-slate-700 font-semibold">{asset.department?.name || "—"}</span>
+                        <span className="text-slate-700 font-semibold">
+                          {asset.department?.name || "—"}
+                        </span>
                       </div>
                     </td>
                     <td className="p-3.5 font-bold text-slate-900">
@@ -543,22 +957,38 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
                           Unregistered
                         </span>
                       ) : (
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          asset.condition === "Good" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
-                          asset.condition === "Usable" ? "bg-blue-50 text-blue-700 border border-blue-200" :
-                          asset.condition === "Bad" ? "bg-amber-50 text-amber-700 border border-amber-200" :
-                          "text-slate-500"
-                        }`}>
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            asset.condition === "Good"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : asset.condition === "Usable"
+                              ? "bg-blue-50 text-blue-700 border border-blue-200"
+                              : asset.condition === "Bad"
+                              ? "bg-amber-50 text-amber-700 border border-amber-200"
+                              : "text-slate-500"
+                          }`}
+                        >
                           {asset.condition || "—"}
                         </span>
                       )}
+                    </td>
+                    <td className="p-3.5 text-right" onClick={e => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => handlePrintSingle(asset)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-teal-700 text-white font-bold text-[11px] transition shadow-xs"
+                        title="Buka cetakan sticker ini"
+                      >
+                        <Printer className="w-3 h-3" />
+                        Cetak 1x
+                      </button>
                     </td>
                   </tr>
                 )
               })}
               {paged.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="p-12 text-center text-slate-500 font-medium">
+                  <td colSpan={9} className="p-12 text-center text-slate-500 font-medium">
                     No assets found matching your criteria.
                   </td>
                 </tr>
@@ -582,7 +1012,9 @@ export function QRStickerPrintClient({ assets: initialAssets, departments: depar
                 key={p}
                 onClick={() => setPage(p)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
-                  page === p ? "bg-teal-600 text-white" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  page === p
+                    ? "bg-teal-600 text-white"
+                    : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 }`}
               >
                 {p}

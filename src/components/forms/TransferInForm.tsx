@@ -124,10 +124,12 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
         const sParam = urlObj.searchParams.get("sku")
         const bagParam = urlObj.searchParams.get("bag")
         const totalParam = urlObj.searchParams.get("totalBags")
+        const qtyParam = urlObj.searchParams.get("qty") || urlObj.searchParams.get("mult")
         if (bParam) scannedBatch = bParam.trim().toUpperCase()
         if (sParam) scannedSku = sParam.trim()
         if (bagParam) scannedBagIndex = Number(bagParam) || 0
         if (totalParam) scannedTotalBags = Number(totalParam) || 0
+        if (qtyParam && !scannedQty) scannedQty = Number(qtyParam) || 0
       } catch (e) {}
     }
 
@@ -137,7 +139,7 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
     }
 
     if (!scannedBatch) {
-      alert("Tak dapat membaca Nombor Batch daripada QR Code ini.")
+      alert("Unable to read Batch Number from this QR Code.")
       setIsScannerOpen(false)
       return
     }
@@ -155,15 +157,26 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
     }
 
     let targetMult = MULTIPLIERS.BOTTLE_800[0]
-    if (targetCategory === "BOTTLE 425ml") targetMult = MULTIPLIERS.BOTTLE_425[0]
+    if (targetCategory === "BOTTLE 425ml") {
+      if (MULTIPLIERS.BOTTLE_425.includes(scannedQty)) {
+        targetMult = scannedQty
+      } else if (scannedBags > 0 && MULTIPLIERS.BOTTLE_425.includes(Math.round(scannedQty / scannedBags))) {
+        targetMult = Math.round(scannedQty / scannedBags)
+      } else if (scannedQty > 181 && scannedQty % 162 === 0 && scannedQty % 181 !== 0) {
+        targetMult = 162
+      } else {
+        targetMult = MULTIPLIERS.BOTTLE_425[0]
+      }
+    }
     if (targetCategory.includes("BOX")) targetMult = MULTIPLIERS.BOX[0]
     if (targetCategory === "CAP") targetMult = 4000
 
-    // CASE A: 1 Beg = 1 QR (Running Number per Bag)
+    // CASE A: 1 Bag = 1 QR (Running Number per Bag)
     if (scannedBagIndex > 0) {
       const existingRowIndex = watchItems.findIndex((item: any) =>
         (item.batchNo || "").trim().toUpperCase() === scannedBatch &&
-        (item.category || "").trim().toUpperCase() === targetCategory.toUpperCase()
+        (item.category || "").trim().toUpperCase() === targetCategory.toUpperCase() &&
+        Number(item.mult) === targetMult
       )
 
       if (existingRowIndex >= 0) {
@@ -172,7 +185,7 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
 
         // Prevent exact duplicate bag scanning
         if (currentScannedBags.includes(scannedBagIndex)) {
-          alert(`⚠️ PERINGATAN DUPLICATE: Beg #${scannedBagIndex} bagi Batch ${scannedBatch} (${targetCategory}) SUDAH diimbas sebelum ini!\n\nSila imbas beg seterusnya.`)
+          alert(`⚠️ DUPLICATE WARNING: Bag #${scannedBagIndex} for Batch ${scannedBatch} (${targetCategory}) has ALREADY been scanned!\n\nPlease scan the next bag.`)
           setIsScannerOpen(false)
           return
         }
@@ -188,8 +201,8 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
         }
         setValue(`items.${existingRowIndex}.isQrScanned`, true)
 
-        const progressInfo = scannedTotalBags > 0 ? ` (${newBagsCount}/${scannedTotalBags} beg)` : ` (${newBagsCount} beg)`
-        alert(`✅ Beg #${scannedBagIndex} bagi Batch ${scannedBatch} berjaya ditambah!${progressInfo}`)
+        const progressInfo = scannedTotalBags > 0 ? ` (${newBagsCount}/${scannedTotalBags} bags)` : ` (${newBagsCount} bags)`
+        alert(`✅ Bag #${scannedBagIndex} for Batch ${scannedBatch} added successfully!${progressInfo}`)
         setIsScannerOpen(false)
         return
       } else {
@@ -220,8 +233,8 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
           })
         }
 
-        const progressInfo = scannedTotalBags > 0 ? ` (1/${scannedTotalBags} beg)` : ` (1 beg)`
-        alert(`✅ Beg #${scannedBagIndex} bagi Batch ${scannedBatch} (${targetCategory}) berjaya dimasukkan!${progressInfo}`)
+        const progressInfo = scannedTotalBags > 0 ? ` (1/${scannedTotalBags} bags)` : ` (1 bag)`
+        alert(`✅ Bag #${scannedBagIndex} for Batch ${scannedBatch} (${targetCategory}) added successfully!${progressInfo}`)
         setIsScannerOpen(false)
         return
       }
@@ -241,7 +254,7 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
     )
 
     if (isExactDuplicate) {
-      alert(`⚠️ DUPLICATE DETECTED: Batch ${scannedBatch} dengan kuantiti ${finalBags} beg (${targetCategory}) sudah wujud dalam senarai borang ini!`)
+      alert(`⚠️ DUPLICATE DETECTED: Batch ${scannedBatch} with quantity ${finalBags} bags (${targetCategory}) already exists in this form!`)
       setIsScannerOpen(false)
       return
     }
@@ -265,7 +278,7 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
       })
     }
 
-    alert(`✅ Batch ${scannedBatch} (${targetCategory} - ${finalBags} Beg) berjaya dimasukkan menerusi imbasan QR!`)
+    alert(`✅ Batch ${scannedBatch} (${targetCategory} - ${finalBags} Bags) added via QR scan!`)
     setIsScannerOpen(false)
   }
   
@@ -317,7 +330,7 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
 
        if (cat === "CAP") {
          if (!BATCH_PATTERN.test(normalised) && !isKbpBatchNo(normalised)) {
-           return showErrorAndScroll(`item-${i}-batchNo`, `Batch No CAP untuk item #${i + 1} mesti dalam format XXXXXX-XX (contoh: 053026-02) atau format KBP (contoh: CM1-CAP-053026-02). Nilai sekarang: "${data.items[i].batchNo}"`)
+           return showErrorAndScroll(`item-${i}-batchNo`, `CAP Batch No for item #${i + 1} must match format XXXXXX-XX (e.g., 053026-02) or KBP format (e.g., CM1-CAP-053026-02). Current value: "${data.items[i].batchNo}"`)
          }
 
          const w = Number(data.items[i].weight) || 0;
@@ -474,8 +487,8 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
               <p className="mt-2 text-[11px] font-black uppercase tracking-wide text-amber-700 flex items-start gap-1.5 leading-snug">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-px" />
                 <span>
-                  Masa {watchReceiveTime} jatuh pada shift {impliedShift}, tapi shift dipilih {watchShift}.
-                  Daily Production Report shift {impliedShift} takkan nampak DO ini.
+                  Time {watchReceiveTime} falls under shift {impliedShift}, but shift {watchShift} is selected.
+                  Daily Production Report for shift {impliedShift} will not see this DO.
                 </span>
               </p>
             )}
@@ -658,11 +671,11 @@ export function TransferInForm({ userName, initialData }: { userName: string, in
                       {Array.isArray(watchItems[index]?.scannedBags) && watchItems[index].scannedBags.length > 0 && (
                         <div className="mt-1 flex items-center gap-1.5 flex-wrap">
                           <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">
-                            🏷️ {watchItems[index].scannedBags.length} Beg Diimbas
+                            🏷️ {watchItems[index].scannedBags.length} Bags Scanned
                             {watchItems[index].totalBagsInBatch ? ` / ${watchItems[index].totalBagsInBatch}` : ""}
                           </span>
                           <span className="text-[9px] text-gray-500 font-bold truncate max-w-[180px]" title={watchItems[index].scannedBags.map((n: number) => `#${n}`).join(", ")}>
-                            Beg: {watchItems[index].scannedBags.map((n: number) => `#${n}`).join(", ")}
+                            Bags: {watchItems[index].scannedBags.map((n: number) => `#${n}`).join(", ")}
                           </span>
                         </div>
                       )}

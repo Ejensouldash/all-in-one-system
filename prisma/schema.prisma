@@ -68,6 +68,14 @@ model User {
   retentionSampleRecords     RetentionSampleRecord[] @relation("RetentionSamplePreparer")
   customerComplaints         CustomerComplaint[]     @relation("CustomerComplaintCreator")
   manualComplaints           ManualComplaintLog[]    @relation("ManualComplaintCreator")
+
+  // Procurement Management Relations
+  createdProcurementSuppliers ProcurementSupplier[]   @relation("ProcurementSupplierCreator")
+  createdProcurementInvoices  ProcurementInvoice[]    @relation("ProcurementInvoiceCreator")
+  paidProcurementInvoices     ProcurementInvoice[]    @relation("ProcurementInvoicePayer")
+  procurementInvoiceLogs      ProcurementInvoiceLog[] @relation("ProcurementInvoiceLogActor")
+  createdProcurementPurchases ProcurementPurchase[]   @relation("ProcurementPurchaseCreator")
+  createdProcurementPriceComparisons ProcurementPriceComparison[] @relation("ProcurementComparisonCreator")
 }
 
 model Branch {
@@ -1599,7 +1607,14 @@ model MarketingEventRequisition {
   remarks          String?
   attachments      String?  @default("[]")
   galleryAttachments String? @default("[]")
+
+  // Budget control (set by Finance / HOD for the Event Success Rate budget component)
+  budgetCap        Float?
+  budgetSetBy      String?
+  budgetSetAt      DateTime?
+
   feedbacks        MarketingEventFeedback[]
+  postEventReport  MarketingPostEventReport?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -1662,9 +1677,78 @@ model MarketingEventFeedback {
   comments       String                    @db.Text
   createdAt      DateTime                  @default(now())
 
+  // Gemini sentiment classification for "Participants' Feedback & Suggestions" (15% score component)
+  aiSentiment    String?                   // GOOD | NEUTRAL | BAD
+  aiConfidence   Float?
+  aiReason       String?                   @db.Text
+  aiModel        String?
+  aiTextHash     String?
+  aiAnalyzedAt   DateTime?
+
   @@index([requisitionId])
   @@index([createdAt])
 }
+
+model MarketingPostEventReport {
+  id                    String                    @id @default(uuid())
+  requisitionId         String                    @unique
+  requisition           MarketingEventRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+
+  // ISO Metadata
+  documentNo            String                    // e.g. BOMSB/ADMN/MKT/EVT/270012
+  issueNo               String                    @default("02")
+  reportDate            DateTime                  @default(now())
+  reportPreparedBy      String
+
+  // Section 1-6: Core Scope & Participants
+  attendeesCount        String?                   // e.g. "69,104" or "200,000*"
+  typeOfInvolvement     String                    @default("Sponsorship")
+  vipsList              String                    @default("[]") // JSON: [{ name: string, title: string }]
+  staffInvolved         String                    @default("[]") // JSON: string[]
+
+  // Section 7: Objectives & Impact
+  aims                  String?                   @db.Text
+  benefits              String?                   @db.Text
+  expectedImpact        String?                   @db.Text
+  impactDistribution    String                    @default("[]") // JSON: [{ id, name, unit, qtyGiven, qtyUsed }]
+
+  // Section 8 & 9: Flow & Activations
+  flowType              String                    @default("DAILY") // DAILY | STAGES
+  plannedFlowText       String?                   @db.Text
+  plannedFlowImages     String                    @default("[]") // JSON: [{ dayLabel: string, imageUrl: string, caption?: string }]
+  executedFlowText      String?                   @db.Text
+  activationsList       String                    @default("[]") // JSON: [{ title: string, description?: string }]
+  activationImages      String                    @default("[]") // JSON: [{ title: string, imageUrl: string }]
+
+  // Section 10: Financial Claims & Receipts
+  claimBreakdown        String                    @default("[]") // JSON array of claimants & expense items
+  totalClaimAmount      Float                     @default(0.0)
+
+  // Section 12-14: Review & Reflection
+  futureImprovementOrg  String?                   @db.Text
+  futureImprovementPart String?                   @db.Text
+  futureConsideration   Boolean                   @default(true)
+  eventSuccessRate      Float                     @default(0)
+  scoreBreakdown        String                    @default("{}") // JSON: cached weighted score snapshot
+  scoreComputedAt       DateTime?
+  scoreFlags            String                    @default("[]") // JSON: ScoreFlag[]
+
+  // Section 15: Media Links
+  mediaLinks            String                    @default("[]") // JSON: [{ platform: string, url: string, description?: string }]
+
+  // Approval Workflow
+  status                String                    @default("DRAFT") // DRAFT, SUBMITTED, APPROVED
+  approvedBy            String?
+  approvedAt            DateTime?
+  approvalSignatureUrl  String?
+
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  @@index([status])
+  @@index([requisitionId])
+}
+
 
 model MarketingNotificationRecipient {
   id          String   @id @default(uuid())
@@ -3308,4 +3392,182 @@ model AriaChatMessage {
   session   AriaChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId, createdAt])
+}
+
+
+// ---------------------------------------------------------------------------------------------
+// PROCUREMENT MANAGEMENT
+// ---------------------------------------------------------------------------------------------
+
+enum ProcurementPaymentTerm {
+  TERM_7_DAYS
+  TERM_30_DAYS
+  TERM_60_DAYS
+  COD
+  CASH_BEFORE_DELIVERY
+  CASH
+}
+
+enum ProcurementInvoiceCategory {
+  STANDARD_TERMS         // Document for Payment (Credit / Standard Terms)
+  MONTHLY_SUBSCRIPTION   // Monthly Payment / Subscription
+  CASH_PREPAYMENT        // Cash Payment (Pay before delivery)
+}
+
+enum ProcurementInvoiceStatus {
+  DRAFT
+  PENDING_FINANCE
+  IN_REVIEW
+  PAID
+  REJECTED
+}
+
+model ProcurementSupplier {
+  id          String                 @id @default(uuid())
+  name        String
+  phone       String?
+  email       String?
+  terms       ProcurementPaymentTerm @default(TERM_30_DAYS)
+  remark      String?
+  isActive    Boolean                @default(true)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  createdById String?
+  createdBy   User?                  @relation("ProcurementSupplierCreator", fields: [createdById], references: [id])
+
+  invoices    ProcurementInvoice[]
+  purchases   ProcurementPurchase[]
+
+  @@map("procurement_suppliers")
+}
+
+model ProcurementInvoice {
+  id                      String                     @id @default(uuid())
+  invoiceNumber           String
+  poNumber                String?                    // PO / PI No. (e.g. PO001996, PI002721)
+  company                 String                     // BOSB, BODG, NRHO, BOMSB, etc.
+  department              String                     // QC-Kilang Air, IT, HR, Maintenance, etc.
+  
+  supplierId              String
+  supplier                ProcurementSupplier        @relation(fields: [supplierId], references: [id])
+
+  category                ProcurementInvoiceCategory @default(STANDARD_TERMS)
+  status                  ProcurementInvoiceStatus   @default(PENDING_FINANCE)
+
+  invoiceDate             DateTime                   @default(now())
+  dueDate                 DateTime?
+  submitDate              DateTime                   @default(now()) // Handover date to Finance
+  amount                  Float                      @default(0)
+
+  // Physical document tracking (from Book1.xlsx)
+  doReceived              Boolean                    @default(false)
+  originalInvoiceReceived Boolean                    @default(false)
+
+  // Attachment files
+  attachmentUrl           String?
+  attachmentName          String?
+
+  // Payment information by Finance
+  paidAt                  DateTime?
+  paymentReference        String?                    // Bank transfer reference / check no
+  paymentReceiptUrl       String?                    // Bank slip / receipt
+  notes                   String?                    // Remarks / notes
+
+  createdById             String?
+  createdBy               User?                      @relation("ProcurementInvoiceCreator", fields: [createdById], references: [id])
+
+  paidById                String?
+  paidBy                  User?                      @relation("ProcurementInvoicePayer", fields: [paidById], references: [id])
+
+  activityLogs            ProcurementInvoiceLog[]
+
+  createdAt               DateTime                   @default(now())
+  updatedAt               DateTime                   @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@index([supplierId])
+  @@map("procurement_invoices")
+}
+
+model ProcurementInvoiceLog {
+  id            String              @id @default(uuid())
+  invoiceId     String
+  invoice       ProcurementInvoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  action        String              // CREATED, SUBMITTED_TO_FINANCE, STATUS_CHANGED, PAID, REJECTED
+  fromStatus    String?
+  toStatus      String?
+  notes         String?
+  performedById String?
+  performedBy   User?               @relation("ProcurementInvoiceLogActor", fields: [performedById], references: [id])
+  createdAt     DateTime            @default(now())
+
+  @@map("procurement_invoice_logs")
+}
+
+model ProcurementPurchase {
+  id              String               @id @default(uuid())
+  purchaseDate    DateTime             @default(now())
+  itemDescription String
+  supplierId      String?
+  supplier        ProcurementSupplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  supplierName    String
+  quantity        Float                @default(1)
+  uom             String
+  unitPrice       Float                @default(0)
+  total           Float                @default(0)
+  company         String               // BOSB, BOMSB, NRHO, BODG
+  department      String?
+  remarks         String?
+
+  createdById     String?
+  createdBy       User?                @relation("ProcurementPurchaseCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([company])
+  @@index([department])
+  @@index([purchaseDate])
+  @@index([supplierId])
+  @@map("procurement_purchases")
+}
+
+enum ProcurementComparisonStatus {
+  DRAFT
+  UNDER_REVIEW
+  APPROVED
+  COMPLETED
+  CANCELLED
+}
+
+model ProcurementPriceComparison {
+  id               String                        @id @default(uuid())
+  title            String
+  referenceNo      String                        @unique
+  company          String                        @default("BOSB")
+  department       String                        @default("Purchasing")
+  status           ProcurementComparisonStatus   @default(DRAFT)
+  
+  // Array of suppliers compared: [{ id: "s1", name: "VD VALVE SDN BHD", supplierId?: string, paymentTerms?: string, leadTime?: string, quotationRef?: string, notes?: string }]
+  suppliersData    Json                          @default("[]")
+
+  // Array of item bundles & rows: [{ itemIndex: 1, title: string, rows: [{ rowId: "r1", quotes: { [supId]: { description: string, unitPrice: number | null, isIncluded: boolean, total: number | null } } }] }]
+  itemsData        Json                          @default("[]")
+
+  awardedSupplier  String?
+  justification    String?
+  notes            String?
+
+  createdById      String?
+  createdBy        User?                         @relation("ProcurementComparisonCreator", fields: [createdById], references: [id])
+  
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
+
+  @@index([status])
+  @@index([company])
+  @@index([department])
+  @@map("procurement_price_comparisons")
 }

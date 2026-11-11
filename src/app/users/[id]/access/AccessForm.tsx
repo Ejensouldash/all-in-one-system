@@ -16,6 +16,9 @@ import {
   type LucideIcon,
   CalendarCheck,
   Video,
+  Truck,
+  Receipt,
+  Wallet,
 } from "lucide-react"
 
 type ModuleDef = { id: string; name: string; description: string; icon: LucideIcon }
@@ -131,6 +134,26 @@ const MODULE_CATEGORIES: CategoryDef[] = [
     ],
   },
   {
+    id: "PROCUREMENT",
+    name: "Procurement Management",
+    icon: Truck,
+    iconClass: "bg-amber-50 text-amber-600 border-amber-100",
+    modules: [
+      {
+        id: "PROCUREMENT_REQUESTER",
+        name: "Procurement Requester / Purchasing",
+        description: "Register and manage suppliers, create invoices, upload documents, and submit to Finance.",
+        icon: Truck,
+      },
+      {
+        id: "PROCUREMENT_FINANCE",
+        name: "Procurement Finance",
+        description: "Review submitted invoices, verify payment details, upload payment receipts, and mark as Paid.",
+        icon: Receipt,
+      },
+    ],
+  },
+  {
     id: "ADMINISTRATION",
     name: "Administration",
     icon: ShieldCheck,
@@ -153,6 +176,7 @@ const MODULE_CATEGORIES: CategoryDef[] = [
       { id: "MARKETING_EVENTS", name: "Marketing Events Management", description: "Manage events manpower requisition.", icon: CalendarCheck },
       { id: "MARKETING_VIDEO_DESIGN", name: "Video & Design Studio", description: "Access to review, assign, and manage video production and graphic design requisitions.", icon: Video },
       { id: "MARKETING_EVENTS_EDIT", name: "Edit Marketing Event Requisitions", description: "Authority to edit and update submitted event requisition details (event name, dates, organizer, PIC, requirements, etc.).", icon: FilePenLine },
+      { id: "MARKETING_EVENTS_BUDGET", name: "Post-Event Budget Cap (Finance)", description: "Set or revise the approved budget cap used by the Post-Event Report success rate. Give Marketing Events Management too so the user can open the event page.", icon: Wallet },
     ],
   },
   {

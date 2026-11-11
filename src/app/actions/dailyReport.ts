@@ -380,16 +380,34 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
           receiveDate: { lte: targetDate }
         }
       },
-      include: { transferIn: true }
+      select: {
+        id: true,
+        category: true,
+        batchNo: true,
+        bags: true,
+        mult: true,
+        transferIn: { select: { id: true, receiveDate: true, receiveTime: true, shift: true, doNumber: true } }
+      }
     })
-    
+
     // 2. Fetch ALL Usages, Holds, Reuses, Storeroom, and TransferIn ever (Globally) up to the target date
+    // Keep this select narrow: this runs on every Daily Report form load, and a full DailyReport row
+    // carries both base64 signatures (~23 KB per report), which made up most of each call's egress.
     const allLogs = await prisma.inventoryLog.findMany({
-      where: { 
+      where: {
         type: { in: ["Usage", "Hold", "Reuse", "Storeroom", "TransferIn"] },
         report: { date: { lte: targetDate } }
       },
-      include: { report: true }
+      select: {
+        reportId: true,
+        sectionKey: true,
+        type: true,
+        batchNo: true,
+        bags: true,
+        mult: true,
+        labelType: true,
+        report: { select: { date: true, shift: true, status: true, line: true } }
+      }
     })
 
     // Helper: extract calendar date (YYYY-MM-DD)
@@ -403,19 +421,18 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
     // "4stdf-130526" / "4STDF-130526" become separate batches whose usage logs never match.
     const normBatch = (b: string | null | undefined) => (b || "").trim().toUpperCase()
 
-    // Set of DO item identifiers already claimed by an existing submitted/approved report.
+    // Map of DO item identifiers to the production lines ("800" | "425") that have already claimed
+    // them in an existing submitted/approved report on the same date and shift.
     //
     // Only claims made by a report DATED THE SAME DAY count. A report can only ever sync a DO whose
     // receiveDate equals its own date (see isReceivedToday below), so a claim filed on any other
     // date is provably about a different delivery. Without that bound the key below collides:
     // doNumber is not unique on TransferIn, and the Transfer In form strips a BOX DO down to its
-    // digits, so short reused names like "DO - 80020" recur every few days. A DO received
-    // 2026-08-07 was being hidden by the 2026-08-06 report's claim on a same-named document —
-    // invisible to every shift, taking its stock with it.
+    // digits, so short reused names like "DO - 80020" recur every few days.
     //
     // sectionKey is part of the key because InventoryLog has no category column and all four BOX
     // SKUs plus LABEL share mult 1, so batchNo|mult cannot tell them apart.
-    const claimedDOs = new Set<string>()
+    const claimedLinesByKey = new Map<string, Set<"800" | "425">>()
     allLogs.forEach(log => {
       if (log.type === "TransferIn" && log.labelType) {
         if (!excludeReportId || log.reportId !== excludeReportId) {
@@ -423,7 +440,10 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
           if (log.report && log.report.status !== "DRAFT") {
             if (toMalaysiaDateStr(log.report.date) !== reportDateString) return
             if (shift && log.report.shift && log.report.shift !== shift) return
-            claimedDOs.add(`${log.report.shift || "AM"}|${log.sectionKey}|${normBatch(log.batchNo)}|${log.mult}|${log.labelType}`)
+            const key = `${log.report.shift || "AM"}|${log.sectionKey}|${normBatch(log.batchNo)}|${log.mult}|${log.labelType}`
+            const lineKey: "800" | "425" = (log.report.line || "").includes("425") ? "425" : "800"
+            if (!claimedLinesByKey.has(key)) claimedLinesByKey.set(key, new Set())
+            claimedLinesByKey.get(key)!.add(lineKey)
           }
         }
       }
@@ -432,6 +452,28 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
     /** The claim key for a Transfer In item, matching how the report writes its log rows. */
     const claimKey = (item: any) =>
       `${item.transferIn.shift || "AM"}|${dailyReportSectionForCategory(item.category) || ""}|${normBatch(item.batchNo)}|${item.mult}|${item.transferIn.doNumber}`
+
+    const expectedLinesForItem = (category: string, batchNo: string): ("800" | "425")[] => {
+      const c = (category || "").trim().toUpperCase()
+      if (c.includes("800")) return ["800"]
+      if (c.includes("425")) return ["425"]
+      if (c.includes("LABEL")) {
+        const allow800 = !isOtherLineLabel(batchNo, "LINE 1 - 800ml")
+        const allow425 = !isOtherLineLabel(batchNo, "LINE 2 - 425ml")
+        const lines: ("800" | "425")[] = []
+        if (allow800) lines.push("800")
+        if (allow425) lines.push("425")
+        return lines.length > 0 ? lines : ["800", "425"]
+      }
+      return ["800", "425"]
+    }
+
+    const isItemFullyClaimed = (item: any) => {
+      const claimedLines = claimedLinesByKey.get(claimKey(item))
+      if (!claimedLines || claimedLines.size === 0) return false
+      const expected = expectedLinesForItem(item.category, item.batchNo)
+      return expected.every(l => claimedLines.has(l))
+    }
 
     // Helper: was this Transfer In item RECEIVED TODAY (on the report date)?
     const isReceivedOnReportDate = (item: any) =>
@@ -506,8 +548,8 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
           batchInfo[key].doNumber += `, ${item.transferIn.doNumber}`
         }
       }
-      // Only offer under "Transfer In Received Today" if it is received today AND not claimed by another report yet
-      if (isReceivedToday(item) && !claimedDOs.has(claimKey(item))) {
+      // Only offer under "Transfer In Received Today" if it is received today AND not fully claimed across all target lines
+      if (isReceivedToday(item) && !isItemFullyClaimed(item)) {
         batchInfo[key].todayItems.push(item)
       }
     })
@@ -540,11 +582,16 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
       // rows are one balance seen twice — summing them would double the stock.
       const eventsByTp: Record<number, {
         transferIns: number,
-        transferInLogs: number,
+        transferInLogsByReport: Record<string, number>,
         storeroomByReport: Record<string, number>,
         usage: number
       }> = {}
-      const blank = () => ({ transferIns: 0, transferInLogs: 0, storeroomByReport: {} as Record<string, number>, usage: 0 })
+      const blank = () => ({
+        transferIns: 0,
+        transferInLogsByReport: {} as Record<string, number>,
+        storeroomByReport: {} as Record<string, number>,
+        usage: 0
+      })
 
       batchDOs.forEach(item => {
         const tp = getTimePoint(item.transferIn.receiveDate, item.transferIn.shift)
@@ -566,7 +613,8 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
         } else if (log.type === "Reuse") {
           eventsByTp[tp].usage -= log.bags
         } else if (log.type === "TransferIn") {
-          eventsByTp[tp].transferInLogs += log.bags
+          const byReport = eventsByTp[tp].transferInLogsByReport
+          byReport[log.reportId] = (byReport[log.reportId] || 0) + log.bags
         }
       })
 
@@ -583,7 +631,11 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
 
         // A saved TransferIn log is the inflow the report actually recorded. Prefer whichever
         // source is larger so the inflow survives the DO being edited or deleted afterwards.
-        runningBalance += Math.max(ev.transferIns, ev.transferInLogs)
+        // Deduplicate per report (Math.max) so a shared CAP TransferIn logged on both Line 1 and
+        // Line 2 in the same shift is counted once, matching storeroomByReport above.
+        const loggedTransferIns = Object.values(ev.transferInLogsByReport)
+        const maxTransferInLog = loggedTransferIns.length > 0 ? Math.max(...loggedTransferIns) : 0
+        runningBalance += Math.max(ev.transferIns, maxTransferInLog)
         runningBalance -= ev.usage
       })
 
@@ -612,14 +664,27 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
     Object.keys(batchInfo).forEach(batchKey => {
       const info = batchInfo[batchKey]
 
-      // Unclaimed Transfer In received today
-      const todayInRaw = info.todayItems.reduce((sum, it) => sum + it.bags, 0)
+      // All Transfer In received today for this batch (including claimed ones, so a claimed
+      // today-DO is still subtracted from totalBalance and never leaks into today's carryForward)
+      const todayInRaw = allDOItems
+        .filter(it => `${it.category}|${normBatch(it.batchNo)}|${it.mult}` === batchKey && isReceivedToday(it))
+        .reduce((sum, it) => sum + it.bags, 0)
 
       let carryForward = info.totalBalance - todayInRaw
 
       info.todayItems.forEach(it => {
         if (it.bags > 0) {
-          todayDOs.push({ batchNo: normBatch(it.batchNo), bags: it.bags, mult: it.mult, category: it.category, doNumber: it.transferIn.doNumber, transferInId: it.transferIn.id, id: it.id })
+          const claimedLines = Array.from(claimedLinesByKey.get(claimKey(it)) || [])
+          todayDOs.push({
+            batchNo: normBatch(it.batchNo),
+            bags: it.bags,
+            mult: it.mult,
+            category: it.category,
+            doNumber: it.transferIn.doNumber,
+            transferInId: it.transferIn.id,
+            id: it.id,
+            claimedLines
+          })
         }
       })
 

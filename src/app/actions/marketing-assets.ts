@@ -113,6 +113,9 @@ export async function getMarketingAssetLoans(filterStatus?: string) {
       where,
       include: {
         asset: true,
+        returnLogs: {
+          orderBy: { returnedAt: "desc" },
+        },
       },
       orderBy: { createdAt: "desc" },
     })
@@ -620,6 +623,10 @@ export async function returnMarketingAssetLoan(
   loanId: string,
   data: {
     returnedBy?: string
+    returnQuantity?: number
+    goodQuantity?: number
+    damagedQuantity?: number
+    damageAction?: "REPAIR" | "DISPOSE" | "NONE"
     conditionOnReturn?: string
     returnedNotes?: string
   }
@@ -636,44 +643,128 @@ export async function returnMarketingAssetLoan(
     const result = await prisma.$transaction(async (tx) => {
       const loan = await tx.marketingAssetLoan.findUnique({
         where: { id: loanId },
-        include: { asset: true },
+        include: { asset: true, returnLogs: true },
       })
 
       if (!loan) throw new Error("Loan not found.")
-      if (loan.status !== "LENT_OUT" && loan.status !== "APPROVED") {
-        throw new Error(`Cannot mark loan as returned when status is "${loan.status}".`)
+      if (
+        loan.status !== "LENT_OUT" &&
+        loan.status !== "APPROVED" &&
+        loan.status !== "PARTIALLY_RETURNED"
+      ) {
+        throw new Error(`Cannot check in loan when status is "${loan.status}".`)
       }
 
-      // Restock the asset
-      await tx.marketingAsset.update({
-        where: { id: loan.assetId },
+      const alreadyReturned = loan.returnedQuantity || 0
+      const remainingQuantity = Math.max(0, loan.quantity - alreadyReturned)
+
+      if (remainingQuantity <= 0) {
+        throw new Error("All items for this loan have already been returned.")
+      }
+
+      // Determine returnQuantity
+      const requestedReturnQty = data.returnQuantity !== undefined ? Number(data.returnQuantity) : remainingQuantity
+      const returnQty = Math.min(remainingQuantity, Math.max(1, requestedReturnQty))
+
+      // Determine good and damaged quantities
+      let goodQty = Number(data.goodQuantity ?? (data.conditionOnReturn === "Damaged" ? 0 : returnQty))
+      let damagedQty = Number(data.damagedQuantity ?? (data.conditionOnReturn === "Damaged" ? returnQty : 0))
+
+      if (goodQty < 0) goodQty = 0
+      if (damagedQty < 0) damagedQty = 0
+
+      // Adjust if sum doesn't match returnQty
+      if (goodQty + damagedQty !== returnQty) {
+        if (goodQty > returnQty) goodQty = returnQty
+        damagedQty = returnQty - goodQty
+      }
+
+      const damageAction = damagedQty > 0 ? (data.damageAction || "REPAIR") : "NONE"
+      const conditionOnReturn = data.conditionOnReturn || (damagedQty > 0 ? "Damaged" : "Good")
+
+      // 1. Update Asset stock & condition
+      const assetUpdateData: any = {}
+      if (goodQty > 0) {
+        assetUpdateData.availableQuantity = { increment: goodQty }
+      }
+      if (damagedQty > 0 && damageAction === "DISPOSE") {
+        // Disposed/scrapped -> permanently deduct from total registry
+        assetUpdateData.totalQuantity = { decrement: damagedQty }
+      }
+      if (damagedQty > 0 && damageAction === "REPAIR") {
+        // Mark condition if repaired
+        assetUpdateData.condition = "Under Repair"
+      }
+
+      if (Object.keys(assetUpdateData).length > 0) {
+        await tx.marketingAsset.update({
+          where: { id: loan.assetId },
+          data: assetUpdateData,
+        })
+      }
+
+      // 2. Log return transaction
+      await tx.marketingAssetReturnLog.create({
         data: {
-          availableQuantity: { increment: loan.quantity },
-          ...(data.conditionOnReturn && data.conditionOnReturn !== "Good"
-            ? { condition: data.conditionOnReturn }
-            : {}),
+          loanId: loan.id,
+          returnedQuantity: returnQty,
+          goodQuantity: goodQty,
+          damagedQuantity: damagedQty,
+          damageAction,
+          conditionOnReturn,
+          returnedBy: data.returnedBy?.trim() || loan.borrowerName,
+          returnedNotes: data.returnedNotes?.trim() || null,
+          handlerName: handler,
+          returnedAt: new Date(),
         },
       })
+
+      // 3. Update the Loan
+      const newTotalReturned = alreadyReturned + returnQty
+      const newDamagedQuantity = (loan.damagedQuantity || 0) + damagedQty
+      const isFullyReturned = newTotalReturned >= loan.quantity
+      const newStatus = isFullyReturned ? "RETURNED" : "PARTIALLY_RETURNED"
 
       const updated = await tx.marketingAssetLoan.update({
         where: { id: loanId },
         data: {
-          status: "RETURNED",
-          actualReturn: new Date(),
+          status: newStatus,
+          returnedQuantity: newTotalReturned,
+          damagedQuantity: newDamagedQuantity,
+          actualReturn: isFullyReturned ? new Date() : (loan.actualReturn || new Date()),
           returnedBy: data.returnedBy?.trim() || loan.borrowerName,
-          conditionOnReturn: data.conditionOnReturn || "Good",
-          returnedNotes: data.returnedNotes?.trim() || null,
+          conditionOnReturn,
+          returnedNotes: data.returnedNotes?.trim()
+            ? loan.returnedNotes
+              ? `${loan.returnedNotes}\n[${new Date().toLocaleDateString("en-MY")}] ${data.returnedNotes.trim()}`
+              : `[${new Date().toLocaleDateString("en-MY")}] ${data.returnedNotes.trim()}`
+            : loan.returnedNotes,
+        },
+        include: {
+          asset: true,
+          returnLogs: {
+            orderBy: { returnedAt: "desc" },
+          },
         },
       })
 
-      return { updated, asset: loan.asset }
+      return {
+        updated,
+        asset: loan.asset,
+        returnQty,
+        goodQty,
+        damagedQty,
+        damageAction,
+        isFullyReturned,
+        newStatus,
+      }
     })
 
     revalidatePath("/marketing/assets")
 
     await logUserAction(
       "Returned Marketing Asset",
-      `Recorded return of ${result.asset.name} (${result.updated.loanNumber}). Returned by: ${data.returnedBy || result.updated.borrowerName}. Condition: ${data.conditionOnReturn || "Good"}. Handled by: ${handler}.`
+      `Recorded return of ${result.returnQty}x ${result.asset.name} (${result.updated.loanNumber}). Good: ${result.goodQty}, Damaged: ${result.damagedQty} (${result.damageAction}). Status: ${result.newStatus} (${result.updated.returnedQuantity}/${result.updated.quantity} returned). Handled by: ${handler}.`
     )
 
     return { success: true, data: result.updated }

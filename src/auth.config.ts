@@ -1,7 +1,12 @@
 import type { NextAuthConfig } from "next-auth"
 
+// Global session version salt: modifying this invalidates ALL active user session JWTs across all devices,
+// forcing all users to be logged out immediately and re-authenticate with their new passwords.
+const AUTH_SESSION_VERSION = process.env.AUTH_SESSION_VERSION || "v2_force_logout_20261111"
+const baseSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "your-super-secret-key-for-nextauth-replace-me-in-production"
+
 export const authConfig = {
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "your-super-secret-key-for-nextauth-replace-me-in-production",
+  secret: `${baseSecret}_${AUTH_SESSION_VERSION}`,
   trustHost: true,
   providers: [],
   pages: {

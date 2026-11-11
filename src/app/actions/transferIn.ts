@@ -70,7 +70,7 @@ async function syncTransferInGroupToDailyReports(receiveDate: Date, shift: strin
       where: {
         date: { gte: windowStart, lte: windowEnd },
         shift,
-        status: { in: ["DRAFT", "PENDING"] },
+        status: "DRAFT",
       },
       include: { inventory: true },
     }),

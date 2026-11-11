@@ -170,8 +170,6 @@ export function DailyReportForm({ userName, initialData, reportId }: { userName:
 
   const activeLineKey: "800" | "425" = (watchLine || "").includes("425") ? "425" : "800"
   const isAvailableForActiveLine = (d: any) => {
-    if (String(d?.id || "").startsWith("explicit-")) return true
-    if (Array.isArray(d?.claimedLines) && d.claimedLines.includes(activeLineKey)) return false
     return true
   }
 

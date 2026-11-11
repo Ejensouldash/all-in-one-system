@@ -14,11 +14,15 @@ import {
   Loader2,
   CheckCircle2,
   Briefcase,
+  Phone,
+  Sparkles,
+  Clock,
 } from "lucide-react"
 import { createPurchase, updatePurchase } from "@/app/actions/procurement"
 import {
   COMPANY_OPTIONS,
   DEPARTMENT_OPTIONS,
+  PAYMENT_TERMS_CONFIG,
 } from "@/components/procurement/procurement-constants"
 
 interface SupplierOption {
@@ -68,6 +72,8 @@ export function PurchaseModal({
   const [supplierMode, setSupplierMode] = useState<"EXISTING" | "CUSTOM">("EXISTING")
   const [selectedSupplierId, setSelectedSupplierId] = useState("")
   const [supplierName, setSupplierName] = useState("")
+  const [newSupplierTerms, setNewSupplierTerms] = useState<string>("TERM_30_DAYS")
+  const [newSupplierPhone, setNewSupplierPhone] = useState<string>("")
   const [quantity, setQuantity] = useState<string>("1")
   const [uom, setUom] = useState<string>("PCS")
   const [customUom, setCustomUom] = useState<string>("")
@@ -138,6 +144,8 @@ export function PurchaseModal({
         setSelectedSupplierId("")
         setSupplierName("")
       }
+      setNewSupplierTerms("TERM_30_DAYS")
+      setNewSupplierPhone("")
       setQuantity("1")
       setUom("PCS")
       setCustomUom("")
@@ -228,6 +236,8 @@ export function PurchaseModal({
         company: company.trim().toUpperCase(),
         department: department.trim() || undefined,
         remarks: remarks.trim() || undefined,
+        newSupplierPhone: supplierMode === "CUSTOM" && newSupplierPhone.trim() ? newSupplierPhone.trim() : undefined,
+        newSupplierTerms: supplierMode === "CUSTOM" ? newSupplierTerms : undefined,
       }
 
       let res: any
@@ -422,14 +432,60 @@ export function PurchaseModal({
                 ))}
               </select>
             ) : (
-              <input
-                type="text"
-                required
-                placeholder="Enter supplier / vendor name..."
-                value={supplierName}
-                onChange={(e) => setSupplierName(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
-              />
+              <div className="space-y-2.5">
+                <input
+                  type="text"
+                  required
+                  placeholder="Enter supplier / vendor name..."
+                  value={supplierName}
+                  onChange={(e) => setSupplierName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
+                />
+
+                <div className="p-3 bg-blue-50/60 border border-blue-100 rounded-xl space-y-2.5 animate-in fade-in">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-bold text-blue-900 flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                      Add to Supplier Directory
+                    </span>
+                    <span className="text-[10px] text-blue-600 font-medium">Auto-registers new supplier</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1 flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-slate-400" />
+                        Payment Terms
+                      </label>
+                      <select
+                        value={newSupplierTerms}
+                        onChange={(e) => setNewSupplierTerms(e.target.value)}
+                        className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 font-medium"
+                      >
+                        {Object.entries(PAYMENT_TERMS_CONFIG).map(([key, config]) => (
+                          <option key={key} value={key}>
+                            {config.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1 flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-slate-400" />
+                        Phone Number <span className="text-slate-400 font-normal lowercase">(optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 012-3456789"
+                        value={newSupplierPhone}
+                        onChange={(e) => setNewSupplierPhone(e.target.value)}
+                        className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 font-medium"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 

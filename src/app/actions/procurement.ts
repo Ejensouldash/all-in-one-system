@@ -8,6 +8,7 @@ import {
   ProcurementInvoiceCategory,
   ProcurementInvoiceStatus,
 } from "@prisma/client"
+import { ProcurementComparisonStatus } from "@/components/procurement/comparison-constants"
 import { uploadProcurementFile } from "@/lib/procurement-storage"
 
 export async function checkProcurementAccess() {
@@ -302,7 +303,6 @@ export async function getProcurementSummary() {
   ])
 
   // Count overdue or due within 3 days
-  const now = new Date()
   const threeDaysLater = new Date()
   threeDaysLater.setDate(threeDaysLater.getDate() + 3)
 
@@ -422,7 +422,7 @@ export async function updateInvoice(
     notes?: string
   }
 ) {
-  const access = await checkProcurementAccess()
+  await checkProcurementAccess()
 
   try {
     const updatePayload: any = {}
@@ -558,7 +558,7 @@ export async function recordPayment(
 }
 
 export async function deleteInvoice(id: string) {
-  const access = await checkProcurementAccess()
+  await checkProcurementAccess()
 
   try {
     await prisma.procurementInvoice.delete({
@@ -703,6 +703,21 @@ export async function getPurchaseSummary() {
   }
 }
 
+function parsePaymentTerm(val?: string | null): ProcurementPaymentTerm {
+  if (!val) return ProcurementPaymentTerm.TERM_30_DAYS
+  const normalized = val.trim().toUpperCase()
+  if (normalized.includes("60")) return ProcurementPaymentTerm.TERM_60_DAYS
+  if (normalized.includes("7")) return ProcurementPaymentTerm.TERM_7_DAYS
+  if (normalized.includes("30") || normalized.includes("MONTH")) return ProcurementPaymentTerm.TERM_30_DAYS
+  if (normalized.includes("BEFORE") || normalized.includes("CBD")) return ProcurementPaymentTerm.CASH_BEFORE_DELIVERY
+  if (normalized.includes("COD")) return ProcurementPaymentTerm.COD
+  if (normalized.includes("CASH")) return ProcurementPaymentTerm.CASH
+  if (Object.values(ProcurementPaymentTerm).includes(normalized as any)) {
+    return normalized as ProcurementPaymentTerm
+  }
+  return ProcurementPaymentTerm.TERM_30_DAYS
+}
+
 export async function createPurchase(data: {
   purchaseDate?: string | Date
   itemDescription: string
@@ -715,6 +730,8 @@ export async function createPurchase(data: {
   company: string
   department?: string | null
   remarks?: string
+  newSupplierPhone?: string | null
+  newSupplierTerms?: string | null
 }) {
   const access = await checkProcurementAccess()
 
@@ -741,14 +758,47 @@ export async function createPurchase(data: {
   const unitPrice = Number(data.unitPrice)
   const total = data.total !== undefined && !isNaN(Number(data.total)) ? Number(data.total) : quantity * unitPrice
   const company = data.company.trim().toUpperCase()
+  const finalSupplierName = data.supplierName.trim()
 
   try {
+    let finalSupplierId = data.supplierId || null
+
+    // If no supplierId is specified, check existing or auto-register into Supplier Directory
+    if (!finalSupplierId && finalSupplierName) {
+      const existing = await prisma.procurementSupplier.findFirst({
+        where: { name: { equals: finalSupplierName, mode: "insensitive" } },
+      })
+
+      if (existing) {
+        finalSupplierId = existing.id
+        if (data.newSupplierPhone?.trim() && !existing.phone) {
+          await prisma.procurementSupplier.update({
+            where: { id: existing.id },
+            data: { phone: data.newSupplierPhone.trim() },
+          })
+        }
+      } else {
+        const terms = parsePaymentTerm(data.newSupplierTerms)
+        const newSupplier = await prisma.procurementSupplier.create({
+          data: {
+            name: finalSupplierName,
+            phone: data.newSupplierPhone?.trim() || null,
+            terms,
+            remark: `Auto-registered from Purchases (${company})`,
+            createdById: access.userId,
+          },
+        })
+        finalSupplierId = newSupplier.id
+        revalidatePath("/procurement/suppliers")
+      }
+    }
+
     const purchase = await prisma.procurementPurchase.create({
       data: {
         purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : new Date(),
         itemDescription: data.itemDescription.trim(),
-        supplierName: data.supplierName.trim(),
-        supplierId: data.supplierId || null,
+        supplierName: finalSupplierName,
+        supplierId: finalSupplierId,
         quantity,
         uom: data.uom.trim().toUpperCase(),
         unitPrice,
@@ -761,6 +811,7 @@ export async function createPurchase(data: {
     })
 
     revalidatePath("/procurement/purchases")
+    revalidatePath("/procurement/suppliers")
     return { success: true, purchase }
   } catch (error: any) {
     console.error("Failed to create purchase:", error)
@@ -782,9 +833,11 @@ export async function updatePurchase(
     company?: string
     department?: string | null
     remarks?: string
+    newSupplierPhone?: string | null
+    newSupplierTerms?: string | null
   }
 ) {
-  await checkProcurementAccess()
+  const access = await checkProcurementAccess()
 
   try {
     const existing = await prisma.procurementPurchase.findUnique({
@@ -798,14 +851,46 @@ export async function updatePurchase(
     const quantity = data.quantity !== undefined ? Number(data.quantity) : existing.quantity
     const unitPrice = data.unitPrice !== undefined ? Number(data.unitPrice) : existing.unitPrice
     const total = data.total !== undefined ? Number(data.total) : quantity * unitPrice
+    const finalSupplierName = data.supplierName !== undefined ? data.supplierName.trim() : existing.supplierName
+    let finalSupplierId = data.supplierId !== undefined ? data.supplierId : existing.supplierId
+
+    // If new custom supplier name with no supplierId, register or link
+    if (!finalSupplierId && finalSupplierName) {
+      const existingSup = await prisma.procurementSupplier.findFirst({
+        where: { name: { equals: finalSupplierName, mode: "insensitive" } },
+      })
+
+      if (existingSup) {
+        finalSupplierId = existingSup.id
+        if (data.newSupplierPhone?.trim() && !existingSup.phone) {
+          await prisma.procurementSupplier.update({
+            where: { id: existingSup.id },
+            data: { phone: data.newSupplierPhone.trim() },
+          })
+        }
+      } else {
+        const terms = parsePaymentTerm(data.newSupplierTerms)
+        const newSupplier = await prisma.procurementSupplier.create({
+          data: {
+            name: finalSupplierName,
+            phone: data.newSupplierPhone?.trim() || null,
+            terms,
+            remark: `Auto-registered from Purchases (${data.company || existing.company})`,
+            createdById: access.userId,
+          },
+        })
+        finalSupplierId = newSupplier.id
+        revalidatePath("/procurement/suppliers")
+      }
+    }
 
     const updated = await prisma.procurementPurchase.update({
       where: { id },
       data: {
         purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : existing.purchaseDate,
         itemDescription: data.itemDescription !== undefined ? data.itemDescription.trim() : existing.itemDescription,
-        supplierName: data.supplierName !== undefined ? data.supplierName.trim() : existing.supplierName,
-        supplierId: data.supplierId !== undefined ? data.supplierId : existing.supplierId,
+        supplierName: finalSupplierName,
+        supplierId: finalSupplierId,
         quantity,
         uom: data.uom !== undefined ? data.uom.trim().toUpperCase() : existing.uom,
         unitPrice,
@@ -817,6 +902,7 @@ export async function updatePurchase(
     })
 
     revalidatePath("/procurement/purchases")
+    revalidatePath("/procurement/suppliers")
     return { success: true, purchase: updated }
   } catch (error: any) {
     console.error("Failed to update purchase:", error)
@@ -837,5 +923,251 @@ export async function deletePurchase(id: string) {
   } catch (error: any) {
     console.error("Failed to delete purchase:", error)
     return { success: false, error: error.message || "Failed to delete purchase." }
+  }
+}
+
+// ----------------------------------------------------------------------
+// PRICE COMPARISON ACTIONS
+// ----------------------------------------------------------------------
+
+export async function getPriceComparisons(params?: {
+  search?: string
+  status?: string
+  company?: string
+  department?: string
+}) {
+  await checkProcurementAccess()
+
+  const where: any = {}
+
+  if (params?.status && params.status !== "ALL") {
+    where.status = params.status as ProcurementComparisonStatus
+  }
+
+  if (params?.company && params.company !== "ALL") {
+    where.company = params.company
+  }
+
+  if (params?.department && params.department !== "ALL") {
+    where.department = params.department
+  }
+
+  if (params?.search?.trim()) {
+    const q = params.search.trim()
+    where.OR = [
+      { title: { contains: q, mode: "insensitive" } },
+      { referenceNo: { contains: q, mode: "insensitive" } },
+      { notes: { contains: q, mode: "insensitive" } },
+      { justification: { contains: q, mode: "insensitive" } },
+      { awardedSupplier: { contains: q, mode: "insensitive" } },
+    ]
+  }
+
+  return await prisma.procurementPriceComparison.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    include: {
+      createdBy: {
+        select: { id: true, name: true, email: true },
+      },
+    },
+  })
+}
+
+export async function getPriceComparisonById(id: string) {
+  await checkProcurementAccess()
+
+  const comparison = await prisma.procurementPriceComparison.findUnique({
+    where: { id },
+    include: {
+      createdBy: {
+        select: { id: true, name: true, email: true },
+      },
+    },
+  })
+
+  return comparison
+}
+
+export async function createPriceComparison(data: {
+  title: string
+  company: string
+  department: string
+  referenceNo?: string
+  suppliersData?: any
+  itemsData?: any
+  awardedSupplier?: string | null
+  justification?: string | null
+  notes?: string
+}) {
+  const access = await checkProcurementAccess()
+
+  let referenceNo = data.referenceNo?.trim()
+  if (!referenceNo) {
+    const year = new Date().getFullYear()
+    const count = await prisma.procurementPriceComparison.count()
+    referenceNo = `PC-${year}-${String(count + 1).padStart(4, "0")}`
+  }
+
+  try {
+    const processedSuppliers = data.suppliersData || []
+    if (data.awardedSupplier && Array.isArray(processedSuppliers)) {
+      const awarded = processedSuppliers.find((s: any) => s.id === data.awardedSupplier)
+      if (awarded && awarded.name?.trim() && !awarded.supplierId) {
+        const supName = awarded.name.trim()
+        const existingSup = await prisma.procurementSupplier.findFirst({
+          where: { name: { equals: supName, mode: "insensitive" } },
+        })
+        if (existingSup) {
+          awarded.supplierId = existingSup.id
+          if (awarded.phone?.trim() && !existingSup.phone) {
+            await prisma.procurementSupplier.update({
+              where: { id: existingSup.id },
+              data: { phone: awarded.phone.trim() },
+            })
+          }
+        } else {
+          const terms = parsePaymentTerm(awarded.paymentTerms)
+          const createdSup = await prisma.procurementSupplier.create({
+            data: {
+              name: supName,
+              phone: awarded.phone?.trim() || null,
+              terms,
+              remark: `Auto-registered as Awarded Vendor from Price Comparison (${referenceNo})`,
+              createdById: access.userId,
+            },
+          })
+          awarded.supplierId = createdSup.id
+          revalidatePath("/procurement/suppliers")
+        }
+      }
+    }
+
+    const created = await prisma.procurementPriceComparison.create({
+      data: {
+        title: data.title.trim(),
+        referenceNo,
+        company: data.company,
+        department: data.department,
+        status: ProcurementComparisonStatus.DRAFT,
+        suppliersData: processedSuppliers,
+        itemsData: data.itemsData || [],
+        awardedSupplier: data.awardedSupplier || null,
+        justification: data.justification?.trim() || null,
+        notes: data.notes?.trim() || null,
+        createdById: access.userId,
+      },
+    })
+
+    revalidatePath("/procurement/comparisons")
+    revalidatePath("/procurement/suppliers")
+    return { success: true, comparison: created }
+  } catch (error: any) {
+    console.error("Failed to create price comparison:", error)
+    return { success: false, error: error.message || "Failed to create price comparison." }
+  }
+}
+
+export async function updatePriceComparison(
+  id: string,
+  data: {
+    title?: string
+    company?: string
+    department?: string
+    status?: ProcurementComparisonStatus
+    suppliersData?: any
+    itemsData?: any
+    awardedSupplier?: string | null
+    justification?: string | null
+    notes?: string | null
+  }
+) {
+  const access = await checkProcurementAccess()
+
+  try {
+    let finalSuppliersData = data.suppliersData
+
+    // Auto-register awarded vendor into Supplier Directory if new/unlinked
+    if (data.awardedSupplier) {
+      if (!finalSuppliersData) {
+        const existingComp = await prisma.procurementPriceComparison.findUnique({
+          where: { id },
+          select: { suppliersData: true, referenceNo: true },
+        })
+        finalSuppliersData = (existingComp?.suppliersData as any[]) || []
+      }
+
+      if (Array.isArray(finalSuppliersData)) {
+        const awarded = finalSuppliersData.find((s: any) => s.id === data.awardedSupplier)
+        if (awarded && awarded.name?.trim() && !awarded.supplierId) {
+          const supName = awarded.name.trim()
+          const existingSup = await prisma.procurementSupplier.findFirst({
+            where: { name: { equals: supName, mode: "insensitive" } },
+          })
+
+          if (existingSup) {
+            awarded.supplierId = existingSup.id
+            if (awarded.phone?.trim() && !existingSup.phone) {
+              await prisma.procurementSupplier.update({
+                where: { id: existingSup.id },
+                data: { phone: awarded.phone.trim() },
+              })
+            }
+          } else {
+            const terms = parsePaymentTerm(awarded.paymentTerms)
+            const createdSup = await prisma.procurementSupplier.create({
+              data: {
+                name: supName,
+                phone: awarded.phone?.trim() || null,
+                terms,
+                remark: `Auto-registered as Awarded Vendor from Price Comparison`,
+                createdById: access.userId,
+              },
+            })
+            awarded.supplierId = createdSup.id
+            revalidatePath("/procurement/suppliers")
+          }
+        }
+      }
+    }
+
+    const updated = await prisma.procurementPriceComparison.update({
+      where: { id },
+      data: {
+        ...(data.title !== undefined && { title: data.title.trim() }),
+        ...(data.company !== undefined && { company: data.company }),
+        ...(data.department !== undefined && { department: data.department }),
+        ...(data.status !== undefined && { status: data.status }),
+        ...(finalSuppliersData !== undefined && { suppliersData: finalSuppliersData }),
+        ...(data.itemsData !== undefined && { itemsData: data.itemsData }),
+        ...(data.awardedSupplier !== undefined && { awardedSupplier: data.awardedSupplier }),
+        ...(data.justification !== undefined && { justification: data.justification }),
+        ...(data.notes !== undefined && { notes: data.notes }),
+      },
+    })
+
+    revalidatePath("/procurement/comparisons")
+    revalidatePath(`/procurement/comparisons/${id}`)
+    revalidatePath("/procurement/suppliers")
+    return { success: true, comparison: updated }
+  } catch (error: any) {
+    console.error("Failed to update price comparison:", error)
+    return { success: false, error: error.message || "Failed to update price comparison." }
+  }
+}
+
+export async function deletePriceComparison(id: string) {
+  await checkProcurementAccess()
+
+  try {
+    await prisma.procurementPriceComparison.delete({
+      where: { id },
+    })
+
+    revalidatePath("/procurement/comparisons")
+    return { success: true }
+  } catch (error: any) {
+    console.error("Failed to delete price comparison:", error)
+    return { success: false, error: error.message || "Failed to delete price comparison." }
   }
 }

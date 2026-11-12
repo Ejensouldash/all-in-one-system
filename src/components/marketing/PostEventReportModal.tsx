@@ -23,6 +23,13 @@ import {
   Eye,
   Wallet,
   Bot,
+  Utensils,
+  Building,
+  Car,
+  Package,
+  Banknote,
+  TrendingUp,
+  Info,
 } from "lucide-react"
 import {
   getPostEventReport,
@@ -31,8 +38,10 @@ import {
   approvePostEventReport,
   uploadPostEventFile,
   setEventBudgetCap,
+  setEventCategoryBudgets,
   type PostEventReportFormData,
   type VipEntry,
+  type StaffInvolvedEntry,
   type PlannedFlowItem,
   type ActivationItem,
   type ActivationImageItem,
@@ -44,10 +53,18 @@ import { runFeedbackSentimentAnalysis } from "@/app/actions/marketing-feedback-a
 import {
   buildEventScoreBreakdown,
   formatScore,
+  round2,
   getScoreMissingRequirements,
   type EventScoreBreakdown,
   type ImpactItem,
+  type ImpactItemType,
   type SentimentLabel,
+  type BudgetCategoryKey,
+  type EventCategoryBudgets,
+  BUDGET_CATEGORY_LABELS,
+  aggregateClaimsByCategory,
+  parseCategoryBudgets,
+  getClaimCategoryFormValue,
 } from "@/lib/marketing/event-success-rate"
 import { EventSuccessScoreCard } from "./EventSuccessScoreCard"
 
@@ -115,14 +132,55 @@ const COMMON_DEPARTMENTS = [
 ]
 
 const CLAIM_CATEGORIES = [
-  { value: "PETROL", label: "Petrol / Fuel" },
-  { value: "TNG", label: "Touch 'n Go / Toll" },
-  { value: "ACCOMMODATION", label: "Hotel / Accommodation" },
-  { value: "MEALS", label: "Meal Allowance" },
-  { value: "BOOTH_ITEMS", label: "Booth Materials & Setup" },
-  { value: "ICE", label: "Ice Cubes" },
-  { value: "LOGISTICS", label: "Logistics / Courier" },
-  { value: "OTHER", label: "Other" },
+  { value: "MEALS", label: "Meals" },
+  { value: "ACCOMMODATION", label: "Accommodation" },
+  { value: "TRANSPORTATION", label: "Transportation (Fuel / Toll)" },
+  { value: "MISCELLANEOUS", label: "Miscellaneous" },
+  { value: "PETTY CASH", label: "Petty Cash" },
+]
+
+const BUDGET_CATEGORIES_CONFIG: Array<{
+  key: BudgetCategoryKey
+  label: string
+  sublabel: string
+  icon: React.ComponentType<{ className?: string }>
+  color: string
+}> = [
+  {
+    key: "meals",
+    label: "Meals",
+    sublabel: "Staff meal allowance",
+    icon: Utensils,
+    color: "text-amber-700 bg-amber-100/60 border-amber-200",
+  },
+  {
+    key: "accommodation",
+    label: "Accommodation",
+    sublabel: "Hotel & lodging expenses",
+    icon: Building,
+    color: "text-blue-700 bg-blue-100/60 border-blue-200",
+  },
+  {
+    key: "transportation",
+    label: "Transportation",
+    sublabel: "Fuel, toll, parking & mileage",
+    icon: Car,
+    color: "text-emerald-700 bg-emerald-100/60 border-emerald-200",
+  },
+  {
+    key: "miscellaneous",
+    label: "Miscellaneous",
+    sublabel: "Booth items, ice & event supplies",
+    icon: Package,
+    color: "text-purple-700 bg-purple-100/60 border-purple-200",
+  },
+  {
+    key: "pettyCash",
+    label: "Petty Cash",
+    sublabel: "Emergency on-site cash",
+    icon: Banknote,
+    color: "text-rose-700 bg-rose-100/60 border-rose-200",
+  },
 ]
 
 export function PostEventReportModal({
@@ -144,8 +202,21 @@ export function PostEventReportModal({
   const [feedbackStats, setFeedbackStats] = useState<FeedbackStats | null>(null)
   const [scoreBreakdown, setScoreBreakdown] = useState<EventScoreBreakdown | null>(null)
   const [scoreLocked, setScoreLocked] = useState(false)
-  const [budgetCap, setBudgetCap] = useState<number | null>(null)
-  const [budgetInput, setBudgetInput] = useState("")
+  const [categoryBudgets, setCategoryBudgets] = useState<EventCategoryBudgets>({
+    meals: 0,
+    accommodation: 0,
+    transportation: 0,
+    miscellaneous: 0,
+    pettyCash: 0,
+  })
+  const [categoryBudgetInputs, setCategoryBudgetInputs] = useState<Record<BudgetCategoryKey, string>>({
+    meals: "",
+    accommodation: "",
+    transportation: "",
+    miscellaneous: "",
+    pettyCash: "",
+  })
+  const [hasBudgetSet, setHasBudgetSet] = useState(false)
   const [budgetMeta, setBudgetMeta] = useState<{ setBy: string | null; setAt: string | null }>({
     setBy: null,
     setAt: null,
@@ -205,6 +276,7 @@ export function PostEventReportModal({
           scoreLocked?: boolean
           requisition?: {
             budgetCap?: number | null
+            categoryBudgets?: string | null
             budgetSetBy?: string | null
             budgetSetAt?: string | null
           }
@@ -215,9 +287,23 @@ export function PostEventReportModal({
           setFeedbackStats(data.feedbackStats || null)
           setScoreBreakdown(data.scoreBreakdown || null)
           setScoreLocked(Boolean(data.scoreLocked))
-          const cap = data.requisition?.budgetCap ?? null
-          setBudgetCap(cap)
-          setBudgetInput(cap === null || cap === undefined ? "" : String(cap))
+          const reqBudgets = parseCategoryBudgets(
+            data.requisition?.categoryBudgets,
+            data.requisition?.budgetCap
+          )
+          setCategoryBudgets(reqBudgets)
+          setCategoryBudgetInputs({
+            meals: reqBudgets.meals > 0 ? String(reqBudgets.meals) : "",
+            accommodation: reqBudgets.accommodation > 0 ? String(reqBudgets.accommodation) : "",
+            transportation: reqBudgets.transportation > 0 ? String(reqBudgets.transportation) : "",
+            miscellaneous: reqBudgets.miscellaneous > 0 ? String(reqBudgets.miscellaneous) : "",
+            pettyCash: reqBudgets.pettyCash > 0 ? String(reqBudgets.pettyCash) : "",
+          })
+          const isSet = Boolean(
+            data.requisition?.budgetSetBy ||
+              (data.requisition?.budgetCap !== null && data.requisition?.budgetCap !== undefined)
+          )
+          setHasBudgetSet(isSet)
           setBudgetMeta({
             setBy: data.requisition?.budgetSetBy ?? null,
             setAt: data.requisition?.budgetSetAt ?? null,
@@ -239,6 +325,24 @@ export function PostEventReportModal({
     }
   }, [isOpen, requisitionId])
 
+  const totalApprovedBudget = useMemo(() => {
+    return round2(
+      (Number(categoryBudgets.meals) || 0) +
+        (Number(categoryBudgets.accommodation) || 0) +
+        (Number(categoryBudgets.transportation) || 0) +
+        (Number(categoryBudgets.miscellaneous) || 0) +
+        (Number(categoryBudgets.pettyCash) || 0)
+    )
+  }, [categoryBudgets])
+
+  const categoryClaims = useMemo(() => {
+    return aggregateClaimsByCategory(formData.claimBreakdown)
+  }, [formData.claimBreakdown])
+
+  const totalClaimsAmount = useMemo(() => {
+    return round2(formData.claimBreakdown.reduce((sum, g) => sum + (g.subtotal || 0), 0))
+  }, [formData.claimBreakdown])
+
   const previewBreakdown = useMemo<EventScoreBreakdown>(() => {
     if (scoreLocked && scoreBreakdown) return scoreBreakdown
 
@@ -247,17 +351,23 @@ export function PostEventReportModal({
         satisfaction: row.satisfaction,
         aiSentiment: row.aiSentiment,
       })),
-      budgetCap,
+      budgetCap: totalApprovedBudget,
+      categoryBudgets,
+      claimBreakdown: formData.claimBreakdown,
+      hasBudgetBeenSet: hasBudgetSet,
       impactItems: formData.impactDistribution,
-      totalClaimAmount: formData.totalClaimAmount,
+      totalClaimAmount: totalClaimsAmount,
     })
   }, [
     scoreLocked,
     scoreBreakdown,
     feedbackStats,
-    budgetCap,
+    totalApprovedBudget,
+    categoryBudgets,
+    formData.claimBreakdown,
+    hasBudgetSet,
     formData.impactDistribution,
-    formData.totalClaimAmount,
+    totalClaimsAmount,
   ])
 
   const missingRequirements = getScoreMissingRequirements(previewBreakdown.flags)
@@ -281,8 +391,8 @@ export function PostEventReportModal({
       ok: formData.impactDistribution.some((item) => item.qtyGiven > 0),
     },
     {
-      label: "Approved budget cap set by Finance",
-      ok: budgetCap !== null && budgetCap > 0,
+      label: "Approved category budget allocations set by Finance",
+      ok: hasBudgetSet,
     },
   ]
 
@@ -300,7 +410,7 @@ export function PostEventReportModal({
       ...prev,
       impactDistribution: [
         ...prev.impactDistribution,
-        { id: `impact-${Date.now()}`, name: "", unit: "ctn", qtyGiven: 0, qtyUsed: 0 },
+        { id: `impact-${Date.now()}`, type: "WATER", name: "", unit: "ctn", qtyGiven: 0, qtyUsed: 0 },
       ],
     }))
   }
@@ -312,6 +422,12 @@ export function PostEventReportModal({
     }))
   }
 
+  const handleCategoryInputChange = (key: BudgetCategoryKey, valStr: string) => {
+    setCategoryBudgetInputs((prev) => ({ ...prev, [key]: valStr }))
+    const val = Math.max(0, parseFloat(valStr) || 0)
+    setCategoryBudgets((prev) => ({ ...prev, [key]: val }))
+  }
+
   const handleSaveBudget = async () => {
     if (!canSetBudget) return
 
@@ -319,15 +435,9 @@ export function PostEventReportModal({
       scoreLocked &&
       !confirm(
         "This report is already submitted/approved and its success rate is locked. " +
-          "Recalculating it with the new budget cap will update the locked snapshot. Continue?"
+          "Recalculating it with the new budget allocations will update the locked snapshot. Continue?"
       )
     ) {
-      return
-    }
-
-    const parsed = budgetInput.trim() === "" ? null : Number(budgetInput)
-    if (parsed !== null && (!Number.isFinite(parsed) || parsed < 0)) {
-      setErrorMsg("Budget cap must be a positive amount, or leave it empty.")
       return
     }
 
@@ -336,22 +446,25 @@ export function PostEventReportModal({
     setSuccessMsg(null)
 
     try {
-      const res = await setEventBudgetCap(requisitionId, parsed)
+      const res = await setEventCategoryBudgets(requisitionId, categoryBudgets)
       if (res.success) {
-        setBudgetCap(res.budgetCap ?? null)
+        setHasBudgetSet(true)
         setBudgetMeta({ setBy: res.budgetSetBy ?? null, setAt: res.budgetSetAt ?? null })
-        if ("breakdown" in res && res.breakdown) setScoreBreakdown(res.breakdown)
+        if ("breakdown" in res && res.breakdown) {
+          setScoreBreakdown(res.breakdown)
+          setFormData((prev) => ({ ...prev, eventSuccessRate: res.breakdown!.total }))
+        }
         setSuccessMsg(
           "wasLocked" in res && res.wasLocked
-            ? "Budget cap saved. The locked success-rate snapshot was recalculated."
-            : "Budget cap saved. The success rate was recalculated."
+            ? "Category budget allocations saved. The locked success-rate snapshot was recalculated."
+            : "Category budget allocations saved. The success rate was recalculated."
         )
         setTimeout(() => setSuccessMsg(null), 3000)
       } else {
-        setErrorMsg(res.error || "Failed to save the budget cap.")
+        setErrorMsg(res.error || "Failed to save category budget allocations.")
       }
     } catch (err: any) {
-      setErrorMsg(err.message || "Error saving the budget cap.")
+      setErrorMsg(err.message || "Error saving category budget allocations.")
     } finally {
       setSavingBudget(false)
     }
@@ -449,7 +562,7 @@ export function PostEventReportModal({
         {
           id: `item-${Date.now()}-1`,
           description: "",
-          category: "OTHER",
+          category: "MEALS",
           amount: 0,
         },
       ],
@@ -481,7 +594,7 @@ export function PostEventReportModal({
     const newItem: ClaimItemDetail = {
       id: `item-${Date.now()}-${group.items.length + 1}`,
       description: "",
-      category: "OTHER",
+      category: "MEALS",
       amount: 0,
     }
     const updatedGroup = {
@@ -994,39 +1107,89 @@ export function PostEventReportModal({
                   </div>
 
                   {/* Section 6: Staff Involved */}
-                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
-                    <h3 className="text-xs font-bold text-slate-800 mb-1">
-                      6. Staff &amp; Departments Involved
-                    </h3>
-                    <p className="text-[11px] text-slate-500 mb-3">
-                      Select all departments that supported and executed event operations.
-                    </p>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {COMMON_DEPARTMENTS.map((dept) => {
-                        const isSelected = formData.staffInvolved.includes(dept)
-                        return (
-                          <button
-                            key={dept}
-                            type="button"
-                            onClick={() => {
-                              const updated = isSelected
-                                ? formData.staffInvolved.filter((d) => d !== dept)
-                                : [...formData.staffInvolved, dept]
-                              setFormData({ ...formData, staffInvolved: updated })
-                            }}
-                            className={`px-3 py-2 rounded-lg text-xs font-semibold text-left border flex items-center justify-between transition cursor-pointer ${
-                              isSelected
-                                ? "bg-teal-50 border-teal-300 text-teal-800"
-                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
-                            }`}
-                          >
-                            <span>{dept}</span>
-                            {isSelected && <Check className="w-3.5 h-3.5 text-teal-600" />}
-                          </button>
-                        )
-                      })}
+                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-800">
+                          6. Staff &amp; Departments Involved
+                        </h3>
+                        <p className="text-[11px] text-slate-500">
+                          Record personnel and select their respective departments supporting event operations.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData({
+                            ...formData,
+                            staffInvolved: [
+                              ...formData.staffInvolved,
+                              { name: "", department: "MARKETING" },
+                            ],
+                          })
+                        }}
+                        className="px-2.5 py-1 text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white rounded-lg flex items-center gap-1 transition"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Staff</span>
+                      </button>
                     </div>
+
+                    {formData.staffInvolved.length === 0 ? (
+                      <div className="py-6 border-2 border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-xs">
+                        No staff members recorded. Click &quot;Add Staff&quot; above to add personnel.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {formData.staffInvolved.map((staff, idx) => {
+                          const deptOptions = COMMON_DEPARTMENTS.includes(staff.department)
+                            ? COMMON_DEPARTMENTS
+                            : [...COMMON_DEPARTMENTS, staff.department].filter(Boolean)
+
+                          return (
+                            <div key={idx} className="flex items-center gap-2">
+                              <select
+                                value={staff.department}
+                                onChange={(e) => {
+                                  const updated = [...formData.staffInvolved]
+                                  updated[idx] = { ...updated[idx], department: e.target.value }
+                                  setFormData({ ...formData, staffInvolved: updated })
+                                }}
+                                className="w-48 sm:w-56 text-xs px-3 py-1.5 border border-slate-300 rounded-lg bg-white outline-none font-semibold text-slate-700 focus:border-teal-500"
+                              >
+                                {deptOptions.map((dept) => (
+                                  <option key={dept} value={dept}>
+                                    {dept}
+                                  </option>
+                                ))}
+                              </select>
+                              <input
+                                type="text"
+                                placeholder="Staff Name (e.g. Muhammad Putra / Cik Nana)"
+                                value={staff.name}
+                                onChange={(e) => {
+                                  const updated = [...formData.staffInvolved]
+                                  updated[idx] = { ...updated[idx], name: e.target.value }
+                                  setFormData({ ...formData, staffInvolved: updated })
+                                }}
+                                className="flex-1 text-xs px-3 py-1.5 border border-slate-300 rounded-lg bg-white outline-none focus:border-teal-500"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = formData.staffInvolved.filter((_, i) => i !== idx)
+                                  setFormData({ ...formData, staffInvolved: updated })
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg transition"
+                                title="Remove Staff"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1084,6 +1247,7 @@ export function PostEventReportModal({
                         <table className="w-full text-left text-xs">
                           <thead>
                             <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-bold uppercase text-slate-400">
+                              <th className="px-2 py-1.5 w-32">Type</th>
                               <th className="px-2 py-1.5">Item</th>
                               <th className="px-2 py-1.5 w-16">Unit</th>
                               <th className="px-2 py-1.5 w-24 text-right">Qty Given</th>
@@ -1095,7 +1259,7 @@ export function PostEventReportModal({
                           <tbody className="divide-y divide-slate-100">
                             {formData.impactDistribution.length === 0 ? (
                               <tr>
-                                <td colSpan={6} className="px-2 py-4 text-center text-[11px] text-slate-400">
+                                <td colSpan={7} className="px-2 py-4 text-center text-[11px] text-slate-400">
                                   No stock items recorded yet. Add the items given to this event.
                                 </td>
                               </tr>
@@ -1109,6 +1273,21 @@ export function PostEventReportModal({
 
                                 return (
                                   <tr key={item.id} className={overConsumed ? "bg-rose-50/40" : undefined}>
+                                    <td className="px-2 py-1">
+                                      <select
+                                        value={item.type || "WATER"}
+                                        disabled={scoreLocked}
+                                        onChange={(e) =>
+                                          updateImpactItem(index, {
+                                            type: e.target.value as ImpactItemType,
+                                          })
+                                        }
+                                        className="w-full text-xs px-2 py-1 border border-slate-200 rounded outline-none focus:border-teal-500 disabled:bg-slate-50 bg-white font-medium text-slate-700"
+                                      >
+                                        <option value="WATER">WATER</option>
+                                        <option value="MERCHANDISE">MERCHANDISE</option>
+                                      </select>
+                                    </td>
                                     <td className="px-2 py-1">
                                       <input
                                         type="text"
@@ -1125,7 +1304,7 @@ export function PostEventReportModal({
                                         value={item.unit}
                                         disabled={scoreLocked}
                                         onChange={(e) => updateImpactItem(index, { unit: e.target.value })}
-                                        placeholder="ctn"
+                                        placeholder={item.type === "MERCHANDISE" ? "pcs" : "ctn"}
                                         className="w-full text-xs px-2 py-1 border border-slate-200 rounded outline-none focus:border-teal-500 disabled:bg-slate-50"
                                       />
                                     </td>
@@ -1136,11 +1315,13 @@ export function PostEventReportModal({
                                         step="any"
                                         value={item.qtyGiven === 0 ? "" : item.qtyGiven}
                                         disabled={scoreLocked}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
+                                          const newGiven = Math.max(0, parseFloat(e.target.value) || 0)
                                           updateImpactItem(index, {
-                                            qtyGiven: parseFloat(e.target.value) || 0,
+                                            qtyGiven: newGiven,
+                                            qtyUsed: newGiven > 0 ? Math.min(item.qtyUsed, newGiven) : item.qtyUsed,
                                           })
-                                        }
+                                        }}
                                         className="w-full text-xs text-right font-mono px-2 py-1 border border-slate-200 rounded outline-none focus:border-teal-500 disabled:bg-slate-50"
                                       />
                                     </td>
@@ -1148,14 +1329,17 @@ export function PostEventReportModal({
                                       <input
                                         type="number"
                                         min="0"
+                                        max={item.qtyGiven > 0 ? item.qtyGiven : undefined}
                                         step="any"
                                         value={item.qtyUsed === 0 ? "" : item.qtyUsed}
                                         disabled={scoreLocked}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
+                                          const val = Math.max(0, parseFloat(e.target.value) || 0)
+                                          const capped = item.qtyGiven > 0 ? Math.min(val, item.qtyGiven) : val
                                           updateImpactItem(index, {
-                                            qtyUsed: parseFloat(e.target.value) || 0,
+                                            qtyUsed: capped,
                                           })
-                                        }
+                                        }}
                                         className="w-full text-xs text-right font-mono px-2 py-1 border border-slate-200 rounded outline-none focus:border-teal-500 disabled:bg-slate-50"
                                       />
                                     </td>
@@ -1195,12 +1379,35 @@ export function PostEventReportModal({
                           <Plus className="w-3.5 h-3.5" />
                           <span>Add Item</span>
                         </button>
-                        <div className="text-[11px] text-slate-500">
-                          Given <b>{impactPreview.given.toLocaleString()}</b> · Used{" "}
-                          <b>{impactPreview.used.toLocaleString()}</b> · Achievement{" "}
-                          <b>{formatScore(impactPreview.achievement)}%</b> ·{" "}
-                          <span className="font-bold text-sky-700">
-                            {formatScore(impactPreview.earned)} / 20 pts
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-600">
+                          <span>
+                            Water Utilisation:{" "}
+                            <b className="font-mono text-slate-800">
+                              {formatScore(impactPreview.waterUtilisation ?? 0)}%
+                            </b>
+                          </span>
+                          <span className="text-slate-300">·</span>
+                          <span>
+                            Merchandise Utilisation
+                            {impactPreview.merchandiseCount && impactPreview.merchandiseCount > 0 ? (
+                              <span className="text-slate-400 font-normal">
+                                {" "}
+                                ({impactPreview.merchandiseCount}{" "}
+                                {impactPreview.merchandiseCount === 1 ? "type" : "types"} ·{" "}
+                                {formatScore(100 / impactPreview.merchandiseCount)}% ea)
+                              </span>
+                            ) : null}
+                            :{" "}
+                            <b className="font-mono text-slate-800">
+                              {formatScore(impactPreview.merchandiseUtilisation ?? 0)}%
+                            </b>
+                          </span>
+                          <span className="text-slate-300">·</span>
+                          <span>
+                            Final Score:{" "}
+                            <span className="font-bold font-mono text-sky-700">
+                              {formatScore(impactPreview.earned)} / 20 pts
+                            </span>
                           </span>
                         </div>
                       </div>
@@ -1438,104 +1645,116 @@ export function PostEventReportModal({
                     </div>
                   </div>
 
-                  {/* Budget cap (15% success-rate component) */}
-                  <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-3">
+                  {/* Category Budget Allocation (Finance) */}
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <h3 className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
                           <Wallet className="w-4 h-4 text-amber-700" />
-                          Approved Budget Cap (Finance)
+                          Category Budget Allocation (Finance)
                         </h3>
                         <p className="text-[11px] text-amber-900 mt-0.5">
-                          Maximum amount approved for this event. Claims within the cap earn the full 15
-                          points; the score falls linearly to zero at twice the cap.
+                          Approved budget allocations across 5 categories. Each category awards up to 20 internal points
+                          (100 points total), contributing 15% to the final Event Success Rate.
                         </p>
                       </div>
-                      <span className="text-[10px] font-bold text-amber-800 bg-white border border-amber-200 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-bold text-amber-800 bg-white border border-amber-200 px-2.5 py-0.5 rounded-full shadow-xs">
                         15% of success rate
                       </span>
                     </div>
 
-                    <div className="flex flex-wrap items-end gap-2">
-                      <div className="flex-1 min-w-[180px]">
-                        <label className="block text-[11px] font-semibold text-amber-900 mb-1">
-                          Maximum Approved Budget (RM)
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-amber-800">RM</span>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={budgetInput}
-                            disabled={!canSetBudget}
-                            onChange={(e) => setBudgetInput(e.target.value)}
-                            placeholder="e.g. 1500.00"
-                            className="w-full text-xs font-mono font-bold px-3 py-2 border border-amber-300 rounded-lg outline-none bg-white focus:ring-2 focus:ring-amber-400 disabled:bg-slate-100 disabled:text-slate-500"
-                          />
-                        </div>
-                      </div>
+                    {/* 5 Category Inputs Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                      {BUDGET_CATEGORIES_CONFIG.map((cat) => {
+                        const Icon = cat.icon
+                        const claimedVal = categoryClaims[cat.key] || 0
+                        return (
+                          <div
+                            key={cat.key}
+                            className="bg-white border border-amber-200/90 rounded-xl p-3 shadow-xs space-y-2 flex flex-col justify-between"
+                          >
+                            <div>
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <span className={`p-1 rounded-md border ${cat.color}`}>
+                                  <Icon className="w-3.5 h-3.5" />
+                                </span>
+                                <div>
+                                  <span className="text-xs font-bold text-slate-800 block leading-tight">
+                                    {cat.label}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 block leading-tight">
+                                    {cat.sublabel}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
 
-                      <button
-                        type="button"
-                        onClick={handleSaveBudget}
-                        disabled={!canSetBudget || savingBudget}
-                        className="px-3 py-2 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                      >
-                        {savingBudget ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Check className="w-3.5 h-3.5" />
-                        )}
-                        <span>Save Budget</span>
-                      </button>
+                            <div>
+                              <label className="block text-[10px] font-semibold text-slate-600 mb-1">
+                                Approved (RM)
+                              </label>
+                              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 focus-within:border-amber-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-amber-200 transition">
+                                <span className="text-[11px] font-bold text-slate-500">RM</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={categoryBudgetInputs[cat.key]}
+                                  disabled={!canSetBudget}
+                                  onChange={(e) => handleCategoryInputChange(cat.key, e.target.value)}
+                                  placeholder="0.00"
+                                  className="w-full text-xs font-mono font-bold text-slate-800 bg-transparent outline-none disabled:text-slate-400"
+                                />
+                              </div>
+                              <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400">
+                                <span>Spent:</span>
+                                <span className="font-mono font-semibold text-slate-600">
+                                  RM {claimedVal.toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
 
-                    {budgetPreview.cap !== null && (
-                      <div className="space-y-2">
-                        <div className="h-2 w-full rounded-full bg-white border border-amber-200 overflow-hidden">
-                          <div
-                            className={`h-full ${
-                              budgetPreview.claims > budgetPreview.cap
-                                ? "bg-rose-500"
-                                : "bg-emerald-500"
-                            }`}
-                            style={{
-                              width: `${Math.min(
-                                100,
-                                (budgetPreview.claims / budgetPreview.cap) * 100
-                              )}%`,
-                            }}
-                          />
-                        </div>
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
-                          <span
-                            className={
-                              budgetPreview.claims > budgetPreview.cap
-                                ? "font-bold text-rose-700"
-                                : "font-bold text-emerald-700"
-                            }
-                          >
-                            {budgetPreview.claims > budgetPreview.cap
-                              ? `Over budget by RM ${(budgetPreview.claims - budgetPreview.cap).toFixed(2)}`
-                              : `Within budget (RM ${(budgetPreview.cap - budgetPreview.claims).toFixed(2)} remaining)`}
+                    {/* Total Approved Budget Bar & Save Action */}
+                    <div className="bg-gradient-to-r from-amber-100/90 via-amber-50 to-amber-100/70 border border-amber-300/80 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block">
+                          Total Approved Budget (Sum of 5 Categories)
+                        </span>
+                        <div className="flex items-baseline gap-2 mt-0.5">
+                          <span className="text-2xl font-black font-mono text-amber-950">
+                            RM {totalApprovedBudget.toFixed(2)}
                           </span>
-                          <span className="text-slate-600">
-                            Claims{" "}
-                            <b className="font-mono">RM {budgetPreview.claims.toFixed(2)}</b> of{" "}
-                            <b className="font-mono">RM {budgetPreview.cap.toFixed(2)}</b>
-                          </span>
-                          <span className="font-bold text-amber-800">
-                            {formatScore(budgetPreview.earned)} / 15 pts
+                          <span className="text-[11px] text-amber-800 font-medium">
+                            Total Claims: <b className="font-mono text-amber-950">RM {totalClaimsAmount.toFixed(2)}</b>
                           </span>
                         </div>
                       </div>
-                    )}
 
-                    {budgetPreview.cap === null && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleSaveBudget}
+                          disabled={!canSetBudget || savingBudget}
+                          className="px-4 py-2 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition"
+                        >
+                          {savingBudget ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Check className="w-3.5 h-3.5" />
+                          )}
+                          <span>Save Approved Budgets</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {!hasBudgetSet && (
                       <p className="text-[11px] font-semibold text-rose-700">
-                        Budget cap not set. The 15% component stays at 0 and the report cannot be
-                        submitted until Finance sets it.
+                        Category budget allocations not saved yet. The 15% budget performance component stays at 0 and
+                        the report cannot be submitted until Finance saves approved budgets.
                       </p>
                     )}
 
@@ -1543,15 +1762,14 @@ export function PostEventReportModal({
                       <p className="text-[11px] font-semibold text-rose-700">
                         {canEdit
                           ? "You can edit this report but not the approved budget. Ask a superadmin to grant the Post-Event Budget Cap module."
-                          : "Only users granted the Post-Event Budget Cap module can set this budget. Ask a superadmin for access."}
+                          : "Only users granted the Post-Event Budget Cap module can set these budgets. Ask a superadmin for access."}
                       </p>
                     )}
 
                     {scoreLocked && canSetBudget && (
                       <p className="text-[11px] font-semibold text-amber-800">
-                        This report is already {formData.status.toLowerCase()}. Saving a new cap will
-                        recalculate the locked success-rate snapshot and record the revision in the
-                        audit log.
+                        This report is already {formData.status.toLowerCase()}. Saving new category budgets will
+                        recalculate the locked success-rate snapshot and record the revision in the audit log.
                       </p>
                     )}
 
@@ -1566,9 +1784,9 @@ export function PostEventReportModal({
                                 })}`
                               : ""
                           }.`
-                        : "No budget cap recorded yet."}
+                        : "No budget allocations recorded yet."}
                       {scoreLocked && !canSetBudget
-                        ? " This report is locked; only authorised budget users can revise the cap."
+                        ? " This report is locked; only authorised budget users can revise the allocations."
                         : ""}
                     </p>
                   </div>
@@ -1657,7 +1875,7 @@ export function PostEventReportModal({
                                   </td>
                                   <td className="py-2 pr-2">
                                     <select
-                                      value={item.category}
+                                      value={getClaimCategoryFormValue(item.category)}
                                       onChange={(e) => {
                                         const items = [...group.items]
                                         items[iIdx].category = e.target.value as any
@@ -1770,6 +1988,175 @@ export function PostEventReportModal({
                       </div>
                     ))
                   )}
+
+                  {/* Live Budget Performance Summary (15% Weightage) */}
+                  <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-800 uppercase flex items-center gap-1.5">
+                          <TrendingUp className="w-4 h-4 text-teal-700" />
+                          Live Budget Performance Summary (15% Weightage)
+                        </h4>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Live evaluation of actual spending vs. approved budget allocations across 5 categories.
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+                          Internal: {budgetPreview.totalCategoryScore} / 100 pts
+                        </span>
+                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
+                          Weighted: {formatScore(budgetPreview.earned)} / 15.0 pts
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* KPI Cards Row */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">Total Approved</span>
+                        <span className="text-sm font-black font-mono text-slate-800">
+                          RM {budgetPreview.totalApproved.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">Total Spent</span>
+                        <span className="text-sm font-black font-mono text-teal-700">
+                          RM {budgetPreview.totalActual.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">Category Score</span>
+                        <span className="text-sm font-black font-mono text-indigo-700">
+                          {budgetPreview.totalCategoryScore} <span className="text-xs font-normal text-slate-400">/ 100</span>
+                        </span>
+                      </div>
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+                        <span className="text-[10px] font-bold text-amber-800 uppercase block">Final Score (15%)</span>
+                        <span className="text-sm font-black font-mono text-amber-900">
+                          {formatScore(budgetPreview.earned)} <span className="text-xs font-normal text-amber-700">/ 15.0</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Detailed Performance Table */}
+                    <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] font-bold">
+                            <th className="py-2.5 px-3">Category</th>
+                            <th className="py-2.5 px-3 text-right">Approved (RM)</th>
+                            <th className="py-2.5 px-3 text-right">Actual Spending (RM)</th>
+                            <th className="py-2.5 px-3 text-right">Score (Max 20)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {budgetPreview.categoryList.map((cat) => {
+                            const config = BUDGET_CATEGORIES_CONFIG.find((c) => c.key === cat.category)
+                            const Icon = config?.icon || Wallet
+                            const isPettyCash = cat.category === "pettyCash"
+
+                            return (
+                              <tr key={cat.category} className="hover:bg-slate-50/50">
+                                <td className="py-2.5 px-3 font-semibold text-slate-800">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`p-1 rounded-md border ${config?.color || "text-slate-600 bg-slate-100 border-slate-200"}`}>
+                                      <Icon className="w-3.5 h-3.5" />
+                                    </span>
+                                    <div>
+                                      <span className="font-bold text-slate-800">{cat.label}</span>
+                                      {isPettyCash && (
+                                        <span className="text-[10px] text-rose-600 font-medium ml-1.5">
+                                          (Deduction on usage)
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-mono font-medium text-slate-700">
+                                  RM {cat.approved.toFixed(2)}
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+                                  RM {cat.actual.toFixed(2)}
+                                </td>
+                                <td className="py-2.5 px-3 text-right">
+                                  <span
+                                    className={`inline-block font-mono font-bold px-2 py-0.5 rounded-md text-xs ${
+                                      cat.score === 20
+                                        ? "bg-emerald-100 text-emerald-800"
+                                        : cat.score >= 15
+                                          ? "bg-teal-100 text-teal-800"
+                                          : cat.score >= 10
+                                            ? "bg-amber-100 text-amber-800"
+                                            : cat.score >= 5
+                                              ? "bg-orange-100 text-orange-800"
+                                              : "bg-rose-100 text-rose-800"
+                                    }`}
+                                  >
+                                    {cat.score} / 20 pts
+                                  </span>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr className="bg-slate-100/80 font-bold border-t border-slate-200 text-slate-800">
+                            <td className="py-2.5 px-3">TOTAL</td>
+                            <td className="py-2.5 px-3 text-right font-mono">
+                              RM {budgetPreview.totalApproved.toFixed(2)}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono text-teal-800">
+                              RM {budgetPreview.totalActual.toFixed(2)}
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              <span className="font-mono text-amber-900 font-black">
+                                {budgetPreview.totalCategoryScore} / 100 pts
+                              </span>
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+
+                    {/* Scoring Legend & Petty Cash Rule Card */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-[11px] space-y-2">
+                      <div className="flex items-center gap-1.5 font-bold text-slate-700 uppercase text-[10px]">
+                        <Info className="w-3.5 h-3.5 text-slate-500" />
+                        Scoring Legend &amp; Performance Rules (15% Weightage)
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-slate-600">
+                        <div className="space-y-1">
+                          <span className="font-bold text-slate-700 block">
+                            Standard Categories (Meals, Accommodation, Transportation, Miscellaneous):
+                          </span>
+                          <ul className="space-y-0.5 text-[10px] pl-3 list-disc text-slate-600">
+                            <li><b>0% or below (Within Budget):</b> 20 pts (Full)</li>
+                            <li><b>&gt; 0% to &lt; 50% over budget:</b> 15 pts</li>
+                            <li><b>50% to &lt; 75% over budget:</b> 10 pts</li>
+                            <li><b>75% to 100% over budget:</b> 5 pts</li>
+                            <li><b>&gt; 100% over budget or unbudgeted:</b> 0 pts</li>
+                          </ul>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="font-bold text-slate-700 block">
+                            Petty Cash (Emergency Reserve Rule):
+                          </span>
+                          <p className="text-[10px] leading-relaxed text-slate-600">
+                            Zero actual spending maintains the full <b>20 pts</b>. Any actual usage incurs deductions based on Petty Cash Usage %:
+                          </p>
+                          <ul className="space-y-0.5 text-[10px] pl-3 list-disc text-slate-600">
+                            <li><b>RM 0.00 spent:</b> 20 pts</li>
+                            <li><b>&gt; 0% to &lt; 50% used:</b> 15 pts</li>
+                            <li><b>50% to &lt; 75% used:</b> 10 pts</li>
+                            <li><b>75% to 100% used:</b> 5 pts</li>
+                            <li><b>&gt; 100% used or unbudgeted:</b> 0 pts</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 

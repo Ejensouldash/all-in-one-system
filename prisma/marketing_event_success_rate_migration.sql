@@ -3,6 +3,7 @@
 
 -- 1. Budget cap (Finance / HOD) used by the 15% budget component.
 ALTER TABLE "MarketingEventRequisition" ADD COLUMN IF NOT EXISTS "budgetCap" DOUBLE PRECISION;
+ALTER TABLE "MarketingEventRequisition" ADD COLUMN IF NOT EXISTS "categoryBudgets" TEXT DEFAULT '{}';
 ALTER TABLE "MarketingEventRequisition" ADD COLUMN IF NOT EXISTS "budgetSetBy" TEXT;
 ALTER TABLE "MarketingEventRequisition" ADD COLUMN IF NOT EXISTS "budgetSetAt" TIMESTAMP(3);
 

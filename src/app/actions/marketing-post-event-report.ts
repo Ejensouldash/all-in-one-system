@@ -14,13 +14,20 @@ import {
   buildEventScoreBreakdown,
   getScoreMissingRequirements,
   isScoreLocked,
+  parseCategoryBudgets,
   parseImpactItems,
   parseScoreBreakdown,
+  parseStaffInvolved,
+  DEFAULT_STAFF_DEPARTMENTS,
   round2,
   sanitizeImpactItems,
+  type EventCategoryBudgets,
   type ImpactItem,
+  type StaffInvolvedEntry,
 } from "@/lib/marketing/event-success-rate"
 import { recomputeEventScore } from "@/lib/marketing/event-success-rate-server"
+
+export type { StaffInvolvedEntry }
 
 export interface VipEntry {
   name: string
@@ -49,7 +56,19 @@ export interface ActivationImageItem {
 export interface ClaimItemDetail {
   id: string
   description: string
-  category: "PETROL" | "TNG" | "ACCOMMODATION" | "MEALS" | "BOOTH_ITEMS" | "ICE" | "LOGISTICS" | "OTHER"
+  category:
+    | "PETROL"
+    | "TNG"
+    | "ACCOMMODATION"
+    | "MEALS"
+    | "BOOTH_ITEMS"
+    | "ICE"
+    | "LOGISTICS"
+    | "OTHER"
+    | "TRANSPORTATION"
+    | "MISCELLANEOUS"
+    | "PETTY CASH"
+    | (string & {})
   vehiclePlate?: string
   amount: number
   receiptUrl?: string
@@ -81,7 +100,7 @@ export interface PostEventReportFormData {
   attendeesCount: string
   typeOfInvolvement: string
   vipsList: VipEntry[]
-  staffInvolved: string[]
+  staffInvolved: StaffInvolvedEntry[]
 
   aims: string
   benefits: string
@@ -111,19 +130,6 @@ export interface PostEventReportFormData {
   approvedAt?: string | null
   approvalSignatureUrl?: string | null
 }
-
-const DEFAULT_STAFF_DEPARTMENTS = [
-  "MARKETING",
-  "LOGISTIC",
-  "HUMAN RESOURCES",
-  "IT",
-  "FINANCE",
-  "PRODUCTION (RANTAU)",
-  "PRODUCTION (PEDAS)",
-  "ONLINE SALES",
-  "CORPORATE",
-  "BRAND DEVELOPMENT",
-]
 
 interface FeedbackRecord {
   id: string
@@ -238,6 +244,7 @@ export async function getPostEventReport(requisitionId: string) {
       name: requisition.name,
       department: requisition.department,
       budgetCap: requisition.budgetCap,
+      categoryBudgets: parseCategoryBudgets(requisition.categoryBudgets, requisition.budgetCap),
       budgetSetBy: requisition.budgetSetBy,
       budgetSetAt: requisition.budgetSetAt?.toISOString() || null,
     }
@@ -246,9 +253,20 @@ export async function getPostEventReport(requisitionId: string) {
       const rep = requisition.postEventReport
       const storedBreakdown = parseScoreBreakdown(rep.scoreBreakdown)
       const scoreLocked = isScoreLocked(rep.status)
+
+      let claimsList: unknown = []
+      try {
+        claimsList = JSON.parse(rep.claimBreakdown || "[]")
+      } catch {
+        claimsList = []
+      }
+
       const computedBreakdown = buildEventScoreBreakdown({
         feedbacks: requisition.feedbacks,
         budgetCap: requisition.budgetCap,
+        categoryBudgets: requisition.categoryBudgets,
+        claimBreakdown: claimsList,
+        hasBudgetBeenSet: Boolean(requisition.budgetSetBy || requisition.budgetCap !== null),
         impactItems: parseImpactItems(rep.impactDistribution),
         totalClaimAmount: rep.totalClaimAmount,
       })
@@ -268,7 +286,7 @@ export async function getPostEventReport(requisitionId: string) {
           attendeesCount: rep.attendeesCount || "",
           typeOfInvolvement: rep.typeOfInvolvement,
           vipsList: JSON.parse(rep.vipsList || "[]") as VipEntry[],
-          staffInvolved: JSON.parse(rep.staffInvolved || "[]") as string[],
+          staffInvolved: parseStaffInvolved(rep.staffInvolved),
           aims: rep.aims || "",
           benefits: rep.benefits || "",
           expectedImpact: rep.expectedImpact || "",
@@ -305,6 +323,9 @@ export async function getPostEventReport(requisitionId: string) {
     const initialBreakdown = buildEventScoreBreakdown({
       feedbacks: requisition.feedbacks,
       budgetCap: requisition.budgetCap,
+      categoryBudgets: requisition.categoryBudgets,
+      claimBreakdown: [],
+      hasBudgetBeenSet: Boolean(requisition.budgetSetBy || requisition.budgetCap !== null),
       impactItems: [],
       totalClaimAmount: 0,
     })
@@ -322,7 +343,9 @@ export async function getPostEventReport(requisitionId: string) {
         { name: "Pn Ain Azizah", title: "Managing Director Bubbles O2" },
         { name: "Dr Norhazana", title: "Chief Operating Officer Bubbles O2" },
       ],
-      staffInvolved: DEFAULT_STAFF_DEPARTMENTS,
+      staffInvolved: requisition.name
+        ? [{ name: requisition.name, department: "MARKETING" }]
+        : [{ name: "", department: "MARKETING" }],
       aims: `To strengthen Bubbles O2's brand awareness, visibility and strategic market reach during ${requisition.eventName}.`,
       benefits: `Enhanced brand credibility, established direct consumer interactions and unlocked new commercial opportunities.`,
       expectedImpact: "425mlx24 = 1000ctn\n800mlx12 = 50ctn",
@@ -411,6 +434,8 @@ export async function savePostEventReport(formData: PostEventReportFormData) {
       where: { id: formData.requisitionId },
       select: {
         budgetCap: true,
+        categoryBudgets: true,
+        budgetSetBy: true,
         postEventReport: {
           select: {
             status: true,
@@ -436,6 +461,9 @@ export async function savePostEventReport(formData: PostEventReportFormData) {
     const breakdown = buildEventScoreBreakdown({
       feedbacks,
       budgetCap: requisition?.budgetCap ?? null,
+      categoryBudgets: requisition?.categoryBudgets,
+      claimBreakdown: sanitizedClaims,
+      hasBudgetBeenSet: Boolean(requisition?.budgetSetBy || requisition?.budgetCap !== null),
       impactItems: sanitizedImpactItems,
       totalClaimAmount: round2(grandTotal),
     })
@@ -653,6 +681,98 @@ export async function setEventBudgetCap(requisitionId: string, budgetCap: number
   } catch (error: any) {
     console.error("Error in setEventBudgetCap:", error)
     return { success: false, error: error.message || "Failed to update the event budget cap" }
+  }
+}
+
+/**
+ * Sets approved budget allocations for the 5 categories (Finance action).
+ * Requires the MARKETING_EVENTS_BUDGET permission.
+ */
+export async function setEventCategoryBudgets(
+  requisitionId: string,
+  categoryBudgets: EventCategoryBudgets
+) {
+  try {
+    const access = await getAccessInfo()
+    if (!canSetMarketingEventBudget(access)) {
+      return {
+        success: false,
+        error:
+          "You do not have permission to set the event budget. Ask a superadmin to grant the Post-Event Budget Cap module.",
+      }
+    }
+
+    const sanitized: EventCategoryBudgets = {
+      meals: Math.max(0, round2(Number(categoryBudgets?.meals) || 0)),
+      accommodation: Math.max(0, round2(Number(categoryBudgets?.accommodation) || 0)),
+      transportation: Math.max(0, round2(Number(categoryBudgets?.transportation) || 0)),
+      miscellaneous: Math.max(0, round2(Number(categoryBudgets?.miscellaneous) || 0)),
+      pettyCash: Math.max(0, round2(Number(categoryBudgets?.pettyCash) || 0)),
+    }
+
+    const totalApproved = round2(
+      sanitized.meals +
+      sanitized.accommodation +
+      sanitized.transportation +
+      sanitized.miscellaneous +
+      sanitized.pettyCash
+    )
+
+    const existingReport = await prisma.marketingPostEventReport.findUnique({
+      where: { requisitionId },
+      select: { status: true },
+    })
+
+    let actor = "Staff"
+    try {
+      const session = await auth()
+      if (session?.user?.name) actor = session.user.name
+    } catch {
+      // Outside request context
+    }
+
+    const updated = await prisma.marketingEventRequisition.update({
+      where: { id: requisitionId },
+      data: {
+        categoryBudgets: JSON.stringify(sanitized),
+        budgetCap: totalApproved,
+        budgetSetBy: actor,
+        budgetSetAt: new Date(),
+      },
+    })
+
+    const breakdown = await recomputeEventScore(requisitionId, { force: true })
+    const wasLocked = Boolean(existingReport && isScoreLocked(existingReport.status))
+
+    try {
+      await logUserAction(
+        "Updated Event Category Budgets",
+        `${updated.requestNumber} (${updated.eventName}) category budgets set: Total RM ${totalApproved.toFixed(2)} (Meals: RM ${sanitized.meals.toFixed(2)}, Accom: RM ${sanitized.accommodation.toFixed(2)}, Transport: RM ${sanitized.transportation.toFixed(2)}, Misc: RM ${sanitized.miscellaneous.toFixed(2)}, Petty Cash: RM ${sanitized.pettyCash.toFixed(2)}).${
+          wasLocked ? ` Report was already ${existingReport?.status}; success rate snapshot recalculated.` : ""
+        }`
+      )
+    } catch {
+      // safe fallback
+    }
+
+    try {
+      revalidatePath("/marketing/events")
+    } catch {
+      // safe fallback
+    }
+
+    return {
+      success: true,
+      categoryBudgets: sanitized,
+      budgetCap: updated.budgetCap,
+      budgetSetBy: updated.budgetSetBy,
+      budgetSetAt: updated.budgetSetAt?.toISOString() || null,
+      breakdown,
+      wasLocked,
+    }
+  } catch (error: any) {
+    console.error("Error in setEventCategoryBudgets:", error)
+    return { success: false, error: error.message || "Failed to update category budget allocations" }
   }
 }
 

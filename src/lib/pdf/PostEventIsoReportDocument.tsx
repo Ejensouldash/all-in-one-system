@@ -63,12 +63,13 @@ export interface PostEventReportPdfData {
   attendeesCount: string
   typeOfInvolvement: string
   vipsList: PostEventVip[]
-  staffInvolved: string[]
+  staffInvolved: Array<string | { name: string; department: string }>
 
   aims: string
   benefits: string
   expectedImpact: string
   impactDistribution: Array<{
+    type?: string
     name: string
     unit: string
     qtyGiven: number
@@ -650,13 +651,47 @@ export function PostEventIsoReportDocument({ data }: { data: PostEventReportPdfD
             <Text style={s.secHeaderSub}>Cross-functional Operational Alignment</Text>
           </View>
           <View style={s.secBody}>
-            <View style={s.pillGroup}>
-              {data.staffInvolved.map((dept, idx) => (
-                <View key={idx} style={s.pill}>
-                  <Text style={s.pillText}>{dept}</Text>
-                </View>
-              ))}
-            </View>
+            {data.staffInvolved && data.staffInvolved.length > 0 ? (
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5 }}>
+                {data.staffInvolved.map((staff, idx) => {
+                  const isObj = typeof staff === "object" && staff !== null
+                  const name = isObj ? staff.name : ""
+                  const dept = isObj ? staff.department : String(staff)
+                  return (
+                    <View
+                      key={idx}
+                      style={{
+                        backgroundColor: "#f8fafc",
+                        borderWidth: 1,
+                        borderColor: C.brandBorder,
+                        borderRadius: 3,
+                        paddingVertical: 2.5,
+                        paddingHorizontal: 6,
+                        flexDirection: "row",
+                        alignItems: "center",
+                      }}
+                    >
+                      {name ? (
+                        <Text style={{ fontSize: 7.2, color: C.ink, fontFamily: "Helvetica-Bold" }}>
+                          {name}{" "}
+                          <Text style={{ fontSize: 6.5, fontFamily: "Helvetica", color: C.muted }}>
+                            ({dept})
+                          </Text>
+                        </Text>
+                      ) : (
+                        <Text style={{ fontSize: 7.2, color: C.brandDark, fontFamily: "Helvetica-Bold" }}>
+                          {dept}
+                        </Text>
+                      )}
+                    </View>
+                  )
+                })}
+              </View>
+            ) : (
+              <Text style={{ fontSize: 7.5, color: C.muted, fontStyle: "italic" }}>
+                No staff or departments recorded.
+              </Text>
+            )}
           </View>
         </View>
 
@@ -693,24 +728,38 @@ export function PostEventIsoReportDocument({ data }: { data: PostEventReportPdfD
               {data.impactDistribution.length > 0 ? (
                 <View style={{ marginTop: 3 }}>
                   <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: C.brandBorder, paddingBottom: 1 }}>
-                    <Text style={{ fontSize: 6.6, fontFamily: "Helvetica-Bold", color: C.muted, width: "46%" }}>ITEM</Text>
+                    <Text style={{ fontSize: 6.6, fontFamily: "Helvetica-Bold", color: C.muted, width: "18%" }}>TYPE</Text>
+                    <Text style={{ fontSize: 6.6, fontFamily: "Helvetica-Bold", color: C.muted, width: "38%" }}>ITEM</Text>
                     <Text style={{ fontSize: 6.6, fontFamily: "Helvetica-Bold", color: C.muted, width: "14%", textAlign: "right" }}>GIVEN</Text>
                     <Text style={{ fontSize: 6.6, fontFamily: "Helvetica-Bold", color: C.muted, width: "14%", textAlign: "right" }}>USED</Text>
-                    <Text style={{ fontSize: 6.6, fontFamily: "Helvetica-Bold", color: C.muted, width: "26%", textAlign: "right" }}>ACHIEVED</Text>
+                    <Text style={{ fontSize: 6.6, fontFamily: "Helvetica-Bold", color: C.muted, width: "16%", textAlign: "right" }}>ACHIEVED</Text>
                   </View>
                   {data.impactDistribution.map((item, index) => {
                     const pct = item.qtyGiven > 0 ? Math.min(100, (item.qtyUsed / item.qtyGiven) * 100) : 0
                     return (
                       <View key={index} style={{ flexDirection: "row", paddingTop: 2 }}>
-                        <Text style={{ fontSize: 7.2, color: C.brandDark, width: "46%" }}>
+                        <Text style={{ fontSize: 7.2, color: C.brandDark, width: "18%" }}>
+                          {item.type || "WATER"}
+                        </Text>
+                        <Text style={{ fontSize: 7.2, color: C.brandDark, width: "38%" }}>
                           {item.name || "Item"} ({item.unit})
                         </Text>
                         <Text style={{ fontSize: 7.2, color: C.brandDark, width: "14%", textAlign: "right" }}>{item.qtyGiven}</Text>
                         <Text style={{ fontSize: 7.2, color: C.brandDark, width: "14%", textAlign: "right" }}>{item.qtyUsed}</Text>
-                        <Text style={{ fontSize: 7.2, fontFamily: "Helvetica-Bold", color: C.brandDark, width: "26%", textAlign: "right" }}>{pct.toFixed(1)}%</Text>
+                        <Text style={{ fontSize: 7.2, fontFamily: "Helvetica-Bold", color: C.brandDark, width: "16%", textAlign: "right" }}>{pct.toFixed(1)}%</Text>
                       </View>
                     )
                   })}
+                  {scoreComponents?.impact && (
+                    <View style={{ marginTop: 4, paddingTop: 3, borderTopWidth: 0.5, borderTopColor: C.brandBorder, flexDirection: "row", justifyContent: "space-between" }}>
+                      <Text style={{ fontSize: 6.8, color: C.muted }}>
+                        Water: {scoreComponents.impact.waterUtilisation?.toFixed(1) ?? "0.0"}%  ·  Merchandise: {scoreComponents.impact.merchandiseUtilisation?.toFixed(1) ?? "0.0"}%
+                      </Text>
+                      <Text style={{ fontSize: 6.8, fontFamily: "Helvetica-Bold", color: C.brandDark }}>
+                        Score: {scoreComponents.impact.earned.toFixed(1)} / 20 pts
+                      </Text>
+                    </View>
+                  )}
                 </View>
               ) : (
                 <Text style={{ fontSize: 7.8, color: C.brandDark, marginTop: 2 }}>

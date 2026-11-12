@@ -37,8 +37,11 @@ export const SENTIMENT_POINTS: Record<SentimentLabel, number> = {
   BAD: 0,
 }
 
+export type ImpactItemType = "WATER" | "MERCHANDISE"
+
 export interface ImpactItem {
   id: string
+  type: ImpactItemType
   name: string
   unit: string
   qtyGiven: number
@@ -69,11 +72,52 @@ export interface ImpactComponent {
   given: number
   used: number
   achievement: number
+  waterUtilisation: number
+  merchandiseUtilisation: number
+  merchandiseCount?: number
+  waterGiven?: number
+  waterUsed?: number
+}
+
+export type BudgetCategoryKey = "meals" | "accommodation" | "transportation" | "miscellaneous" | "pettyCash"
+
+export const BUDGET_CATEGORY_LABELS: Record<BudgetCategoryKey, string> = {
+  meals: "Meals",
+  accommodation: "Accommodation",
+  transportation: "Transportation",
+  miscellaneous: "Miscellaneous",
+  pettyCash: "Petty Cash",
+}
+
+export interface EventCategoryBudgets {
+  meals: number
+  accommodation: number
+  transportation: number
+  miscellaneous: number
+  pettyCash: number
+}
+
+export interface CategoryBudgetDetail {
+  category: BudgetCategoryKey
+  label: string
+  approved: number
+  actual: number
+  variance: number
+  diff: number
+  pct: number
+  score: number
+  status: "within" | "over" | "unused" | "used" | "zero"
+  statusLabel: string
 }
 
 export interface BudgetComponent {
   earned: number
   max: number
+  totalApproved: number
+  totalActual: number
+  totalCategoryScore: number
+  categories: Record<BudgetCategoryKey, CategoryBudgetDetail>
+  categoryList: CategoryBudgetDetail[]
   cap: number | null
   claims: number
   ratio: number | null
@@ -111,6 +155,9 @@ export interface ScoreFeedbackInput {
 export interface BuildScoreInput {
   feedbacks: ScoreFeedbackInput[]
   budgetCap?: number | null
+  categoryBudgets?: EventCategoryBudgets | string | null
+  claimBreakdown?: unknown
+  hasBudgetBeenSet?: boolean
   impactItems?: unknown
   totalClaimAmount?: number | null
   computedAt?: Date | string
@@ -119,8 +166,8 @@ export interface BuildScoreInput {
 export const SCORE_FLAG_LABELS: Record<ScoreFlag, string> = {
   NO_FEEDBACK: "No public feedback responses yet.",
   NO_IMPACT_DATA: "No stock / impact items recorded.",
-  NO_BUDGET_CAP: "Maximum approved budget has not been set by Finance.",
-  OVER_BUDGET: "Claims exceed the approved budget cap.",
+  NO_BUDGET_CAP: "Category budget allocations have not been set by Finance.",
+  OVER_BUDGET: "Claims exceed approved category budget allocations.",
   AI_PENDING: "Participant feedback has not been analysed by Gemini yet.",
   AI_PARTIAL: "Some participant feedback responses are not analysed yet.",
   OVER_CONSUMPTION: "Stock used is higher than the quantity given.",
@@ -158,13 +205,17 @@ export function sanitizeImpactItems(raw: unknown): ImpactItem[] {
   return raw
     .map((entry, index) => {
       const item = (entry || {}) as Record<string, unknown>
+      const rawType = typeof item.type === "string" ? item.type.trim().toUpperCase() : ""
+      const type: ImpactItemType = rawType === "MERCHANDISE" ? "MERCHANDISE" : "WATER"
       const name = typeof item.name === "string" ? item.name.trim().slice(0, 140) : ""
       const unitRaw = typeof item.unit === "string" ? item.unit.trim().slice(0, 20) : ""
       const qtyGiven = Math.max(0, round2(toFiniteNumber(item.qtyGiven)))
-      const qtyUsed = Math.max(0, round2(toFiniteNumber(item.qtyUsed)))
+      const rawQtyUsed = Math.max(0, round2(toFiniteNumber(item.qtyUsed)))
+      // Prevent quantities used/given from exceeding quantities brought
+      const qtyUsed = qtyGiven > 0 ? Math.min(rawQtyUsed, qtyGiven) : rawQtyUsed
       const id = typeof item.id === "string" && item.id.trim() ? item.id.trim() : `impact-${index}`
 
-      return { id, name, unit: unitRaw || "ctn", qtyGiven, qtyUsed }
+      return { id, type, name, unit: unitRaw || (type === "WATER" ? "ctn" : "pcs"), qtyGiven, qtyUsed }
     })
     .filter((item) => item.name !== "" || item.qtyGiven > 0 || item.qtyUsed > 0)
 }
@@ -176,6 +227,54 @@ export function parseImpactItems(raw: string | null | undefined): ImpactItem[] {
   } catch {
     return []
   }
+}
+
+export interface StaffInvolvedEntry {
+  name: string
+  department: string
+}
+
+export const DEFAULT_STAFF_DEPARTMENTS = [
+  "MARKETING",
+  "LOGISTIC",
+  "HUMAN RESOURCES",
+  "IT",
+  "FINANCE",
+  "PRODUCTION (RANTAU)",
+  "PRODUCTION (PEDAS)",
+  "ONLINE SALES",
+  "CORPORATE",
+  "BRAND DEVELOPMENT",
+]
+
+export function parseStaffInvolved(raw: unknown): StaffInvolvedEntry[] {
+  if (!raw) return []
+  let arr: unknown = raw
+  if (typeof raw === "string") {
+    try {
+      arr = JSON.parse(raw)
+    } catch {
+      return []
+    }
+  }
+  if (!Array.isArray(arr)) return []
+  return arr.map((item) => {
+    if (typeof item === "string") {
+      const str = item.trim()
+      if (DEFAULT_STAFF_DEPARTMENTS.includes(str.toUpperCase())) {
+        return { name: "", department: str.toUpperCase() }
+      }
+      return { name: str, department: "MARKETING" }
+    }
+    if (item && typeof item === "object") {
+      const obj = item as Record<string, unknown>
+      return {
+        name: typeof obj.name === "string" ? obj.name : "",
+        department: typeof obj.department === "string" ? obj.department : "MARKETING",
+      }
+    }
+    return { name: "", department: "MARKETING" }
+  })
 }
 
 export function computeSatisfactionComponent(feedbacks: ScoreFeedbackInput[]): SatisfactionComponent {
@@ -211,80 +310,423 @@ export function computeImpactComponent(items: ImpactItem[]): { component: Impact
   const given = round2(items.reduce((sum, item) => sum + item.qtyGiven, 0))
   const used = round2(items.reduce((sum, item) => sum + item.qtyUsed, 0))
 
-  const scoredRows = items.filter((item) => item.qtyGiven > 0)
-  const hasOverConsumption = items.some((item) => item.qtyUsed > item.qtyGiven)
-  const units = new Set(
-    scoredRows.map((item) => item.unit.trim().toLowerCase()).filter((unit) => unit.length > 0)
+  const waterItems = items.filter((item) => (item.type || "WATER") === "WATER")
+  const merchItems = items.filter((item) => item.type === "MERCHANDISE")
+
+  // 1. Water Utilisation Calculation
+  // Water Utilisation (%) = (Total Water Used / Total Water Brought) × 100
+  const totalWaterBrought = waterItems.reduce((sum, item) => sum + item.qtyGiven, 0)
+  const totalWaterUsed = waterItems.reduce(
+    (sum, item) => sum + Math.min(item.qtyUsed, item.qtyGiven),
+    0
   )
-  const mixedUnits = units.size > 1
+  const waterUtilisation =
+    totalWaterBrought > 0 ? (totalWaterUsed / totalWaterBrought) * 100 : 0
 
-  let achievementRatio = 0
+  // 2. Merchandise Distribution Calculation
+  // Merchandise weightage dynamically distributed based on the number of different merchandise types brought to the event.
+  // Each merchandise type carries an equal weightage: 100% / Number of Merchandise Types
+  // Individual Merchandise Utilisation (%) = (Quantity Given / Quantity Brought) × 100
+  // Overall Merchandise Utilisation (%) = Sum of (Individual Merchandise Utilisation × Individual Merchandise Weightage)
+  const scoredMerchItems = merchItems.filter((item) => item.qtyGiven > 0)
+  const numMerchTypes = scoredMerchItems.length
 
-  if (scoredRows.length === 0) {
-    flags.push("NO_IMPACT_DATA")
-  } else if (mixedUnits) {
-    flags.push("MIXED_UNITS")
-    achievementRatio =
-      scoredRows.reduce(
-        (sum, item) => sum + Math.min(item.qtyUsed, item.qtyGiven) / item.qtyGiven,
-        0
-      ) / scoredRows.length
-  } else {
-    const totalGiven = scoredRows.reduce((sum, item) => sum + item.qtyGiven, 0)
-    const totalUsed = scoredRows.reduce((sum, item) => sum + Math.min(item.qtyUsed, item.qtyGiven), 0)
-    achievementRatio = totalGiven > 0 ? totalUsed / totalGiven : 0
+  let merchandiseUtilisation = 0
+  if (numMerchTypes > 0) {
+    const individualUtilisations = scoredMerchItems.map(
+      (item) => (Math.min(item.qtyUsed, item.qtyGiven) / item.qtyGiven) * 100
+    )
+    const sumUtilisation = individualUtilisations.reduce((acc, curr) => acc + curr, 0)
+    merchandiseUtilisation = sumUtilisation / numMerchTypes
   }
 
+  const hasOverConsumption = items.some((item) => item.qtyUsed > item.qtyGiven)
   if (hasOverConsumption) flags.push("OVER_CONSUMPTION")
+
+  if (totalWaterBrought === 0 && numMerchTypes === 0) {
+    flags.push("NO_IMPACT_DATA")
+  }
+
+  // 3. Final 20% Calculation
+  // Water and merchandise utilisation must contribute equally to the overall 20% component.
+  // Formula:
+  // Items & Merchandise Score = ((Water Utilisation % + Overall Merchandise Utilisation %) / 2) × 20%
+  const averageUtilisation = (waterUtilisation + merchandiseUtilisation) / 2
+  const earned = round2((averageUtilisation / 100) * EVENT_SUCCESS_WEIGHTS.impact)
 
   return {
     component: {
-      earned: round2(achievementRatio * EVENT_SUCCESS_WEIGHTS.impact),
+      earned,
       max: EVENT_SUCCESS_WEIGHTS.impact,
       given,
       used,
-      achievement: round2(achievementRatio * 100),
+      achievement: round2(averageUtilisation),
+      waterUtilisation: round2(waterUtilisation),
+      merchandiseUtilisation: round2(merchandiseUtilisation),
+      merchandiseCount: numMerchTypes,
+      waterGiven: round2(totalWaterBrought),
+      waterUsed: round2(totalWaterUsed),
     },
     flags,
   }
 }
 
-export function computeBudgetComponent(
-  budgetCap: number | null | undefined,
-  totalClaimAmount: number | null | undefined
-): { component: BudgetComponent; flags: ScoreFlag[] } {
-  const flags: ScoreFlag[] = []
-  const claims = Math.max(0, round2(toFiniteNumber(totalClaimAmount)))
-  const cap = Number.isFinite(Number(budgetCap)) && Number(budgetCap) > 0 ? round2(Number(budgetCap)) : null
+export function normalizeClaimCategory(catRaw: unknown): BudgetCategoryKey {
+  const c = typeof catRaw === "string" ? catRaw.trim().toUpperCase().replace(/[\s_-]+/g, "") : ""
+  if (c === "MEAL" || c === "MEALS") return "meals"
+  if (c === "ACCOMMODATION" || c === "HOTEL") return "accommodation"
+  if (
+    c === "TRANSPORTATION" ||
+    c === "TRANSPORT" ||
+    c === "PETROL" ||
+    c === "TNG" ||
+    c === "FUEL" ||
+    c === "TOLL"
+  ) {
+    return "transportation"
+  }
+  if (c === "PETTYCASH" || c === "PETTY") return "pettyCash"
+  return "miscellaneous"
+}
 
-  if (cap === null) {
-    return {
-      component: {
-        earned: 0,
-        max: EVENT_SUCCESS_WEIGHTS.budget,
-        cap: null,
-        claims,
-        ratio: null,
-      },
-      flags: ["NO_BUDGET_CAP"],
+export const CLAIM_CATEGORY_MAP: Record<BudgetCategoryKey, string> = {
+  meals: "MEALS",
+  accommodation: "ACCOMMODATION",
+  transportation: "TRANSPORTATION",
+  miscellaneous: "MISCELLANEOUS",
+  pettyCash: "PETTY CASH",
+}
+
+export function getClaimCategoryFormValue(catRaw: unknown): string {
+  if (!catRaw) return "MEALS"
+  const normalizedKey = normalizeClaimCategory(catRaw)
+  return CLAIM_CATEGORY_MAP[normalizedKey] || "MEALS"
+}
+
+export function aggregateClaimsByCategory(claimBreakdown: unknown): Record<BudgetCategoryKey, number> {
+  const totals: Record<BudgetCategoryKey, number> = {
+    meals: 0,
+    accommodation: 0,
+    transportation: 0,
+    miscellaneous: 0,
+    pettyCash: 0,
+  }
+
+  if (!Array.isArray(claimBreakdown)) return totals
+
+  for (const group of claimBreakdown) {
+    if (!group || typeof group !== "object") continue
+    const items = (group as Record<string, unknown>).items
+    if (!Array.isArray(items)) continue
+    for (const item of items) {
+      if (!item || typeof item !== "object") continue
+      const rawItem = item as Record<string, unknown>
+      const amount = Math.max(0, round2(toFiniteNumber(rawItem.amount)))
+      if (amount <= 0) continue
+      const catKey = normalizeClaimCategory(rawItem.category)
+      totals[catKey] = round2(totals[catKey] + amount)
     }
   }
 
-  const ratio = round2(claims / cap)
-  let earned: number = EVENT_SUCCESS_WEIGHTS.budget
+  return totals
+}
 
-  if (claims > cap) {
-    flags.push("OVER_BUDGET")
-    // Linear penalty: full marks at or below the cap, zero once claims reach 2x the cap.
-    earned = round2(EVENT_SUCCESS_WEIGHTS.budget * Math.max(0, (2 * cap - claims) / cap))
+export function parseCategoryBudgets(
+  raw: unknown,
+  legacyBudgetCap?: number | null
+): EventCategoryBudgets {
+  const defaults: EventCategoryBudgets = {
+    meals: 0,
+    accommodation: 0,
+    transportation: 0,
+    miscellaneous: 0,
+    pettyCash: 0,
   }
+
+  if (!raw) {
+    return defaults
+  }
+
+  try {
+    const obj = (typeof raw === "string" ? JSON.parse(raw) : raw) as Record<string, unknown>
+    if (!obj || typeof obj !== "object") return defaults
+
+    return {
+      meals: Math.max(0, round2(toFiniteNumber(obj.meals))),
+      accommodation: Math.max(0, round2(toFiniteNumber(obj.accommodation))),
+      transportation: Math.max(0, round2(toFiniteNumber(obj.transportation))),
+      miscellaneous: Math.max(0, round2(toFiniteNumber(obj.miscellaneous))),
+      pettyCash: Math.max(0, round2(toFiniteNumber(obj.pettyCash))),
+    }
+  } catch {
+    return defaults
+  }
+}
+
+export function computeCategoryScore(
+  category: BudgetCategoryKey,
+  approved: number,
+  actual: number
+): CategoryBudgetDetail {
+  const label = BUDGET_CATEGORY_LABELS[category]
+  const safeApproved = Math.max(0, round2(toFiniteNumber(approved)))
+  const safeActual = Math.max(0, round2(toFiniteNumber(actual)))
+  const variance = round2(safeActual - safeApproved)
+  const diff = round2(safeApproved - safeActual)
+
+  if (category === "pettyCash") {
+    // Special calculation for Petty Cash:
+    // "If no petty cash is used, award the full 20 points."
+    if (safeActual === 0) {
+      return {
+        category,
+        label,
+        approved: safeApproved,
+        actual: 0,
+        variance,
+        diff,
+        pct: 0,
+        score: 20,
+        status: "unused",
+        statusLabel: "Zero Usage (RM 0.00 spent)",
+      }
+    }
+
+    // Actual spending > 0:
+    // "If an approved budget is RM0 but actual spending is greater than RM0, award 0 points."
+    if (safeApproved === 0) {
+      return {
+        category,
+        label,
+        approved: 0,
+        actual: safeActual,
+        variance,
+        diff,
+        pct: 100,
+        score: 0,
+        status: "over",
+        statusLabel: `Unbudgeted (RM ${safeActual.toFixed(2)})`,
+      }
+    }
+
+    // "Petty Cash Usage (%) = (Actual Petty Cash Used / Approved Petty Cash Allocation) × 100"
+    // Apply the same scoring legend:
+    // greater than 0% but less than 50% = 15 points
+    // 50% to less than 75% = 10 points
+    // 75% to 100% = 5 points
+    // greater than 100% = 0 points
+    const usagePct = round2((safeActual / safeApproved) * 100)
+    let score = 0
+    if (usagePct > 0 && usagePct < 50) {
+      score = 15
+    } else if (usagePct >= 50 && usagePct < 75) {
+      score = 10
+    } else if (usagePct >= 75 && usagePct <= 100) {
+      score = 5
+    } else {
+      score = 0
+    }
+
+    return {
+      category,
+      label,
+      approved: safeApproved,
+      actual: safeActual,
+      variance,
+      diff,
+      pct: usagePct,
+      score,
+      status: "used",
+      statusLabel: `${usagePct.toFixed(1)}% Used`,
+    }
+  }
+
+  // Categories A: Meals, Accommodation, Transportation, Miscellaneous
+  // Handle RM0 approved budget:
+  if (safeApproved === 0) {
+    if (safeActual === 0) {
+      // "If an approved budget is RM0 and actual spending is also RM0, award 20 points."
+      return {
+        category,
+        label,
+        approved: 0,
+        actual: 0,
+        variance: 0,
+        diff: 0,
+        pct: 0,
+        score: 20,
+        status: "zero",
+        statusLabel: "RM 0.00 Budget (No Spending)",
+      }
+    } else {
+      // "If an approved budget is RM0 but actual spending is greater than RM0, award 0 points."
+      return {
+        category,
+        label,
+        approved: 0,
+        actual: safeActual,
+        variance,
+        diff,
+        pct: 100,
+        score: 0,
+        status: "over",
+        statusLabel: `Unbudgeted (+100%)`,
+      }
+    }
+  }
+
+  // safeApproved > 0:
+  // "Only penalise categories when actual spending exceeds the approved allocation."
+  if (safeActual <= safeApproved) {
+    // 0% or below (within budget) = 20 points
+    const overbudgetPct = round2(((safeActual - safeApproved) / safeApproved) * 100)
+    return {
+      category,
+      label,
+      approved: safeApproved,
+      actual: safeActual,
+      variance,
+      diff,
+      pct: Math.min(0, overbudgetPct),
+      score: 20,
+      status: "within",
+      statusLabel: diff === 0 ? "Exact Budget" : `Within Budget (RM ${diff.toFixed(2)} left)`,
+    }
+  }
+
+  // safeActual > safeApproved:
+  // Overbudget (%) = ((Actual Spending - Approved Budget) / Approved Budget) × 100
+  const overbudgetPct = round2(((safeActual - safeApproved) / safeApproved) * 100)
+  let score = 0
+  if (overbudgetPct > 0 && overbudgetPct < 50) {
+    score = 15
+  } else if (overbudgetPct >= 50 && overbudgetPct < 75) {
+    score = 10
+  } else if (overbudgetPct >= 75 && overbudgetPct <= 100) {
+    score = 5
+  } else {
+    score = 0
+  }
+
+  return {
+    category,
+    label,
+    approved: safeApproved,
+    actual: safeActual,
+    variance,
+    diff,
+    pct: overbudgetPct,
+    score,
+    status: "over",
+    statusLabel: `+${overbudgetPct.toFixed(1)}% Over`,
+  }
+}
+
+export interface ComputeBudgetInput {
+  categoryBudgets?: EventCategoryBudgets | string | null
+  claimBreakdown?: unknown
+  actualClaimsByCategory?: Record<BudgetCategoryKey, number>
+  budgetCap?: number | null
+  totalClaimAmount?: number | null
+  hasBudgetBeenSet?: boolean
+}
+
+export function computeBudgetComponent(
+  input: ComputeBudgetInput | number | null | undefined,
+  legacyClaimAmount?: number | null | undefined
+): { component: BudgetComponent; flags: ScoreFlag[] } {
+  const flags: ScoreFlag[] = []
+
+  let categoryBudgets: EventCategoryBudgets
+  let actualSpending: Record<BudgetCategoryKey, number>
+  let hasBudgetBeenSet = false
+
+  if (input !== null && typeof input === "object" && !("toFixed" in input)) {
+    categoryBudgets = parseCategoryBudgets(input.categoryBudgets, input.budgetCap)
+    actualSpending = input.actualClaimsByCategory
+      ? input.actualClaimsByCategory
+      : aggregateClaimsByCategory(input.claimBreakdown)
+    hasBudgetBeenSet =
+      typeof input.hasBudgetBeenSet === "boolean"
+        ? input.hasBudgetBeenSet
+        : Boolean(
+            (input.categoryBudgets !== undefined && input.categoryBudgets !== null) ||
+            (input.budgetCap !== undefined && input.budgetCap !== null)
+          )
+  } else {
+    // Legacy numeric call: computeBudgetComponent(budgetCap, totalClaimAmount)
+    const legacyCap = Number.isFinite(Number(input)) ? Number(input) : null
+    const legacyClaims = Math.max(0, round2(toFiniteNumber(legacyClaimAmount)))
+    hasBudgetBeenSet = legacyCap !== null
+    categoryBudgets = {
+      meals: legacyCap ? round2(legacyCap * 0.25) : 0,
+      accommodation: legacyCap ? round2(legacyCap * 0.35) : 0,
+      transportation: legacyCap ? round2(legacyCap * 0.25) : 0,
+      miscellaneous: legacyCap ? round2(legacyCap * 0.15) : 0,
+      pettyCash: 0,
+    }
+    actualSpending = {
+      meals: round2(legacyClaims * 0.25),
+      accommodation: round2(legacyClaims * 0.35),
+      transportation: round2(legacyClaims * 0.25),
+      miscellaneous: round2(legacyClaims * 0.15),
+      pettyCash: 0,
+    }
+  }
+
+  const categoryKeys: BudgetCategoryKey[] = [
+    "meals",
+    "accommodation",
+    "transportation",
+    "miscellaneous",
+    "pettyCash",
+  ]
+
+  const categories = {} as Record<BudgetCategoryKey, CategoryBudgetDetail>
+  const categoryList: CategoryBudgetDetail[] = []
+  let totalCategoryScore = 0
+  let totalApproved = 0
+  let totalActual = 0
+
+  for (const catKey of categoryKeys) {
+    const approved = categoryBudgets[catKey] || 0
+    const actual = actualSpending[catKey] || 0
+    totalApproved = round2(totalApproved + approved)
+    totalActual = round2(totalActual + actual)
+
+    const detail = computeCategoryScore(catKey, approved, actual)
+    categories[catKey] = detail
+    categoryList.push(detail)
+    totalCategoryScore += detail.score
+  }
+
+  if (!hasBudgetBeenSet) {
+    flags.push("NO_BUDGET_CAP")
+  }
+
+  const hasAnyOverbudget = categoryKeys.some((k) => categories[k].status === "over")
+  if (hasAnyOverbudget || (totalApproved > 0 && totalActual > totalApproved)) {
+    flags.push("OVER_BUDGET")
+  }
+
+  // Final Budget Performance Score = (Total Category Score / 100) * 15%
+  const earned = hasBudgetBeenSet
+    ? round2((totalCategoryScore / 100) * EVENT_SUCCESS_WEIGHTS.budget)
+    : 0
+
+  const ratio = totalApproved > 0 ? round2(totalActual / totalApproved) : null
 
   return {
     component: {
       earned,
       max: EVENT_SUCCESS_WEIGHTS.budget,
-      cap,
-      claims,
+      totalApproved,
+      totalActual,
+      totalCategoryScore,
+      categories,
+      categoryList,
+      cap: hasBudgetBeenSet ? totalApproved : null,
+      claims: totalActual,
       ratio,
     },
     flags,
@@ -343,7 +785,13 @@ export function buildEventScoreBreakdown(input: BuildScoreInput): EventScoreBrea
 
   const satisfaction = computeSatisfactionComponent(feedbacks)
   const impactResult = computeImpactComponent(sanitizeImpactItems(input.impactItems ?? []))
-  const budgetResult = computeBudgetComponent(input.budgetCap, input.totalClaimAmount)
+  const budgetResult = computeBudgetComponent({
+    categoryBudgets: input.categoryBudgets,
+    claimBreakdown: input.claimBreakdown,
+    budgetCap: input.budgetCap,
+    totalClaimAmount: input.totalClaimAmount,
+    hasBudgetBeenSet: input.hasBudgetBeenSet,
+  })
   const suggestionResult = computeSuggestionComponent(feedbacks)
 
   const flags = Array.from(

@@ -1610,6 +1610,7 @@ model MarketingEventRequisition {
 
   // Budget control (set by Finance / HOD for the Event Success Rate budget component)
   budgetCap        Float?
+  categoryBudgets  String?  @default("{}")
   budgetSetBy      String?
   budgetSetAt      DateTime?
 

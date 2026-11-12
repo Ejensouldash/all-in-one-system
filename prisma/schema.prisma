@@ -1676,6 +1676,8 @@ model MarketingEventFeedback {
   satisfaction   String                    // EXTREMELY_SATISFIED, VERY_SATISFIED, SOMEWHAT_SATISFIED, NOT_SO_SATISFIED, NOT_AT_ALL_SATISFIED
   wellOrganized  Boolean                   // true (Yes), false (No)
   comments       String                    @db.Text
+  // Provenance of the response: PUBLIC_FORM (QR link) or EXCEL_IMPORT (backfilled past event)
+  source         String                    @default("PUBLIC_FORM")
   createdAt      DateTime                  @default(now())
 
   // Gemini sentiment classification for "Participants' Feedback & Suggestions" (15% score component)

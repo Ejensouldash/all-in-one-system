@@ -93,6 +93,7 @@ interface FeedbackRow {
   aiReason: string | null
   aiConfidence: number | null
   createdAt: string | Date
+  source?: string | null
 }
 
 interface FeedbackStats {
@@ -2178,8 +2179,9 @@ export function PostEventReportModal({
                     </div>
 
                     <p className="text-xs text-teal-900 leading-relaxed">
-                      Statistics are automatically synchronized from respondent surveys via the event
-                      feedback QR code. The satisfaction index contributes <b>50%</b> of the Event
+                      Statistics are synchronized from respondent surveys submitted through the event
+                      feedback QR code, or imported from an external response sheet for past events that
+                      ran outside the system. The satisfaction index contributes <b>50%</b> of the Event
                       Success Rate (index × 50 points).
                     </p>
 
@@ -2318,6 +2320,11 @@ export function PostEventReportModal({
                                   <span className="text-[10px] text-slate-400">
                                     {fb.satisfaction.replace(/_/g, " ")}
                                   </span>
+                                  {fb.source === "EXCEL_IMPORT" && (
+                                    <span className="px-1.5 py-0.5 rounded border border-slate-300 bg-slate-100 text-[10px] font-bold uppercase text-slate-600">
+                                      Imported
+                                    </span>
+                                  )}
                                   {fb.aiSentiment === "GOOD" ||
                                   fb.aiSentiment === "NEUTRAL" ||
                                   fb.aiSentiment === "BAD" ? (

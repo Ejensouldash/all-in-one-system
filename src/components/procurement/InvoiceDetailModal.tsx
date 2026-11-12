@@ -71,6 +71,13 @@ export function InvoiceDetailModal({
   }
   const isCash = invoice.category === "CASH_PREPAYMENT"
 
+  const attachmentsList: Array<{ url: string; name: string; size?: number }> =
+    Array.isArray(invoice.attachments) && invoice.attachments.length > 0
+      ? (invoice.attachments as any)
+      : invoice.attachmentUrl
+      ? [{ url: invoice.attachmentUrl, name: invoice.attachmentName || "Invoice Document", size: 0 }]
+      : []
+
   const handleMarkInReview = async () => {
     setLoading(true)
     setError(null)
@@ -207,11 +214,6 @@ export function InvoiceDetailModal({
                   <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dotClass}`} />
                   {statusConfig.label}
                 </span>
-                {isCash && (
-                  <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded bg-rose-100 text-rose-700 border border-rose-200">
-                    Urgent Prepayment
-                  </span>
-                )}
               </div>
               <p className="text-xs text-slate-500">
                 Created on {new Date(invoice.createdAt).toLocaleDateString()} by{" "}
@@ -241,9 +243,9 @@ export function InvoiceDetailModal({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
             <div>
               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                Total Amount
+                {invoice.category === "DEPOSIT_PAYMENT" ? "Amount Paid / Submitted" : "Total Amount"}
               </p>
-              <p className="text-lg font-bold text-slate-900 mt-0.5">
+              <p className="text-lg font-bold text-slate-900 mt-0.5 font-mono">
                 RM {invoice.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </p>
             </div>
@@ -259,12 +261,12 @@ export function InvoiceDetailModal({
 
             <div>
               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                Due Date
+                Invoice Date
               </p>
               <p className="text-sm font-semibold text-slate-800 mt-1">
-                {invoice.dueDate
-                  ? new Date(invoice.dueDate).toLocaleDateString()
-                  : "Immediate / CBD"}
+                {invoice.invoiceDate
+                  ? new Date(invoice.invoiceDate).toLocaleDateString()
+                  : "-"}
               </p>
             </div>
 
@@ -277,6 +279,75 @@ export function InvoiceDetailModal({
               </p>
             </div>
           </div>
+
+          {/* Deposit Payment Ledger (if category is Deposit Payment or has deposit details) */}
+          {(invoice.depositDetails || invoice.totalPrice || invoice.category === "DEPOSIT_PAYMENT") && (
+            <div className="p-4 bg-purple-50/70 border border-purple-200/90 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <DollarSign className="w-4 h-4 text-purple-600" />
+                  Deposit & Milestone Payment Ledger
+                </h3>
+                {(invoice.depositDetails?.totalPrice || invoice.totalPrice) && (
+                  <span className="text-xs font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
+                    Total Contract: RM {Number(invoice.depositDetails?.totalPrice || invoice.totalPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </span>
+                )}
+              </div>
+
+              {/* Installment stages table */}
+              {Array.isArray(invoice.depositDetails?.stages) && invoice.depositDetails.stages.length > 0 && (
+                <div className="bg-white rounded-xl border border-purple-100 overflow-hidden text-xs">
+                  <table className="w-full text-left">
+                    <thead className="bg-purple-100/60 text-[10px] uppercase font-bold text-purple-800 border-b border-purple-100">
+                      <tr>
+                        <th className="py-2 px-3">Stage</th>
+                        <th className="py-2 px-3">Date</th>
+                        <th className="py-2 px-3">Notes / Ref</th>
+                        <th className="py-2 px-3 text-right">Amount (RM)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-purple-50">
+                      {invoice.depositDetails.stages.map((st: any, i: number) => (
+                        <tr key={st.id || i} className="hover:bg-purple-50/40">
+                          <td className="py-2 px-3 font-bold text-purple-900">{st.stage || `${i + 1}th Payment`}</td>
+                          <td className="py-2 px-3 text-slate-600 font-mono">
+                            {st.date ? new Date(st.date).toLocaleDateString() : "-"}
+                          </td>
+                          <td className="py-2 px-3 text-slate-500 italic">{st.note || "-"}</td>
+                          <td className="py-2 px-3 text-right font-bold text-slate-900 font-mono">
+                            RM {Number(st.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Balance Summary Bar */}
+              <div className="grid grid-cols-3 gap-2 p-3 bg-white rounded-xl border border-purple-100 text-xs shadow-2xs">
+                <div>
+                  <span className="text-[10px] uppercase font-semibold text-slate-400">Total Contract</span>
+                  <p className="font-extrabold text-slate-900 text-sm mt-0.5 font-mono">
+                    RM {Number(invoice.depositDetails?.totalPrice || invoice.totalPrice || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-semibold text-emerald-600">Total Paid</span>
+                  <p className="font-extrabold text-emerald-700 text-sm mt-0.5 font-mono">
+                    RM {Number(invoice.depositDetails?.totalPaid || invoice.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-semibold text-amber-700">Remaining Balance (Baki)</span>
+                  <p className="font-extrabold text-amber-800 text-sm mt-0.5 font-mono">
+                    RM {Number(invoice.depositDetails?.remainingBalance ?? ((invoice.depositDetails?.totalPrice || invoice.totalPrice || 0) - (invoice.depositDetails?.totalPaid || invoice.amount || 0))).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Detail Sections */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -339,21 +410,70 @@ export function InvoiceDetailModal({
                   </span>
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-slate-600">Invoice Document:</span>
-                  {invoice.attachmentUrl ? (
-                    <a
-                      href={invoice.attachmentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 font-semibold text-blue-600 hover:text-blue-800 hover:underline"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      View Attachment
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  ) : (
-                    <span className="text-slate-400 italic">No attachment</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">Proforma Invoice:</span>
+                  <span
+                    className={`font-bold px-2 py-0.5 rounded ${
+                      invoice.proformaInvoiceReceived
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {invoice.proformaInvoiceReceived ? "YES" : "NO"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">PDF Copy:</span>
+                  <span
+                    className={`font-bold px-2 py-0.5 rounded ${
+                      invoice.pdfReceived
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {invoice.pdfReceived ? "YES" : "NO"}
+                  </span>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600 font-medium">Invoice Documents ({attachmentsList.length}):</span>
+                    {attachmentsList.length === 0 && (
+                      <span className="text-slate-400 italic">No attachments</span>
+                    )}
+                  </div>
+
+                  {attachmentsList.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      {attachmentsList.map((att: any, idx) => (
+                        <div
+                          key={`${att.url}-${idx}`}
+                          className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200/80 hover:bg-slate-100 transition-colors"
+                        >
+                          <div className="flex items-center gap-2 min-w-0 pr-2">
+                            <FileText className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                            <span className="truncate max-w-xs font-medium text-slate-800" title={att.name}>
+                              {att.name || `Document ${idx + 1}`}
+                            </span>
+                            {att.tag && (
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-100 text-blue-700">
+                                {att.tag}
+                              </span>
+                            )}
+                          </div>
+                          <a
+                            href={att.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-800 hover:underline shrink-0"
+                          >
+                            <span>Open</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
 

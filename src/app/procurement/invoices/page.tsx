@@ -31,6 +31,7 @@ import {
   getProcurementSummary,
   getProcurementUserRole,
   getSuppliers,
+  deleteInvoice,
 } from "@/app/actions/procurement"
 
 import { InvoiceTable } from "@/components/procurement/InvoiceTable"
@@ -49,9 +50,7 @@ import { exportProcurementInvoicesToExcel } from "@/lib/procurement-excel"
 type TabType = "ALL" | ProcurementInvoiceCategory
 
 export default function ProcurementInvoicesPage() {
-  const [activeTab, setActiveTab] = useState<TabType>(
-    ProcurementInvoiceCategory.STANDARD_TERMS
-  )
+  const [activeTab, setActiveTab] = useState<TabType>("ALL")
   const [invoices, setInvoices] = useState<any[]>([])
   const [suppliers, setSuppliers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -76,6 +75,7 @@ export default function ProcurementInvoicesPage() {
 
   // Modals
   const [isNewModalOpen, setIsNewModalOpen] = useState(false)
+  const [editingInvoice, setEditingInvoice] = useState<any | null>(null)
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
 
@@ -208,6 +208,27 @@ export default function ProcurementInvoicesPage() {
     setIsDetailModalOpen(true)
   }
 
+  const handleEditInvoice = (inv: any) => {
+    setEditingInvoice(inv)
+    setIsNewModalOpen(true)
+  }
+
+  const handleDeleteInvoice = async (id: string, invoiceNumber: string) => {
+    if (!confirm(`Are you sure you want to delete submission "${invoiceNumber}"? This action cannot be undone.`)) {
+      return
+    }
+    try {
+      const res = await deleteInvoice(id)
+      if (res.success) {
+        loadData()
+      } else {
+        alert(res.error || "Failed to delete submission.")
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to delete submission.")
+    }
+  }
+
   // Compute live totals for filtered records
   const filteredTotalAmount = useMemo(() => {
     return invoices.reduce((sum, inv) => sum + (Number(inv.amount) || 0), 0)
@@ -247,10 +268,10 @@ export default function ProcurementInvoicesPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-              Invoice for Payment
+              DOCUMENT SUBMISSION
             </h1>
             <p className="text-xs text-slate-500">
-              Purchasing ➔ Finance invoice submission, payment settlement, and physical document tracking
+              Purchasing ➔ Finance document submission, payment settlement, and verification tracking
             </p>
           </div>
         </div>
@@ -275,92 +296,31 @@ export default function ProcurementInvoicesPage() {
           </button>
 
           <button
-            onClick={() => setIsNewModalOpen(true)}
+            onClick={() => {
+              setEditingInvoice(null)
+              setIsNewModalOpen(true)
+            }}
             className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-98 rounded-xl shadow-sm shadow-blue-500/20 transition-all"
           >
             <Plus className="w-4 h-4" />
-            New Invoice
+            New Submission
           </button>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-            Total Outstanding
-          </p>
-          <p className="text-xl font-bold text-slate-900 mt-1">
-            RM {(summary?.totalAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-          </p>
-          <p className="text-[11px] text-slate-500 mt-0.5">
-            {summary?.totalCount || 0} Total Records
-          </p>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-amber-200/80 bg-amber-50/20 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">
-              Pending Finance
-            </p>
-            <Clock className="w-3.5 h-3.5 text-amber-600" />
-          </div>
-          <p className="text-xl font-bold text-amber-900 mt-1">
-            RM {(summary?.pendingFinanceAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-          </p>
-          <p className="text-[11px] text-amber-700 font-semibold mt-0.5">
-            {summary?.pendingFinanceCount || 0} Invoices Submitted
-          </p>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-sky-200/80 bg-sky-50/20 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-bold text-sky-700 uppercase tracking-wider">
-              In Review
-            </p>
-            <Layers className="w-3.5 h-3.5 text-sky-600" />
-          </div>
-          <p className="text-xl font-bold text-sky-900 mt-1">
-            RM {(summary?.inReviewAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-          </p>
-          <p className="text-[11px] text-sky-700 font-semibold mt-0.5">
-            {summary?.inReviewCount || 0} Under Processing
-          </p>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-rose-200/80 bg-rose-50/20 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-bold text-rose-700 uppercase tracking-wider">
-              Urgent Prepayment
-            </p>
-            <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-          </div>
-          <p className="text-xl font-bold text-rose-900 mt-1">
-            RM {(summary?.cashPrepaymentPendingAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-          </p>
-          <p className="text-[11px] text-rose-700 font-semibold mt-0.5">
-            {summary?.cashPrepaymentPendingCount || 0} Pay Before Delivery
-          </p>
-        </div>
-
-        <div className="col-span-2 lg:col-span-1 bg-white p-4 rounded-2xl border border-emerald-200/80 bg-emerald-50/20 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">
-              Settled / Paid
-            </p>
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-          </div>
-          <p className="text-xl font-bold text-emerald-900 mt-1">
-            RM {(summary?.paidAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-          </p>
-          <p className="text-[11px] text-emerald-700 font-semibold mt-0.5">
-            {summary?.paidCount || 0} Fully Cleared
-          </p>
-        </div>
-      </div>
-
-      {/* 3 Main Category Tabs */}
+      {/* Category Tabs: View All first! */}
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
+        <button
+          onClick={() => setActiveTab("ALL")}
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            activeTab === "ALL"
+              ? "bg-slate-900 text-white shadow-sm"
+              : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80"
+          }`}
+        >
+          View All
+        </button>
+
         <button
           onClick={() => setActiveTab(ProcurementInvoiceCategory.STANDARD_TERMS)}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
@@ -373,14 +333,14 @@ export default function ProcurementInvoicesPage() {
         </button>
 
         <button
-          onClick={() => setActiveTab(ProcurementInvoiceCategory.MONTHLY_SUBSCRIPTION)}
+          onClick={() => setActiveTab(ProcurementInvoiceCategory.DEPOSIT_PAYMENT || "DEPOSIT_PAYMENT")}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-            activeTab === ProcurementInvoiceCategory.MONTHLY_SUBSCRIPTION
+            activeTab === "DEPOSIT_PAYMENT" || activeTab === ProcurementInvoiceCategory.MONTHLY_SUBSCRIPTION
               ? "bg-purple-600 text-white shadow-sm shadow-purple-500/20"
               : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80"
           }`}
         >
-          <span>Monthly Payment / Subscription</span>
+          <span>Deposit Payment</span>
         </button>
 
         <button
@@ -392,20 +352,6 @@ export default function ProcurementInvoicesPage() {
           }`}
         >
           <span>Cash Payment (Pay Before Delivery)</span>
-          <span className="px-1.5 py-0.2 rounded text-[10px] bg-rose-600 text-white font-extrabold uppercase">
-            Urgent
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("ALL")}
-          className={`px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-            activeTab === "ALL"
-              ? "bg-slate-800 text-white"
-              : "text-slate-500 hover:text-slate-800"
-          }`}
-        >
-          View All
         </button>
       </div>
 
@@ -699,14 +645,23 @@ export default function ProcurementInvoicesPage() {
         invoices={invoices}
         loading={loading}
         onSelectInvoice={handleOpenDetail}
-        onOpenNewModal={() => setIsNewModalOpen(true)}
+        onEditInvoice={handleEditInvoice}
+        onDeleteInvoice={handleDeleteInvoice}
+        onOpenNewModal={() => {
+          setEditingInvoice(null)
+          setIsNewModalOpen(true)
+        }}
       />
 
       {/* Modals */}
       <NewInvoiceModal
         isOpen={isNewModalOpen}
-        onClose={() => setIsNewModalOpen(false)}
-        onCreated={loadData}
+        onClose={() => {
+          setIsNewModalOpen(false)
+          setEditingInvoice(null)
+        }}
+        onSaved={loadData}
+        invoiceToEdit={editingInvoice}
         defaultCategory={
           activeTab !== "ALL" ? activeTab : ProcurementInvoiceCategory.STANDARD_TERMS
         }

@@ -26,6 +26,9 @@ export async function checkProcurementAccess() {
 export async function getSuppliers(params?: {
   search?: string
   terms?: string
+  branch?: string
+  department?: string
+  company?: string
   activeOnly?: boolean
 }) {
   await checkProcurementAccess()
@@ -39,14 +42,50 @@ export async function getSuppliers(params?: {
     where.terms = params.terms as ProcurementPaymentTerm
   }
 
+  if (params?.department && params.department !== "ALL") {
+    where.department = params.department
+  }
+
+  const andConditions: any[] = []
+
+  if (params?.company && params.company !== "ALL") {
+    andConditions.push({
+      OR: [
+        { company: params.company },
+        { company: "All Companies" },
+        { company: null },
+      ],
+    })
+  }
+
+  if (params?.branch && params.branch !== "ALL") {
+    // If filtering by branch (e.g. Gambang), include suppliers that match this branch or "All Branches" or NULL
+    andConditions.push({
+      OR: [
+        { branch: params.branch },
+        { branch: "All Branches" },
+        { branch: null },
+      ],
+    })
+  }
+
   if (params?.search?.trim()) {
     const q = params.search.trim()
-    where.OR = [
-      { name: { contains: q, mode: "insensitive" } },
-      { phone: { contains: q, mode: "insensitive" } },
-      { email: { contains: q, mode: "insensitive" } },
-      { remark: { contains: q, mode: "insensitive" } },
-    ]
+    andConditions.push({
+      OR: [
+        { name: { contains: q, mode: "insensitive" } },
+        { phone: { contains: q, mode: "insensitive" } },
+        { email: { contains: q, mode: "insensitive" } },
+        { contactPerson: { contains: q, mode: "insensitive" } },
+        { branch: { contains: q, mode: "insensitive" } },
+        { department: { contains: q, mode: "insensitive" } },
+        { remark: { contains: q, mode: "insensitive" } },
+      ],
+    })
+  }
+
+  if (andConditions.length > 0) {
+    where.AND = andConditions
   }
 
   const suppliers = await prisma.procurementSupplier.findMany({
@@ -66,6 +105,10 @@ export async function createSupplier(data: {
   name: string
   phone?: string
   email?: string
+  contactPerson?: string
+  branch?: string
+  department?: string
+  company?: string
   terms: ProcurementPaymentTerm
   remark?: string
 }) {
@@ -81,6 +124,10 @@ export async function createSupplier(data: {
         name: data.name.trim(),
         phone: data.phone?.trim() || null,
         email: data.email?.trim() || null,
+        contactPerson: data.contactPerson?.trim() || null,
+        branch: data.branch?.trim() || "All Branches",
+        department: data.department?.trim() || null,
+        company: data.company?.trim() || "All Companies",
         terms: data.terms || ProcurementPaymentTerm.TERM_30_DAYS,
         remark: data.remark?.trim() || null,
         createdById: access.userId,
@@ -102,6 +149,10 @@ export async function updateSupplier(
     name: string
     phone?: string
     email?: string
+    contactPerson?: string
+    branch?: string
+    department?: string
+    company?: string
     terms: ProcurementPaymentTerm
     remark?: string
     isActive?: boolean
@@ -116,6 +167,10 @@ export async function updateSupplier(
         name: data.name.trim(),
         phone: data.phone?.trim() || null,
         email: data.email?.trim() || null,
+        contactPerson: data.contactPerson?.trim() || null,
+        branch: data.branch?.trim() || "All Branches",
+        department: data.department?.trim() || null,
+        company: data.company?.trim() || "All Companies",
         terms: data.terms,
         remark: data.remark?.trim() || null,
         isActive: data.isActive !== undefined ? data.isActive : true,
@@ -184,7 +239,11 @@ export async function getInvoices(params?: {
   const where: any = {}
 
   if (params?.category && params.category !== "ALL") {
-    where.category = params.category as ProcurementInvoiceCategory
+    if (params.category === "DEPOSIT_PAYMENT" || (params.category as string) === "MONTHLY_SUBSCRIPTION") {
+      where.category = { in: ["DEPOSIT_PAYMENT", "MONTHLY_SUBSCRIPTION"] }
+    } else {
+      where.category = params.category as ProcurementInvoiceCategory
+    }
   }
 
   if (params?.status && params.status !== "ALL") {
@@ -342,10 +401,15 @@ export async function createInvoice(data: {
   invoiceDate?: string | Date
   dueDate?: string | Date
   amount: number
+  totalPrice?: number | null
+  depositDetails?: any
   doReceived?: boolean
   originalInvoiceReceived?: boolean
+  proformaInvoiceReceived?: boolean
+  pdfReceived?: boolean
   attachmentUrl?: string
   attachmentName?: string
+  attachments?: Array<{ url: string; name: string; size?: number; tag?: string }>
   notes?: string
 }) {
   const access = await checkProcurementAccess()
@@ -365,6 +429,17 @@ export async function createInvoice(data: {
 
   const initialStatus = data.status || ProcurementInvoiceStatus.PENDING_FINANCE
 
+  // Normalize attachments array
+  let attachmentsJson: any = []
+  if (data.attachments && Array.isArray(data.attachments) && data.attachments.length > 0) {
+    attachmentsJson = data.attachments
+  } else if (data.attachmentUrl) {
+    attachmentsJson = [{ url: data.attachmentUrl, name: data.attachmentName || "Document", size: 0, tag: "Invoice / DO" }]
+  }
+
+  const primaryAttachmentUrl = data.attachmentUrl || data.attachments?.[0]?.url || null
+  const primaryAttachmentName = data.attachmentName || data.attachments?.[0]?.name || null
+
   try {
     const invoice = await prisma.procurementInvoice.create({
       data: {
@@ -379,10 +454,15 @@ export async function createInvoice(data: {
         dueDate: data.dueDate ? new Date(data.dueDate) : null,
         submitDate: new Date(),
         amount: Number(data.amount) || 0,
+        totalPrice: data.totalPrice !== undefined && data.totalPrice !== null ? Number(data.totalPrice) : null,
+        depositDetails: data.depositDetails || null,
         doReceived: !!data.doReceived,
         originalInvoiceReceived: !!data.originalInvoiceReceived,
-        attachmentUrl: data.attachmentUrl || null,
-        attachmentName: data.attachmentName || null,
+        proformaInvoiceReceived: !!data.proformaInvoiceReceived,
+        pdfReceived: !!data.pdfReceived,
+        attachmentUrl: primaryAttachmentUrl,
+        attachmentName: primaryAttachmentName,
+        attachments: attachmentsJson,
         notes: data.notes?.trim() || null,
         createdById: access.userId,
         activityLogs: {
@@ -416,10 +496,15 @@ export async function updateInvoice(
     invoiceDate?: string | Date
     dueDate?: string | Date
     amount?: number
+    totalPrice?: number | null
+    depositDetails?: any
     doReceived?: boolean
     originalInvoiceReceived?: boolean
+    proformaInvoiceReceived?: boolean
+    pdfReceived?: boolean
     attachmentUrl?: string
     attachmentName?: string
+    attachments?: Array<{ url: string; name: string; size?: number; tag?: string }>
     notes?: string
   }
 ) {
@@ -436,10 +521,24 @@ export async function updateInvoice(
     if (data.invoiceDate) updatePayload.invoiceDate = new Date(data.invoiceDate)
     if (data.dueDate !== undefined) updatePayload.dueDate = data.dueDate ? new Date(data.dueDate) : null
     if (data.amount !== undefined) updatePayload.amount = Number(data.amount) || 0
+    if (data.totalPrice !== undefined) updatePayload.totalPrice = data.totalPrice !== null ? Number(data.totalPrice) : null
+    if (data.depositDetails !== undefined) updatePayload.depositDetails = data.depositDetails
     if (data.doReceived !== undefined) updatePayload.doReceived = data.doReceived
     if (data.originalInvoiceReceived !== undefined) updatePayload.originalInvoiceReceived = data.originalInvoiceReceived
+    if (data.proformaInvoiceReceived !== undefined) updatePayload.proformaInvoiceReceived = data.proformaInvoiceReceived
+    if (data.pdfReceived !== undefined) updatePayload.pdfReceived = data.pdfReceived
     if (data.attachmentUrl !== undefined) updatePayload.attachmentUrl = data.attachmentUrl
     if (data.attachmentName !== undefined) updatePayload.attachmentName = data.attachmentName
+    if (data.attachments !== undefined) {
+      updatePayload.attachments = data.attachments
+      if (Array.isArray(data.attachments) && data.attachments.length > 0) {
+        updatePayload.attachmentUrl = data.attachments[0].url
+        updatePayload.attachmentName = data.attachments[0].name
+      } else {
+        updatePayload.attachmentUrl = null
+        updatePayload.attachmentName = null
+      }
+    }
     if (data.notes !== undefined) updatePayload.notes = data.notes?.trim() || null
 
     const updated = await prisma.procurementInvoice.update({
@@ -599,6 +698,43 @@ export async function uploadProcurementDocument(formData: FormData) {
   }
 }
 
+export async function uploadProcurementDocuments(formData: FormData) {
+  await checkProcurementAccess()
+
+  try {
+    const rawFiles = formData.getAll("files") as File[]
+    const folder = (formData.get("folder") as "invoices" | "receipts") || "invoices"
+
+    if (!rawFiles || rawFiles.length === 0) {
+      return { success: false, error: "No files uploaded." }
+    }
+
+    // Maximum 5 files
+    const filesToUpload = rawFiles.slice(0, 5)
+    const uploadedResults: Array<{ url: string; name: string; size: number }> = []
+
+    for (const file of filesToUpload) {
+      if (file && typeof file.arrayBuffer === "function") {
+        const buffer = Buffer.from(await file.arrayBuffer())
+        const res = await uploadProcurementFile(buffer, file.name, file.type || "application/pdf", folder)
+        uploadedResults.push({
+          url: res.url,
+          name: res.filename,
+          size: file.size || 0,
+        })
+      }
+    }
+
+    return {
+      success: true,
+      files: uploadedResults,
+    }
+  } catch (error: any) {
+    console.error("Failed to upload procurement documents:", error)
+    return { success: false, error: error.message || "Upload failed." }
+  }
+}
+
 export async function getProcurementUserRole() {
   const access = await checkProcurementAccess()
   return {
@@ -706,7 +842,9 @@ export async function getPurchaseSummary() {
 
 export async function createPurchase(data: {
   purchaseDate?: string | Date
+  poNumber?: string | null
   itemDescription: string
+  items?: any[]
   supplierName: string
   supplierId?: string | null
   quantity: number
@@ -719,39 +857,48 @@ export async function createPurchase(data: {
 }) {
   const access = await checkProcurementAccess()
 
-  if (!data.itemDescription?.trim()) {
+  if (!data.itemDescription?.trim() && (!data.items || data.items.length === 0)) {
     return { success: false, error: "Description of the item is required." }
   }
   if (!data.supplierName?.trim()) {
     return { success: false, error: "Supplier name is required." }
   }
-  if (!data.uom?.trim()) {
-    return { success: false, error: "Unit of material (UOM) is required." }
-  }
-  if (data.quantity === undefined || isNaN(Number(data.quantity)) || Number(data.quantity) <= 0) {
-    return { success: false, error: "Valid quantity is required." }
-  }
-  if (data.unitPrice === undefined || isNaN(Number(data.unitPrice)) || Number(data.unitPrice) < 0) {
-    return { success: false, error: "Valid unit price is required." }
-  }
   if (!data.company?.trim()) {
     return { success: false, error: "Company is required." }
   }
 
-  const quantity = Number(data.quantity)
-  const unitPrice = Number(data.unitPrice)
-  const total = data.total !== undefined && !isNaN(Number(data.total)) ? Number(data.total) : quantity * unitPrice
+  let finalItems = Array.isArray(data.items) ? data.items : []
+  let quantity = Number(data.quantity) || 1
+  let unitPrice = Number(data.unitPrice) || 0
+  let total = data.total !== undefined && !isNaN(Number(data.total)) ? Number(data.total) : quantity * unitPrice
+  let uom = data.uom?.trim()?.toUpperCase() || "PCS"
+  let itemDescription = data.itemDescription?.trim() || ""
+
+  if (finalItems.length > 0) {
+    total = finalItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0)
+    quantity = finalItems.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0)
+    unitPrice = finalItems[0]?.unitPrice ? Number(finalItems[0].unitPrice) : 0
+    uom = finalItems[0]?.uom ? finalItems[0].uom.toUpperCase() : "PCS"
+    if (!itemDescription) {
+      itemDescription = finalItems.length === 1
+        ? finalItems[0].description
+        : `${finalItems[0].description} (+${finalItems.length - 1} items)`
+    }
+  }
+
   const company = data.company.trim().toUpperCase()
 
   try {
     const purchase = await prisma.procurementPurchase.create({
       data: {
         purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : new Date(),
-        itemDescription: data.itemDescription.trim(),
+        poNumber: data.poNumber?.trim() || null,
+        itemDescription,
+        items: finalItems,
         supplierName: data.supplierName.trim(),
         supplierId: data.supplierId || null,
         quantity,
-        uom: data.uom.trim().toUpperCase(),
+        uom,
         unitPrice,
         total,
         company,
@@ -773,7 +920,9 @@ export async function updatePurchase(
   id: string,
   data: {
     purchaseDate?: string | Date
+    poNumber?: string | null
     itemDescription?: string
+    items?: any[]
     supplierName?: string
     supplierId?: string | null
     quantity?: number
@@ -796,19 +945,36 @@ export async function updatePurchase(
       return { success: false, error: "Purchase record not found." }
     }
 
-    const quantity = data.quantity !== undefined ? Number(data.quantity) : existing.quantity
-    const unitPrice = data.unitPrice !== undefined ? Number(data.unitPrice) : existing.unitPrice
-    const total = data.total !== undefined ? Number(data.total) : quantity * unitPrice
+    let finalItems = data.items !== undefined ? data.items : (existing.items as any[]) || []
+    let quantity = data.quantity !== undefined ? Number(data.quantity) : existing.quantity
+    let unitPrice = data.unitPrice !== undefined ? Number(data.unitPrice) : existing.unitPrice
+    let total = data.total !== undefined ? Number(data.total) : quantity * unitPrice
+    let uom = data.uom !== undefined ? data.uom.trim().toUpperCase() : existing.uom
+    let itemDescription = data.itemDescription !== undefined ? data.itemDescription.trim() : existing.itemDescription
+
+    if (Array.isArray(finalItems) && finalItems.length > 0) {
+      total = finalItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0)
+      quantity = finalItems.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0)
+      unitPrice = finalItems[0]?.unitPrice ? Number(finalItems[0].unitPrice) : 0
+      uom = finalItems[0]?.uom ? finalItems[0].uom.toUpperCase() : "PCS"
+      if (!data.itemDescription) {
+        itemDescription = finalItems.length === 1
+          ? finalItems[0].description
+          : `${finalItems[0].description} (+${finalItems.length - 1} items)`
+      }
+    }
 
     const updated = await prisma.procurementPurchase.update({
       where: { id },
       data: {
         purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : existing.purchaseDate,
-        itemDescription: data.itemDescription !== undefined ? data.itemDescription.trim() : existing.itemDescription,
+        poNumber: data.poNumber !== undefined ? (data.poNumber ? data.poNumber.trim() : null) : existing.poNumber,
+        itemDescription,
+        items: finalItems,
         supplierName: data.supplierName !== undefined ? data.supplierName.trim() : existing.supplierName,
         supplierId: data.supplierId !== undefined ? data.supplierId : existing.supplierId,
         quantity,
-        uom: data.uom !== undefined ? data.uom.trim().toUpperCase() : existing.uom,
+        uom,
         unitPrice,
         total,
         company: data.company !== undefined ? data.company.trim().toUpperCase() : existing.company,

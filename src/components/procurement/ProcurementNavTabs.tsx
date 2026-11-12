@@ -9,7 +9,7 @@ export function ProcurementNavTabs() {
 
   const tabs = [
     {
-      name: "Invoice for Payment",
+      name: "Document Submission",
       href: "/procurement/invoices",
       icon: Receipt,
       isActive: pathname.startsWith("/procurement/invoices"),

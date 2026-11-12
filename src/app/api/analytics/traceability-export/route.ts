@@ -14,7 +14,13 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json().catch(() => ({}))
-    const dateMode = body.dateMode === "CUSTOM" || (body.from && body.to) ? "CUSTOM" : "ISO_WEEK"
+    const isBatchList = body.dateMode === "BATCH_LIST" || (Array.isArray(body.batchFilters) && body.batchFilters.length > 0)
+    const dateMode = isBatchList
+      ? "BATCH_LIST"
+      : body.dateMode === "CUSTOM" || (body.from && body.to)
+      ? "CUSTOM"
+      : "ISO_WEEK"
+
     const currentYear = new Date().getFullYear()
     const year = Number(body.year) || currentYear
     const week = Number(body.week) || 1
@@ -22,8 +28,16 @@ export async function POST(request: Request) {
     const to = typeof body.to === "string" && ISO_DATE.test(body.to) ? body.to : ""
     const line = typeof body.line === "string" ? body.line : "ALL"
     const batchNo = typeof body.batchNo === "string" ? body.batchNo.trim() : ""
+    const batchFilters = Array.isArray(body.batchFilters) ? body.batchFilters : []
 
-    if (dateMode === "CUSTOM") {
+    if (dateMode === "BATCH_LIST") {
+      if (batchFilters.length === 0 && !batchNo) {
+        return NextResponse.json(
+          { error: "Please provide at least one batch number to trace." },
+          { status: 400 }
+        )
+      }
+    } else if (dateMode === "CUSTOM") {
       if (!from || !to) {
         return NextResponse.json(
           { error: "Both From and To dates are required and must be in YYYY-MM-DD format." },
@@ -53,6 +67,7 @@ export async function POST(request: Request) {
       to,
       line,
       batchNo,
+      batchFilters,
     })
     const buffer = await buildBottleBoxTraceWorkbook(report, preparedBy, generatedAt)
 
@@ -60,7 +75,9 @@ export async function POST(request: Request) {
     const batchSlug = batchNo ? `_Batch_${batchNo.replace(/[^a-zA-Z0-9_-]/g, "")}` : ""
 
     const fileName =
-      dateMode === "CUSTOM"
+      dateMode === "BATCH_LIST"
+        ? `BubblesO2_Multi_Batch_Traceability_${batchFilters.length || 1}_items${lineSlug}.xlsx`
+        : dateMode === "CUSTOM"
         ? `BubblesO2_Batch_Traceability_${from}_to_${to}${lineSlug}${batchSlug}.xlsx`
         : `BubblesO2_Batch_Traceability_${year}_W${String(week).padStart(2, "0")}${lineSlug}${batchSlug}.xlsx`
 

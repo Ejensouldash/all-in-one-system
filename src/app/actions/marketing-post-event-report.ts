@@ -27,8 +27,6 @@ import {
 } from "@/lib/marketing/event-success-rate"
 import { recomputeEventScore } from "@/lib/marketing/event-success-rate-server"
 
-export type { StaffInvolvedEntry }
-
 export interface VipEntry {
   name: string
   title: string

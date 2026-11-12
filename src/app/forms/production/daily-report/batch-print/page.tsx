@@ -23,6 +23,12 @@ export async function generateMetadata({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
   const params = await searchParams
+  const dateMode = typeof params.dateMode === "string" ? params.dateMode : ""
+  if (dateMode === "BATCH_LIST" || params.batchFilters) {
+    return {
+      title: "Batch Print DPR — Multi-Batch Search",
+    }
+  }
   const from = typeof params.from === "string" ? params.from : ""
   const to = typeof params.to === "string" ? params.to : ""
   if (from && to) {
@@ -50,6 +56,17 @@ export default async function BatchPrintDailyReportsPage({
   const to = typeof params.to === "string" ? params.to.trim() : ""
   const isCustom = Boolean(from && to)
 
+  const dateMode = typeof params.dateMode === "string" ? params.dateMode : ""
+  let batchFilters: Array<{ category: string; batchNo: string }> = []
+  if (typeof params.batchFilters === "string") {
+    try {
+      batchFilters = JSON.parse(params.batchFilters)
+    } catch {
+      batchFilters = []
+    }
+  }
+  const isBatchMode = dateMode === "BATCH_LIST" || batchFilters.length > 0
+
   const currentYear = new Date().getFullYear()
   const year = Number(params.year) || currentYear
   const week = Number(params.week) || 1
@@ -61,7 +78,26 @@ export default async function BatchPrintDailyReportsPage({
   let dateRangeStr: string
   let toolbarTitle: string
 
-  if (isCustom) {
+  if (isBatchMode) {
+    if (from && to) {
+      let cleanFrom = from
+      let cleanTo = to
+      if (cleanFrom > cleanTo) {
+        const temp = cleanFrom
+        cleanFrom = cleanTo
+        cleanTo = temp
+      }
+      startDate = cleanFrom
+      endDate = cleanTo
+      dateRangeStr = `${formatDateDMY(startDate)} - ${formatDateDMY(endDate)}`
+    } else {
+      startDate = "2020-01-01"
+      endDate = new Date().toISOString().split("T")[0]
+      dateRangeStr = "All Time"
+    }
+    const count = batchFilters.length || (batchNo ? batchNo.split(",").length : 1)
+    toolbarTitle = `Batch Print DPR — Multi-Batch Search (${count} Batches)`
+  } else if (isCustom) {
     let cleanFrom = from
     let cleanTo = to
     if (cleanFrom > cleanTo) {
@@ -85,8 +121,11 @@ export default async function BatchPrintDailyReportsPage({
   const end = new Date(`${endDate}T23:59:59.999Z`)
 
   const whereClause: any = {
-    date: { gte: start, lte: end },
     status: { in: ["APPROVED", "PENDING"] },
+  }
+
+  if (!isBatchMode || (from && to)) {
+    whereClause.date = { gte: start, lte: end }
   }
 
   if (line && line !== "ALL") {
@@ -108,23 +147,72 @@ export default async function BatchPrintDailyReportsPage({
     orderBy: [{ date: "asc" }, { shift: "asc" }, { line: "asc" }],
   })
 
-  // If filtered by batch number:
-  if (batchNo) {
-    const cleanB = batchNo.toLowerCase()
+  // Filter reports if batch filters are specified
+  if (batchFilters.length > 0) {
     reports = reports.filter(r => {
-      const matchInv = (r.inventory || []).some((i: any) =>
-        (i.batchNo || "").toLowerCase().includes(cleanB)
-      )
-      const matchProd = (r.productions || []).some((p: any) =>
-        (p.batches || []).some((b: any) => (b.batchNo || "").toLowerCase().includes(cleanB))
-      )
-      return matchInv || matchProd
+      return batchFilters.some(f => {
+        const term = (f.batchNo || "").trim().toLowerCase()
+        if (!term) return false
+        const cat = f.category || "ALL"
+        if (cat === "OUTPUT") {
+          return (r.productions || []).some((p: any) =>
+            (p.batches || []).some((b: any) => (b.batchNo || "").toLowerCase().includes(term))
+          )
+        } else if (cat === "BOTTLE") {
+          return (r.inventory || []).some((i: any) =>
+            (i.sectionKey || "").toUpperCase().includes("BOTTLE") &&
+            (i.batchNo || "").toLowerCase().includes(term)
+          )
+        } else if (cat === "CAP") {
+          return (r.inventory || []).some((i: any) =>
+            (i.sectionKey || "").toUpperCase().includes("CAP") &&
+            !(i.sectionKey || "").toUpperCase().includes("CARTON") &&
+            (i.batchNo || "").toLowerCase().includes(term)
+          )
+        } else if (cat === "CARTON") {
+          return (r.inventory || []).some((i: any) =>
+            ((i.sectionKey || "").toUpperCase().includes("CARTON") ||
+              (i.sectionKey || "").toUpperCase().includes("BOX")) &&
+            (i.batchNo || "").toLowerCase().includes(term)
+          )
+        } else if (cat === "LABEL") {
+          return (r.inventory || []).some((i: any) =>
+            (i.sectionKey || "").toUpperCase().includes("LABEL") &&
+            (i.batchNo || "").toLowerCase().includes(term)
+          )
+        } else {
+          // ALL categories
+          const matchInv = (r.inventory || []).some((i: any) =>
+            (i.batchNo || "").toLowerCase().includes(term)
+          )
+          const matchProd = (r.productions || []).some((p: any) =>
+            (p.batches || []).some((b: any) => (b.batchNo || "").toLowerCase().includes(term))
+          )
+          return matchInv || matchProd
+        }
+      })
+    })
+  } else if (batchNo) {
+    const batchTokens = batchNo.split(",").map(s => s.trim().toLowerCase()).filter(Boolean)
+    reports = reports.filter(r => {
+      return batchTokens.some(cleanB => {
+        const matchInv = (r.inventory || []).some((i: any) =>
+          (i.batchNo || "").toLowerCase().includes(cleanB)
+        )
+        const matchProd = (r.productions || []).some((p: any) =>
+          (p.batches || []).some((b: any) => (b.batchNo || "").toLowerCase().includes(cleanB))
+        )
+        return matchInv || matchProd
+      })
     })
   }
 
-  // Fetch TransferIns within a 48h padding around the range
-  const startPadding = new Date(start.getTime() - 24 * 60 * 60 * 1000)
-  const endPadding = new Date(end.getTime() + 24 * 60 * 60 * 1000)
+  // Fetch TransferIns within a 48h padding around the range of matched reports
+  const reportDates = reports.map(r => new Date(r.date).getTime())
+  const minTime = reportDates.length > 0 ? Math.min(...reportDates) : start.getTime()
+  const maxTime = reportDates.length > 0 ? Math.max(...reportDates) : end.getTime()
+  const startPadding = new Date(minTime - 24 * 60 * 60 * 1000)
+  const endPadding = new Date(maxTime + 24 * 60 * 60 * 1000)
 
   const allTransferIns = await prisma.transferIn.findMany({
     where: {

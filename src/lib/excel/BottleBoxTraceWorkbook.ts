@@ -570,6 +570,176 @@ export async function buildBottleBoxTraceWorkbook(
     ws3.getColumn(idx + 1).width = w
   })
 
+  // ===============================================================================================
+  // SHEET 4: Multi-Batch Trace Matrix (Added for Multi-Batch Search)
+  // ===============================================================================================
+  if (report.matrixRows && report.matrixRows.length > 0) {
+    const ws4 = wb.addWorksheet("Multi-Batch Trace Matrix", {
+      views: [{ state: "frozen", ySplit: 5 }],
+      pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+    })
+
+    writeSheetHeader(
+      ws4,
+      "R",
+      "BUBBLESO2 MULTI-BATCH TRACEABILITY MATRIX — RAW MATERIAL TO DISTRIBUTION",
+      subText
+    )
+
+    const matrixHeaders = [
+      "No.",
+      "Searched Category",
+      "Searched Batch No",
+      "Production Date",
+      "Shift",
+      "Production Line",
+      "Output SKU",
+      "Output FG Batch No",
+      "FG Boxes Produced",
+      "Bottle Batch (Usage)",
+      "Bottle Used (Pcs)",
+      "Cap Batch (Usage)",
+      "Label Batch (Usage)",
+      "Carton Batch (Usage)",
+      "DO Date",
+      "DO Destination / Customer",
+      "DO Qty Sent (Boxes)",
+      "Prepared By & Status",
+    ]
+
+    const mHeaderRow = ws4.getRow(5)
+    mHeaderRow.height = 28
+    matrixHeaders.forEach((h, idx) => {
+      const cell = mHeaderRow.getCell(idx + 1)
+      cell.value = h
+      styleHeaderCell(cell, HEADER_BG)
+    })
+
+    let mRowIdx = 6
+    let itemCounter = 1
+
+    report.matrixRows.forEach((row, rowIdx) => {
+      const distList =
+        row.distributions && row.distributions.length > 0
+          ? row.distributions
+          : [{ distributionDate: "-", destination: "-", quantity: null }]
+
+      const isEven = rowIdx % 2 === 0
+      const startRow = mRowIdx
+
+      distList.forEach((dist, dIdx) => {
+        const r = ws4.getRow(mRowIdx)
+        r.height = 22
+
+        if (dIdx === 0) {
+          r.getCell(1).value = itemCounter++
+          r.getCell(2).value = row.searchedCategory
+          r.getCell(3).value = row.searchedBatch
+          r.getCell(4).value = row.reportDateFormatted
+          r.getCell(5).value = row.shift
+          r.getCell(6).value = row.line
+          r.getCell(7).value = row.fgSkuLabel
+          r.getCell(8).value = row.fgBatchNo
+          r.getCell(9).value = row.fgBoxesProduced
+          r.getCell(10).value = row.bottleBatch
+          r.getCell(11).value = row.bottlePcs
+          r.getCell(12).value = row.capBatch
+          r.getCell(13).value = row.labelBatch
+          r.getCell(14).value = row.cartonBatch
+          r.getCell(18).value = `${row.preparedBy} (${row.reportStatus})`
+        }
+
+        r.getCell(15).value = dist.distributionDate || "-"
+        r.getCell(16).value = dist.destination || "-"
+        r.getCell(17).value = dist.quantity !== null && dist.quantity !== undefined ? dist.quantity : ""
+
+        // Formatting
+        r.getCell(1).alignment = { horizontal: "center", vertical: "middle" }
+        r.getCell(2).alignment = { horizontal: "center", vertical: "middle" }
+        r.getCell(3).alignment = { horizontal: "center", vertical: "middle" }
+        r.getCell(3).font = { bold: true }
+        r.getCell(4).alignment = { horizontal: "center", vertical: "middle" }
+        r.getCell(5).alignment = { horizontal: "center", vertical: "middle" }
+        r.getCell(6).alignment = { horizontal: "center", vertical: "middle" }
+        r.getCell(7).alignment = { horizontal: "left", vertical: "middle" }
+        r.getCell(8).alignment = { horizontal: "center", vertical: "middle" }
+        r.getCell(8).font = { bold: true }
+
+        r.getCell(9).alignment = { horizontal: "right", vertical: "middle" }
+        r.getCell(9).numFmt = NUM
+        r.getCell(9).font = { bold: true }
+
+        r.getCell(10).alignment = { horizontal: "center", vertical: "middle" }
+        r.getCell(11).alignment = { horizontal: "right", vertical: "middle" }
+        r.getCell(11).numFmt = NUM
+
+        r.getCell(12).alignment = { horizontal: "center", vertical: "middle" }
+        r.getCell(13).alignment = { horizontal: "center", vertical: "middle" }
+        r.getCell(14).alignment = { horizontal: "center", vertical: "middle" }
+
+        r.getCell(15).alignment = { horizontal: "center", vertical: "middle" }
+        r.getCell(16).alignment = { horizontal: "left", vertical: "middle" }
+        r.getCell(17).alignment = { horizontal: "right", vertical: "middle" }
+        r.getCell(17).numFmt = NUM
+        r.getCell(17).font = { bold: true, color: { argb: "FF15803D" } }
+
+        r.getCell(18).alignment = { horizontal: "left", vertical: "middle" }
+
+        for (let c = 1; c <= 18; c++) {
+          const cell = r.getCell(c)
+          cell.border = allBorders
+          if (isEven) {
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ZEBRA } }
+          }
+        }
+
+        mRowIdx++
+      })
+
+      // Merge common columns across multiple DO distribution lines
+      if (distList.length > 1) {
+        const endRow = mRowIdx - 1
+        const colsToMerge = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 18]
+        colsToMerge.forEach(colNum => {
+          ws4.mergeCells(startRow, colNum, endRow, colNum)
+        })
+      }
+    })
+
+    // Summary bottom row for Sheet 4
+    if (mRowIdx > 6) {
+      const mTotalRow = ws4.getRow(mRowIdx)
+      mTotalRow.height = 24
+      mTotalRow.getCell(1).value = "TOTAL"
+      mTotalRow.getCell(1).font = { bold: true }
+      mTotalRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" }
+      ws4.mergeCells(`A${mRowIdx}:H${mRowIdx}`)
+
+      const totalBoxesCell = mTotalRow.getCell(9)
+      totalBoxesCell.value = { formula: `SUM(I6:I${mRowIdx - 1})` }
+      totalBoxesCell.numFmt = NUM
+      totalBoxesCell.font = { bold: true }
+      totalBoxesCell.alignment = { horizontal: "right", vertical: "middle" }
+
+      const totalDOCell = mTotalRow.getCell(17)
+      totalDOCell.value = { formula: `SUM(Q6:Q${mRowIdx - 1})` }
+      totalDOCell.numFmt = NUM
+      totalDOCell.font = { bold: true }
+      totalDOCell.alignment = { horizontal: "right", vertical: "middle" }
+
+      for (let c = 1; c <= 18; c++) {
+        const cell = mTotalRow.getCell(c)
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: TOTAL_BG } }
+        cell.border = totalBorders
+      }
+    }
+
+    const mColWidths = [8, 18, 20, 15, 10, 15, 18, 20, 16, 20, 16, 18, 18, 18, 14, 26, 18, 24]
+    mColWidths.forEach((w, idx) => {
+      ws4.getColumn(idx + 1).width = w
+    })
+  }
+
   const arrayBuffer = await wb.xlsx.writeBuffer()
   return Buffer.from(arrayBuffer)
 }

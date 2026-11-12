@@ -16,18 +16,24 @@ import {
   AlertCircle,
   Truck,
   RefreshCw,
+  MapPin,
+  User,
+  Briefcase,
+  Building,
 } from "lucide-react"
 import { getSuppliers, deleteSupplier } from "@/app/actions/procurement"
 
 import { SupplierModal } from "@/components/procurement/SupplierModal"
 import { ProcurementNavTabs } from "@/components/procurement/ProcurementNavTabs"
-import { PAYMENT_TERMS_CONFIG } from "@/components/procurement/procurement-constants"
+import { PAYMENT_TERMS_CONFIG, BRANCH_OPTIONS, COMPANY_OPTIONS } from "@/components/procurement/procurement-constants"
 
 export default function ProcurementSuppliersPage() {
   const [suppliers, setSuppliers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [selectedTerm, setSelectedTerm] = useState("ALL")
+  const [selectedBranch, setSelectedBranch] = useState("ALL")
+  const [selectedCompany, setSelectedCompany] = useState("ALL")
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingSupplier, setEditingSupplier] = useState<any | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -39,6 +45,8 @@ export default function ProcurementSuppliersPage() {
       const data = await getSuppliers({
         search: search.trim() || undefined,
         terms: selectedTerm !== "ALL" ? selectedTerm : undefined,
+        branch: selectedBranch !== "ALL" ? selectedBranch : undefined,
+        company: selectedCompany !== "ALL" ? selectedCompany : undefined,
       })
       setSuppliers(data)
     } catch (err: any) {
@@ -47,7 +55,7 @@ export default function ProcurementSuppliersPage() {
     } finally {
       setLoading(false)
     }
-  }, [search, selectedTerm])
+  }, [search, selectedTerm, selectedBranch, selectedCompany])
 
   useEffect(() => {
     loadData()
@@ -215,10 +223,47 @@ export default function ProcurementSuppliersPage() {
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Company Filter */}
           <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium pl-1">
-            <Filter className="w-3.5 h-3.5" />
-            <span>Filter Terms:</span>
+            <Building className="w-3.5 h-3.5 text-slate-400" />
+            <span>Company:</span>
+          </div>
+          <select
+            value={selectedCompany}
+            onChange={(e) => setSelectedCompany(e.target.value)}
+            className="px-3 py-2 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+          >
+            <option value="ALL">All Companies</option>
+            {COMPANY_OPTIONS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+
+          {/* Branch / Location Filter */}
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium pl-1">
+            <MapPin className="w-3.5 h-3.5 text-slate-400" />
+            <span>Branch:</span>
+          </div>
+          <select
+            value={selectedBranch}
+            onChange={(e) => setSelectedBranch(e.target.value)}
+            className="px-3 py-2 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+          >
+            <option value="ALL">All Branches / Locations</option>
+            {BRANCH_OPTIONS.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
+
+          {/* Payment Terms Filter */}
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium pl-2">
+            <Filter className="w-3.5 h-3.5 text-slate-400" />
+            <span>Terms:</span>
           </div>
           <select
             value={selectedTerm}
@@ -249,8 +294,8 @@ export default function ProcurementSuppliersPage() {
             </div>
             <p className="text-sm font-medium text-slate-700">No suppliers found</p>
             <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              {search || selectedTerm !== "ALL"
-                ? "Try adjusting your search criteria or term filters."
+              {search || selectedTerm !== "ALL" || selectedBranch !== "ALL"
+                ? "Try adjusting your search criteria or filters."
                 : "Get started by adding your first vendor into the Procurement catalog."}
             </p>
             <button
@@ -266,8 +311,9 @@ export default function ProcurementSuppliersPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/75 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="py-3.5 px-4">Supplier Name</th>
-                  <th className="py-3.5 px-4">Contact</th>
+                  <th className="py-3.5 px-4">Supplier & Department</th>
+                  <th className="py-3.5 px-4">Contact Person & Info</th>
+                  <th className="py-3.5 px-4">Branch / Location</th>
                   <th className="py-3.5 px-4">Payment Terms</th>
                   <th className="py-3.5 px-4">Remark / Lead Time</th>
                   <th className="py-3.5 px-4 text-center">Invoices</th>
@@ -287,39 +333,69 @@ export default function ProcurementSuppliersPage() {
                       key={sup.id}
                       className="hover:bg-slate-50/80 transition-colors group"
                     >
-                      {/* Name */}
+                      {/* Name & Department */}
                       <td className="py-3.5 px-4 font-semibold text-slate-900">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 font-bold text-xs shrink-0">
+                        <div className="flex items-start gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 font-bold text-xs shrink-0 mt-0.5">
                             {sup.name.slice(0, 2).toUpperCase()}
                           </div>
                           <div>
-                            <span>{sup.name}</span>
-                            {!sup.isActive && (
-                              <span className="ml-2 px-1.5 py-0.5 text-[10px] font-semibold bg-rose-50 text-rose-600 border border-rose-200 rounded">
-                                Inactive
-                              </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-slate-900">{sup.name}</span>
+                              {!sup.isActive && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-rose-50 text-rose-600 border border-rose-200 rounded">
+                                  Inactive
+                                </span>
+                              )}
+                            </div>
+                            {sup.department && (
+                              <div className="flex items-center gap-1 text-[11px] text-slate-500 font-normal mt-0.5">
+                                <Briefcase className="w-3 h-3 text-slate-400 shrink-0" />
+                                <span className="truncate max-w-[200px]" title={sup.department}>{sup.department}</span>
+                              </div>
                             )}
                           </div>
                         </div>
                       </td>
 
-                      {/* Contact */}
+                      {/* Contact Person & Info */}
                       <td className="py-3.5 px-4 text-xs text-slate-600">
                         <div className="space-y-1">
+                          {sup.contactPerson && (
+                            <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+                              <User className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                              <span>{sup.contactPerson}</span>
+                            </div>
+                          )}
                           {sup.phone ? (
                             <div className="flex items-center gap-1.5 text-slate-700">
                               <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                               <span>{sup.phone}</span>
                             </div>
-                          ) : (
+                          ) : !sup.contactPerson ? (
                             <span className="text-slate-400 italic">No phone</span>
-                          )}
+                          ) : null}
                           {sup.email && (
                             <div className="flex items-center gap-1.5 text-slate-500">
                               <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                               <span>{sup.email}</span>
                             </div>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Branch & Company */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-semibold rounded-lg bg-slate-100 text-slate-700 border border-slate-200">
+                            <MapPin className="w-3 h-3 text-slate-500" />
+                            {sup.branch || "All Branches"}
+                          </span>
+                          {sup.company && sup.company !== "All Companies" && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 text-[10px] font-bold rounded bg-blue-50 text-blue-700 border border-blue-200">
+                              <Building className="w-2.5 h-2.5 text-blue-500" />
+                              {sup.company}
+                            </span>
                           )}
                         </div>
                       </td>

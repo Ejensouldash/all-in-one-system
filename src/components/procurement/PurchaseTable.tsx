@@ -22,7 +22,9 @@ import {
 interface PurchaseRecord {
   id: string
   purchaseDate: string | Date
+  poNumber?: string | null
   itemDescription: string
+  items?: any[]
   supplierId?: string | null
   supplierName: string
   supplier?: {
@@ -283,12 +285,17 @@ export function PurchaseTable({
                   key={row.id}
                   className="hover:bg-slate-50/70 transition-colors group"
                 >
-                  {/* Date of Purchase */}
+                  {/* Date of Purchase & PO */}
                   <td className="py-3.5 px-4 whitespace-nowrap font-medium text-slate-700">
                     <div className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span>{formatDate(row.purchaseDate)}</span>
                     </div>
+                    {row.poNumber && (
+                      <div className="text-[10px] font-mono font-bold text-blue-600 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200 w-fit mt-1">
+                        PO: {row.poNumber}
+                      </div>
+                    )}
                   </td>
 
                   {/* Company */}
@@ -314,8 +321,13 @@ export function PurchaseTable({
 
                   {/* Description of the Item */}
                   <td className="py-3.5 px-4">
-                    <div className="font-semibold text-slate-900 text-xs">
-                      {row.itemDescription}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-semibold text-slate-900 text-xs">{row.itemDescription}</span>
+                      {Array.isArray(row.items) && row.items.length > 1 && (
+                        <span className="inline-block px-1.5 py-0.2 text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded">
+                          {row.items.length} items
+                        </span>
+                      )}
                     </div>
                     {row.remarks && (
                       <div className="text-[11px] text-slate-500 mt-0.5 line-clamp-1 italic">

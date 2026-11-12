@@ -5,7 +5,15 @@ export const COMPANY_OPTIONS = [
   "BOMSB",
 ]
 
+export const BRANCH_OPTIONS = [
+  "All Branches",
+  "Gambang",
+  "Rantau",
+  "Pedas",
+] as const
+
 export const DEPARTMENT_OPTIONS = [
+  "ELEKTRIK (ELEKTRIK)",
   "QC-KILANG AIR (QUALITY CONTROL-KILANG AIR)",
   "KA (KILANG AIR)",
   "KB (KILANG BOTOL)",
@@ -37,17 +45,30 @@ export const PAYMENT_TERMS_CONFIG: Record<string, { label: string; days: number 
   COD: { label: "COD", days: 0 },
   CASH_BEFORE_DELIVERY: { label: "Cash Before Delivery", days: 0 },
   CASH: { label: "Cash", days: 0 },
+  MONTHLY_SUBSCRIPTION: { label: "Monthly Subscription", days: 30 },
 }
+
+export const ATTACHMENT_TAG_OPTIONS = [
+  "1st Payment",
+  "2nd Payment",
+  "Balance",
+  "Invoice / DO",
+] as const
 
 export const INVOICE_CATEGORY_CONFIG: Record<string, { label: string; short: string; badgeClass: string }> = {
   STANDARD_TERMS: {
-    label: "Document for Payment (Standard Terms)",
+    label: "Document for Payment (Standard)",
     short: "Standard Terms",
     badgeClass: "bg-blue-50 text-blue-700 border-blue-200",
   },
+  DEPOSIT_PAYMENT: {
+    label: "Deposit Payment",
+    short: "Deposit Payment",
+    badgeClass: "bg-purple-50 text-purple-700 border-purple-200",
+  },
   MONTHLY_SUBSCRIPTION: {
-    label: "Monthly Payment / Subscription",
-    short: "Monthly Subscription",
+    label: "Deposit Payment",
+    short: "Deposit Payment",
     badgeClass: "bg-purple-50 text-purple-700 border-purple-200",
   },
   CASH_PREPAYMENT: {

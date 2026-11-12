@@ -31,9 +31,19 @@ export async function recomputeEventScore(
 
   if (!options?.force && isScoreLocked(report.status) && storedBreakdown) return storedBreakdown
 
+  let claimsList: unknown = []
+  try {
+    claimsList = JSON.parse(report.claimBreakdown || "[]")
+  } catch {
+    claimsList = []
+  }
+
   const breakdown = buildEventScoreBreakdown({
     feedbacks: requisition.feedbacks,
     budgetCap: requisition.budgetCap,
+    categoryBudgets: requisition.categoryBudgets,
+    claimBreakdown: claimsList,
+    hasBudgetBeenSet: Boolean(requisition.budgetSetBy || requisition.budgetCap !== null),
     impactItems: parseImpactItems(report.impactDistribution),
     totalClaimAmount: report.totalClaimAmount,
   })

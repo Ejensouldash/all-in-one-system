@@ -19,6 +19,7 @@ import {
   isScoreLocked,
   parseImpactItems,
   parseScoreBreakdown,
+  parseStaffInvolved,
 } from "./marketing/event-success-rate"
 
 async function resolveImageToDataUri(urlOrPath: string): Promise<string | null> {
@@ -211,6 +212,9 @@ export async function generatePostEventIsoPdfBuffer(
   const computedBreakdown = buildEventScoreBreakdown({
     feedbacks: requisition.feedbacks,
     budgetCap: requisition.budgetCap,
+    categoryBudgets: requisition.categoryBudgets,
+    claimBreakdown: rawClaims,
+    hasBudgetBeenSet: Boolean(requisition.budgetSetBy || requisition.budgetCap !== null),
     impactItems: parseImpactItems(report.impactDistribution),
     totalClaimAmount: report.totalClaimAmount,
   })
@@ -233,7 +237,7 @@ export async function generatePostEventIsoPdfBuffer(
     attendeesCount: report.attendeesCount || "N/A",
     typeOfInvolvement: report.typeOfInvolvement,
     vipsList: JSON.parse(report.vipsList || "[]") as PostEventVip[],
-    staffInvolved: JSON.parse(report.staffInvolved || "[]") as string[],
+    staffInvolved: parseStaffInvolved(report.staffInvolved),
 
     aims: report.aims || "",
     benefits: report.benefits || "",

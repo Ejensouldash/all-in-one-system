@@ -37,19 +37,19 @@ export function EventSuccessScoreCard({ breakdown, className = "" }: EventSucces
       bar: "bg-sky-500",
       detail:
         impact.given > 0
-          ? `${impact.given.toLocaleString()} given · ${impact.used.toLocaleString()} used · ${formatScore(impact.achievement)}% achieved`
+          ? `Water ${formatScore(impact.waterUtilisation ?? 0)}% · Merch ${formatScore(impact.merchandiseUtilisation ?? 0)}% · ${formatScore(impact.achievement)}% achieved`
           : "No stock / impact items recorded",
     },
     {
       key: "budget",
-      label: "Budget Compliance (Finance & Claims)",
+      label: "Budget Performance (Finance & Claims)",
       weight: EVENT_SUCCESS_WEIGHTS.budget,
       earned: budget.earned,
       bar: "bg-amber-500",
       detail:
         budget.cap === null
-          ? "Approved budget cap not set"
-          : `RM ${budget.claims.toFixed(2)} claimed of RM ${budget.cap.toFixed(2)} cap`,
+          ? "Approved category budgets not set"
+          : `RM ${budget.claims.toFixed(2)} claimed of RM ${budget.cap.toFixed(2)} budget · ${budget.totalCategoryScore ?? 0}/100 pts`,
     },
     {
       key: "suggestion",

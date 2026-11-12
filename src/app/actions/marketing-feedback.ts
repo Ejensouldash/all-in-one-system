@@ -117,6 +117,7 @@ export async function submitMarketingEventFeedback(input: FeedbackSubmissionInpu
         satisfaction,
         wellOrganized: Boolean(wellOrganized),
         comments: comments.trim(),
+        source: "PUBLIC_FORM",
       },
     })
 

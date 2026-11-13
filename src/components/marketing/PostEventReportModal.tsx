@@ -2403,6 +2403,11 @@ export function PostEventReportModal({
                                   <span className="text-[10px] text-slate-400">
                                     {fb.satisfaction.replace(/_/g, " ")}
                                   </span>
+                                  {fb.source === "EXCEL_IMPORT" && (
+                                    <span className="px-1.5 py-0.5 rounded border border-slate-300 bg-slate-100 text-[10px] font-bold uppercase text-slate-600">
+                                      Imported
+                                    </span>
+                                  )}
                                   <div className="relative inline-flex items-center">
                                     <select
                                       value={fb.aiSentiment || ""}
@@ -2424,16 +2429,6 @@ export function PostEventReportModal({
                                           : "hover:brightness-95"
                                       }`}
                                       title="Click to recategorize"
-                                  {fb.source === "EXCEL_IMPORT" && (
-                                    <span className="px-1.5 py-0.5 rounded border border-slate-300 bg-slate-100 text-[10px] font-bold uppercase text-slate-600">
-                                      Imported
-                                    </span>
-                                  )}
-                                  {fb.aiSentiment === "GOOD" ||
-                                  fb.aiSentiment === "NEUTRAL" ||
-                                  fb.aiSentiment === "BAD" ? (
-                                    <span
-                                      className={`px-1.5 py-0.5 rounded border text-[10px] font-black ${SENTIMENT_STYLES[fb.aiSentiment]}`}
                                     >
                                       {!fb.aiSentiment && (
                                         <option value="" disabled className="bg-white text-slate-600 font-bold">

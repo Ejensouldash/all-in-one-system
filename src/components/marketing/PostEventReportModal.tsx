@@ -19,6 +19,7 @@ import {
   Link as LinkIcon,
   Check,
   ChevronRight,
+  ChevronDown,
   ShieldCheck,
   Eye,
   Wallet,
@@ -48,7 +49,7 @@ import {
   type ClaimItemDetail,
   type MediaLinkItem,
 } from "@/app/actions/marketing-post-event-report"
-import { runFeedbackSentimentAnalysis } from "@/app/actions/marketing-feedback-ai"
+import { runFeedbackSentimentAnalysis, updateFeedbackSentiment } from "@/app/actions/marketing-feedback-ai"
 import {
   buildEventScoreBreakdown,
   formatScore,
@@ -199,6 +200,7 @@ export function PostEventReportModal({
   const [uploadingReceipt, setUploadingReceipt] = useState<string | null>(null)
   const [uploadingFlow, setUploadingFlow] = useState(false)
   const [uploadingActivation, setUploadingActivation] = useState(false)
+  const [updatingFeedbackId, setUpdatingFeedbackId] = useState<string | null>(null)
   const [feedbackStats, setFeedbackStats] = useState<FeedbackStats | null>(null)
   const [scoreBreakdown, setScoreBreakdown] = useState<EventScoreBreakdown | null>(null)
   const [scoreLocked, setScoreLocked] = useState(false)
@@ -528,6 +530,87 @@ export function PostEventReportModal({
       setErrorMsg(err.message || "Error analysing participant feedback.")
     } finally {
       setAnalyzingFeedback(false)
+    }
+  }
+
+  const handleRecategorizeSentiment = async (
+    feedbackId: string,
+    newSentiment: SentimentLabel
+  ) => {
+    if (scoreLocked || updatingFeedbackId) return
+
+    const prevFeedbackStats = feedbackStats
+    setUpdatingFeedbackId(feedbackId)
+    setErrorMsg(null)
+
+    // Optimistically update feedbackStats
+    setFeedbackStats((prev) => {
+      if (!prev) return prev
+      const updatedFeedbacks = prev.feedbacks.map((row) =>
+        row.id === feedbackId
+          ? {
+              ...row,
+              aiSentiment: newSentiment,
+              aiReason: "Manually classified",
+            }
+          : row
+      )
+
+      const sentimentCounts = { GOOD: 0, NEUTRAL: 0, BAD: 0 }
+      updatedFeedbacks.forEach((row) => {
+        if (
+          row.aiSentiment === "GOOD" ||
+          row.aiSentiment === "NEUTRAL" ||
+          row.aiSentiment === "BAD"
+        ) {
+          sentimentCounts[row.aiSentiment]++
+        }
+      })
+
+      const aiAnalyzed =
+        sentimentCounts.GOOD + sentimentCounts.NEUTRAL + sentimentCounts.BAD
+
+      return {
+        ...prev,
+        feedbacks: updatedFeedbacks,
+        sentimentCounts,
+        aiAnalyzed,
+      }
+    })
+
+    try {
+      const res = await updateFeedbackSentiment(feedbackId, newSentiment)
+      if (!res.success) {
+        setFeedbackStats(prevFeedbackStats)
+        setErrorMsg(res.error || "Failed to update feedback classification.")
+      } else {
+        if (res.breakdown) {
+          setScoreBreakdown(res.breakdown)
+        }
+        if (res.feedback) {
+          setFeedbackStats((prev) => {
+            if (!prev) return prev
+            return {
+              ...prev,
+              feedbacks: prev.feedbacks.map((row) =>
+                row.id === feedbackId
+                  ? {
+                      ...row,
+                      aiSentiment: res.feedback!.aiSentiment,
+                      aiReason: res.feedback!.aiReason,
+                      aiConfidence: res.feedback!.aiConfidence,
+                    }
+                  : row
+              ),
+            }
+          })
+        }
+      }
+    } catch (err: any) {
+      setFeedbackStats(prevFeedbackStats)
+      setErrorMsg(err.message || "Failed to update feedback classification.")
+    } finally {
+      setUpdatingFeedbackId(null)
     }
   }
 
@@ -2311,32 +2394,67 @@ export function PostEventReportModal({
                       {(feedbackStats?.feedbacks.length || 0) > 0 && (
                         <div className="max-h-56 overflow-y-auto divide-y divide-violet-100 rounded-lg border border-violet-200 bg-white">
                           {feedbackStats?.feedbacks.map((fb) => (
-                            <div key={fb.id} className="p-2 text-[11px] space-y-1">
+                            <div key={fb.id} className="p-2.5 text-[11px] space-y-1.5">
                               <div className="flex flex-wrap items-center justify-between gap-2">
                                 <span className="font-bold text-slate-800">{fb.respondentName}</span>
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-[10px] text-slate-400">
                                     {fb.satisfaction.replace(/_/g, " ")}
                                   </span>
-                                  {fb.aiSentiment === "GOOD" ||
-                                  fb.aiSentiment === "NEUTRAL" ||
-                                  fb.aiSentiment === "BAD" ? (
-                                    <span
-                                      className={`px-1.5 py-0.5 rounded border text-[10px] font-black ${SENTIMENT_STYLES[fb.aiSentiment]}`}
+                                  <div className="relative inline-flex items-center">
+                                    <select
+                                      value={fb.aiSentiment || ""}
+                                      disabled={scoreLocked || updatingFeedbackId === fb.id}
+                                      onChange={(e) =>
+                                        handleRecategorizeSentiment(
+                                          fb.id,
+                                          e.target.value as SentimentLabel
+                                        )
+                                      }
+                                      className={`appearance-none text-[10px] font-black rounded border pl-2 pr-5 py-0.5 cursor-pointer outline-none transition ${
+                                        fb.aiSentiment &&
+                                        SENTIMENT_STYLES[fb.aiSentiment as SentimentLabel]
+                                          ? SENTIMENT_STYLES[fb.aiSentiment as SentimentLabel]
+                                          : "border-slate-200 bg-slate-50 text-slate-500"
+                                      } ${
+                                        scoreLocked
+                                          ? "cursor-not-allowed opacity-70"
+                                          : "hover:brightness-95"
+                                      }`}
+                                      title="Click to recategorize"
                                     >
-                                      {fb.aiSentiment}
-                                    </span>
-                                  ) : (
-                                    <span className="px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50 text-[10px] font-bold text-slate-400">
-                                      PENDING
-                                    </span>
-                                  )}
+                                      {!fb.aiSentiment && (
+                                        <option value="" disabled className="bg-white text-slate-600 font-bold">
+                                          PENDING
+                                        </option>
+                                      )}
+                                      <option value="GOOD" className="bg-white text-emerald-700 font-bold">
+                                        GOOD
+                                      </option>
+                                      <option value="NEUTRAL" className="bg-white text-amber-700 font-bold">
+                                        NEUTRAL
+                                      </option>
+                                      <option value="BAD" className="bg-white text-rose-700 font-bold">
+                                        BAD
+                                      </option>
+                                    </select>
+                                    {updatingFeedbackId === fb.id ? (
+                                      <Loader2 className="w-2.5 h-2.5 animate-spin absolute right-1.5 pointer-events-none opacity-60 text-slate-500" />
+                                    ) : (
+                                      <ChevronDown className="w-2.5 h-2.5 absolute right-1.5 pointer-events-none opacity-60 text-current" />
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                              <p className="text-slate-600 line-clamp-2">{fb.likedLeast}</p>
-                              <p className="text-slate-500 line-clamp-2">{fb.comments}</p>
+                              <p className="text-slate-700 leading-relaxed">
+                                {fb.comments || (
+                                  <span className="italic text-slate-400">No comments / suggestions provided.</span>
+                                )}
+                              </p>
                               {fb.aiReason && (
-                                <p className="text-[10px] italic text-violet-700">AI: {fb.aiReason}</p>
+                                <p className="text-[10px] italic text-violet-700">
+                                  {fb.aiReason.startsWith("Manual") ? fb.aiReason : `AI: ${fb.aiReason}`}
+                                </p>
                               )}
                             </div>
                           ))}

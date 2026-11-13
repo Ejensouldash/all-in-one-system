@@ -13,8 +13,7 @@ export const SENTIMENT_BATCH_SIZE = 20
 const MAX_TEXT_LENGTH = 1500
 
 export interface FeedbackTextSource {
-  likedLeast: string
-  comments: string
+  comments?: string | null
 }
 
 export interface SentimentInput {
@@ -51,7 +50,7 @@ const RUBRIC = `Rubric:
 The feedback may be written in Malay, English, or a mix of both. Judge the improvement value, not the grammar.`
 
 export function buildFeedbackText(feedback: FeedbackTextSource): string {
-  return [feedback.likedLeast?.trim(), feedback.comments?.trim()].filter(Boolean).join("\n")
+  return feedback.comments?.trim() || ""
 }
 
 export function feedbackTextHash(text: string): string {
@@ -73,7 +72,7 @@ function cleanText(text: string): string {
 function buildPrompt(items: SentimentInput[]): string {
   const body = items.map((item) => `[${item.index}] ${cleanText(item.text)}`).join("\n")
 
-  return `Classify every participant response below for the section "Participants' Feedback & Suggestions for Improvement".
+  return `Classify every participant response below for the "Comments/Suggestions for Improvement" field.
 
 ${RUBRIC}
 

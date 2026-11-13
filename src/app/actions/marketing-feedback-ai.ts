@@ -12,7 +12,7 @@ import {
   feedbackTextHash,
 } from "@/lib/marketing/feedback-sentiment"
 import { recomputeEventScore } from "@/lib/marketing/event-success-rate-server"
-import type { EventScoreBreakdown } from "@/lib/marketing/event-success-rate"
+import type { EventScoreBreakdown, SentimentLabel } from "@/lib/marketing/event-success-rate"
 
 export interface SentimentAnalysisResult {
   success: boolean
@@ -82,9 +82,10 @@ export async function runFeedbackSentimentAnalysis(
 
     const pending = candidates.filter(
       (candidate) =>
-        force ||
-        !candidate.feedback.aiSentiment ||
-        candidate.feedback.aiTextHash !== candidate.hash
+        (force ||
+          !candidate.feedback.aiSentiment ||
+          candidate.feedback.aiTextHash !== candidate.hash) &&
+        candidate.feedback.aiModel !== "MANUAL"
     )
 
     const emptyTextCount = feedbacks.length - candidates.length
@@ -158,6 +159,86 @@ export async function runFeedbackSentimentAnalysis(
     return {
       ...empty,
       error: error instanceof Error ? error.message : "Failed to analyse participant feedback.",
+    }
+  }
+}
+
+/**
+ * Manually updates the sentiment classification (GOOD, NEUTRAL, BAD) for a single feedback item.
+ * Sets aiModel to 'MANUAL' so future automated runs won't overwrite the user's manual classification.
+ */
+export async function updateFeedbackSentiment(
+  feedbackId: string,
+  sentiment: SentimentLabel
+): Promise<{
+  success: boolean
+  error?: string
+  feedback?: {
+    id: string
+    aiSentiment: string | null
+    aiReason: string | null
+    aiConfidence: number | null
+  }
+  breakdown?: EventScoreBreakdown | null
+}> {
+  try {
+    const access = await getAccessInfo()
+    if (!canAccessMarketingEvents(access)) {
+      return { success: false, error: "You do not have permission to update feedback classification." }
+    }
+
+    if (sentiment !== "GOOD" && sentiment !== "NEUTRAL" && sentiment !== "BAD") {
+      return { success: false, error: "Invalid sentiment value." }
+    }
+
+    const feedback = await prisma.marketingEventFeedback.findUnique({
+      where: { id: feedbackId },
+      select: { id: true, requisitionId: true, comments: true },
+    })
+
+    if (!feedback) {
+      return { success: false, error: "Feedback entry not found." }
+    }
+
+    const text = buildFeedbackText(feedback)
+    const hash = feedbackTextHash(text)
+
+    const updated = await prisma.marketingEventFeedback.update({
+      where: { id: feedbackId },
+      data: {
+        aiSentiment: sentiment,
+        aiConfidence: 1.0,
+        aiReason: "Manually classified",
+        aiModel: "MANUAL",
+        aiTextHash: hash,
+        aiAnalyzedAt: new Date(),
+      },
+      select: {
+        id: true,
+        aiSentiment: true,
+        aiReason: true,
+        aiConfidence: true,
+      },
+    })
+
+    const breakdown = await recomputeEventScore(feedback.requisitionId)
+
+    try {
+      revalidatePath("/marketing/events")
+    } catch {
+      // safe fallback
+    }
+
+    return {
+      success: true,
+      feedback: updated,
+      breakdown,
+    }
+  } catch (error) {
+    console.error("Error updating feedback sentiment:", error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update feedback classification.",
     }
   }
 }

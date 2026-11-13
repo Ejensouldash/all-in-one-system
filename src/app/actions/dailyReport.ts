@@ -421,18 +421,15 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
     // "4stdf-130526" / "4STDF-130526" become separate batches whose usage logs never match.
     const normBatch = (b: string | null | undefined) => (b || "").trim().toUpperCase()
 
-    // Map of DO item identifiers to the production lines ("800" | "425") that have already claimed
-    // them in an existing submitted/approved report on the same date and shift.
+    // Set of DO item identifiers already claimed by an existing submitted/approved report.
     //
     // Only claims made by a report DATED THE SAME DAY count. A report can only ever sync a DO whose
     // receiveDate equals its own date (see isReceivedToday below), so a claim filed on any other
-    // date is provably about a different delivery. Without that bound the key below collides:
-    // doNumber is not unique on TransferIn, and the Transfer In form strips a BOX DO down to its
-    // digits, so short reused names like "DO - 80020" recur every few days.
+    // date is provably about a different delivery.
     //
     // sectionKey is part of the key because InventoryLog has no category column and all four BOX
     // SKUs plus LABEL share mult 1, so batchNo|mult cannot tell them apart.
-    const claimedLinesByKey = new Map<string, Set<"800" | "425">>()
+    const claimedDOs = new Set<string>()
     allLogs.forEach(log => {
       if (log.type === "TransferIn" && log.labelType) {
         if (!excludeReportId || log.reportId !== excludeReportId) {
@@ -440,10 +437,7 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
           if (log.report && log.report.status !== "DRAFT") {
             if (toMalaysiaDateStr(log.report.date) !== reportDateString) return
             if (shift && log.report.shift && log.report.shift !== shift) return
-            const key = `${log.report.shift || "AM"}|${log.sectionKey}|${normBatch(log.batchNo)}|${log.mult}|${log.labelType}`
-            const lineKey: "800" | "425" = (log.report.line || "").includes("425") ? "425" : "800"
-            if (!claimedLinesByKey.has(key)) claimedLinesByKey.set(key, new Set())
-            claimedLinesByKey.get(key)!.add(lineKey)
+            claimedDOs.add(`${log.report.shift || "AM"}|${log.sectionKey}|${normBatch(log.batchNo)}|${log.mult}|${log.labelType}`)
           }
         }
       }
@@ -452,28 +446,6 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
     /** The claim key for a Transfer In item, matching how the report writes its log rows. */
     const claimKey = (item: any) =>
       `${item.transferIn.shift || "AM"}|${dailyReportSectionForCategory(item.category) || ""}|${normBatch(item.batchNo)}|${item.mult}|${item.transferIn.doNumber}`
-
-    const expectedLinesForItem = (category: string, batchNo: string): ("800" | "425")[] => {
-      const c = (category || "").trim().toUpperCase()
-      if (c.includes("800")) return ["800"]
-      if (c.includes("425")) return ["425"]
-      if (c.includes("LABEL")) {
-        const allow800 = !isOtherLineLabel(batchNo, "LINE 1 - 800ml")
-        const allow425 = !isOtherLineLabel(batchNo, "LINE 2 - 425ml")
-        const lines: ("800" | "425")[] = []
-        if (allow800) lines.push("800")
-        if (allow425) lines.push("425")
-        return lines.length > 0 ? lines : ["800", "425"]
-      }
-      return ["800", "425"]
-    }
-
-    const isItemFullyClaimed = (item: any) => {
-      const claimedLines = claimedLinesByKey.get(claimKey(item))
-      if (!claimedLines || claimedLines.size === 0) return false
-      const expected = expectedLinesForItem(item.category, item.batchNo)
-      return expected.every(l => claimedLines.has(l))
-    }
 
     // Helper: was this Transfer In item RECEIVED TODAY (on the report date)?
     const isReceivedOnReportDate = (item: any) =>
@@ -548,8 +520,8 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
           batchInfo[key].doNumber += `, ${item.transferIn.doNumber}`
         }
       }
-      // Only offer under "Transfer In Received Today" if it is received today AND not fully claimed across all target lines
-      if (isReceivedToday(item) && !isItemFullyClaimed(item)) {
+      // Only offer under "Transfer In Received Today" if it is received today AND not claimed by another report yet
+      if (isReceivedToday(item) && !claimedDOs.has(claimKey(item))) {
         batchInfo[key].todayItems.push(item)
       }
     })
@@ -664,17 +636,12 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
     Object.keys(batchInfo).forEach(batchKey => {
       const info = batchInfo[batchKey]
 
-      // All Transfer In received today for this batch (including claimed ones, so a claimed
-      // today-DO is still subtracted from totalBalance and never leaks into today's carryForward)
-      const todayInRaw = allDOItems
-        .filter(it => `${it.category}|${normBatch(it.batchNo)}|${it.mult}` === batchKey && isReceivedToday(it))
-        .reduce((sum, it) => sum + it.bags, 0)
-
+      // Unclaimed Transfer In received today
+      const todayInRaw = info.todayItems.reduce((sum, it) => sum + it.bags, 0)
       let carryForward = info.totalBalance - todayInRaw
 
       info.todayItems.forEach(it => {
         if (it.bags > 0) {
-          const claimedLines = Array.from(claimedLinesByKey.get(claimKey(it)) || [])
           todayDOs.push({
             batchNo: normBatch(it.batchNo),
             bags: it.bags,
@@ -682,8 +649,7 @@ export async function getActiveInventory(targetDateStr?: string, excludeReportId
             category: it.category,
             doNumber: it.transferIn.doNumber,
             transferInId: it.transferIn.id,
-            id: it.id,
-            claimedLines
+            id: it.id
           })
         }
       })

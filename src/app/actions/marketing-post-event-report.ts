@@ -138,6 +138,7 @@ interface FeedbackRecord {
   wellOrganized: boolean
   comments: string
   createdAt: Date
+  source: string
   aiSentiment: string | null
   aiReason: string | null
   aiConfidence: number | null
@@ -205,6 +206,7 @@ function buildFeedbackAnalytics(feedbacks: FeedbackRecord[]) {
       aiReason: feedback.aiReason,
       aiConfidence: feedback.aiConfidence,
       createdAt: feedback.createdAt,
+      source: feedback.source,
     })),
   }
 }

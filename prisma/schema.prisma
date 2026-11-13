@@ -1676,6 +1676,8 @@ model MarketingEventFeedback {
   satisfaction   String                    // EXTREMELY_SATISFIED, VERY_SATISFIED, SOMEWHAT_SATISFIED, NOT_SO_SATISFIED, NOT_AT_ALL_SATISFIED
   wellOrganized  Boolean                   // true (Yes), false (No)
   comments       String                    @db.Text
+  // Provenance of the response: PUBLIC_FORM (QR link) or EXCEL_IMPORT (backfilled past event)
+  source         String                    @default("PUBLIC_FORM")
   createdAt      DateTime                  @default(now())
 
   // Gemini sentiment classification for "Participants' Feedback & Suggestions" (15% score component)
@@ -3407,10 +3409,12 @@ enum ProcurementPaymentTerm {
   COD
   CASH_BEFORE_DELIVERY
   CASH
+  MONTHLY_SUBSCRIPTION
 }
 
 enum ProcurementInvoiceCategory {
   STANDARD_TERMS         // Document for Payment (Credit / Standard Terms)
+  DEPOSIT_PAYMENT        // Deposit Payment
   MONTHLY_SUBSCRIPTION   // Monthly Payment / Subscription
   CASH_PREPAYMENT        // Cash Payment (Pay before delivery)
 }
@@ -3424,15 +3428,19 @@ enum ProcurementInvoiceStatus {
 }
 
 model ProcurementSupplier {
-  id          String                 @id @default(uuid())
-  name        String
-  phone       String?
-  email       String?
-  terms       ProcurementPaymentTerm @default(TERM_30_DAYS)
-  remark      String?
-  isActive    Boolean                @default(true)
-  createdAt   DateTime               @default(now())
-  updatedAt   DateTime               @updatedAt
+  id            String                 @id @default(uuid())
+  name          String
+  phone         String?
+  email         String?
+  contactPerson String?
+  branch        String?                // Gambang, Rantau, Pedas, All Branches
+  department    String?                // Elektrik, QC, Maintenance, etc.
+  company       String?                // BOSB, BODG, NRHO, BOMSB, All Companies
+  terms         ProcurementPaymentTerm @default(TERM_30_DAYS)
+  remark        String?
+  isActive      Boolean                @default(true)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
 
   createdById String?
   createdBy   User?                  @relation("ProcurementSupplierCreator", fields: [createdById], references: [id])
@@ -3460,14 +3468,19 @@ model ProcurementInvoice {
   dueDate                 DateTime?
   submitDate              DateTime                   @default(now()) // Handover date to Finance
   amount                  Float                      @default(0)
+  totalPrice              Float?                     // Total contract price for Deposit Payment
+  depositDetails          Json?                      // Payment stages (1st, 2nd, 3rd), dates, balance
 
-  // Physical document tracking (from Book1.xlsx)
+  // Document receive tracking
   doReceived              Boolean                    @default(false)
   originalInvoiceReceived Boolean                    @default(false)
+  proformaInvoiceReceived Boolean                    @default(false)
+  pdfReceived             Boolean                    @default(false)
 
   // Attachment files
   attachmentUrl           String?
   attachmentName          String?
+  attachments             Json?                      @default("[]")
 
   // Payment information by Finance
   paidAt                  DateTime?
@@ -3510,7 +3523,9 @@ model ProcurementInvoiceLog {
 model ProcurementPurchase {
   id              String               @id @default(uuid())
   purchaseDate    DateTime             @default(now())
+  poNumber        String?              // e.g. PO002144
   itemDescription String
+  items           Json?                @default("[]") // [{ description, quantity, uom, unitPrice, total }]
   supplierId      String?
   supplier        ProcurementSupplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   supplierName    String

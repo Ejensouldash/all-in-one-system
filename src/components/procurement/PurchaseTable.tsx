@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Briefcase,
 } from "lucide-react"
+import { formatDateDDMMYYYY } from "./procurement-constants"
 
 interface PurchaseRecord {
   id: string
@@ -118,16 +119,7 @@ export function PurchaseTable({
   }, [sortedPurchases, currentPage, pageSize])
 
   const formatDate = (val: string | Date) => {
-    try {
-      const d = new Date(val)
-      return d.toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
-    } catch {
-      return String(val)
-    }
+    return formatDateDDMMYYYY(val)
   }
 
   const formatCurrency = (val: number) => {

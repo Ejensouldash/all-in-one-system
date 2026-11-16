@@ -72,6 +72,8 @@ export default function ProcurementInvoicesPage() {
   const [endDate, setEndDate] = useState("")
   const [doFilter, setDoFilter] = useState("ALL")
   const [originalInvFilter, setOriginalInvFilter] = useState("ALL")
+  const [proformaFilter, setProformaFilter] = useState("ALL")
+  const [quotationFilter, setQuotationFilter] = useState("ALL")
 
   // Modals
   const [isNewModalOpen, setIsNewModalOpen] = useState(false)
@@ -130,6 +132,8 @@ export default function ProcurementInvoicesPage() {
     setEndDate("")
     setDoFilter("ALL")
     setOriginalInvFilter("ALL")
+    setProformaFilter("ALL")
+    setQuotationFilter("ALL")
   }
 
   // Count active filters (excluding tab)
@@ -143,6 +147,8 @@ export default function ProcurementInvoicesPage() {
     if (startDate || endDate) count++
     if (doFilter !== "ALL") count++
     if (originalInvFilter !== "ALL") count++
+    if (proformaFilter !== "ALL") count++
+    if (quotationFilter !== "ALL") count++
     return count
   }, [
     search,
@@ -154,6 +160,8 @@ export default function ProcurementInvoicesPage() {
     endDate,
     doFilter,
     originalInvFilter,
+    proformaFilter,
+    quotationFilter,
   ])
 
   const loadData = useCallback(async () => {
@@ -171,6 +179,8 @@ export default function ProcurementInvoicesPage() {
           endDate: endDate || undefined,
           doReceived: doFilter !== "ALL" ? doFilter === "YES" : undefined,
           originalInvoiceReceived: originalInvFilter !== "ALL" ? originalInvFilter === "YES" : undefined,
+          proformaInvoiceReceived: proformaFilter !== "ALL" ? proformaFilter === "YES" : undefined,
+          quotationReceived: quotationFilter !== "ALL" ? quotationFilter === "YES" : undefined,
           search: search.trim() || undefined,
         }),
         getProcurementSummary(),
@@ -196,6 +206,8 @@ export default function ProcurementInvoicesPage() {
     endDate,
     doFilter,
     originalInvFilter,
+    proformaFilter,
+    quotationFilter,
     search,
   ])
 
@@ -536,32 +548,32 @@ export default function ProcurementInvoicesPage() {
               </select>
             </div>
 
-            {/* 4. Physical Document Checks */}
+            {/* 4. Document Receive Status Filter (Proforma & Quotation) */}
             <div className="space-y-1.5 sm:col-span-2 lg:col-span-4 pt-2 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-4">
               <div className="flex flex-wrap items-center gap-6">
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-slate-700">DO Received:</span>
+                  <span className="font-bold text-slate-700">Proforma:</span>
                   <select
-                    value={doFilter}
-                    onChange={(e) => setDoFilter(e.target.value)}
+                    value={proformaFilter}
+                    onChange={(e) => setProformaFilter(e.target.value)}
                     className="px-2.5 py-1 text-xs bg-white border border-slate-200 rounded-lg text-slate-800"
                   >
                     <option value="ALL">All</option>
-                    <option value="YES">DO Received (Yes)</option>
-                    <option value="NO">DO Pending (No)</option>
+                    <option value="YES">Proforma (Yes)</option>
+                    <option value="NO">Not Proforma (No)</option>
                   </select>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-slate-700">Original Invoice:</span>
+                  <span className="font-bold text-slate-700">Quotation:</span>
                   <select
-                    value={originalInvFilter}
-                    onChange={(e) => setOriginalInvFilter(e.target.value)}
+                    value={quotationFilter}
+                    onChange={(e) => setQuotationFilter(e.target.value)}
                     className="px-2.5 py-1 text-xs bg-white border border-slate-200 rounded-lg text-slate-800"
                   >
                     <option value="ALL">All</option>
-                    <option value="YES">Received (Yes)</option>
-                    <option value="NO">Pending (No)</option>
+                    <option value="YES">Quotation (Yes)</option>
+                    <option value="NO">Not Quotation (No)</option>
                   </select>
                 </div>
               </div>
@@ -623,16 +635,16 @@ export default function ProcurementInvoicesPage() {
                   <button onClick={() => { setStartDate(""); setEndDate(""); setDatePreset("ALL"); }}><X className="w-3 h-3 hover:text-rose-500" /></button>
                 </span>
               )}
-              {doFilter !== "ALL" && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium">
-                  DO: {doFilter}
-                  <button onClick={() => setDoFilter("ALL")}><X className="w-3 h-3 hover:text-rose-500" /></button>
+              {proformaFilter !== "ALL" && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 text-[11px] font-medium border border-purple-200">
+                  Proforma: {proformaFilter}
+                  <button onClick={() => setProformaFilter("ALL")}><X className="w-3 h-3 hover:text-rose-500" /></button>
                 </span>
               )}
-              {originalInvFilter !== "ALL" && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium">
-                  Original Inv: {originalInvFilter}
-                  <button onClick={() => setOriginalInvFilter("ALL")}><X className="w-3 h-3 hover:text-rose-500" /></button>
+              {quotationFilter !== "ALL" && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 text-[11px] font-medium border border-amber-200">
+                  Quotation: {quotationFilter}
+                  <button onClick={() => setQuotationFilter("ALL")}><X className="w-3 h-3 hover:text-rose-500" /></button>
                 </span>
               )}
             </div>

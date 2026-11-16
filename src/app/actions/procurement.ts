@@ -232,6 +232,8 @@ export async function getInvoices(params?: {
   endDate?: string | Date
   doReceived?: boolean | "ALL"
   originalInvoiceReceived?: boolean | "ALL"
+  proformaInvoiceReceived?: boolean | "ALL"
+  quotationReceived?: boolean | "ALL"
   search?: string
 }) {
   await checkProcurementAccess()
@@ -268,6 +270,14 @@ export async function getInvoices(params?: {
 
   if (params?.originalInvoiceReceived !== undefined && params.originalInvoiceReceived !== "ALL") {
     where.originalInvoiceReceived = Boolean(params.originalInvoiceReceived === true)
+  }
+
+  if (params?.proformaInvoiceReceived !== undefined && params.proformaInvoiceReceived !== "ALL") {
+    where.proformaInvoiceReceived = Boolean(params.proformaInvoiceReceived === true)
+  }
+
+  if (params?.quotationReceived !== undefined && params.quotationReceived !== "ALL") {
+    where.quotationReceived = Boolean(params.quotationReceived === true)
   }
 
   if (params?.startDate || params?.endDate) {
@@ -406,6 +416,7 @@ export async function createInvoice(data: {
   doReceived?: boolean
   originalInvoiceReceived?: boolean
   proformaInvoiceReceived?: boolean
+  quotationReceived?: boolean
   pdfReceived?: boolean
   attachmentUrl?: string
   attachmentName?: string
@@ -434,7 +445,7 @@ export async function createInvoice(data: {
   if (data.attachments && Array.isArray(data.attachments) && data.attachments.length > 0) {
     attachmentsJson = data.attachments
   } else if (data.attachmentUrl) {
-    attachmentsJson = [{ url: data.attachmentUrl, name: data.attachmentName || "Document", size: 0, tag: "Invoice / DO" }]
+    attachmentsJson = [{ url: data.attachmentUrl, name: data.attachmentName || "Document", size: 0, tag: "Invoice" }]
   }
 
   const primaryAttachmentUrl = data.attachmentUrl || data.attachments?.[0]?.url || null
@@ -459,6 +470,7 @@ export async function createInvoice(data: {
         doReceived: !!data.doReceived,
         originalInvoiceReceived: !!data.originalInvoiceReceived,
         proformaInvoiceReceived: !!data.proformaInvoiceReceived,
+        quotationReceived: !!data.quotationReceived,
         pdfReceived: !!data.pdfReceived,
         attachmentUrl: primaryAttachmentUrl,
         attachmentName: primaryAttachmentName,
@@ -501,6 +513,7 @@ export async function updateInvoice(
     doReceived?: boolean
     originalInvoiceReceived?: boolean
     proformaInvoiceReceived?: boolean
+    quotationReceived?: boolean
     pdfReceived?: boolean
     attachmentUrl?: string
     attachmentName?: string
@@ -526,6 +539,7 @@ export async function updateInvoice(
     if (data.doReceived !== undefined) updatePayload.doReceived = data.doReceived
     if (data.originalInvoiceReceived !== undefined) updatePayload.originalInvoiceReceived = data.originalInvoiceReceived
     if (data.proformaInvoiceReceived !== undefined) updatePayload.proformaInvoiceReceived = data.proformaInvoiceReceived
+    if (data.quotationReceived !== undefined) updatePayload.quotationReceived = data.quotationReceived
     if (data.pdfReceived !== undefined) updatePayload.pdfReceived = data.pdfReceived
     if (data.attachmentUrl !== undefined) updatePayload.attachmentUrl = data.attachmentUrl
     if (data.attachmentName !== undefined) updatePayload.attachmentName = data.attachmentName

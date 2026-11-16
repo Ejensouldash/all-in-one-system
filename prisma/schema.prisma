@@ -3434,7 +3434,7 @@ model ProcurementSupplier {
   email         String?
   contactPerson String?
   branch        String?                // Gambang, Rantau, Pedas, All Branches
-  department    String?                // Elektrik, QC, Maintenance, etc.
+  department    String?                // Electric, QC, Maintenance, etc.
   company       String?                // BOSB, BODG, NRHO, BOMSB, All Companies
   terms         ProcurementPaymentTerm @default(TERM_30_DAYS)
   remark        String?
@@ -3475,6 +3475,7 @@ model ProcurementInvoice {
   doReceived              Boolean                    @default(false)
   originalInvoiceReceived Boolean                    @default(false)
   proformaInvoiceReceived Boolean                    @default(false)
+  quotationReceived       Boolean                    @default(false)
   pdfReceived             Boolean                    @default(false)
 
   // Attachment files

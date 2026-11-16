@@ -28,6 +28,7 @@ import {
   INVOICE_STATUS_CONFIG,
   INVOICE_CATEGORY_CONFIG,
   PAYMENT_TERMS_CONFIG,
+  formatDateDDMMYYYY,
 } from "./procurement-constants"
 import {
   updateInvoiceStatus,
@@ -216,7 +217,7 @@ export function InvoiceDetailModal({
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                Created on {new Date(invoice.createdAt).toLocaleDateString()} by{" "}
+                Created on {formatDateDDMMYYYY(invoice.createdAt)} by{" "}
                 {invoice.createdBy?.name || "Purchasing"}
               </p>
             </div>
@@ -264,9 +265,7 @@ export function InvoiceDetailModal({
                 Invoice Date
               </p>
               <p className="text-sm font-semibold text-slate-800 mt-1">
-                {invoice.invoiceDate
-                  ? new Date(invoice.invoiceDate).toLocaleDateString()
-                  : "-"}
+                {formatDateDDMMYYYY(invoice.invoiceDate)}
               </p>
             </div>
 
@@ -312,7 +311,7 @@ export function InvoiceDetailModal({
                         <tr key={st.id || i} className="hover:bg-purple-50/40">
                           <td className="py-2 px-3 font-bold text-purple-900">{st.stage || `${i + 1}th Payment`}</td>
                           <td className="py-2 px-3 text-slate-600 font-mono">
-                            {st.date ? new Date(st.date).toLocaleDateString() : "-"}
+                            {formatDateDDMMYYYY(st.date)}
                           </td>
                           <td className="py-2 px-3 text-slate-500 italic">{st.note || "-"}</td>
                           <td className="py-2 px-3 text-right font-bold text-slate-900 font-mono">
@@ -340,7 +339,7 @@ export function InvoiceDetailModal({
                   </p>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-semibold text-amber-700">Remaining Balance (Baki)</span>
+                  <span className="text-[10px] uppercase font-semibold text-amber-700">Remaining Balance</span>
                   <p className="font-extrabold text-amber-800 text-sm mt-0.5 font-mono">
                     RM {Number(invoice.depositDetails?.remainingBalance ?? ((invoice.depositDetails?.totalPrice || invoice.totalPrice || 0) - (invoice.depositDetails?.totalPaid || invoice.amount || 0))).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </p>
@@ -385,37 +384,11 @@ export function InvoiceDetailModal({
               </h3>
               <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-3 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-600">DO Received:</span>
-                  <span
-                    className={`font-bold px-2 py-0.5 rounded ${
-                      invoice.doReceived
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-slate-100 text-slate-500"
-                    }`}
-                  >
-                    {invoice.doReceived ? "YES" : "NO"}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-600">Original Invoice Received:</span>
-                  <span
-                    className={`font-bold px-2 py-0.5 rounded ${
-                      invoice.originalInvoiceReceived
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-slate-100 text-slate-500"
-                    }`}
-                  >
-                    {invoice.originalInvoiceReceived ? "YES" : "NO"}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
                   <span className="text-slate-600">Proforma Invoice:</span>
                   <span
                     className={`font-bold px-2 py-0.5 rounded ${
                       invoice.proformaInvoiceReceived
-                        ? "bg-emerald-50 text-emerald-700"
+                        ? "bg-purple-50 text-purple-700 border border-purple-200"
                         : "bg-slate-100 text-slate-500"
                     }`}
                   >
@@ -424,15 +397,15 @@ export function InvoiceDetailModal({
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-600">PDF Copy:</span>
+                  <span className="text-slate-600">Quotation:</span>
                   <span
                     className={`font-bold px-2 py-0.5 rounded ${
-                      invoice.pdfReceived
-                        ? "bg-emerald-50 text-emerald-700"
+                      invoice.quotationReceived
+                        ? "bg-amber-50 text-amber-700 border border-amber-200"
                         : "bg-slate-100 text-slate-500"
                     }`}
                   >
-                    {invoice.pdfReceived ? "YES" : "NO"}
+                    {invoice.quotationReceived ? "YES" : "NO"}
                   </span>
                 </div>
 
@@ -519,7 +492,7 @@ export function InvoiceDetailModal({
                 <div>
                   <span className="text-emerald-700 font-medium">Payment Date:</span>
                   <p className="font-bold">
-                    {invoice.paidAt ? new Date(invoice.paidAt).toLocaleDateString() : "-"}
+                    {formatDateDDMMYYYY(invoice.paidAt)}
                   </p>
                 </div>
                 <div>

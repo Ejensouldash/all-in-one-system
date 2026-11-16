@@ -16,6 +16,7 @@ import {
 import {
   INVOICE_STATUS_CONFIG,
   PAYMENT_TERMS_CONFIG,
+  formatDateDDMMYYYY,
 } from "./procurement-constants"
 
 interface InvoiceTableProps {
@@ -74,6 +75,7 @@ export function InvoiceTable({
               <th className="py-3.5 px-4">Company & Dept</th>
               <th className="py-3.5 px-4">Supplier</th>
               <th className="py-3.5 px-4">Invoice & PO No</th>
+              <th className="py-3.5 px-4 text-center">Doc Status</th>
               <th className="py-3.5 px-4">Submit Date</th>
               <th className="py-3.5 px-4 text-right">Amount (RM)</th>
               <th className="py-3.5 px-4 text-center">Status</th>
@@ -148,9 +150,30 @@ export function InvoiceTable({
                     )}
                   </td>
 
+                  {/* Doc Status (Proforma / Quotation / Invoice) */}
+                  <td className="py-3 px-4 text-center whitespace-nowrap">
+                    <div className="inline-flex items-center gap-1 justify-center flex-wrap">
+                      {inv.proformaInvoiceReceived && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                          Proforma
+                        </span>
+                      )}
+                      {inv.quotationReceived && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                          Quotation
+                        </span>
+                      )}
+                      {!inv.proformaInvoiceReceived && !inv.quotationReceived && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600">
+                          Invoice
+                        </span>
+                      )}
+                    </div>
+                  </td>
+
                   {/* Submit Date */}
                   <td className="py-3 px-4 text-slate-600 whitespace-nowrap">
-                    {new Date(inv.submitDate || inv.createdAt).toLocaleDateString()}
+                    {formatDateDDMMYYYY(inv.submitDate || inv.createdAt)}
                   </td>
 
                   {/* Amount (RM) */}
@@ -165,7 +188,7 @@ export function InvoiceTable({
                             Paid: RM {Number(inv.depositDetails?.totalPaid || inv.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </span>
                           <span className="text-amber-800 font-semibold bg-amber-50 px-1 rounded border border-amber-200">
-                            Baki: RM {Number(inv.depositDetails?.remainingBalance ?? ((inv.depositDetails?.totalPrice || inv.totalPrice || 0) - (inv.depositDetails?.totalPaid || inv.amount || 0))).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            Balance: RM {Number(inv.depositDetails?.remainingBalance ?? ((inv.depositDetails?.totalPrice || inv.totalPrice || 0) - (inv.depositDetails?.totalPaid || inv.amount || 0))).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </span>
                         </div>
                       </div>

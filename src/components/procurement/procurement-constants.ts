@@ -13,7 +13,7 @@ export const BRANCH_OPTIONS = [
 ] as const
 
 export const DEPARTMENT_OPTIONS = [
-  "ELEKTRIK (ELEKTRIK)",
+  "ELECTRIC (ELECTRIC)",
   "QC-KILANG AIR (QUALITY CONTROL-KILANG AIR)",
   "KA (KILANG AIR)",
   "KB (KILANG BOTOL)",
@@ -52,8 +52,20 @@ export const ATTACHMENT_TAG_OPTIONS = [
   "1st Payment",
   "2nd Payment",
   "Balance",
-  "Invoice / DO",
+  "Invoice",
+  "Purchase Order",
+  "Quotation",
 ] as const
+
+export function formatDateDDMMYYYY(dateInput: string | Date | null | undefined): string {
+  if (!dateInput) return "-"
+  const d = new Date(dateInput)
+  if (isNaN(d.getTime())) return "-"
+  const day = String(d.getDate()).padStart(2, "0")
+  const month = String(d.getMonth() + 1).padStart(2, "0")
+  const year = d.getFullYear()
+  return `${day}/${month}/${year}`
+}
 
 export const INVOICE_CATEGORY_CONFIG: Record<string, { label: string; short: string; badgeClass: string }> = {
   STANDARD_TERMS: {

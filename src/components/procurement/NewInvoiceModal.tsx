@@ -91,10 +91,11 @@ export function NewInvoiceModal({
     { id: "3", stage: "3rd Payment", amount: "", date: "", note: "" },
   ])
   
-  // Document Receive Status (4 Options)
+  // Document Receive Status (Proforma Invoice & Quotation)
   const [doReceived, setDoReceived] = useState(false)
   const [originalInvoiceReceived, setOriginalInvoiceReceived] = useState(false)
   const [proformaInvoiceReceived, setProformaInvoiceReceived] = useState(false)
+  const [quotationReceived, setQuotationReceived] = useState(false)
   const [pdfReceived, setPdfReceived] = useState(false)
   
   const [notes, setNotes] = useState("")
@@ -136,6 +137,7 @@ export function NewInvoiceModal({
         setDoReceived(!!invoiceToEdit.doReceived)
         setOriginalInvoiceReceived(!!invoiceToEdit.originalInvoiceReceived)
         setProformaInvoiceReceived(!!invoiceToEdit.proformaInvoiceReceived)
+        setQuotationReceived(!!invoiceToEdit.quotationReceived)
         setPdfReceived(!!invoiceToEdit.pdfReceived)
         setNotes(invoiceToEdit.notes || "")
 
@@ -188,7 +190,7 @@ export function NewInvoiceModal({
             url: a.url,
             name: a.name || "Document",
             size: a.size || 0,
-            tag: a.tag || "Invoice / DO",
+            tag: a.tag === "Invoice / DO" ? "Invoice" : a.tag || "Invoice",
           }))
         } else if (invoiceToEdit.attachmentUrl) {
           parsedAttachments = [
@@ -196,7 +198,7 @@ export function NewInvoiceModal({
               url: invoiceToEdit.attachmentUrl,
               name: invoiceToEdit.attachmentName || "Document",
               size: 0,
-              tag: "Invoice / DO",
+              tag: "Invoice",
             },
           ]
         }
@@ -213,6 +215,7 @@ export function NewInvoiceModal({
         setDoReceived(false)
         setOriginalInvoiceReceived(false)
         setProformaInvoiceReceived(false)
+        setQuotationReceived(false)
         setPdfReceived(false)
         setNotes("")
         setTotalContractPrice("")
@@ -254,7 +257,7 @@ export function NewInvoiceModal({
 
     const filesToAdd = selected.slice(0, remainingSlots).map((file) => ({
       file,
-      tag: "Invoice / DO",
+      tag: "Invoice",
     }))
 
     if (selected.length > remainingSlots) {
@@ -401,7 +404,7 @@ export function NewInvoiceModal({
           url: resFile.url,
           name: resFile.name,
           size: resFile.size,
-          tag: newFiles[idx]?.tag || "Invoice / DO",
+          tag: newFiles[idx]?.tag || "Invoice",
         }))
 
         finalAttachments = [...finalAttachments, ...uploadedWithTags]
@@ -423,6 +426,7 @@ export function NewInvoiceModal({
           doReceived,
           originalInvoiceReceived,
           proformaInvoiceReceived,
+          quotationReceived,
           pdfReceived,
           attachments: finalAttachments,
           notes: notes.trim() || undefined,
@@ -450,6 +454,7 @@ export function NewInvoiceModal({
           doReceived,
           originalInvoiceReceived,
           proformaInvoiceReceived,
+          quotationReceived,
           pdfReceived,
           attachments: finalAttachments,
           notes: notes.trim() || undefined,
@@ -852,30 +857,10 @@ export function NewInvoiceModal({
             </div>
           )}
 
-          {/* Document Receive Status Checks (4 checkboxes: DO, ORI INV, PROFORMA INV, PDF) */}
+          {/* Document Receive Status Checks (2 checkboxes: PROFORMA INV, QUOTATION) */}
           <div className="p-3.5 bg-slate-50 border border-slate-200/90 rounded-xl space-y-2">
             <p className="text-xs font-bold text-slate-700">Document Receive Status</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={doReceived}
-                  onChange={(e) => setDoReceived(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
-                />
-                <span>DO Received</span>
-              </label>
-
-              <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={originalInvoiceReceived}
-                  onChange={(e) => setOriginalInvoiceReceived(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
-                />
-                <span>ORI INV Received</span>
-              </label>
-
+            <div className="grid grid-cols-2 gap-3">
               <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
                 <input
                   type="checkbox"
@@ -889,20 +874,20 @@ export function NewInvoiceModal({
               <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={pdfReceived}
-                  onChange={(e) => setPdfReceived(e.target.checked)}
+                  checked={quotationReceived}
+                  onChange={(e) => setQuotationReceived(e.target.checked)}
                   className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
                 />
-                <span>PDF Copy</span>
+                <span>QUOTATION</span>
               </label>
             </div>
           </div>
 
-          {/* File Attachment (Max 5 files with 1st Payment / 2nd Payment / Balance tagging) */}
+          {/* File Attachment (Max 5 files with tag options) */}
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-semibold text-slate-700">
-                Upload Invoice / DO / Payment Proof (PDF / Image)
+                Upload Invoice / Documents (PDF / Image)
               </label>
               <span className="text-[11px] font-medium text-slate-500">
                 {totalFilesCount} / 5 files
@@ -924,7 +909,7 @@ export function NewInvoiceModal({
                     Click or drag and drop files (Max 5 files total)
                   </p>
                   <p className="text-[10px] text-slate-400">
-                    PDF, PNG, JPG • Tag as 1st Payment, 2nd Payment, Balance, or Invoice
+                    PDF, PNG, JPG • Tag as 1st Payment, 2nd Payment, Balance, Invoice, Purchase Order, or Quotation
                   </p>
                 </div>
               </div>
@@ -959,7 +944,7 @@ export function NewInvoiceModal({
                     <div className="flex items-center gap-2 shrink-0">
                       {/* Tag selector */}
                       <select
-                        value={att.tag || "Invoice / DO"}
+                        value={att.tag === "Invoice / DO" ? "Invoice" : att.tag || "Invoice"}
                         onChange={(e) => handleUpdateExistingTag(idx, e.target.value)}
                         className="px-2 py-1 text-[11px] font-semibold bg-slate-100 border border-slate-200 rounded-lg text-slate-700 focus:bg-white"
                       >

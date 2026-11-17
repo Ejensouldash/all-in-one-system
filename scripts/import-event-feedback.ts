@@ -412,44 +412,47 @@ async function main() {
 
     const insertedIds: string[] = []
 
-    await prisma.$transaction(async (tx) => {
-      for (const row of toInsert) {
-        const created = await tx.marketingEventFeedback.create({
-          data: {
-            requisitionId: event.id,
-            respondentName: row.respondentName,
-            likedMost: row.likedMost,
-            likedLeast: row.likedLeast,
-            satisfaction: row.satisfaction,
-            wellOrganized: row.wellOrganized,
-            comments: row.comments,
-            source: "EXCEL_IMPORT",
-            createdAt: row.createdAt,
-          },
-          select: { id: true },
-        })
-        insertedIds.push(created.id)
-      }
+    await prisma.$transaction(
+      async (tx) => {
+        for (const row of toInsert) {
+          const created = await tx.marketingEventFeedback.create({
+            data: {
+              requisitionId: event.id,
+              respondentName: row.respondentName,
+              likedMost: row.likedMost,
+              likedLeast: row.likedLeast,
+              satisfaction: row.satisfaction,
+              wellOrganized: row.wellOrganized,
+              comments: row.comments,
+              source: "EXCEL_IMPORT",
+              createdAt: row.createdAt,
+            },
+            select: { id: true },
+          })
+          insertedIds.push(created.id)
+        }
 
-      await tx.auditLog.create({
-        data: {
-          userId: null,
-          userName: "System Import (Excel)",
-          action: "Imported event satisfaction feedback from Excel",
-          details: JSON.stringify({
-            file: path.basename(args.file),
-            eventId: event.id,
-            requestNumber: event.requestNumber,
-            eventName: event.eventName,
-            imported: insertedIds.length,
-            skipped: skipped.length,
-            source: "EXCEL_IMPORT",
-            createdAtSource: args.createdAt,
-            ids: insertedIds,
-          }),
-        },
-      })
-    })
+        await tx.auditLog.create({
+          data: {
+            userId: null,
+            userName: "System Import (Excel)",
+            action: "Imported event satisfaction feedback from Excel",
+            details: JSON.stringify({
+              file: path.basename(args.file),
+              eventId: event.id,
+              requestNumber: event.requestNumber,
+              eventName: event.eventName,
+              imported: insertedIds.length,
+              skipped: skipped.length,
+              source: "EXCEL_IMPORT",
+              createdAtSource: args.createdAt,
+              ids: insertedIds,
+            }),
+          },
+        })
+      },
+      { timeout: 60000, maxWait: 10000 }
+    )
 
     fs.writeFileSync(
       manifestFile,

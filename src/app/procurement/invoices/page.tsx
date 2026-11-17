@@ -548,9 +548,35 @@ export default function ProcurementInvoicesPage() {
               </select>
             </div>
 
-            {/* 4. Document Receive Status Filter (Proforma & Quotation) */}
+            {/* 4. Document Receive Status Filters */}
             <div className="space-y-1.5 sm:col-span-2 lg:col-span-4 pt-2 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-6">
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-700">DO:</span>
+                  <select
+                    value={doFilter}
+                    onChange={(e) => setDoFilter(e.target.value)}
+                    className="px-2.5 py-1 text-xs bg-white border border-slate-200 rounded-lg text-slate-800"
+                  >
+                    <option value="ALL">All</option>
+                    <option value="YES">Received (Yes)</option>
+                    <option value="NO">Pending (No)</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-700">ORI INV:</span>
+                  <select
+                    value={originalInvFilter}
+                    onChange={(e) => setOriginalInvFilter(e.target.value)}
+                    className="px-2.5 py-1 text-xs bg-white border border-slate-200 rounded-lg text-slate-800"
+                  >
+                    <option value="ALL">All</option>
+                    <option value="YES">Received (Yes)</option>
+                    <option value="NO">Pending (No)</option>
+                  </select>
+                </div>
+
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-slate-700">Proforma:</span>
                   <select
@@ -633,6 +659,18 @@ export default function ProcurementInvoicesPage() {
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[11px] font-medium border border-blue-200">
                   {dateType.replace(/([A-Z])/g, " $1")}: {startDate || "Start"} ➔ {endDate || "End"}
                   <button onClick={() => { setStartDate(""); setEndDate(""); setDatePreset("ALL"); }}><X className="w-3 h-3 hover:text-rose-500" /></button>
+                </span>
+              )}
+              {doFilter !== "ALL" && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[11px] font-medium border border-blue-200">
+                  DO: {doFilter}
+                  <button onClick={() => setDoFilter("ALL")}><X className="w-3 h-3 hover:text-rose-500" /></button>
+                </span>
+              )}
+              {originalInvFilter !== "ALL" && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-medium border border-emerald-200">
+                  ORI INV: {originalInvFilter}
+                  <button onClick={() => setOriginalInvFilter("ALL")}><X className="w-3 h-3 hover:text-rose-500" /></button>
                 </span>
               )}
               {proformaFilter !== "ALL" && (

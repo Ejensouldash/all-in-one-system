@@ -857,10 +857,30 @@ export function NewInvoiceModal({
             </div>
           )}
 
-          {/* Document Receive Status Checks (2 checkboxes: PROFORMA INV, QUOTATION) */}
+          {/* Document Receive Status Checks (5 checkboxes: DO, ORI INV, PROFORMA INV, PDF, QUO) */}
           <div className="p-3.5 bg-slate-50 border border-slate-200/90 rounded-xl space-y-2">
             <p className="text-xs font-bold text-slate-700">Document Receive Status</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={doReceived}
+                  onChange={(e) => setDoReceived(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                />
+                <span>DO</span>
+              </label>
+
+              <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={originalInvoiceReceived}
+                  onChange={(e) => setOriginalInvoiceReceived(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                />
+                <span>ORI INV</span>
+              </label>
+
               <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
                 <input
                   type="checkbox"
@@ -874,11 +894,21 @@ export function NewInvoiceModal({
               <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
                 <input
                   type="checkbox"
+                  checked={pdfReceived}
+                  onChange={(e) => setPdfReceived(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                />
+                <span>PDF</span>
+              </label>
+
+              <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
                   checked={quotationReceived}
                   onChange={(e) => setQuotationReceived(e.target.checked)}
                   className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
                 />
-                <span>QUOTATION</span>
+                <span>QUO</span>
               </label>
             </div>
           </div>

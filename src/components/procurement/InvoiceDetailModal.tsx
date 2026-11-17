@@ -384,7 +384,33 @@ export function InvoiceDetailModal({
               </h3>
               <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-3 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-600">Proforma Invoice:</span>
+                  <span className="text-slate-600">DO:</span>
+                  <span
+                    className={`font-bold px-2 py-0.5 rounded ${
+                      invoice.doReceived
+                        ? "bg-blue-50 text-blue-700 border border-blue-200"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {invoice.doReceived ? "YES" : "NO"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">ORI INV:</span>
+                  <span
+                    className={`font-bold px-2 py-0.5 rounded ${
+                      invoice.originalInvoiceReceived
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {invoice.originalInvoiceReceived ? "YES" : "NO"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">PROFORMA INV:</span>
                   <span
                     className={`font-bold px-2 py-0.5 rounded ${
                       invoice.proformaInvoiceReceived
@@ -397,7 +423,20 @@ export function InvoiceDetailModal({
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-600">Quotation:</span>
+                  <span className="text-slate-600">PDF:</span>
+                  <span
+                    className={`font-bold px-2 py-0.5 rounded ${
+                      invoice.pdfReceived
+                        ? "bg-slate-100 text-slate-700 border border-slate-200"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {invoice.pdfReceived ? "YES" : "NO"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">QUO:</span>
                   <span
                     className={`font-bold px-2 py-0.5 rounded ${
                       invoice.quotationReceived

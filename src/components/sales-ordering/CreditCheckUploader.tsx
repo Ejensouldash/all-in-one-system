@@ -42,6 +42,31 @@ function uploadToR2(url: string, file: File, onProgress: (fraction: number) => v
   })
 }
 
+function uploadCreditFilesToServer(caseId: string, poFile: File | null, soaFile: File | null, onProgress: (fraction: number) => void) {
+  return new Promise<void>((resolve, reject) => {
+    const request = new XMLHttpRequest()
+    request.open("POST", `/api/sales-ordering/credit-check/${caseId}/upload`)
+    const formData = new FormData()
+    if (poFile) formData.append("po", poFile)
+    if (soaFile) formData.append("soa", soaFile)
+    request.upload.onprogress = event => event.lengthComputable && onProgress(event.loaded / event.total)
+    request.onerror = () => reject(new Error("Upload server connection failed. Please check your network."))
+    request.onload = () => {
+      if (request.status >= 200 && request.status < 300) {
+        resolve()
+      } else {
+        try {
+          const body = JSON.parse(request.responseText)
+          reject(new Error(body.error || `Server upload failed (${request.status}).`))
+        } catch {
+          reject(new Error(`Server upload failed (${request.status}).`))
+        }
+      }
+    }
+    request.send(formData)
+  })
+}
+
 async function readJson(response: Response) {
   const text = await response.text()
   try {
@@ -116,15 +141,22 @@ export function CreditCheckUploader({ existingCase }: { existingCase?: { id: str
       let soaProgress = 0
       const updateUploadProgress = () => setProgress(8 + Math.round(((poProgress + soaProgress) / 2) * 20))
       
-      const uploadTasks = [
-        uploadToR2(String(prepared.soaUploadUrl), soa, value => { soaProgress = value; updateUploadProgress() })
-      ]
-      
-      if (!existingCase && po) {
-        uploadTasks.push(uploadToR2(String(prepared.poUploadUrl), po, value => { poProgress = value; updateUploadProgress() }))
-      }
+      try {
+        const uploadTasks = [
+          uploadToR2(String(prepared.soaUploadUrl), soa, value => { soaProgress = value; updateUploadProgress() })
+        ]
+        
+        if (!existingCase && po) {
+          uploadTasks.push(uploadToR2(String(prepared.poUploadUrl), po, value => { poProgress = value; updateUploadProgress() }))
+        }
 
-      await Promise.all(uploadTasks)
+        await Promise.all(uploadTasks)
+      } catch (directErr) {
+        console.warn("Direct R2 upload failed (likely CORS or network), falling back to server-side upload:", directErr)
+        await uploadCreditFilesToServer(String(prepared.id), existingCase ? null : po, soa, frac => {
+          setProgress(8 + Math.round(frac * 20))
+        })
+      }
 
       const caseId = String(prepared.id)
       setStage("READING_FILES")

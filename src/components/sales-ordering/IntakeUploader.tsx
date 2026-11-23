@@ -28,6 +28,32 @@ function uploadToR2(url: string, file: File, onProgress: (percent: number) => vo
   })
 }
 
+function uploadViaServer(intakeId: string, file: File, onProgress: (percent: number) => void) {
+  return new Promise<void>((resolve, reject) => {
+    const request = new XMLHttpRequest()
+    request.open("POST", `/api/sales-ordering/intake/${intakeId}/upload`)
+    const formData = new FormData()
+    formData.append("file", file)
+    request.upload.onprogress = event => {
+      if (event.lengthComputable) onProgress(event.loaded / event.total)
+    }
+    request.onerror = () => reject(new Error("Upload server connection failed. Please check your network."))
+    request.onload = () => {
+      if (request.status >= 200 && request.status < 300) {
+        resolve()
+      } else {
+        try {
+          const body = JSON.parse(request.responseText)
+          reject(new Error(body.error || `Server upload failed (${request.status}).`))
+        } catch {
+          reject(new Error(`Server upload failed (${request.status}).`))
+        }
+      }
+    }
+    request.send(formData)
+  })
+}
+
 export function IntakeUploader() {
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -61,7 +87,12 @@ export function IntakeUploader() {
       if (!prepare.ok) throw new Error(prepared.error || "Failed to prepare secure upload.")
 
       setStage("UPLOADING")
-      await uploadToR2(prepared.uploadUrl, file, uploaded => setProgress(8 + Math.round(uploaded * 54)))
+      try {
+        await uploadToR2(prepared.uploadUrl, file, uploaded => setProgress(8 + Math.round(uploaded * 54)))
+      } catch (directErr) {
+        console.warn("Direct R2 upload failed (likely CORS or network error), falling back to server upload:", directErr)
+        await uploadViaServer(prepared.intakeId, file, uploaded => setProgress(8 + Math.round(uploaded * 54)))
+      }
 
       setProgress(68)
       setStage("EXTRACTING")

@@ -1,7 +1,7 @@
 "use client"
 
 import { useTransition } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Eye, Loader2 } from "lucide-react"
 
@@ -48,17 +48,30 @@ export function ProductionReportsTable({
 }: ProductionReportsTableProps) {
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
 
   const goToPage = (page: number) => {
     if (page === currentPage || page < 1 || page > totalPages || isPending) return
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("page", String(page))
     startTransition(() => {
-      router.push(`${pathname}?page=${page}`, { scroll: false })
+      router.push(`${pathname}?${params.toString()}`, { scroll: false })
+    })
+  }
+
+  const handlePageSizeChange = (newSize: number) => {
+    if (newSize === pageSize || isPending) return
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("page", "1")
+    params.set("pageSize", String(newSize))
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`, { scroll: false })
     })
   }
 
   const paginationPages = getPaginationPages(currentPage, totalPages)
-  const startRecord = (currentPage - 1) * pageSize + 1
+  const startRecord = totalReports === 0 ? 0 : (currentPage - 1) * pageSize + 1
   const endRecord = Math.min(currentPage * pageSize, totalReports)
 
   return (
@@ -135,85 +148,101 @@ export function ProductionReportsTable({
         </table>
       </div>
 
-      {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <button
-              type="button"
-              onClick={() => goToPage(currentPage - 1)}
-              disabled={currentPage === 1 || isPending}
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              onClick={() => goToPage(currentPage + 1)}
-              disabled={currentPage === totalPages || isPending}
-              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Showing <span className="font-bold text-gray-900">{startRecord}</span> to{" "}
-                <span className="font-bold text-gray-900">{endRecord}</span> of{" "}
-                <span className="font-bold text-gray-900">{totalReports}</span> reports
-              </p>
+      {/* Pagination & Display Controls */}
+      {totalReports > 0 && (
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center space-x-4">
+            <p className="text-sm text-gray-700">
+              Showing <span className="font-bold text-gray-900">{startRecord}</span> to{" "}
+              <span className="font-bold text-gray-900">{endRecord}</span> of{" "}
+              <span className="font-bold text-gray-900">{totalReports}</span> reports
+            </p>
+            <div className="flex items-center space-x-1.5 text-xs text-gray-500 font-bold border-l border-gray-300 pl-4">
+              <span>Rows per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                disabled={isPending}
+                className="text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-md px-2 py-1 outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer disabled:opacity-50"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
             </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between w-full sm:w-auto">
+              <div className="flex-1 flex justify-between sm:hidden">
                 <button
                   type="button"
                   onClick={() => goToPage(currentPage - 1)}
                   disabled={currentPage === 1 || isPending}
-                  className="relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
-                {paginationPages.map((page, index) => {
-                  if (typeof page === "string") {
-                    return (
-                      <span
-                        key={`ellipsis-${index}`}
-                        className="relative inline-flex items-center px-3 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-400 select-none"
-                      >
-                        ...
-                      </span>
-                    )
-                  }
-
-                  const isCurrent = page === currentPage
-                  return (
-                    <button
-                      key={page}
-                      type="button"
-                      onClick={() => goToPage(page)}
-                      disabled={isPending}
-                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-bold transition-colors ${
-                        isCurrent
-                          ? "z-10 bg-indigo-50 border-indigo-500 text-indigo-600"
-                          : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  )
-                })}
                 <button
                   type="button"
                   onClick={() => goToPage(currentPage + 1)}
                   disabled={currentPage === totalPages || isPending}
-                  className="relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
-              </nav>
+              </div>
+              <div className="hidden sm:flex sm:items-center">
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                  <button
+                    type="button"
+                    onClick={() => goToPage(currentPage - 1)}
+                    disabled={currentPage === 1 || isPending}
+                    className="relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  {paginationPages.map((page, index) => {
+                    if (typeof page === "string") {
+                      return (
+                        <span
+                          key={`ellipsis-${index}`}
+                          className="relative inline-flex items-center px-3 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-400 select-none"
+                        >
+                          ...
+                        </span>
+                      )
+                    }
+
+                    const isCurrent = page === currentPage
+                    return (
+                      <button
+                        key={page}
+                        type="button"
+                        onClick={() => goToPage(page)}
+                        disabled={isPending}
+                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-bold transition-colors ${
+                          isCurrent
+                            ? "z-10 bg-indigo-50 border-indigo-500 text-indigo-600"
+                            : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => goToPage(currentPage + 1)}
+                    disabled={currentPage === totalPages || isPending}
+                    className="relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </nav>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>

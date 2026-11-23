@@ -6,16 +6,102 @@ import { FormsTabs } from "@/components/forms/FormsTabs"
 import { prisma } from "@/lib/prisma"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
 import { ProductionReportsTable } from "@/components/forms/ProductionReportsTable"
+import { ProductionReportFilters } from "@/components/forms/ProductionReportFilters"
 
 export const metadata = {
   title: "Production Dashboard",
 }
 
-async function AsyncReportsTable({ currentPage, pageSize }: { currentPage: number; pageSize: number }) {
+interface FilterParams {
+  currentPage: number
+  pageSize: number
+  q?: string
+  month?: string
+  from?: string
+  to?: string
+  shift?: string
+  line?: string
+  status?: string
+}
+
+async function AsyncReportsTable({
+  currentPage,
+  pageSize,
+  q,
+  month,
+  from,
+  to,
+  shift,
+  line,
+  status,
+}: FilterParams) {
+  const whereClause: any = {}
+
+  // Date filtering: By Month or Custom Date Range
+  if (month && /^\d{4}-\d{2}$/.test(month)) {
+    const [yearStr, monthStr] = month.split("-")
+    const year = parseInt(yearStr, 10)
+    const monthNum = parseInt(monthStr, 10)
+    const lastDay = new Date(year, monthNum, 0).getDate()
+    const start = new Date(`${month}-01T00:00:00.000Z`)
+    const end = new Date(`${month}-${String(lastDay).padStart(2, "0")}T23:59:59.999Z`)
+    whereClause.date = { gte: start, lte: end }
+  } else if (from || to) {
+    whereClause.date = {}
+    if (from) {
+      whereClause.date.gte = new Date(`${from}T00:00:00.000Z`)
+    }
+    if (to) {
+      whereClause.date.lte = new Date(`${to}T23:59:59.999Z`)
+    }
+  }
+
+  // Shift filter
+  if (shift && shift !== "ALL") {
+    whereClause.shift = shift
+  }
+
+  // Line filter
+  if (line && line !== "ALL") {
+    whereClause.line = { contains: line, mode: "insensitive" }
+  }
+
+  // Status filter
+  if (status && status !== "ALL") {
+    whereClause.status = status
+  }
+
+  // Comprehensive Search (Prepared By, Remarks, and Batch Numbers)
+  if (q) {
+    whereClause.OR = [
+      { preparedBy: { contains: q, mode: "insensitive" } },
+      { remarks: { contains: q, mode: "insensitive" } },
+      {
+        productions: {
+          some: {
+            batches: {
+              some: {
+                batchNo: { contains: q, mode: "insensitive" },
+              },
+            },
+          },
+        },
+      },
+      {
+        inventory: {
+          some: {
+            batchNo: { contains: q, mode: "insensitive" },
+          },
+        },
+      },
+    ]
+  }
+
   const [totalReports, reports] = await Promise.all([
-    prisma.dailyReport.count(),
+    prisma.dailyReport.count({ where: whereClause }),
     prisma.dailyReport.findMany({
-      orderBy: { createdAt: 'desc' },
+      where: whereClause,
+      orderBy: { createdAt: "desc" },
       skip: (currentPage - 1) * pageSize,
       take: pageSize,
       select: {
@@ -26,18 +112,33 @@ async function AsyncReportsTable({ currentPage, pageSize }: { currentPage: numbe
         line: true,
         preparedBy: true,
         status: true,
-      }
-    })
+      },
+    }),
   ])
 
   const totalPages = Math.max(1, Math.ceil(totalReports / pageSize))
+  const hasFilters = Boolean(q || month || from || to || shift || line || status)
 
   if (reports.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center flex flex-col items-center">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center flex flex-col items-center mb-12">
         <ClipboardList className="h-12 w-12 text-gray-300 mb-3" />
-        <h3 className="text-lg font-medium text-gray-900">No Reports Found</h3>
-        <p className="text-gray-500 mt-1">Production reports submitted via the KAR Daily Report will appear here.</p>
+        <h3 className="text-lg font-bold text-gray-900">
+          {hasFilters ? "No Matching Reports" : "No Reports Found"}
+        </h3>
+        <p className="text-gray-500 mt-1 max-w-md text-sm">
+          {hasFilters
+            ? "No submitted daily reports matched your search or filter criteria. Try adjusting your parameters or reset filters."
+            : "Production reports submitted via the KAR Daily Report will appear here."}
+        </p>
+        {hasFilters && (
+          <Link
+            href="/forms/production"
+            className="mt-4 inline-flex items-center px-4 py-2 text-xs font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors"
+          >
+            Clear All Filters
+          </Link>
+        )}
       </div>
     )
   }
@@ -55,7 +156,7 @@ async function AsyncReportsTable({ currentPage, pageSize }: { currentPage: numbe
 
 function ReportsTableSkeleton() {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 space-y-4 animate-pulse">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 space-y-4 animate-pulse mb-12">
       <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
       <div className="h-12 bg-gray-100 rounded w-full"></div>
       <div className="h-12 bg-gray-100 rounded w-full"></div>
@@ -64,12 +165,31 @@ function ReportsTableSkeleton() {
   )
 }
 
-export default async function ProductionDashboard(props: {
-  searchParams?: Promise<{ page?: string }>
-}) {
+interface PageProps {
+  searchParams?: Promise<{
+    page?: string
+    pageSize?: string
+    q?: string
+    month?: string
+    from?: string
+    to?: string
+    shift?: string
+    line?: string
+    status?: string
+  }>
+}
+
+export default async function ProductionDashboard(props: PageProps) {
   const resolvedParams = await props.searchParams
   const currentPage = Math.max(1, parseInt(resolvedParams?.page || "1", 10) || 1)
-  const pageSize = 5
+  const pageSize = Math.min(100, Math.max(1, parseInt(resolvedParams?.pageSize || "10", 10) || 10))
+  const q = resolvedParams?.q?.trim() || ""
+  const month = resolvedParams?.month?.trim() || ""
+  const from = resolvedParams?.from?.trim() || ""
+  const to = resolvedParams?.to?.trim() || ""
+  const shift = resolvedParams?.shift?.trim() || ""
+  const line = resolvedParams?.line?.trim() || ""
+  const status = resolvedParams?.status?.trim() || ""
 
   // Check module access with live DB data (Superadmin gets all by default)
   const access = await getAccessInfo()
@@ -162,8 +282,32 @@ export default async function ProductionDashboard(props: {
           </h2>
         </div>
         
-        <Suspense fallback={<ReportsTableSkeleton />}>
-          <AsyncReportsTable currentPage={currentPage} pageSize={pageSize} />
+        {/* Search, Divide by Month & Multi-Filter Bar */}
+        <ProductionReportFilters
+          currentFilters={{
+            q,
+            month,
+            from,
+            to,
+            shift,
+            line,
+            status,
+            pageSize,
+          }}
+        />
+
+        <Suspense key={JSON.stringify(resolvedParams || {})} fallback={<ReportsTableSkeleton />}>
+          <AsyncReportsTable
+            currentPage={currentPage}
+            pageSize={pageSize}
+            q={q}
+            month={month}
+            from={from}
+            to={to}
+            shift={shift}
+            line={line}
+            status={status}
+          />
         </Suspense>
 
       </div>

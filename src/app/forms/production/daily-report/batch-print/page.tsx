@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { getISOWeekDateRange } from "@/lib/analytics/isoWeek"
 import { DailyReportPrintView } from "@/components/forms/DailyReportPrintView"
 import { BatchPrintToolbar } from "@/components/forms/BatchPrintToolbar"
+import { reportMatchesBatchFilter, type BatchCategory } from "@/lib/analytics/batchMatching"
 import { FileX } from "lucide-react"
 import Link from "next/link"
 
@@ -124,6 +125,10 @@ export default async function BatchPrintDailyReportsPage({
     status: { in: ["APPROVED", "PENDING"] },
   }
 
+  if (isBatchMode || Boolean(batchNo)) {
+    whereClause.noProduction = false
+  }
+
   if (!isBatchMode || (from && to)) {
     whereClause.date = { gte: start, lte: end }
   }
@@ -147,64 +152,23 @@ export default async function BatchPrintDailyReportsPage({
     orderBy: [{ date: "asc" }, { shift: "asc" }, { line: "asc" }],
   })
 
-  // Filter reports if batch filters are specified
+  // Filter reports if batch filters are specified (strictly Usage-only for material categories)
   if (batchFilters.length > 0) {
-    reports = reports.filter(r => {
-      return batchFilters.some(f => {
-        const term = (f.batchNo || "").trim().toLowerCase()
-        if (!term) return false
-        const cat = f.category || "ALL"
-        if (cat === "OUTPUT") {
-          return (r.productions || []).some((p: any) =>
-            (p.batches || []).some((b: any) => (b.batchNo || "").toLowerCase().includes(term))
-          )
-        } else if (cat === "BOTTLE") {
-          return (r.inventory || []).some((i: any) =>
-            (i.sectionKey || "").toUpperCase().includes("BOTTLE") &&
-            (i.batchNo || "").toLowerCase().includes(term)
-          )
-        } else if (cat === "CAP") {
-          return (r.inventory || []).some((i: any) =>
-            (i.sectionKey || "").toUpperCase().includes("CAP") &&
-            !(i.sectionKey || "").toUpperCase().includes("CARTON") &&
-            (i.batchNo || "").toLowerCase().includes(term)
-          )
-        } else if (cat === "CARTON") {
-          return (r.inventory || []).some((i: any) =>
-            ((i.sectionKey || "").toUpperCase().includes("CARTON") ||
-              (i.sectionKey || "").toUpperCase().includes("BOX")) &&
-            (i.batchNo || "").toLowerCase().includes(term)
-          )
-        } else if (cat === "LABEL") {
-          return (r.inventory || []).some((i: any) =>
-            (i.sectionKey || "").toUpperCase().includes("LABEL") &&
-            (i.batchNo || "").toLowerCase().includes(term)
-          )
-        } else {
-          // ALL categories
-          const matchInv = (r.inventory || []).some((i: any) =>
-            (i.batchNo || "").toLowerCase().includes(term)
-          )
-          const matchProd = (r.productions || []).some((p: any) =>
-            (p.batches || []).some((b: any) => (b.batchNo || "").toLowerCase().includes(term))
-          )
-          return matchInv || matchProd
-        }
-      })
-    })
+    reports = reports.filter(r =>
+      batchFilters.some(f =>
+        reportMatchesBatchFilter(r, {
+          category: ((f.category || "ALL") as BatchCategory),
+          batchNo: f.batchNo || "",
+        })
+      )
+    )
   } else if (batchNo) {
-    const batchTokens = batchNo.split(",").map(s => s.trim().toLowerCase()).filter(Boolean)
-    reports = reports.filter(r => {
-      return batchTokens.some(cleanB => {
-        const matchInv = (r.inventory || []).some((i: any) =>
-          (i.batchNo || "").toLowerCase().includes(cleanB)
-        )
-        const matchProd = (r.productions || []).some((p: any) =>
-          (p.batches || []).some((b: any) => (b.batchNo || "").toLowerCase().includes(cleanB))
-        )
-        return matchInv || matchProd
-      })
-    })
+    const batchTokens = batchNo.split(",").map(s => s.trim()).filter(Boolean)
+    reports = reports.filter(r =>
+      batchTokens.some(cleanB =>
+        reportMatchesBatchFilter(r, { category: "ALL", batchNo: cleanB })
+      )
+    )
   }
 
   // Fetch TransferIns within a 48h padding around the range of matched reports

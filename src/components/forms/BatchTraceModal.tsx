@@ -16,6 +16,7 @@ import {
   Trash2,
   ClipboardPaste,
   Layers,
+  FileText,
 } from "lucide-react"
 import { getISOWeeksForYear, getCurrentISOWeek } from "@/lib/analytics/isoWeek"
 import type { BatchCategory, BatchFilterCriteria } from "@/lib/analytics/batchTraceability"
@@ -304,6 +305,7 @@ export function BatchTraceModal({ isOpen, onClose }: BatchTraceModalProps) {
         throw new Error(data.error || `Failed to export Excel (${res.status})`)
       }
 
+      const sheetCount = res.headers.get("X-Sheet-Count")
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
@@ -311,7 +313,7 @@ export function BatchTraceModal({ isOpen, onClose }: BatchTraceModalProps) {
 
       const fileName =
         dateMode === "BATCH_LIST"
-          ? `BubblesO2_Multi_Batch_Traceability_${payload.batchFilters?.length || 1}_items.xlsx`
+          ? `BubblesO2_Material_FG_Trace_${payload.batchFilters?.length || 1}_items.xlsx`
           : dateMode === "CUSTOM"
           ? `BubblesO2_Batch_Traceability_${customFrom}_to_${customTo}.xlsx`
           : `BubblesO2_Batch_Traceability_${selectedYear}_W${String(selectedWeek).padStart(2, "0")}.xlsx`
@@ -322,10 +324,11 @@ export function BatchTraceModal({ isOpen, onClose }: BatchTraceModalProps) {
       a.remove()
       URL.revokeObjectURL(url)
 
+      const resolvedCount = sheetCount || (dateMode === "BATCH_LIST" ? "2" : "3")
       const successMsg =
         dateMode === "BATCH_LIST"
-          ? "Multi-Batch Traceability Excel downloaded successfully (4 Sheets)."
-          : "Batch Traceability Excel downloaded successfully (3 Sheets)."
+          ? `Material-to-FG Traceability Excel downloaded successfully (${resolvedCount} Sheets).`
+          : `Batch Traceability Excel downloaded successfully (${resolvedCount} Sheets).`
       setSuccess(successMsg)
       setTimeout(() => {
         onClose()
@@ -337,7 +340,7 @@ export function BatchTraceModal({ isOpen, onClose }: BatchTraceModalProps) {
     }
   }
 
-  const handleBatchPrintPDF = () => {
+  const buildPrintParams = (): URLSearchParams | null => {
     const params = new URLSearchParams({
       line: selectedLine,
     })
@@ -355,8 +358,8 @@ export function BatchTraceModal({ isOpen, onClose }: BatchTraceModalProps) {
         }
       }
       if (allBatches.length === 0) {
-        setError("Please enter or add at least one batch number before printing DPR.")
-        return
+        setError("Please enter or add at least one batch number before printing.")
+        return null
       }
       params.set("dateMode", "BATCH_LIST")
       params.set(
@@ -382,14 +385,20 @@ export function BatchTraceModal({ isOpen, onClose }: BatchTraceModalProps) {
       }
     }
 
-    window.open(`/forms/production/daily-report/batch-print?${params.toString()}`, "_blank")
+    return params
+  }
+
+  const handleOpenPrintRoute = (route: "trace-print" | "batch-print") => {
+    const params = buildPrintParams()
+    if (!params) return
+    window.open(`/forms/production/daily-report/${route}?${params.toString()}`, "_blank")
     onClose()
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div
-        className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-xl w-full overflow-hidden flex flex-col animate-in zoom-in-95 duration-200"
+        className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full overflow-hidden flex flex-col animate-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
         aria-labelledby="batch-trace-title"
@@ -910,16 +919,29 @@ export function BatchTraceModal({ isOpen, onClose }: BatchTraceModalProps) {
           </button>
 
           <div className="w-full sm:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            {/* Batch Print PDF Button */}
+            {(dateMode === "BATCH_LIST" || batchNoFilter.trim().length > 0) && (
+              <button
+                type="button"
+                onClick={() => handleOpenPrintRoute("trace-print")}
+                disabled={isExportingExcel}
+                title="Open concise Material Usage to Finished Goods Traceability Summary (1-2 pages PDF)"
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-teal-700 hover:bg-teal-800 disabled:bg-teal-300 text-white text-xs font-black uppercase tracking-wider rounded-lg shadow-sm transition-all cursor-pointer"
+              >
+                <FileText className="w-4 h-4 shrink-0" />
+                <span>Trace Summary (PDF)</span>
+              </button>
+            )}
+
+            {/* Full DPR Print PDF Button */}
             <button
               type="button"
-              onClick={handleBatchPrintPDF}
+              onClick={() => handleOpenPrintRoute("batch-print")}
               disabled={isExportingExcel}
-              title="Open all Daily Production Reports for this selection in a printable view with page breaks"
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-xs font-black uppercase tracking-wider rounded-lg shadow-sm transition-all cursor-pointer"
+              title="Open full Daily Production Reports matching Usage logs in printable view"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-xs font-black uppercase tracking-wider rounded-lg shadow-sm transition-all cursor-pointer"
             >
               <Printer className="w-4 h-4 shrink-0" />
-              <span>Print DPR (PDF)</span>
+              <span>{dateMode === "BATCH_LIST" ? "Full DPR (PDF)" : "Print DPR (PDF)"}</span>
             </button>
 
             {/* Export Excel Button */}
@@ -927,7 +949,7 @@ export function BatchTraceModal({ isOpen, onClose }: BatchTraceModalProps) {
               type="button"
               onClick={handleExportExcel}
               disabled={isExportingExcel}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-xs font-black uppercase tracking-wider rounded-lg shadow-md transition-all cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-xs font-black uppercase tracking-wider rounded-lg shadow-md transition-all cursor-pointer"
             >
               {isExportingExcel ? (
                 <>

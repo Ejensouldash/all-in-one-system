@@ -9,6 +9,8 @@ interface BatchPrintToolbarProps {
   line: string
   batchNo?: string
   totalReports: number
+  unitSingular?: string
+  unitPlural?: string
 }
 
 export function BatchPrintToolbar({
@@ -17,6 +19,8 @@ export function BatchPrintToolbar({
   line,
   batchNo,
   totalReports,
+  unitSingular = "Report",
+  unitPlural = "Reports",
 }: BatchPrintToolbarProps) {
   const handlePrint = () => {
     window.print()
@@ -38,7 +42,7 @@ export function BatchPrintToolbar({
                 {title}
               </span>
               <span className="bg-emerald-950 text-emerald-300 border border-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full">
-                {totalReports} {totalReports === 1 ? "Report" : "Reports"} Found
+                {totalReports} {totalReports === 1 ? unitSingular : unitPlural} Found
               </span>
             </div>
             <div className="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">

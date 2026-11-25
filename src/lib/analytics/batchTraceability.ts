@@ -1,5 +1,15 @@
 import { prisma } from "@/lib/prisma"
 import { getISOWeekDateRange } from "./isoWeek"
+import {
+  type BatchCategory,
+  type BatchFilterCriteria,
+  matchesInventoryUsageBatch,
+  reportMatchesBatchFilter,
+  summarizeMatchedMaterialUsage,
+} from "./batchMatching"
+
+export type { BatchCategory, BatchFilterCriteria }
+export { matchesInventoryUsageBatch, reportMatchesBatchFilter, summarizeMatchedMaterialUsage }
 
 export interface BottleBoxTraceItem {
   id: string
@@ -66,12 +76,30 @@ export interface SkuDistributionGroup {
   batches: ProductionBatchDistributionGroup[]
 }
 
-export type BatchCategory = "ALL" | "OUTPUT" | "BOTTLE" | "CAP" | "CARTON" | "LABEL"
-
-export interface BatchFilterCriteria {
-  id?: string
-  category: BatchCategory
-  batchNo: string
+export interface MaterialToFgTraceRow {
+  id: string
+  shiftKey: string
+  searchedCategory: BatchCategory
+  searchedBatch: string
+  materialSection: string
+  matchedMaterialBatches: string
+  reportId: string
+  reportDate: string
+  reportDateFormatted: string
+  shift: string
+  line: string
+  reportStatus: string
+  preparedBy: string
+  usageBeforeDisplay: string
+  usageAfterDisplay: string
+  totalUsageDisplay: string
+  totalUsageQty: number
+  usageUnit: "pcs" | "rolls"
+  fgSku: string
+  fgSkuLabel: string
+  fgBatchNo: string
+  fgBoxesProduced: number
+  distributions: DistributionLineItem[]
 }
 
 export interface MultiBatchMatrixItem {
@@ -114,6 +142,7 @@ export interface BatchTraceabilityReport {
   summaries: BottleBatchSummaryItem[]
   distributionGroups: SkuDistributionGroup[] // For Sheet 3 (Production & Distribution)
   matrixRows?: MultiBatchMatrixItem[] // For Sheet 4 (Multi-Batch Trace Matrix)
+  materialToFgRows?: MaterialToFgTraceRow[] // For Material-to-FG Trace Sheet & Summary PDF
   totals: {
     totalRecords: number
     totalBottlePcs: number
@@ -521,31 +550,16 @@ export async function getBottleToBoxTraceReport(
           return row.boxBatchNo.toLowerCase().includes(term)
         } else if (f.category === "BOTTLE") {
           return row.bottleBatchNo.toLowerCase().includes(term)
-        } else if (f.category === "CAP") {
-          return matchedReport.inventory.some(
-            i =>
-              i.sectionKey.toUpperCase().includes("CAP") &&
-              !i.sectionKey.toUpperCase().includes("CARTON") &&
-              (i.batchNo || "").toLowerCase().includes(term)
-          )
-        } else if (f.category === "CARTON") {
-          return matchedReport.inventory.some(
-            i =>
-              (i.sectionKey.toUpperCase().includes("CARTON") || i.sectionKey.toUpperCase().includes("BOX")) &&
-              (i.batchNo || "").toLowerCase().includes(term)
-          )
-        } else if (f.category === "LABEL") {
-          return matchedReport.inventory.some(
-            i =>
-              i.sectionKey.toUpperCase().includes("LABEL") &&
-              (i.batchNo || "").toLowerCase().includes(term)
+        } else if (f.category === "CAP" || f.category === "CARTON" || f.category === "LABEL") {
+          return matchedReport.inventory.some(i =>
+            matchesInventoryUsageBatch(i, f.category, term)
           )
         } else {
-          // ALL categories
+          // ALL categories (Usage-only for inventory)
           return (
             row.boxBatchNo.toLowerCase().includes(term) ||
             row.bottleBatchNo.toLowerCase().includes(term) ||
-            matchedReport.inventory.some(i => (i.batchNo || "").toLowerCase().includes(term))
+            matchedReport.inventory.some(i => matchesInventoryUsageBatch(i, "ALL", term))
           )
         }
       })
@@ -795,8 +809,9 @@ export async function getBottleToBoxTraceReport(
 
   const distributionGroups: SkuDistributionGroup[] = Array.from(skuDistributionMap.values())
 
-  // 7. Generate Sheet 4: Multi-Batch Trace Matrix
+  // 7. Generate Material-to-FG Trace Rows & Multi-Batch Trace Matrix
   const matrixRows: MultiBatchMatrixItem[] = []
+  const materialToFgRows: MaterialToFgTraceRow[] = []
   const filtersToTrace: BatchFilterCriteria[] =
     cleanBatchFilters.length > 0
       ? cleanBatchFilters
@@ -808,51 +823,14 @@ export async function getBottleToBoxTraceReport(
     for (const f of filtersToTrace) {
       const term = f.batchNo.toLowerCase()
       for (const report of reports) {
-        let isMatch = false
-        if (f.category === "OUTPUT") {
-          isMatch = report.productions.some(p =>
-            p.batches.some(b => (b.batchNo || "").toLowerCase().includes(term))
-          )
-        } else if (f.category === "BOTTLE") {
-          isMatch = report.inventory.some(
-            i =>
-              i.sectionKey.toUpperCase().includes("BOTTLE") &&
-              (i.batchNo || "").toLowerCase().includes(term)
-          )
-        } else if (f.category === "CAP") {
-          isMatch = report.inventory.some(
-            i =>
-              i.sectionKey.toUpperCase().includes("CAP") &&
-              !i.sectionKey.toUpperCase().includes("CARTON") &&
-              (i.batchNo || "").toLowerCase().includes(term)
-          )
-        } else if (f.category === "CARTON") {
-          isMatch = report.inventory.some(
-            i =>
-              (i.sectionKey.toUpperCase().includes("CARTON") ||
-                i.sectionKey.toUpperCase().includes("BOX")) &&
-              (i.batchNo || "").toLowerCase().includes(term)
-          )
-        } else if (f.category === "LABEL") {
-          isMatch = report.inventory.some(
-            i =>
-              i.sectionKey.toUpperCase().includes("LABEL") &&
-              (i.batchNo || "").toLowerCase().includes(term)
-          )
-        } else {
-          isMatch =
-            report.productions.some(p =>
-              p.batches.some(b => (b.batchNo || "").toLowerCase().includes(term))
-            ) ||
-            report.inventory.some(i => (i.batchNo || "").toLowerCase().includes(term))
-        }
-
-        if (!isMatch) continue
+        if (!reportMatchesBatchFilter(report, f)) continue
 
         const repDateStr = toDateStr(report.date)
         const repDateFormatted = formatDateDMY(repDateStr)
+        const shiftKey = `${f.category}|${f.batchNo}|${report.id}`
+        const usageSummary = summarizeMatchedMaterialUsage(report.inventory, f)
 
-        // Material batches
+        // Material batches (Usage-only, already filtered by prisma query)
         const bottleBList: string[] = []
         let bottlePcsTotal = 0
         const capBList: string[] = []
@@ -885,9 +863,48 @@ export async function getBottleToBoxTraceReport(
         for (const prod of report.productions) {
           const skuLabel = SKU_LABELS[prod.productType] || prod.productType
           for (const b of prod.batches) {
+            const fgBNo = (b.batchNo || "").trim()
+            const qty = Number(b.qty) || 0
+            if (!fgBNo && qty <= 0) continue
+
+            // When tracing a specific FG OUTPUT batch, only include matching FG batch(es)
+            if (f.category === "OUTPUT" && !fgBNo.toLowerCase().includes(term)) {
+              continue
+            }
+
             reportProdCount++
-            const fgBNo = (b.batchNo || "").trim() || "N/A"
-            const dists = fgBNo !== "N/A" ? doByBatchMap.get(fgBNo) || [] : []
+            const displayFgBNo = fgBNo || "N/A"
+            const dists = displayFgBNo !== "N/A" ? doByBatchMap.get(displayFgBNo) || [] : []
+            const finalDists =
+              dists.length > 0
+                ? dists
+                : [{ distributionDate: "-", destination: "In Warehouse / Not Distributed", quantity: null }]
+
+            materialToFgRows.push({
+              id: `${shiftKey}-${b.id}`,
+              shiftKey,
+              searchedCategory: f.category,
+              searchedBatch: f.batchNo,
+              materialSection: usageSummary.materialSection,
+              matchedMaterialBatches: usageSummary.matchedMaterialBatches,
+              reportId: report.id,
+              reportDate: repDateStr,
+              reportDateFormatted: repDateFormatted,
+              shift: report.shift || "AM",
+              line: report.line || "Line 1",
+              reportStatus: report.status || "APPROVED",
+              preparedBy: report.preparedBy || "N/A",
+              usageBeforeDisplay: usageSummary.usageBeforeDisplay,
+              usageAfterDisplay: usageSummary.usageAfterDisplay,
+              totalUsageDisplay: usageSummary.totalUsageDisplay,
+              totalUsageQty: usageSummary.totalUsageQty,
+              usageUnit: usageSummary.usageUnit,
+              fgSku: prod.productType,
+              fgSkuLabel: skuLabel,
+              fgBatchNo: displayFgBNo,
+              fgBoxesProduced: qty,
+              distributions: finalDists,
+            })
 
             matrixRows.push({
               id: `${f.category}-${f.batchNo}-${report.id}-${b.id}`,
@@ -902,22 +919,45 @@ export async function getBottleToBoxTraceReport(
               preparedBy: report.preparedBy || "N/A",
               fgSku: prod.productType,
               fgSkuLabel: skuLabel,
-              fgBatchNo: fgBNo,
-              fgBoxesProduced: Number(b.qty) || 0,
+              fgBatchNo: displayFgBNo,
+              fgBoxesProduced: qty,
               bottleBatch: bottleBatchStr,
               bottlePcs: bottlePcsTotal,
               capBatch: capBatchStr,
               labelBatch: labelBatchStr,
               cartonBatch: cartonBatchStr,
-              distributions:
-                dists.length > 0
-                  ? dists
-                  : [{ distributionDate: "-", destination: "In Warehouse / Not Distributed", quantity: null }],
+              distributions: finalDists,
             })
           }
         }
 
         if (reportProdCount === 0) {
+          materialToFgRows.push({
+            id: `${shiftKey}-no-prod`,
+            shiftKey,
+            searchedCategory: f.category,
+            searchedBatch: f.batchNo,
+            materialSection: usageSummary.materialSection,
+            matchedMaterialBatches: usageSummary.matchedMaterialBatches,
+            reportId: report.id,
+            reportDate: repDateStr,
+            reportDateFormatted: repDateFormatted,
+            shift: report.shift || "AM",
+            line: report.line || "Line 1",
+            reportStatus: report.status || "APPROVED",
+            preparedBy: report.preparedBy || "N/A",
+            usageBeforeDisplay: usageSummary.usageBeforeDisplay,
+            usageAfterDisplay: usageSummary.usageAfterDisplay,
+            totalUsageDisplay: usageSummary.totalUsageDisplay,
+            totalUsageQty: usageSummary.totalUsageQty,
+            usageUnit: usageSummary.usageUnit,
+            fgSku: "N/A",
+            fgSkuLabel: "N/A",
+            fgBatchNo: "N/A",
+            fgBoxesProduced: 0,
+            distributions: [{ distributionDate: "-", destination: "-", quantity: null }],
+          })
+
           matrixRows.push({
             id: `${f.category}-${f.batchNo}-${report.id}-no-prod`,
             searchedCategory: f.category,
@@ -977,6 +1017,7 @@ export async function getBottleToBoxTraceReport(
     summaries,
     distributionGroups,
     matrixRows: matrixRows.length > 0 ? matrixRows : undefined,
+    materialToFgRows: materialToFgRows.length > 0 ? materialToFgRows : undefined,
     totals: {
       totalRecords: detailedRows.length,
       totalBottlePcs,

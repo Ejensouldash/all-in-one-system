@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { getBottleToBoxTraceReport } from "@/lib/analytics/batchTraceability"
-import { buildBottleBoxTraceWorkbook } from "@/lib/excel/BottleBoxTraceWorkbook"
+import { buildBottleBoxTraceWorkbookWithMeta } from "@/lib/excel/BottleBoxTraceWorkbook"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -69,14 +69,18 @@ export async function POST(request: Request) {
       batchNo,
       batchFilters,
     })
-    const buffer = await buildBottleBoxTraceWorkbook(report, preparedBy, generatedAt)
+    const { buffer, sheetCount } = await buildBottleBoxTraceWorkbookWithMeta(
+      report,
+      preparedBy,
+      generatedAt
+    )
 
     const lineSlug = line !== "ALL" ? `_${line.replace(/\s+/g, "_")}` : ""
     const batchSlug = batchNo ? `_Batch_${batchNo.replace(/[^a-zA-Z0-9_-]/g, "")}` : ""
 
     const fileName =
       dateMode === "BATCH_LIST"
-        ? `BubblesO2_Multi_Batch_Traceability_${batchFilters.length || 1}_items${lineSlug}.xlsx`
+        ? `BubblesO2_Material_FG_Trace_${batchFilters.length || 1}_items${lineSlug}.xlsx`
         : dateMode === "CUSTOM"
         ? `BubblesO2_Batch_Traceability_${from}_to_${to}${lineSlug}${batchSlug}.xlsx`
         : `BubblesO2_Batch_Traceability_${year}_W${String(week).padStart(2, "0")}${lineSlug}${batchSlug}.xlsx`
@@ -86,6 +90,7 @@ export async function POST(request: Request) {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "Content-Disposition": `attachment; filename="${fileName}"`,
         "Content-Length": String(buffer.length),
+        "X-Sheet-Count": String(sheetCount),
         "Cache-Control": "no-store",
       },
     })

@@ -1,39 +1,10 @@
 import React from "react"
-
-const CAP_PCS_PER_BOX = 4000
-const CAP_BOX_WEIGHT_KG = 0.88
-const CAP_KG_PER_PC = 0.002125
-
-const capPcsFromInput = (weight: number, boxes: number) => {
-  if (weight > 0 && boxes > 0) {
-    const net = weight - boxes * CAP_BOX_WEIGHT_KG
-    return net > 0 ? Math.round(net / CAP_KG_PER_PC) : 0
-  }
-  if (weight > 0) return Math.round(weight / CAP_KG_PER_PC)
-  if (boxes > 0) return boxes * CAP_PCS_PER_BOX
-  return 0
-}
-
-const isJsonLabelType = (labelType?: string | null) => !!labelType && labelType.trim().startsWith("{")
-
-const parseCapMeta = (labelType?: string | null) => {
-  if (!isJsonLabelType(labelType)) return null
-  try {
-    const p = JSON.parse(labelType!)
-    return { weight: Number(p.weight) || 0, boxes: Number(p.boxes ?? p.originalBags) || 0 }
-  } catch {
-    return null
-  }
-}
-
-const effectiveUsageBags = (u: any, sectionKey: string) => {
-  const bags = Number(u.bags) || 0
-  if (sectionKey !== "CAP" || bags > 0) return bags
-  const meta = parseCapMeta(u.labelType)
-  if (!meta) return bags
-  const pcs = capPcsFromInput(meta.weight, meta.boxes)
-  return pcs > 0 ? pcs / (Number(u.mult) || CAP_PCS_PER_BOX) : 0
-}
+import {
+  capPcsFromInput,
+  isJsonLabelType,
+  parseCapMeta,
+  effectiveUsageBags,
+} from "@/lib/production/capMetrics"
 
 const fmtBags = (n: number) => Math.round(n * 100) / 100
 

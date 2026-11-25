@@ -7,21 +7,7 @@ import { logUserAction } from "./audit"
 import { getAccessInfo, hasAnyModule } from "@/lib/access"
 import { dailyReportSectionForCategory } from "@/lib/warehouse/withdrawalService"
 import { isOtherLineBottle, isOtherLineLabel } from "@/lib/production/lineScope"
-
-// CAP conversion constants (must stay in sync with DailyReportForm)
-const CAP_PCS_PER_BOX = 4000
-const CAP_BOX_WEIGHT_KG = 0.88
-const CAP_KG_PER_PC = 0.002125
-
-function capPcsFromInput(weight: number, boxes: number) {
-  if (weight > 0 && boxes > 0) {
-    const net = weight - (boxes * CAP_BOX_WEIGHT_KG)
-    return net > 0 ? Math.round(net / CAP_KG_PER_PC) : 0
-  }
-  if (weight > 0) return Math.round(weight / CAP_KG_PER_PC)
-  if (boxes > 0) return boxes * CAP_PCS_PER_BOX
-  return 0
-}
+import { CAP_PCS_PER_BOX, capPcsFromInput } from "@/lib/production/capMetrics"
 
 // A row that belongs to the OTHER production line must never be persisted against this report.
 // The same test already guards syncedDOs below; sources and usages had no guard at all, which is
